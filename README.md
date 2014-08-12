@@ -11,7 +11,7 @@ The rtcomm.js library is a JavaScript Universal Module Description(UMD) formatte
 
 ##Download
 
- Download the latest 'rtcomm.zip' from this link:[link]  This file contains the library, sample and documentation.
+ Download the latest 'rtcomm.zip' from this [link](https://github.com/WASdev/lib.rtcomm.clientjs/releases/download/v1.0.0-beta.1/rtcomm.zip)  This file contains the library, sample and documentation.
  
 ##Quickstart
 
