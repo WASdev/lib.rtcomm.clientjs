@@ -27,11 +27,14 @@
    As of 4/24/2014, these are produced as 3 separate 'UMD Module' files for Unit & FAT testing. The final packaging
    is in the rtcomm.js which includes everything.
    -->
+   <import file="build_resources/imports/jsdoc3.xml"/>
+
    <taskdef resource="net/sf/antcontrib/antcontrib.properties">
     <classpath>
       <pathelement location="~/was.build/ant-contrib/ant-contrib-1.03b.jar"/>
     </classpath>
   </taskdef>
+
 	 <!-- JavaScript Module custom properties -->
 	
 	 <!-- Our master module name --> 
@@ -57,7 +60,7 @@
 	
 	<!-- Override for jsdoc to work -->
 	<property name="jsdoc.src.dir" value="${build.dir}/js/ibm" />
-	<property name="jsdoc.readme.md" value="${basedir}/doc/README.md" />
+	<property name="jsdoc.readme.md" value="${basedir}/README.md" />
 	
     <!-- If there is a directory under the main source dir then it is a subModule 
 	    we will cat all the files in the directory into a FILE named after the directory 
@@ -247,8 +250,8 @@
 		<!-- Copy the lib dir to build -->
 		<delete dir="${build.dir}/js/lib"/>
 		    <mkdir dir="${build.dir}/js/lib" />
-		    <copy todir="${build.dir}/js/lib" >
-		       <fileset dir="${js.source.dir}/lib" />
+        <copy todir="${build.dir}/js/lib" >
+          <fileset dir="${basedir}/lib" />
 		    </copy>
 		        <!-- Copy the sample dir -->
 		          <delete dir="${build.dir}/sample"/>
@@ -258,7 +261,7 @@
 		             	  <exclude name="__*.*" />
 		             </fileset>
 		          </copy>
-		          <copy file="${basedir}/doc/README.md" todir="${build.dir}" overwrite="true" verbose="true"/> 
+		          <copy file="${basedir}/README.md" todir="${build.dir}" overwrite="true" verbose="true"/> 
 		          <copy file="${basedir}/doc/index.html" todir="${build.dir}" overwrite="true" verbose="true"/> 
 	</target>
 	
@@ -276,6 +279,14 @@
 			 <exclude name="lib/*.zip" />
 			</fileset>
 			</zip>
+      <!-- create a 'dist' directory -->
+    <mkdir dir="${basedir}/dist" />
+    <!-- Copy built library to it -->
+    <copy file="${build.dir}/lib/rtcomm.zip" todir="${basedir}/dist" overwrite="true" verbose="true"/> 
+    <!-- Copy docs to it -->
+    <copy todir="${basedir}/dist" >
+       <fileset dir="${build.dir}/docs/" />
+    </copy>
 
 	</target>
 	
@@ -299,7 +310,7 @@
 	  <!-- override package -->
 	  <target name="package" depends="package-js" />
 
-    <target name="build" depends="compile-js" />
+    <target name="build" depends="compile-js, rtcommJsdoc, package" />
     <target name="clean" depends="clean-js" />
 	
 </project>
