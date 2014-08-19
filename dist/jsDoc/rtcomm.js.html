@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>JSDoc: Source: rtcomm.js</title>
-    
+
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
     <!--[if lt IE 9]>
@@ -16,16 +16,16 @@
 <body>
 
 <div id="main">
-    
+
     <h1 class="page-title">Source: rtcomm.js</h1>
-    
+
     
 
 
     
     <section>
         <article>
-            <pre class="prettyprint source"><code>/**
+            <pre class="prettyprint source linenums"><code>/**
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,7 +43,7 @@
 'use strict';
 (function (root, factory) {
     "use strict";
-    if (typeof define === 'function' && define.amd) {
+    if (typeof define === 'function' &amp;&amp; define.amd) {
         // AMD. Register as an anonymous module.
         define([], factory);
     } else if (typeof exports === 'object') {
@@ -95,9 +95,9 @@ var Log = function Log() {
     var logLevel = 'INFO';
     this.l = function l(value, obj) {
       
-      var ll = (obj && obj.getLogLevel ) ? obj.getLogLevel() : logLevel;
+      var ll = (obj &amp;&amp; obj.getLogLevel ) ? obj.getLogLevel() : logLevel;
         /*jslint bitwise: true */
-            return (LOG_LEVEL[ll] & LOG_LEVEL[value]) === LOG_LEVEL[value];
+            return (LOG_LEVEL[ll] &amp; LOG_LEVEL[value]) === LOG_LEVEL[value];
     };
     this.log = function log(msg)  {
       console.log(msg);
@@ -135,7 +135,7 @@ validateConfig = function validateConfig(/* object */ config, /* object */ refer
   for (var key in reference) {
     if (config.hasOwnProperty(key)) {
       if (reference[key] !== typeof config[key]) {
-        l('INFO') && console.log("Typeof " +key+ " is incorrect. "+ typeof config[key]+"  Should be a " + reference[key]);
+        l('INFO') &amp;&amp; console.log("Typeof " +key+ " is incorrect. "+ typeof config[key]+"  Should be a " + reference[key]);
         throw new Error("Typeof " +key+ " is incorrect. "+ typeof config[key]+"  Should be a " + reference[key]);
       }
     } else {
@@ -167,7 +167,7 @@ applyConfig = function applyConfig(config, obj, lenient ) {
     }
   }
   for (var key in config) {
-    if(config.hasOwnProperty(key) && ((configurable.indexOf(key) !== -1)|| lenient)) {
+    if(config.hasOwnProperty(key) &amp;&amp; ((configurable.indexOf(key) !== -1)|| lenient)) {
       // config key can be set, set it...
       obj[key] = config[key];
     } else{
@@ -200,7 +200,7 @@ setConfig = function(config,requiredConfig, possibleConfig) {
     // Apply 'config' to configObj and return it.
     key = null;
     for (key in config) {
-      if(config.hasOwnProperty(key) && configObj.hasOwnProperty(key)) {
+      if(config.hasOwnProperty(key) &amp;&amp; configObj.hasOwnProperty(key)) {
         // config key can be set, set it...
         configObj[key] = config[key];
       } else{
@@ -255,7 +255,7 @@ Event = function() {
       event.name = 'message';
       event.message = arg;
     } else if (typeof arg === 'object') {
-      if (arg.name && arg.message) {
+      if (arg.name &amp;&amp; arg.message) {
         event = arg;
 
       } else {
@@ -279,20 +279,20 @@ Event = function() {
 },
 
 whenTrue = function(func1, callback, timeout) {
-  l('DEBUG') && console.log('whenTrue!', func1, callback, timeout);
+  l('DEBUG') &amp;&amp; console.log('whenTrue!', func1, callback, timeout);
   var max = timeout || 500;
   var waittime = 0;
   var min=50;
   
   function test() {
-    l('DEBUG') && console.log('whenTrue -- waiting: '+waittime);
+    l('DEBUG') &amp;&amp; console.log('whenTrue -- waiting: '+waittime);
     if (waittime > max) {
       callback(false);
       return false;
     }
     var a = func1();
     if (a) {
-      l('DEBUG') && console.log('whenTrue TRUE', a);
+      l('DEBUG') &amp;&amp; console.log('whenTrue TRUE', a);
       callback(a);
       return true;
     } else {
@@ -310,7 +310,7 @@ var generateUUID = function() {
     var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = (d + Math.random()*16)%16 | 0;
         d = Math.floor(d/16);
-        return (c==='x' ? r : (r&0x7|0x8)).toString(16);
+        return (c==='x' ? r : (r&amp;0x7|0x8)).toString(16);
     });
     return uuid;
 };
@@ -385,9 +385,9 @@ var RtcommBaseObject = {
     on : function(event,callback) {
       //console.log('on -- this.events is: '+ JSON.stringify(this.events));
       // This function requires an events object on whatever object is attached to. and event needs to be defined there.
-      if (this.events && this.events[event] && Array.isArray(this.events[event])) {
-        l('EVENT', this) && console.log(this+' Adding a listener callback for event['+event+']');
-        l('TRACE', this) && console.log(this+' Callback for event['+event+'] is', callback);
+      if (this.events &amp;&amp; this.events[event] &amp;&amp; Array.isArray(this.events[event])) {
+        l('EVENT', this) &amp;&amp; console.log(this+' Adding a listener callback for event['+event+']');
+        l('TRACE', this) &amp;&amp; console.log(this+' Callback for event['+event+'] is', callback);
         this.events[event].push(callback);
       } else {
         throw new Error("on() requires an events property listing the events. this.events["+event+"] = [];");
@@ -395,14 +395,14 @@ var RtcommBaseObject = {
     },  
     /** emit an event from the object */
     emit : function(event, object) {
-      if (this.events && this.events[event]) {
-        l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", object);
+      if (this.events &amp;&amp; this.events[event]) {
+        l('EVENT', this) &amp;&amp; console.log(this+".emit()  for event["+event+"]", object);
         // Event exists, call all callbacks
         this.events[event].forEach(function(callback) {
           if (typeof callback === 'function') {
             callback(object);
           } else {
-            l('EVENT', this) && console.log(this+' Emitting, but no callback for event['+event+']');
+            l('EVENT', this) &amp;&amp; console.log(this+' Emitting, but no callback for event['+event+']');
           }   
         }); 
       } else {
@@ -676,13 +676,13 @@ var MessageFactory = (function (){
   }
   
   function cast(obj) {
-    l('TRACE') && console.log('MessageFactory.cast() Attempting to cast message: ', obj);
+    l('TRACE') &amp;&amp; console.log('MessageFactory.cast() Attempting to cast message: ', obj);
   
     if ( typeof obj === 'string') {
-      l('TRACE') && console.log('MessageFactory.cast() It is a string... ', obj);
+      l('TRACE') &amp;&amp; console.log('MessageFactory.cast() It is a string... ', obj);
       /* if its a 'STRING' then convert to a object */
       obj = JSON.parse(obj);
-      l('TRACE') && console.log('MessageFactory.cast() After JSON.parse... ', obj);
+      l('TRACE') &amp;&amp; console.log('MessageFactory.cast() After JSON.parse... ', obj);
     }
     var template = null;
     if (obj.method) {
@@ -697,10 +697,10 @@ var MessageFactory = (function (){
         //    console.log("key:" + prop + " = " + obj[prop]);
         castedMessage[prop] = obj[prop];
       } else {
-        l('DEBUG') && console.log('MessageFactory.cast() dropped header: '+prop);
+        l('DEBUG') &amp;&amp; console.log('MessageFactory.cast() dropped header: '+prop);
       }
     }  
-    l('TRACE') && console.log('MessageFactory.cast() returning casted message:', castedMessage);
+    l('TRACE') &amp;&amp; console.log('MessageFactory.cast() returning casted message:', castedMessage);
     return castedMessage;
   }
 
@@ -727,7 +727,7 @@ var MessageFactory = (function (){
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/ 
-// rtcservice & util should be defined here:
+// rtcservice &amp; util should be defined here:
 /*global util:false*/
 var logging = new util.Log(),
     setLogLevel = logging.s,
@@ -774,10 +774,10 @@ var logging = new util.Log(),
             logMessage = "&lt;none>" + "." + method + ' ' + message;
           }
           // Ignore Colors...
-          if (object && object.color) {object.color = null;}
+          if (object &amp;&amp; object.color) {object.color = null;}
           
           var css = "";
-          if (object && object.color) {
+          if (object &amp;&amp; object.color) {
             logMessage = '%c ' + logMessage;
             css = 'color: ' + object.color;
             if (remainder) {
@@ -851,7 +851,7 @@ var NodeConnection = function(config) {
 
     var add = function(item) {
 
-      l('TRACE') && console.log('Registry.add() Adding item to registry: ', item);
+      l('TRACE') &amp;&amp; console.log('Registry.add() Adding item to registry: ', item);
       item.on('finished', function() {
         this.remove(item);
       }.bind(this));
@@ -864,10 +864,10 @@ var NodeConnection = function(config) {
             // didn't execute yet
             var errorMsg = 'Registry timed out ['+item.id+']';
             if (typeof registry[item.id].onFailure === 'function' ) {
-              l('DEBUG') && console.log(errorMsg);
+              l('DEBUG') &amp;&amp; console.log(errorMsg);
               registry[item.id].onFailure({'failureReason': errorMsg});
             } else {
-              l('DEBUG') && console.log(errorMsg);
+              l('DEBUG') &amp;&amp; console.log(errorMsg);
             }
             delete registry[item.id];
           }
@@ -880,7 +880,7 @@ var NodeConnection = function(config) {
       add: add,
       remove: function(item) {
         if (item.id in registry) {
-          l('DEBUG') && console.log('Removing item from registry: ', item);
+          l('DEBUG') &amp;&amp; console.log('Removing item from registry: ', item);
           delete registry[item.id];
         } 
       },
@@ -907,15 +907,15 @@ var NodeConnection = function(config) {
     var content = message.content;
     var fromEndpointID = message.fromEndpointID;
     var rtcommMessage = MessageFactory.cast(content);
-    l('DEBUG') && console.log(this+'.processMessage() processing Message', rtcommMessage);
+    l('DEBUG') &amp;&amp; console.log(this+'.processMessage() processing Message', rtcommMessage);
     if (rtcommMessage.transID) {
       // this is in context of a transaction.
       if (rtcommMessage.method === 'RESPONSE') {
         // close an existing transaction we started.
-        l('TRACE') && console.log(this+'.processMessage() this is a RESPONSE', rtcommMessage);
+        l('TRACE') &amp;&amp; console.log(this+'.processMessage() this is a RESPONSE', rtcommMessage);
         var transaction = this.transactions.find(rtcommMessage.transID);
         if (transaction) {
-          l('TRACE') && console.log(this+'.processMessage() existing transaction: ', transaction);
+          l('TRACE') &amp;&amp; console.log(this+'.processMessage() existing transaction: ', transaction);
           transaction.finish(rtcommMessage);
         } else { 
           console.error('Transaction ID: ['+rtcommMessage.transID+'] not found, nothing to do with RESPONSE:',rtcommMessage);
@@ -951,7 +951,7 @@ var NodeConnection = function(config) {
   this._init = false;
   this.id = config.userid;
 
-//Registry Store for Session & Transactions
+//Registry Store for Session &amp; Transactions
   this.sessions = new Registry();
   this.transactions = new Registry(true);
 
@@ -994,7 +994,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           if (message.hasOwnProperty('fromTopic')) {
             message.fromTopic = this.config.myTopic;
           }
-          l('DEBUG')&&console.log(this+'.createMessage() returned', message);
+          l('DEBUG')&amp;&amp;console.log(this+'.createMessage() returned', message);
           return message;
         },
         /**
@@ -1017,7 +1017,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           // options = {message: message, timeout:timeout}
           var t = new Transaction(options, onSuccess,onFailure);
           t.nodeconnector = this;
-          l('DEBUG') && console.log(this+'.createTransaction() Transaction created: ', t);
+          l('DEBUG') &amp;&amp; console.log(this+'.createTransaction() Transaction created: ', t);
           this.transactions.add(t);
           return t;
         },
@@ -1030,7 +1030,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           }
           // start a transaction of type START_SESSION
           // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
-          // if message & fromEndpointID -- we are inbound..
+          // if message &amp; fromEndpointID -- we are inbound..
           var session = new SigSession(config);
           session.nodeconnector = this;
           // apply NodeConnection
@@ -1047,18 +1047,18 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
         _query : function(message, contentfield, cbSuccess, cbFailure) {
           var successContent = contentfield || 'peerContent';
           var onSuccess = function(query_response) {
-            if (cbSuccess && typeof cbSuccess === 'function') {
+            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
               if (query_response) {
                 var successMessage = query_response[successContent] || null;
                 cbSuccess(successMessage);
               } 
             } else {
-              l('DEBUG') && console.log('query returned: ', query_response);
+              l('DEBUG') &amp;&amp; console.log('query returned: ', query_response);
             }
           };
           var onFailure = function(query_response) {
-            if (cbFailure && typeof cbFailure === 'function') {
-              if (query_response && query_response.failureReason) {
+            if (cbFailure &amp;&amp; typeof cbFailure === 'function') {
+              if (query_response &amp;&amp; query_response.failureReason) {
                 cbFailure(query_response.failureReason);
               }
             } else {
@@ -1087,8 +1087,8 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           }
           var onSuccess = function(service) {
             this.ready = true;
-            l('DEBUG') && console.log('NodeConnection.connect() Success, calling callback - service:', service);
-            if (cbSuccess && typeof cbSuccess === 'function') {
+            l('DEBUG') &amp;&amp; console.log('NodeConnection.connect() Success, calling callback - service:', service);
+            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
               cbSuccess(service);
             } else {
               console.log('No callback, but connect was successful');
@@ -1096,7 +1096,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           };
           var onFailure = function() {
             this.ready = false;
-            if (cbFailure && typeof cbFailure === 'function') {
+            if (cbFailure &amp;&amp; typeof cbFailure === 'function') {
               cbFailure;
               console.log('No callback, connect failed');
             }
@@ -1105,13 +1105,13 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           this.rtcService.connect(onSuccess.bind(this),onFailure.bind(this));
         },
         disconnect : function() {
-          l('DEBUG') && console.log('NodeConnection.disconnect() called: ', this.rtcService);
+          l('DEBUG') &amp;&amp; console.log('NodeConnection.disconnect() called: ', this.rtcService);
           if (this.registered) {
             this.unregister();
             this.registered = false;
           }
           this.rtcService.destroy();
-          l('DEBUG') && console.log('destroyed rtcService');
+          l('DEBUG') &amp;&amp; console.log('destroyed rtcService');
           this.rtcService = null;
           this.ready = false;
         },
@@ -1132,32 +1132,32 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
            * TODO:  Change this when we start using LWT  
            * 
            */
-          l('DEBUG') && console.log('Register Called! with this: ', this);
-          l('DEBUG') && console.log('Register Called! args ', arguments);
+          l('DEBUG') &amp;&amp; console.log('Register Called! with this: ', this);
+          l('DEBUG') &amp;&amp; console.log('Register Called! args ', arguments);
           var minimumReregister = 30;  // 30 seconds;
           var onSuccess = function(register_message) {
 
-            l('DEBUG') && console.log(this+'register() REGISTER RESPONSE: ', register_message);
-            if (register_message.orig === 'REGISTER' && register_message.expires) {
+            l('DEBUG') &amp;&amp; console.log(this+'register() REGISTER RESPONSE: ', register_message);
+            if (register_message.orig === 'REGISTER' &amp;&amp; register_message.expires) {
               var expires = register_message.expires;
-              l('DEBUG') && console.log(this+'.register() Message Expires in: '+ expires);
+              l('DEBUG') &amp;&amp; console.log(this+'.register() Message Expires in: '+ expires);
               /* We will reregister every expires/2 unless that is less than minimumReregister */
               var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
               // we have a expire in seconds, register a timer...
-              l('DEBUG') && console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
+              l('DEBUG') &amp;&amp; console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
               registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
             }
             this.registered = true;
             // Call our passed in w/ no info... 
-            if (cbSuccess && typeof cbSuccess === 'function') {
+            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
               cbSuccess();
             } else {
-              l('DEBUG') && console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", message);
+              l('DEBUG') &amp;&amp; console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", message);
             }
           };
           // {'failureReason': 'some reason' }
           var onFailure = function(errorObject) {
-            if (cbFailure && typeof cbFailure === 'function') {
+            if (cbFailure &amp;&amp; typeof cbFailure === 'function') {
               cbFailure(errorObject.failureReason);
             } else {
               console.error('Registration failed : '+errorObject.failureReason);
@@ -1171,7 +1171,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
             var t = this.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
             t.start();
           } else {
-            if (cbSuccess && typeof cbSuccess === 'function') {
+            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
               cbFailure('Not Ready, unable to register.');
             } else {
               console.error('Not Ready, unable to register.');
@@ -1193,7 +1193,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
             this.send({'message':message});
             this.registered = false;
           } else {
-            l('DEBUG') && console.log(this+' No registration found, cannot unregister');
+            l('DEBUG') &amp;&amp; console.log(this+' No registration found, cannot unregister');
           }
         },
         /** 
@@ -1316,7 +1316,7 @@ var RtcommService = function RtcommService(config) {
     /* global Paho.MQTT: false */
     var mqtt = null;
     if (typeof Paho.MQTT === 'object') {
-      l('DEBUG') && console.log('RtcService createMqttClient using config: ', config);
+      l('DEBUG') &amp;&amp; console.log('RtcService createMqttClient using config: ', config);
       mqtt = new Paho.MQTT.Client(config.server,config.port,config.clientID);
       /* if a connection is lost, this callback is called, reconnect */
       mqtt.onConnectionLost = function(error) {
@@ -1362,7 +1362,7 @@ var RtcommService = function RtcommService(config) {
   var mqttClient = this.dependencies.mqttClient = createMqttClient(this.config);
 
   mqttClient.onMessageArrived = function (message) {
-    l('TRACE') && console.log('MQTT Raw message, ', message);
+    l('TRACE') &amp;&amp; console.log('MQTT Raw message, ', message);
     var m = /\S+\/(.+)/g.exec(message.destinationName);
     /* rtcommMessage we emit */
     var rtcommMessage = {
@@ -1370,7 +1370,7 @@ var RtcommService = function RtcommService(config) {
             content: message.payloadString
     };  
     try {
-      l('MESSAGE') && console.log(this+' Received message: '+JSON.stringify(rtcommMessage));
+      l('MESSAGE') &amp;&amp; console.log(this+' Received message: '+JSON.stringify(rtcommMessage));
       this.emit('message',rtcommMessage);
     } catch(e) {
       console.error('onMessageArrived callback chain failure:',e);
@@ -1399,21 +1399,21 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
         var mqttConnectOptions = {};
 
         var onSuccess = cbOnsuccess || function() {
-          l('DEBUG')&& console.log(this+'.connect() was successful, override for more information');
+          l('DEBUG')&amp;&amp; console.log(this+'.connect() was successful, override for more information');
         }.bind(this);
 
         var onFailure = cbOnfailure || function(error) {
-          l('DEBUG')&& console.log(this+'.connect() failed, override for more information', error);
+          l('DEBUG')&amp;&amp; console.log(this+'.connect() failed, override for more information', error);
         }.bind(this);
 
         /*
          * onSuccess Callback for mqttClient.connect
          */
         mqttConnectOptions.onSuccess = function() {
-          l('DEBUG') && console.log(this + 'mqtt.onSuccess called', mqttClient);
+          l('DEBUG') &amp;&amp; console.log(this + 'mqtt.onSuccess called', mqttClient);
           // Subscribe to all things on our topic.
           // This is may be where we need the WILL stuff
-          l('DEBUG') && console.log(this + 'subscribing to: '+ this.config.myTopic+"/#");
+          l('DEBUG') &amp;&amp; console.log(this + 'subscribing to: '+ this.config.myTopic+"/#");
           try {
             mqttClient.subscribe(this.config.myTopic+"/#");
           } catch(e) {
@@ -1422,7 +1422,7 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
             return;
           }
           this.ready = true;
-          if (onSuccess && typeof onSuccess === 'function') {
+          if (onSuccess &amp;&amp; typeof onSuccess === 'function') {
             try {
               onSuccess(this);
             } catch(e) {
@@ -1434,7 +1434,7 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
         }.bind(this);
 
         mqttConnectOptions.onFailure = function(response) {
-          l('DEBUG') && console.log(this+'.onFailure: RtcService.connect.onFailure - Connection Failed... ', response);
+          l('DEBUG') &amp;&amp; console.log(this+'.onFailure: RtcService.connect.onFailure - Connection Failed... ', response);
           if (typeof onFailure === 'function') {
             // When shutting down, this might get called, catch any failures. if we were ready
             // this is unexpected.
@@ -1467,16 +1467,16 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
         toTopic  = config.toTopic || this.config.destinationTopic,
         // onSuccess Callback
         onSuccess = config.onSuccess || function() {
-          l('DEBUG')&& console.log(this+'.send was successful, override for more information');
+          l('DEBUG')&amp;&amp; console.log(this+'.send was successful, override for more information');
         }.bind(this),
         // onFailure callback.
         onFailure = config.onFailure|| function(error) {
-          l('DEBUG')&& console.log(this+'.send failed, override for more information', error);
+          l('DEBUG')&amp;&amp; console.log(this+'.send failed, override for more information', error);
         }.bind(this),
         messageToSend = "",
         mqttClient = this.dependencies.mqttClient;
 
-        if (message && typeof message === 'object') {
+        if (message &amp;&amp; typeof message === 'object') {
           // Convert message for mqtt send
           messageToSend = new Paho.MQTT.Message(JSON.stringify(message.toJSON()));
         } else if (typeof message === 'string' ) {
@@ -1496,7 +1496,7 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
 
         // our topic should contain the topicPath -- we MUST stay in the topic Path... and we MUST append our ID after it, so...
         if (toTopic) {
-          l('TRACE') && console.log(this+'.send toTopic is: '+toTopic);
+          l('TRACE') &amp;&amp; console.log(this+'.send toTopic is: '+toTopic);
           var begin = this.config.connectorTopicPath;
           var end = this.config.userid;
           var p = new RegExp("^" + begin,"g");
@@ -1505,7 +1505,7 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
           toTopic = p2.test(toTopic) ? toTopic: toTopic + "/" + this.config.userid;
         } 
 
-        l('TRACE') && console.log(this+'.send using toTopic: '+toTopic);
+        l('TRACE') &amp;&amp; console.log(this+'.send using toTopic: '+toTopic);
         if (messageToSend) {
           // Append the 'userid'  We send to /service/userid
           messageToSend.destinationName = toTopic;
@@ -1515,7 +1515,7 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
               }.bind(this),
               /* whenTrue */ function(success) {
                 if (success) {
-                  l('MESSAGE') && console.log(this+'.send() Sent message['+toTopic+']:',message);
+                  l('MESSAGE') &amp;&amp; console.log(this+'.send() Sent message['+toTopic+']:',message);
                   mqttClient.send(messageToSend);
                   if (typeof onSuccess === 'function' ) {
                     try {
@@ -1529,7 +1529,7 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
                 }
               }.bind(this), 1000);
         } else {
-          l('DEBUG') && console.log(this+".send(): Nothing to send");
+          l('DEBUG') &amp;&amp; console.log(this+".send(): Nothing to send");
         }
       },
       /* cleanup */
@@ -1538,7 +1538,7 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
         //Testin, disconnect can hang for some reason. Commenting out.
         this.dependencies.mqttClient = null;
         // this.dependencies.mqttClient.disconnect();
-        l('DEBUG') && console.log(this+'.destroy() called and finished');
+        l('DEBUG') &amp;&amp; console.log(this+'.destroy() called and finished');
       }
     }); // end of Return
 
@@ -1593,7 +1593,7 @@ var SigSession = function SigSession(config) {
   this.referralDetails = null;
 
   if (config) {
-    if (config.message && config.message.sigSessID) {
+    if (config.message &amp;&amp; config.message.sigSessID) {
 
       // We are INBOUND. 
       this.message = config.message;
@@ -1601,7 +1601,7 @@ var SigSession = function SigSession(config) {
       this.toEndpointID = config.fromEndpointID || null;
       this.toTopic = config.toTopic || config.message.fromTopic || null;
 
-      if (config.message.peerContent && config.message.peerContent.type === 'refer') {
+      if (config.message.peerContent &amp;&amp; config.message.peerContent.type === 'refer') {
         this.type = 'refer';
         this.referralDetails = config.message.peerContent.details;
       }
@@ -1661,7 +1661,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
           return;
         } else {
           processingQueue = true;
-          l('DEBUG') && console.log(this+'.processQueue processing queue... ', q);
+          l('DEBUG') &amp;&amp; console.log(this+'.processQueue processing queue... ', q);
           q.forEach(function(message){
             this.send(message);
           }.bind(this));
@@ -1678,7 +1678,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      */
     start : function(config) {
       this._setupQueue();
-      l('DEBUG') && console.log('SigSession.start() using config: ', config);
+      l('DEBUG') &amp;&amp; console.log('SigSession.start() using config: ', config);
       var toEndpointID = this.toEndpointID;
       var sdp = null;
       if (config) {
@@ -1704,7 +1704,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       var session_started = function(message) {
         // our session was successfully started, if Outbound session, it means we 
         // recieved a Response, if it has an Answer, we need to pass it up.
-        l('DEBUG') && console.log(this+'.sessionStarted!  ', message);
+        l('DEBUG') &amp;&amp; console.log(this+'.sessionStarted!  ', message);
         this.state = 'started';
         this._startTransaction = null;
         //  this.processMessage(message);
@@ -1745,7 +1745,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
        * if just a message passed then default to true
        * 
        */
-      if (SUCCESS && typeof SUCCESS !== 'boolean') {
+      if (SUCCESS &amp;&amp; typeof SUCCESS !== 'boolean') {
         message = SUCCESS;
         SUCCESS = true;
       }
@@ -1753,8 +1753,8 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       // If it isn't set at all, make sure it is true;
       SUCCESS = SUCCESS || true;
 
-      l('DEBUG') && console.log(this+'.respond() Respond called with message', message);
-      l('DEBUG') && console.log(this+'.respond() Respond called using this', this);
+      l('DEBUG') &amp;&amp; console.log(this+'.respond() Respond called with message', message);
+      l('DEBUG') &amp;&amp; console.log(this+'.respond() Respond called using this', this);
       var messageToSend = null;
       if (this._startTransaction) {
         messageToSend = this.nodeconnector.createResponse('START_SESSION');
@@ -1789,7 +1789,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
 
     stop : function() {
       var message = this.createMessage('STOP_SESSION');
-      l('DEBUG') && console.log(this+'.stop() stopping...', message);
+      l('DEBUG') &amp;&amp; console.log(this+'.stop() stopping...', message);
       this.nodeconnector.send({message:message});
       // Let's concerned persons know we are stopped
       this.state = 'stopped';
@@ -1805,7 +1805,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      */
     send :  function(message) {
       var messageToSend = null;
-      if (message && message.ibmRTC && message.method) {
+      if (message &amp;&amp; message.ibmRTC &amp;&amp; message.method) {
         // we've already been cast... just send it raw...
         messageToSend = message;
       } else {
@@ -1814,16 +1814,16 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       }
       var transaction = this._startTransaction || null;
       var queue = !(this.state === 'started' || this.state === 'have_pranswer' || this.state === 'pranswer');
-      if (queue && messageToSend.method === 'MESSAGE') {
+      if (queue &amp;&amp; messageToSend.method === 'MESSAGE') {
         // Queuing message
-        l('DEBUG') && console.log(this+'.send() Queueing message: ', messageToSend);
+        l('DEBUG') &amp;&amp; console.log(this+'.send() Queueing message: ', messageToSend);
         this._messageQueue.messages.push(messageToSend);
       } else {
         if (transaction){
-          l('DEBUG') && console.log(this+'.send() Sending using transaction['+transaction.id+']', messageToSend);
+          l('DEBUG') &amp;&amp; console.log(this+'.send() Sending using transaction['+transaction.id+']', messageToSend);
           transaction.send(messageToSend);
         } else {
-          l('DEBUG') && console.log(this+'.send() Sending... ['+this.state+']', messageToSend);
+          l('DEBUG') &amp;&amp; console.log(this+'.send() Sending... ['+this.state+']', messageToSend);
           // There isn't a transaciton, delete transID if it is there...
           if (messageToSend.hasOwnProperty('transID')) {
             delete messageToSend.transID;
@@ -1842,7 +1842,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       // Object could be a peerContent type of message {type:offer|answer/icecandidate/user sdp/candidate/userdata: }
       //   where could infer our message type.
       // object could be a type we are going to set content...
-      if (object && object.type ) { 
+      if (object &amp;&amp; object.type ) { 
         peerContent = object;
       }
      
@@ -1868,7 +1868,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       // Process inbound messages. Should not accept these if we ar not in STARTED or HAVE_PRANSWER 
       // HAVE_PRANSWER could mean we sent or received the PRANSWER 
       // 
-      l('DEBUG') && console.log(this + '.processMessage() received message: ', message);
+      l('DEBUG') &amp;&amp; console.log(this + '.processMessage() received message: ', message);
       // We care about the type of message here, so we will need to strip some stuff, and may just fire other events.
       // If our fromTopic is dfferent than our toTopic, then update it.
 
@@ -1889,7 +1889,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         this.emit('finished');
         break;
       case 'MESSAGE':
-       /* l('DEBUG') && console.log('Emitting event [message]', message.peerContent);
+       /* l('DEBUG') &amp;&amp; console.log('Emitting event [message]', message.peerContent);
         if (typeof this.emit === 'function') {
           console.log('emit is a function!');
         } */
@@ -1946,9 +1946,9 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   this.events = {'message': [],
       'finished':[]};
   this.timeout = timeout || null;
-  this.outbound = (message && message.transID) ? false : true;
-  this.id = (message && message.transID) ? message.transID : generateUUID(); 
-  this.method = (message && message.method) ? message.method : 'UNKNOWN'; 
+  this.outbound = (message &amp;&amp; message.transID) ? false : true;
+  this.id = (message &amp;&amp; message.transID) ? message.transID : generateUUID(); 
+  this.method = (message &amp;&amp; message.method) ? message.method : 'UNKNOWN'; 
   this.toTopic = null;
   this.message = message;
   this.onSuccess = cbSuccess || function(object) {
@@ -1957,7 +1957,7 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   this.onFailure = cbFailure || function(object) {
     console.log(this+' Transaction failed, requires callback for more information:', object);
   };
-  l('DEBUG') && console.log('Are we outbound?', this.outbound);
+  l('DEBUG') &amp;&amp; console.log('Are we outbound?', this.outbound);
 };
 
 Transaction.prototype = util.RtcommBaseObject.extend(
@@ -1987,26 +1987,26 @@ Transaction.prototype = util.RtcommBaseObject.extend(
    * @param [timeout] can set a timeout for the transaction
    */
   start: function(timeout) {
-    l('TRACE') && console.log(this+'.start() Starting Transaction for ID: '+this.id);
+    l('TRACE') &amp;&amp; console.log(this+'.start() Starting Transaction for ID: '+this.id);
     if (this.outbound) {
       this.message.transID = this.id;
       this.send(this.message);  
     } else {
-      l('DEBUG') && console.log('inbound Transaction -- nothing to send in start()');
+      l('DEBUG') &amp;&amp; console.log('inbound Transaction -- nothing to send in start()');
     }
   },
   /**
    * send a message over the transaction
    */
   send: function(message) {
-    l('TRACE') && console.log(this+'.send() sending message: '+message);
+    l('TRACE') &amp;&amp; console.log(this+'.send() sending message: '+message);
     if(message) {
       message.transID = message.transID || this.id;
-      l('DEBUG') && console.log('Transaction.send() ids...'+message.transID +' this.id '+ this.id+'toTopic: '+this.toTopic);
+      l('DEBUG') &amp;&amp; console.log('Transaction.send() ids...'+message.transID +' this.id '+ this.id+'toTopic: '+this.toTopic);
       if (message.transID === this.id) {
         this.nodeconnector.send({message: message, toTopic:this.toTopic});
       } else {
-        l('DEBUG') && console.log(this+'.send() Message is not part of our tranaction, dropping!', message);
+        l('DEBUG') &amp;&amp; console.log(this+'.send() Message is not part of our tranaction, dropping!', message);
       }
     } else {
       console.error('Transaction.send() requires a message to be passed');
@@ -2017,17 +2017,17 @@ Transaction.prototype = util.RtcommBaseObject.extend(
    */
   finish: function(rtcommMessage) {
     // Is this message for THIS transaction?
-    l('DEBUG') && console.log(this+'.finish() Finishing transction with message:',rtcommMessage);
+    l('DEBUG') &amp;&amp; console.log(this+'.finish() Finishing transction with message:',rtcommMessage);
     // if there isn't an id here, add it. 
     rtcommMessage.transID = rtcommMessage.transID || this.id;
-    if (this.id === rtcommMessage.transID &&
-        rtcommMessage.method === 'RESPONSE' && 
+    if (this.id === rtcommMessage.transID &amp;&amp;
+        rtcommMessage.method === 'RESPONSE' &amp;&amp; 
         this.method === rtcommMessage.orig) {
       if (this.outbound) {
-        if (rtcommMessage.result  === 'SUCCESS' && this.onSuccess ) {
+        if (rtcommMessage.result  === 'SUCCESS' &amp;&amp; this.onSuccess ) {
           
           this.onSuccess(rtcommMessage);
-        } else if (rtcommMessage.result === 'FAILURE' && this.onFailure) {
+        } else if (rtcommMessage.result === 'FAILURE' &amp;&amp; this.onFailure) {
           this.onFailure(rtcommMessage);
         } else {
           console.error('Unknown result for RESPONSE:', rtcommMessage);
@@ -2065,7 +2065,7 @@ Transaction.prototype = util.RtcommBaseObject.extend(
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/ 
-// rtcservice & util should be defined here:
+// rtcservice &amp; util should be defined here:
 /*global util:false*/
 var logging = new util.Log(),
     setLogLevel = logging.s,
@@ -2113,10 +2113,10 @@ var logging = new util.Log(),
             logMessage = "&lt;none>" + "." + method + ' ' + message;
           }
           // Ignore Colors...
-          if (object && object.color) {object.color = null;}
+          if (object &amp;&amp; object.color) {object.color = null;}
           
           var css = "";
-          if (object && object.color) {
+          if (object &amp;&amp; object.color) {
             logMessage = '%c ' + logMessage;
             css = 'color: ' + object.color;
             if (remainder) {
@@ -2158,7 +2158,7 @@ var logging = new util.Log(),
  * Provides Services to register a user and create RtcommNodes
  * &lt;p>
  * This programming interface lets a JavaScript client application use a {@link module:rtcomm.RtcommNode|Real Time Communication Node} 
- * to implement WebRTC simply. When {@link module:rtcomm.NodeProvider|instantiated} & {@link module:rtcomm.RtcommNodeProvider#init|initialized} the 
+ * to implement WebRTC simply. When {@link module:rtcomm.NodeProvider|instantiated} &amp; {@link module:rtcomm.RtcommNodeProvider#init|initialized} the 
  * RtcommNodeProvider connects to the defined MQTT Server and subscribes to a unique topic that is used to receive inbound communication.   
  * &lt;p>
  * See the example in {@link module:rtcomm.NodeProvider#init|NodeProvider.init()}
@@ -2255,7 +2255,7 @@ var NodeProvider =  function NodeProvider() {
   this.init = function init(options, cbSuccess, cbFailure) {
     // You can only be init'd 1 time, without destroying reconnecting.
     if (this.ready) {
-      l('INFO') && console.log('NodeProvider.init() has been called and the object is READY');
+      l('INFO') &amp;&amp; console.log('NodeProvider.init() has been called and the object is READY');
       return true;
     }
     var requiredConfig = { server: 'string', port: 'number', userid: 'string'};
@@ -2307,7 +2307,7 @@ var NodeProvider =  function NodeProvider() {
       nodeConnection.service_query(
           /* onSuccess */ function(services) {
             // Returned services
-            l('DEBUG') && console.log('Supported services are: ', services);
+            l('DEBUG') &amp;&amp; console.log('Supported services are: ', services);
             this.services = services || null;
             
           }.bind(this),
@@ -2353,7 +2353,7 @@ var NodeProvider =  function NodeProvider() {
       if(session) {
         console.log("Handle a new incoming session: ", session);
         var node = nodeProvider.defaultRtcommNode;
-        if (node && node.available) {
+        if (node &amp;&amp; node.available) {
           console.log('using an existing node...', node);
           node.newSession(session);
         } else {
@@ -2424,7 +2424,7 @@ var NodeProvider =  function NodeProvider() {
     applyConfig(nodeConfig, objConfig);
 
     // Reflect this into the RtcommNode.
-    l('DEBUG') && console.log(this+'.createRtcommNode using config: ', objConfig);
+    l('DEBUG') &amp;&amp; console.log(this+'.createRtcommNode using config: ', objConfig);
     var node = Object.create(RtcommNode);
     node.init(objConfig);
     // Register
@@ -2441,9 +2441,9 @@ var NodeProvider =  function NodeProvider() {
     // Unregister (be nice...)
     
     this.unregister();
-    l('DEBUG') && console.log(this+'.destroy() Finished cleanup of nodeRegistry');
+    l('DEBUG') &amp;&amp; console.log(this+'.destroy() Finished cleanup of nodeRegistry');
     this.nodeConnection.destroy();
-    l('DEBUG') && console.log(this+'.destroy() Finished cleanup of nodeConnection');
+    l('DEBUG') &amp;&amp; console.log(this+'.destroy() Finished cleanup of nodeConnection');
     
   }; 
    
@@ -2490,7 +2490,7 @@ var NodeProvider =  function NodeProvider() {
    * 
    */
   this.lookup = function(userid, cbSuccess, cbFailure) {
-    l('DEBUG') && console.log(this+'.lookup() lookup of: '+userid);
+    l('DEBUG') &amp;&amp; console.log(this+'.lookup() lookup of: '+userid);
     this.nodeConnection.register_query(userid, cbSuccess, cbFailure);
   };
 
@@ -2551,16 +2551,16 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
    */
   var getUserMedia, attachMediaStream,detachMediaStream;
   /* globals URL:false */
-  if (navigator && navigator.mozGetUserMedia) {
+  if (navigator &amp;&amp; navigator.mozGetUserMedia) {
     getUserMedia = navigator.mozGetUserMedia.bind(navigator);
     // Attach a media stream to an element.
     attachMediaStream = function(element, stream) {
-      l('DEBUG') && console.log("FIREFOX --> Attaching media stream");
+      l('DEBUG') &amp;&amp; console.log("FIREFOX --> Attaching media stream");
       element.mozSrcObject = stream;
       element.play();
     };
     detachMediaStream = function(element) {
-      l('DEBUG') && console.log("FIREFOX --> Detaching media stream");
+      l('DEBUG') &amp;&amp; console.log("FIREFOX --> Detaching media stream");
       if (element) {
      
         element.mozSrcObject = null;
@@ -2568,7 +2568,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
       }
     };
 
-  } else if (navigator && navigator.webkitGetUserMedia) {
+  } else if (navigator &amp;&amp; navigator.webkitGetUserMedia) {
     getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
     attachMediaStream = function(element, stream) {
       if (typeof element.srcObject !== 'undefined') {
@@ -2667,7 +2667,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
 
 
 
-      l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
+      l('DEBUG') &amp;&amp; console.log(this+'.init() Applying config to this._private ', config, this._private);
 
       if (config) {
         this.update = (config.update)?config.update: this.update;
@@ -2693,7 +2693,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
 
     reset: function() {
       this.disconnect();
-      this.localStream && this.localStream.stop();
+      this.localStream &amp;&amp; this.localStream.stop();
       detachMediaStream(this.getMediaIn());
       detachMediaStream(this.getMediaOut());
     },
@@ -2704,7 +2704,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
      */
     
     destroy : function() {
-      l('DEBUG') && console.log(this+'.destroy Destroying RtcommNode');
+      l('DEBUG') &amp;&amp; console.log(this+'.destroy Destroying RtcommNode');
     },
 
     newSession : function(session) {
@@ -2758,7 +2758,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     /**
      * attachLocalMedia method used to validate internal setup and set things up if not already done.
      * 
-     * The setup requires a mediaOut & mediaIn object w/ src attribute.  it also requires a localStream, or it will add it.
+     * The setup requires a mediaOut &amp; mediaIn object w/ src attribute.  it also requires a localStream, or it will add it.
      * We should decouple this... 
      * 
      * @params {function} callback  Passed true/false if attachMedia is successful. If false, also gets a reason message.
@@ -2770,27 +2770,27 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         console.log(this+"attachLocalMedia.callback should be overridden:("+value+","+message+")");
       };
       var rtcommNode = this;
-      l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): Setting up the rtcommNode:', this);
+      l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): Setting up the rtcommNode:', this);
       if (this.getAudio() || this.getVideo()|| this.getData()) {
-        if (this.getMediaIn() && this.getMediaOut()) {
+        if (this.getMediaIn() &amp;&amp; this.getMediaOut()) {
           // Must be set...
           if (this.localStream) {
-            l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): Have a localStream already, apply it.', this.localStream);
+            l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): Have a localStream already, apply it.', this.localStream);
             // we have a local stream, proceed to make a call. 
             // TODO:  This following COMPARE is not browser agnostic
             if (URL.createObjectURL(this.localStream) === this.getMediaOut().src) {
               // We are connected and everthing... 
-              l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): Already setup, skipping');
+              l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): Already setup, skipping');
               callback(true);
             } else {
               // Apply the stream.
-              l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): Applying Local Stream');
+              l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): Applying Local Stream');
               rtcommNode.attachMediaStream(rtcommNode.getMediaOut(),rtcommNode.localStream);
               callback(true);
             }
           } else {
             // No local stream, get it!
-            l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): No Stream, getting one! audio:'+ this.getAudio()+' video: '+ this.getVideo());
+            l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): No Stream, getting one! audio:'+ this.getAudio()+' video: '+ this.getVideo());
             this.getUserMedia({audio: this.getAudio(), video: this.getVideo()} ,
                 /* onSuccess */ function(stream) {
               console.log('getUserMedia returned: ', stream);
@@ -2803,7 +2803,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
             });
           }
         } else {
-          callback(false, "mediaIn & mediaOut must be set" );
+          callback(false, "mediaIn &amp; mediaOut must be set" );
         }
       } else {
         callback(true);
@@ -2820,10 +2820,10 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
      * @throws Error No ID passed 
      */
     addEndpoint : function(/* String */ remoteId){
-      // When call is invoked, we must have a RemoteID and we must have mediaIn & Out set. 
+      // When call is invoked, we must have a RemoteID and we must have mediaIn &amp; Out set. 
       // We need to confirm the stream is attached
       var rtcommNode = this;
-      l('DEBUG') && console.log(this + ".addEndpoint() Calling "+remoteId);
+      l('DEBUG') &amp;&amp; console.log(this + ".addEndpoint() Calling "+remoteId);
       if ( remoteId === null ) { throw new Error(".addEndpoint() requires an ID to be passed"); }
 
       this.attachLocalMedia(function(success, message) {
@@ -2850,7 +2850,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
      */
     acceptEndpoint : function(id) {
       var rtcommNode = this;
-      l('DEBUG') && console.log(this + ".answer() invoked ");
+      l('DEBUG') &amp;&amp; console.log(this + ".answer() invoked ");
       rtcommNode.attachLocalMedia(function(success, message) {
         if (success) {
           var connection = rtcommNode.getConnection(id);
@@ -2871,7 +2871,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
      *  
      */
     disconnect : function() {
-      if (this.conn  && this.conn.getState() !== 'DISCONNECTED') {
+      if (this.conn  &amp;&amp; this.conn.getState() !== 'DISCONNECTED') {
         this.conn.disconnect();
         this.conn = null;
       } else {
@@ -3024,9 +3024,9 @@ var WebRTCConnection = (function invocation() {
     var iceServers = [];
     var services = null;
     var servers = null;
-    if (object && object.services && object.services.iceservers) {
+    if (object &amp;&amp; object.services &amp;&amp; object.services.iceservers) {
       servers  = object.services.iceservers;
-      if (servers && servers.iceURL) {
+      if (servers &amp;&amp; servers.iceURL) {
         var urls = [];
         servers.iceURL.split(',').forEach(function(url){
           urls.push({'url': url});
@@ -3154,7 +3154,7 @@ WebRTCConnection.prototype = function() {
    *  When we init, we attach our signalingSession and PeerConnection
    *
    *  If we are 'In Progress' meaning we are being init'd by our
-   *  WebRTCClientService w/ a Channel & Message then we actually need to
+   *  WebRTCClientService w/ a Channel &amp; Message then we actually need to
    *  begin our SigSession so it can respond. Typically this should
    *  be w/ a 'pranswer'
    *
@@ -3175,7 +3175,7 @@ WebRTCConnection.prototype = function() {
 
     /* global log: false */
     /* global l: false */
-    l('DEBUG') && console.log(this+'.init Initializing Connection with config: ', config);
+    l('DEBUG') &amp;&amp; console.log(this+'.init Initializing Connection with config: ', config);
     if (config){
       /* 
        * If there is a config.session - we need to check the type, if its 
@@ -3196,7 +3196,7 @@ WebRTCConnection.prototype = function() {
       
       onComplete = config.onComplete || onComplete;
       
-      l('DEBUG') && console.log(this+'.init caller is: ', caller);
+      l('DEBUG') &amp;&amp; console.log(this+'.init caller is: ', caller);
       // If we have a node attached, populate our variables from it.
       if (config.rtcommNode) {
         this.rtcommNode = config.rtcommNode;
@@ -3223,9 +3223,9 @@ WebRTCConnection.prototype = function() {
       // Create a peerconnection
       this._peerConnection =  createPeerConnection(this);
       if (this.attachLocalStream()) {
-        l('DEBUG') && console.log('Successfully attached streams... ');
-        l('DEBUG') && console.log('Local Streams: ' + JSON.stringify(this._peerConnection.getLocalStreams()));
-        l('DEBUG') && console.log('Remote Streams: ' + JSON.stringify(this._peerConnection.getRemoteStreams()));
+        l('DEBUG') &amp;&amp; console.log('Successfully attached streams... ');
+        l('DEBUG') &amp;&amp; console.log('Local Streams: ' + JSON.stringify(this._peerConnection.getLocalStreams()));
+        l('DEBUG') &amp;&amp; console.log('Remote Streams: ' + JSON.stringify(this._peerConnection.getRemoteStreams()));
       }
     }
     // Create our SigSession, but not Beginning it - that will only happen
@@ -3240,14 +3240,14 @@ WebRTCConnection.prototype = function() {
     if (!caller) {
       var message = session.message;
       session.start();
-      if (message && message.peerContent) {
+      if (message &amp;&amp; message.peerContent) {
         // If the peerCOntent is an 'offer' we will do our PC stuff.
         var content = message.peerContent;
     
         if (content.type === 'offer') {
           this._peerConnection.setRemoteDescription(new MyRTCSessionDescription(message.peerContent),
             /*success*/  function() {
-              l('DEBUG') && console.log('Set Remote Description... should fire addstream event now... ');
+              l('DEBUG') &amp;&amp; console.log('Set Remote Description... should fire addstream event now... ');
               // Successfully set the Remote Description, create an answer.
               // this will also handle sending whatever is next. 
               /*
@@ -3313,23 +3313,23 @@ WebRTCConnection.prototype = function() {
    */
   _gotAnswer =  function(desc) {
     
-    l('DEBUG') && console.log(this+'.createAnswer answer created:  ', desc);
+    l('DEBUG') &amp;&amp; console.log(this+'.createAnswer answer created:  ', desc);
 
     var answer = null;
     var pcSigState = this._peerConnection.signalingState;
     var sessionState = this._sigSession.getState();
 
-    var PRANSWER = (pcSigState === 'have-remote-offer') && (sessionState === 'starting');
+    var PRANSWER = (pcSigState === 'have-remote-offer') &amp;&amp; (sessionState === 'starting');
     var RESPOND = this.AutoAnswer || sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
 
-    l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
+    l('DEBUG') &amp;&amp; console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     
     if (RESPOND) {
-      l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
+      l('DEBUG') &amp;&amp; console.log(this+'.createAnswer sending answer as a RESPONSE');
       this._setState('CONNECTED');
       this._sigSession.respond(true, desc);
     } else if (PRANSWER){
-      l('DEBUG') && console.log(this+'.createAnswer sending PRANSWER');
+      l('DEBUG') &amp;&amp; console.log(this+'.createAnswer sending PRANSWER');
       this._setState('RINGING');
       answer = {};
       answer.type = 'pranswer';
@@ -3337,17 +3337,17 @@ WebRTCConnection.prototype = function() {
       desc = answer;
       this._sigSession.pranswer(desc);
     } else {
-      l('DEBUG') && console.log(this+'.createAnswer sending ANSWER (renegotiation?)');
+      l('DEBUG') &amp;&amp; console.log(this+'.createAnswer sending ANSWER (renegotiation?)');
       // Should be a renegotiation, just send the answer...
       this._sigSession.send(desc);
     }
     // Should have been sent.
-    l('DEBUG') && console.log('_gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
+    l('DEBUG') &amp;&amp; console.log('_gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     
-    var SKIP = PRANSWER && answer && answer.sdp === '';
+    var SKIP = PRANSWER &amp;&amp; answer &amp;&amp; answer.sdp === '';
     if (!SKIP) {
       this._peerConnection.setLocalDescription(desc,/*onSuccess*/ function() {
-        l('DEBUG') && console.log('setLocalDescription in _gotAnswer was successful', desc);
+        l('DEBUG') &amp;&amp; console.log('setLocalDescription in _gotAnswer was successful', desc);
       }.bind(this), 
         /*error*/ function(message) {
         console.error(message);
@@ -3368,9 +3368,9 @@ WebRTCConnection.prototype = function() {
     if (!message) {
       return;
     }
-    l('DEBUG') && console.log(this+"._processMessage Processing Message...", message);
+    l('DEBUG') &amp;&amp; console.log(this+"._processMessage Processing Message...", message);
    /* if (!this._peerConnection) {
-      l('DEBUG') && log(this, '_processMessage', 'Dropping Message, no peerConnection', message);
+      l('DEBUG') &amp;&amp; log(this, '_processMessage', 'Dropping Message, no peerConnection', message);
       return;
     } */
     if (message.type) {
@@ -3383,7 +3383,7 @@ WebRTCConnection.prototype = function() {
          * Our PeerConnection is not 'stable' yet.  We still need an Answer.
          *
          */
-        isPC && this._peerConnection.setRemoteDescription(new MyRTCSessionDescription(message));
+        isPC &amp;&amp; this._peerConnection.setRemoteDescription(new MyRTCSessionDescription(message));
         this._setState("RINGING");
         break;
       case 'answer':
@@ -3395,11 +3395,11 @@ WebRTCConnection.prototype = function() {
          *
          *  TODO:  Pull all of these Success/Failure callbacks somewhere.
          */
-        l('DEBUG') && console.log(this+'._processMessage ANSWERING', message);
+        l('DEBUG') &amp;&amp; console.log(this+'._processMessage ANSWERING', message);
         /* global RTCSessionDescription: false */
-        isPC && this._peerConnection.setRemoteDescription(new MyRTCSessionDescription(message),
+        isPC &amp;&amp; this._peerConnection.setRemoteDescription(new MyRTCSessionDescription(message),
             function() {
-          l('DEBUG') && console.log("Successfully set the ANSWER Description");
+          l('DEBUG') &amp;&amp; console.log("Successfully set the ANSWER Description");
         },
         function(error) {
           console.error('setRemoteDescription has an Error', error);
@@ -3416,8 +3416,8 @@ WebRTCConnection.prototype = function() {
          * to include the UI. (meaning we wouldn't update it w/ a state change.
          */
         if (this.getState() === 'READY' || this.getState() === 'CONNECTED') {
-          l('DEBUG') && console.log(this+'_processMessage offer renegotiating');
-          isPC && this._peerConnection.setRemoteDescription(new MyRTCSessionDescription(message), 
+          l('DEBUG') &amp;&amp; console.log(this+'_processMessage offer renegotiating');
+          isPC &amp;&amp; this._peerConnection.setRemoteDescription(new MyRTCSessionDescription(message), 
               /*onSuccess*/ function() {
                 this._peerConnection.createAnswer(this._gotAnswer.bind(this), function(error){
                   console.error('Failed to create Answer:'+error);
@@ -3434,8 +3434,8 @@ WebRTCConnection.prototype = function() {
       case 'icecandidate':
         try {
           var iceCandidate = new MyRTCIceCandidate(message.candidate);
-          l('DEBUG') && console.log(this+'_processMessage iceCandidate ', iceCandidate );
-          isPC && this._peerConnection.addIceCandidate(iceCandidate);
+          l('DEBUG') &amp;&amp; console.log(this+'_processMessage iceCandidate ', iceCandidate );
+          isPC &amp;&amp; this._peerConnection.addIceCandidate(iceCandidate);
         } catch(err) {
           console.error('addIceCandidate threw an error', err);
         }
@@ -3453,7 +3453,7 @@ WebRTCConnection.prototype = function() {
 
       //TODO:  In both casses here, we need to consider emitting a raw message that is unprocessed...
       this._emit(message);
-      l('DEBUG') && console.log(this+'_processMessage Unknown Message', message);
+      l('DEBUG') &amp;&amp; console.log(this+'_processMessage Unknown Message', message);
     }
   },
   
@@ -3465,15 +3465,15 @@ WebRTCConnection.prototype = function() {
     // 
     
     
-    if (this.rtcommNode && this.rtcommNode.localStream) {
+    if (this.rtcommNode &amp;&amp; this.rtcommNode.localStream) {
       // We have a localstream - we only support 1 local stream...  We should be able to add more streams, like music, etc... not yet. 
-      if (this._peerConnection && !this.streamAttached) {
-        l('DEBUG') && console.log(this+'.attachLocalStream() calling .addStream on peerConnection with: ', this.rtcommNode.localStream);
+      if (this._peerConnection &amp;&amp; !this.streamAttached) {
+        l('DEBUG') &amp;&amp; console.log(this+'.attachLocalStream() calling .addStream on peerConnection with: ', this.rtcommNode.localStream);
         this._peerConnection.addStream(this.rtcommNode.localStream);
         this.streamAttached = true;
         return true;
       } else {
-        l('DEBUG') && console.log(this+'attachLocalStream() Stream already attached');
+        l('DEBUG') &amp;&amp; console.log(this+'attachLocalStream() Stream already attached');
         return true;
       }
     } else {
@@ -3485,7 +3485,7 @@ WebRTCConnection.prototype = function() {
   connect = function() {
     // We may not be init'd check first.
     if (this._sigSession === null) {
-      l('DEBUG') && console.log(this+'.connect() -- Initializing on Connection');
+      l('DEBUG') &amp;&amp; console.log(this+'.connect() -- Initializing on Connection');
       this.init();
     }
     
@@ -3499,12 +3499,12 @@ WebRTCConnection.prototype = function() {
     
     // What is our state?
     var state = this.getState();
-    l('DEBUG') && console.log("STATE in connect..."+state);
+    l('DEBUG') &amp;&amp; console.log("STATE in connect..."+state);
     switch(state)
     {
     case "RINGING":
       if (this._peerConnection) {
-        l('DEBUG') && console.log('connect() calling createAnswer');
+        l('DEBUG') &amp;&amp; console.log('connect() calling createAnswer');
         this._peerConnection.createAnswer(this._gotAnswer.bind(this), function(error){
           console.error('failed to create answer', error);
         });
@@ -3518,7 +3518,7 @@ WebRTCConnection.prototype = function() {
       if (this._peerConnection){
         this._peerConnection.createOffer(
         /*success*/  function(offer) {
-          l('DEBUG') && console.log(this+'.connect RENEGOTIATING', offer);
+          l('DEBUG') &amp;&amp; console.log(this+'.connect RENEGOTIATING', offer);
           this._peerConnection.setLocalDescription(offer,function() {
               this.send(offer);
               console.log('calling updateIce()');
@@ -3531,7 +3531,7 @@ WebRTCConnection.prototype = function() {
           console.log('Failed to create offer for Renegotiate', error);
         });
       } else {
-       l('DEBUG') && console.log("No Peerconnection, nothing to do.");
+       l('DEBUG') &amp;&amp; console.log("No Peerconnection, nothing to do.");
       }
       break;
     case "DISCONNECTED":
@@ -3539,12 +3539,12 @@ WebRTCConnection.prototype = function() {
    
       // Create Offer and send it.
       if (this._peerConnection) {
-        l('DEBUG') && console.log(this+'.connect - creating Offer', this._peerConnection);
+        l('DEBUG') &amp;&amp; console.log(this+'.connect - creating Offer', this._peerConnection);
         this._peerConnection.createOffer(
           function(offer){
-              l('DEBUG') && console.log(this+'.connect - created Offer: ', offer);
+              l('DEBUG') &amp;&amp; console.log(this+'.connect - created Offer: ', offer);
               this._peerConnection.setLocalDescription(offer,function() {
-                l('DEBUG') && console.log('connect - setLocalDescription Success');
+                l('DEBUG') &amp;&amp; console.log('connect - setLocalDescription Success');
                 }, function(error){
                   console.error(error);
                 });
@@ -3554,7 +3554,7 @@ WebRTCConnection.prototype = function() {
           console.log('Failed to create offer', error);
         });
       } else {
-        l('DEBUG') && console.log(this+'.connect - beginning session');
+        l('DEBUG') &amp;&amp; console.log(this+'.connect - beginning session');
         this._sigSession.start({toEndpointID:this.toEndpointID, content: null});
       }
       break;
@@ -3573,7 +3573,7 @@ WebRTCConnection.prototype = function() {
      * we send messages that are:
      *   {type: [offer|answer|icecandidate|user], [sdp|candidate|userdata]: ... }
      */
-    msg = (msg && msg.type) ? msg : {'type':'user', 'userdata': {'message': msg}};
+    msg = (msg &amp;&amp; msg.type) ? msg : {'type':'user', 'userdata': {'message': msg}};
     // If there is a _sigSession, the message should be sent over it.  If there isn't, we will put the content inside a lower level message.
     if (this._sigSession) {
       this._sigSession.send(msg);
@@ -3581,8 +3581,8 @@ WebRTCConnection.prototype = function() {
   },
   
   destroy = function() {
-    l('DEBUG') && console.log(this+'.destroy() Destroying the Connection');
-    if (this._sigSession && this._sigSession.getState() !== 'stopped') {
+    l('DEBUG') &amp;&amp; console.log(this+'.destroy() Destroying the Connection');
+    if (this._sigSession &amp;&amp; this._sigSession.getState() !== 'stopped') {
       this._sigSession.stop();
       this._sigSession = null;
     } else {
@@ -3624,7 +3624,7 @@ WebRTCConnection.prototype = function() {
   _emit = function(event, name) {
         var emitEvent = {};
       var userid = name?name:this.toEndpointID;
-      l('TRACE') && console.log('WebRTCConnection._emit - TRACE: emitting event for id: '+userid);
+      l('TRACE') &amp;&amp; console.log('WebRTCConnection._emit - TRACE: emitting event for id: '+userid);
       if (event in this.EVENTS) {
         emitEvent.name =  event;
         if (typeof userid !== 'undefined') {
@@ -3633,7 +3633,7 @@ WebRTCConnection.prototype = function() {
           emitEvent.message = this.EVENTS[event].replace(/\%s/, "unknown");
         }
         emitEvent.object = this.getStatus();
-      } else if (event.name && event.message ) {
+      } else if (event.name &amp;&amp; event.message ) {
         emitEvent = event;
       } else {
         // Assume its a MEssage, emit a MESSAGE event w/ the name
@@ -3642,11 +3642,11 @@ WebRTCConnection.prototype = function() {
         emitEvent.object = this.getStatus();
       }
       // Emit an event.
-      if (this.onEvent && typeof this.onEvent === 'function') {
-        l('DEBUG') && console.log(this+'._emit emitting event: ', emitEvent);
+      if (this.onEvent &amp;&amp; typeof this.onEvent === 'function') {
+        l('DEBUG') &amp;&amp; console.log(this+'._emit emitting event: ', emitEvent);
         this.onEvent(emitEvent);
       } else {
-        l('DEBUG') && console.log(this+'_emit Nothing to do w/: ',event);
+        l('DEBUG') &amp;&amp; console.log(this+'_emit Nothing to do w/: ',event);
       } 
   },
   sendData = function() {
@@ -3706,15 +3706,15 @@ WebRTCConnection.prototype = function() {
 
 function createSignalingSession(context) {
   
-  l('DEBUG') && console.log("createSignalingSession context: ", context);
+  l('DEBUG') &amp;&amp; console.log("createSignalingSession context: ", context);
   /* global SigSession : false */
   var sessid = null;
   var toTopic = null;
   if (context._referralSession) {
     var details = context._referralSession.referralDetails;
-    sessid =  (details && details.sessionID) ? details.sessionID : null;
-    context.toEndpointID =  (details && details.toEndpointID) ? details.toEndpointID : null;
-    toTopic =  (details && details.toTopic) ? details.toTopic : null;
+    sessid =  (details &amp;&amp; details.sessionID) ? details.sessionID : null;
+    context.toEndpointID =  (details &amp;&amp; details.toEndpointID) ? details.toEndpointID : null;
+    toTopic =  (details &amp;&amp; details.toTopic) ? details.toTopic : null;
   }
  
   if (!context.toEndpointID) {
@@ -3739,7 +3739,7 @@ function addSessionCallbacks(context, session) {
     context._processMessage(content);
   });
   session.on('message', function(content){
-    l('DEBUG') && console.log('SigSession callback called to process content: ', content);
+    l('DEBUG') &amp;&amp; console.log('SigSession callback called to process content: ', content);
     context._processMessage(content);
   });
   
@@ -3781,7 +3781,7 @@ function addSessionCallbacks(context, session) {
     context.destroy();
   });
   
-  l('DEBUG') && console.log('createSignalingSession created!', session);
+  l('DEBUG') &amp;&amp; console.log('createSignalingSession created!', session);
   
  // session.listEvents();
   return true;
@@ -3798,18 +3798,18 @@ function createPeerConnection(/* object */ context) {
   
  
   if (typeof MyRTCPeerConnection !== 'undefined'){
-    l('DEBUG')&& console.log("Creating PeerConnection with configuration: " + configuration + "and contrainsts: "+ pcConstraints);
+    l('DEBUG')&amp;&amp; console.log("Creating PeerConnection with configuration: " + configuration + "and contrainsts: "+ pcConstraints);
     peerConnection = new MyRTCPeerConnection(configuration, pcConstraints);
    
     peerConnection.onicecandidate = function (evt) {
       
-      l('DEBUG') && console.log(this+'onicecandidate Event',evt);
+      l('DEBUG') &amp;&amp; console.log(this+'onicecandidate Event',evt);
       // If we don't want to 'Trickle' the events, we need to wait here...
       // When we get a Null event, then Send the Offer/Answer...
       // We have changed this content... so, we have to 
       // have a candidate and trickle is on.
       if (evt.candidate) {
-          l('DEBUG') && console.log(this+'onicecandidate Sending Ice Candidate');
+          l('DEBUG') &amp;&amp; console.log(this+'onicecandidate Sending Ice Candidate');
           var msg = {'type': evt.type,'candidate': evt.candidate};
           this.send(msg);
           
@@ -3821,16 +3821,16 @@ function createPeerConnection(/* object */ context) {
         // If we are null, do nothing... Weird cases where we get here I don't understand yet.
         return;
       }
-      l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE '+ this._peerConnection.iceConnectionState);
+      l('DEBUG') &amp;&amp; console.log(this+' oniceconnectionstatechange ICE STATE CHANGE '+ this._peerConnection.iceConnectionState);
     }.bind(context);  // End of oniceconnectionstatechange
 
     // once remote stream arrives, show it in the remote video element
     peerConnection.onaddstream = function (evt) {
        console.log('Called??');
       //Only called when there is a VIDEO or AUDIO stream on the remote end...
-      l('DEBUG') && console.log(this+' onaddstream Remote Stream Arrived!', evt);
-      l('DEBUG') && console.log("TRACE onaddstream AUDIO", evt.stream.getAudioTracks());
-      l('DEBUG') && console.log("TRACE onaddstream Video", evt.stream.getVideoTracks());
+      l('DEBUG') &amp;&amp; console.log(this+' onaddstream Remote Stream Arrived!', evt);
+      l('DEBUG') &amp;&amp; console.log("TRACE onaddstream AUDIO", evt.stream.getAudioTracks());
+      l('DEBUG') &amp;&amp; console.log("TRACE onaddstream Video", evt.stream.getVideoTracks());
 
       if (evt.stream.getAudioTracks().length > 0) {
         this.audio = true;
@@ -3846,10 +3846,10 @@ function createPeerConnection(/* object */ context) {
        */
      
       var rtcommNode = this.rtcommNode;
-      if (this._peerConnection && this.rtcommNode) {
+      if (this._peerConnection &amp;&amp; this.rtcommNode) {
         /* global URL: true */
         this.rtcommNode.setInboundMediaStream(evt.stream);
-        l('DEBUG') && console.log('peerConnection.onaddstream - Attached stream to rtcommNode: ', this.rtcommNode);
+        l('DEBUG') &amp;&amp; console.log('peerConnection.onaddstream - Attached stream to rtcommNode: ', this.rtcommNode);
         /*  Commenting out -- Don't think we need to do this.
          * if(this.rtcommNode.localStream){
           console.log("onaddstream  --> Adding LocalStream to FOUND rtcommNode");
@@ -3862,8 +3862,8 @@ function createPeerConnection(/* object */ context) {
     }.bind(context);
     
     peerConnection.onnegotiationneeded = function(evt) {
-      l('DEBUG') && console.log('ONNEGOTIATIONNEEDED : Received Event - ', evt);
-      if ( this._peerConnection.signalingState === 'stable' && this.getState() === 'CONNECTED') {
+      l('DEBUG') &amp;&amp; console.log('ONNEGOTIATIONNEEDED : Received Event - ', evt);
+      if ( this._peerConnection.signalingState === 'stable' &amp;&amp; this.getState() === 'CONNECTED') {
         // Only if we are stable, renegotiate!
         this._peerConnection.createOffer(
             /*onSuccess*/ function(offer){
@@ -3883,7 +3883,7 @@ function createPeerConnection(/* object */ context) {
               console.error(error);
             });
       } else {
-        l('DEBUG') && console.log('ONNEGOTIATIONNEEDED Skipping renegotiate - not stable. State: '+ this._peerConnection.signalingState);
+        l('DEBUG') &amp;&amp; console.log('ONNEGOTIATIONNEEDED Skipping renegotiate - not stable. State: '+ this._peerConnection.signalingState);
       }
     }.bind(context);
     peerConnection.onremovestream = function (evt) {
@@ -3928,7 +3928,7 @@ function createPeerConnection(/* object */ context) {
     }
   })();
  
-  l('DEBUG') && console.log("Setting RTCSessionDescription", MyRTCSessionDescription);
+  l('DEBUG') &amp;&amp; console.log("Setting RTCSessionDescription", MyRTCSessionDescription);
 
   var MyRTCIceCandidate = (function() { 
     /*global mozRTCIceCandidate:false */
@@ -3942,7 +3942,7 @@ function createPeerConnection(/* object */ context) {
       throw new Error("Unsupported Browser: ", getBrowser());
     }
   })();
-  l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
+  l('DEBUG') &amp;&amp; console.log("RTCIceCandidate", MyRTCIceCandidate);
   var getBrowser = function() {
     if (navigator.mozGetUserMedia) {
       // firefox
@@ -3980,7 +3980,7 @@ return { RtcommNodeProvider: NodeProvider };
 <br clear="both">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Fri Aug 15 2014 07:28:16 GMT-0600 (MDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Fri Aug 15 2014 09:37:40 GMT-0600 (MDT)
 </footer>
 
 <script> prettyPrint(); </script>

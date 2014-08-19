@@ -190,3 +190,38 @@ The above scenario is the simplest way to connect two endpoints using the rtcomm
 ```
 
 3.  Access the index.html file via your web browser.  This will provide links to the documentation and Sample Client.
+
+
+#Building the code
+
+If you want to clone the repository and build this yourself, you will need:
+
+1.  ant v 1.8.4 (Not tested with any other, but may work)
+2.  ant-contrib from:  http://sourceforge.net/projects/ant-contrib/files/ant-contrib/1.0b3/ant-contrib-1.0b3-bin.zip/download
+
+Then in order to build just run:
+```
+ ant
+ ```
+ This will create a build directory with the following contents:
+ ```
+   README.md
+   index.html
+   |-docs
+   |---jsDoc
+   |-----scripts
+   |-------prettify
+   |-----styles
+   |-js
+   |---ibm
+   |---lib
+   |---umd
+   |-----ibm
+   |-------rtcomm
+   |-lib
+   |-sample
+   |---resources
+   |-----css
+```
+It will also copy the rtcomm.zip and docs into the dist directory.
+
