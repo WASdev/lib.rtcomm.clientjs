@@ -1,32 +1,34 @@
-#Rtcomm Signalling Protocol Specification 
+#Rtcomm Signalling Protocol Specification: v0.0.1 
 
 
 ## Abstract
-All Rtcomm protocols are JSON based and built on top of MQTT. The protocol can be broken down into the following two parts:
+This specification defines version v0.0.1 of the Rtcomm signaling protocol . All Rtcomm protocols are JSON based and built on top of MQTT. The protocol can be broken down into the following two parts:
 
 1. Signaling protocol for connecting WebRTC endpoints into media sessions.
-2. Service protocol for things like third party call control and event monitoring.    See [**rtcomm.service.proto.spec.md**](https://github.com/WASdev/lib.rtcomm.node/blob/master/docs/rtcomm.service.proto.spec.md) for details
+2. Service protocol for things like third party call control and event monitoring.    See [**rtcomm.service.proto.spec.md**](https://github.com/WASdev/lib.rtcomm.node/blob/master/rtcomm.service.proto.spec.md) for details
 
-<br/>
 This specification describes the signaling protocol that occurs between Rtcomm endpoints (aka Rtcomm nodes) and Rtcomm connectors (which connect Rtcomm nodes together). Examples of Rtcomm endpoints include:
 - Clients nodes
 - multiway nodes
 - record/playback nodes.
 - basically any endpoint that terminates a signalling session.
 
-<br/>
-This specification describes the signaling protocol implemented by Rtcomm client endpoints and related backend services.   This protocol allows for these functions:
+This protocol supports all of the following capabilities:
 
-1. Register endpoint with an Rtcomm service.
-2. Query service capabilities and configuration (event monitoring topic name, ICE configuration,...).
-3. Call signalling between Rtcomm endpoints (WebRTC clients, media resources, gateways,...).
+1. Registration of Rtcomm endpoints with an Rtcomm service.
+2. Service function queries (event monitoring topic name, ICE configuration,...).
+3. Call signaling (WebRTC clients, media resources, gateways,...).
     
-# Rtcomm Functions
+# Rtcomm Protocol Definition
 
-This protocol specification is built on the publish/subscribe semantics of the MQTT protocol.  The Rtcomm endpoints and services normally subscribe to one or more topics at a Messaging Broker.    The endpoint communicates with the service by publishing messages to the service's topic name.    Services communicates with a particular endpoint by publishing messages to the endpoint's topic name.
+This protocol specification relies on the publish/subscribe semantics of the MQTT protocol for a transport. The Rtcomm endpoints and services normally subscribe to one or more topics at a Messaging Broker.    The endpoint communicates with the service by publishing messages to the service's topic name.    Services communicates with a particular endpoint by publishing messages to the endpoint's topic name.
 
-When the endpoint publishes messages to the service topic, it publishes to the service's topic name plus its local endpoint ID.   For example, if the service's topic name is "/rtcomm/connector", the endpoint publishes to "/rtcomm/connector/Danko Jones".   This is done in order to propagate endpoint IDs in a secure manner.
+### Endpoint ID Definiton
+In the message definitions below, there are many references to various EndpointIDs.  This can be any string that does not include a "/" which represents the Rtcomm endpoint. Its a fundamental building block in the Rtcomm protocol and relates directly to the credentials used to connect to the MQTT message broker. It can be a simple name (i.e. "Danko Jones") or it can be preceded by a protocol descriptor (i.e. "sip:dankojones@xyz.com").
 
+### Identity Propogation
+When an Rtcomm message is sent to a remote topic, the sender publishes to a topic name that is a combination of the remote topic name being subscribed on by the receiver + the senders endpoint ID. For example, if the topic name subscribed on by the receiver is "/rtcomm/connector", the sender publishes to "/rtcomm/connector/"sender's endpoint ID".  This is done in order to propagate endpoint IDs in a secure manner. 
+MQTT message brokers can be securely configured to only allow endpoints with proper credentials to publish to MQTT topics that include an appended endpoint ID. Endpoint IDs are sent in this manner to insure the ID is not spoofed. Because of this you never see the senders endpoint ID includes in an Rtcomm message definition.
 
 ### PeerContent Definition
 As you'll see in the various signaling messages below, some messages contain a header key named "peerContent" which contains a JSON object that includes a type and some data content as follows: 
@@ -41,16 +43,16 @@ This JSON object that represents the peerContent value contains at most a single
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | type                | e.g. "offer", "answer", "pranswer", "icecandidate", "user", "refer" |
-| One of the following "data types":sdp, candidate,userData,details) | see table below for details |
+| One of the following data types:"sdp", "candidate", "userData", "details") | see table below for details |
 
 Rtcomm currently supports the following peer content data types (only one of these can exist within a peerContent JSON object at a time):
 
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
-| sdp                 | raw data (w3c standard) |
-| candidate           | raw data (w3c standard) |
+| sdp                 | raw data (based on standards) |
+| candidate           | raw data (based on standards) |
 | user data           | user defined JSON object  |
-| details             | JSON object associated with a refer (see below) |
+| details             | JSON object associated with an rtcomm refer (see below) |
 
 Note:  Two of the peerContent data types (sdp and candidate) are generated by the WebRTC API and are typically associated with the following peerContent type(s): offer, answer, pranswer, and icecandidate. See these links for details:
 
@@ -65,10 +67,7 @@ The "user" and "refer" type(s) were defined as part of the Rtcomm protocol speci
 | toEndpointID          | The toEndpoint ID of the endpoint to call |
 | appContext            | The application context to associate the refer to. More on this below.|
 
-<br/>
 
-### Endpoint ID Definiton
-In the following message definitions, you will see various references to EndpointIDs.   This can be almost any string that does not include a "/" which represents the Rtcomm endpoint.   Its a fundamental building block in the Rtcomm protocol.    It can be a simple name (i.e. "Danko Jones") or it can be preceded by a protocol descriptor (i.e. "sip:dankojones@xyz.com").
 
 
 ## Endpoint Registration
@@ -80,7 +79,7 @@ Here is an example of a REGISTER message sent to the service:
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | REGISTER |
-| rtcommVer             | e.g.  v1.0.0          |
+| rtcommVer             | e.g.  v0.0.1          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  ca80371e-0b42-49a2-ad32-c88711f573e7 |
 | fromTopic             | Source endpoint topic where the response should be published to.   e.g.  /rtcomm/2123928217 |
 | regTopic              | topic that the endpoint is subscribed to. Typically the same as the from topic.   e.g.  /rtcomm/2123928217 |
@@ -96,7 +95,7 @@ Here is an example of a REGISTER response:
 | ----------------------|:-------------------------------------------|
 | method                | RESPONSE |
 | orig                  | Original method that caused the response: e.g. REGISTER |
-| rtcommVer             | e.g.  v1.0.0          |
+| rtcommVer             | e.g.  v0.0.1          |
 | expires               | number of seconds before the registration entry expires. e.g.  120          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  ca80371e-0b42-49a2-ad32-c88711f573e7 |
 | result    	        | result of the operation    e.g.  SUCCESS or FAILURE |
@@ -112,7 +111,7 @@ Here is an example of a SERVICE_QUERY message sent to the service:
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | SERVICE_QUERY |
-| rtcommVer             | e.g.  v1.0.0         |
+| rtcommVer             | e.g.  v0.0.1         |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  b2a4247f-fafc-4d3c-a23b-822d02e8f08b |
 | fromTopic             | topic where the response must be published to.   e.g.  /rtcomm/2123928217 |
 <br/>
@@ -123,7 +122,7 @@ Here is an example of a SERVICE_QUERY response:
 | ----------------------|:-------------------------------------------|
 | method                | RESPONSE |
 | orig                  | SERVICE_QUERY |
-| rtcommVer             | e.g.  v1.0.0          |
+| rtcommVer             | e.g.  v0.0.1          |
 | transID               | transaction ID, this is a unique identifier associed with this transaction.   e.g.  b2a4247f-fafc-4d3c-a23b-822d02e8f08b |
 | services    	        | JSON object containing services available    e.g.  eg. {"iceURL":"stun:stun.juberti.com:3478,turn:test@stun.juberti.com:3478:credential:test","eventMonitoringTopic":"/rtcomm/event"} |
 | result    	        | result of the operation    e.g.  SUCCESS or FAILURE |
@@ -131,7 +130,7 @@ Here is an example of a SERVICE_QUERY response:
 
 The "services" header listed above is a JSON object.     
 
-## Call signaling for peer to peer sessions
+## Signaling for peer to peer sessions
 
 An endpoint uses a signaling session to setup real-time media streams with another endpoint.  Setting up this session requires a number of message exchanges.   The call signaling protocol can be used for client to service communications, or directly between 2 endpoints (assuming the endpoints have permission to publish on their counterparts topic name).   
 
@@ -140,7 +139,7 @@ This is the first message sent from the endpoint to start a new signaling sessio
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | START_SESSION |
-| rtcommVer             | e.g.  v1.0.0          |
+| rtcommVer             | e.g.  v0.0.1          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | topic where the response must be published to.   e.g.  /rtcomm/2018097881 |
 | toEndpointID          | callee endpoint ID.   e.g. johnDoe |
@@ -159,7 +158,7 @@ In response to the START_SESSION message, the callee responds may respond with a
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | PRANSWER |
-| rtcommVer             | e.g.  v1.0.0         |
+| rtcommVer             | e.g.  v0.0.1         |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/2123928217 |
 | sigSessID             | unique ID associated with this session.   e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
@@ -171,7 +170,7 @@ The caller and/or callee endpoint(s) may also sends out another message which sp
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | MESSAGE |
-| rtcommVer             | e.g.  v1.0.0          |
+| rtcommVer             | e.g.  v0.0.1          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/2123928217 |
 | sigSessID             | unique ID associated with this session.  e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
@@ -183,7 +182,7 @@ The callee endpoint will eventually respond to the START_SESSION:
 | ----------------------|:-------------------------------------------|
 | method                | RESPONSE |
 | orig                  | Method type that started the transaction. In this case: START_SESSION |
-| rtcommVer             | e.g.  v1.0.0          |
+| rtcommVer             | e.g.  v0.0.1          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/116396706 |
 | sigSessID             | unique ID associated with this session.   e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
@@ -196,7 +195,7 @@ Either the caller or callee can send an in session message at any time. This mes
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | MESSAGE |
-| rtcommVer             | e.g.  v1.0.0          |
+| rtcommVer             | e.g.  v0.0.1          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/116396706 |
 | sigSessID             | unique ID associated with this session.   e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
@@ -208,7 +207,7 @@ At the end of the session, one of the endpoints will termiante the session by se
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | STOP_SESSION |
-| rtcommVer             | e.g.  v1.0.0          |
+| rtcommVer             | e.g.  v0.0.1          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | sigSessID             | unique ID associated with this session.  e.g. 553eebdc-6884-47e4-a656-fd89a920bb68 |
 | reason 				| Reason session is ending.  e.g. session terminated by endpoint |
@@ -226,7 +225,7 @@ This following defines a refer message.
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | START_SESSION |
-| rtcommVer             | e.g.  v1.0.0        |
+| rtcommVer             | e.g.  v0.0.1        |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  b2a4247f-fafc-4d3c-a23b-822d02e8f08b |
 | fromTopic             | topic where the response must be published to.   e.g.  /rtcomm/116396706 |
 | toEndpointID          | callee endpoint ID   e.g. Danko Jones |
@@ -240,7 +239,7 @@ This following is the response to the refer:
 | ----------------------|:-------------------------------------------|
 | method                | RESPONSE |
 | orig                  | START_SESSION |
-| rtcommVer             | e.g.  v1.0.0          |
+| rtcommVer             | e.g.  v0.0.1          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  b2a4247f-fafc-4d3c-a23b-822d02e8f08b |
 | fromTopic             | topic where the response must be published to.   e.g.  /rtcomm/2018097881 |
 | toEndpointID          | caller endpoint ID    e.g. Danko Jones |
