@@ -42,7 +42,7 @@ Edit the file 'WebContent/sample/videoClient.html' or 'WebContent/sample/videoCl
        serviceTopic : "nodeConnector",
        topicPath: "/rtcomm/",
        register: false,
-       createNode: false
+       createEndpoint: false
      };
      
 The above are the defaults and need to be changed to match the rtcomm-1.0 feature configuration in the server.xml for the liberty profile server you are using.  This is documented [here](http://www-01.ibm.com/support/knowledgecenter/was_beta_liberty/com.ibm.websphere.wlp.nd.multiplatform.doc/ae/twlp_config_rtcomm.html):
@@ -53,7 +53,7 @@ Access your server url and the 'index.html' page should be displayed with links 
 
 ## Library Overview
 
-The library exposes a single object called a 'RtcommNodeProvider'.  The RtcommNodeProvider utilizes MQTT over WebSockets to communicate with the rtcomm-1.0 feature via the 'nodeConnector'.  The RtcommNodeProvider object represents an Endpoint in the rtcomm infrastructure. The primary purpose of the RtcommNodeProvider is to create RtcommNodes.  Each RtcommNode object provides the functionality to create a WebRTCConnection between RtcommNode Objects and link these WebRTCConnection objects to UI components via events and media streams.   A WebRTCConnection is a combination of a Signaling Session and a RTCPeerConnection, enabling end-to-end communication between two Endpoints.
+The library exposes a single object called a 'RtcommEndpointProvider'.  The RtcommEndpointProvider utilizes MQTT over WebSockets to communicate with the rtcomm-1.0 feature via the 'nodeConnector'.  The RtcommEndpointProvider object represents an Endpoint in the rtcomm infrastructure. The primary purpose of the RtcommEndpointProvider is to create RtcommEndpoints.  Each RtcommEndpoint object provides the functionality to create a WebRTCConnection between RtcommEndpoint Objects and link these WebRTCConnection objects to UI components via events and media streams.   A WebRTCConnection is a combination of a Signaling Session and a RTCPeerConnection, enabling end-to-end communication between two Endpoints.
 <p>
 **NOTE:**  This library does not include any UI related components.  A simple html file demonstrating the use of the rtcomm.js library is included in the rtcomm.zip file.  It is discussed in the Sample section.
 
@@ -81,69 +81,69 @@ Then, include the rtcomm library in your application.  This can be done classica
 
 **Via AMD(assuming proper AMD configuration):**
 
-    var nodeProvider = null; // We need to be global.
+    var endpointProvider = null; // We need to be global.
     require( ["ibm/rtcomm"],
     function(rtcomm) {
-      nodeProvider = new rtcomm.RtcommNodeProvider();
+      endpointProvider = new rtcomm.RtcommEndpointProvider();
     });
 
-## Using the RtcommNodeProvider
+## Using the RtcommEndpointProvider
 
-The following shows how to configure and instantiate the RtcommNodeProvider. You need to know the MQTT Server address and ensure you use a unique 'connectorTopicName':
+The following shows how to configure and instantiate the RtcommEndpointProvider. You need to know the MQTT Server address and ensure you use a unique 'connectorTopicName':
 
-     var nodeProvider = new ibm.rtcomm.RtcommNodeProvider(); 
-     var nodeProviderConfig = {
+     var endpointProvider = new ibm.rtcomm.RtcommEndpointProvider(); 
+     var endpointProviderConfig = {
             server : "iot.eclipse.org", // mqtt server 
             userid : 'ibmAgent1@mysurance.org', // userid
             connectorTopicName : 'nodeConnector', // RTCOMM connector Topic name
             connectorTopicPath: '/rtcomm/MyCompany/', // RTCOMM connector Topic path
             port : 80, // mqtt port
-            register: true, // Register w/ Signalling Node
-            createNode : true,  // generate RtcommNode instance, pass in onSuccess
+            register: true, // Register w/ Signalling Endpoint
+            createEndpoint : true,  // generate RtcommEndpoint instance, pass in onSuccess
             credentials : null // no security for this example (sso token, etc)
           };
 
      // Initialize the Service. [Using onSuccess/onFailure callbacks]
      // This initializes the MQTT layer and enables inbound Communication.
-     var rtcommNode = null;  
-     ibmNodeProvider.init(nodeProviderConfig, 
+     var rtcommEndpoint = null;  
+     ibmEndpointProvider.init(endpointProviderConfig, 
         /* onSuccess */ function(object) {
-             console.log('init was successful, rtcommNode: ', object);
-              rtcommNode = object;
+             console.log('init was successful, rtcommEndpoint: ', object);
+              rtcommEndpoint = object;
         },
        /* onFailure */ function(error) {
              console.error('init failed: ', error);
        }
      );
 
-The instantiation example above automatically registers with the 'rtcomm server' and creates a RtcommNode which is assigned to the 'rtcommNode' variable. However, the developer can choose to decouple this behavior and specifically register  and createRtcommNode.   The 'rtcommNode' can now be used to create connections(calls) to other Endpoints.
+The instantiation example above automatically registers with the 'rtcomm server' and creates a RtcommEndpoint which is assigned to the 'rtcommEndpoint' variable. However, the developer can choose to decouple this behavior and specifically register  and createRtcommEndpoint.   The 'rtcommEndpoint' can now be used to create connections(calls) to other Endpoints.
 
-####Using the rtcommNode object
-The rtcommNode object provides an interface for the UI Developer to attach Video and Audio input/output.  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection where to send that stream in the User Interface.  
+####Using the rtcommEndpoint object
+The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection where to send that stream in the User Interface.  
 
 
 Once the object has been created, in order to enable audio/video between Endpoints, mediaIn & mediaOut must be attached to DOM Nodes [The inbound `<video>` and outbound `<video>` elements for your application]. 
 
-    // Configure & attach the rtcommNode to UI Video Node
-    rtcommNode.setMediaOut(OutboundVideoNode);
-    rtcommNode.setMediaIn(InboundVideoNode);
-    rtcommNode.audio = true; // Support audio
-    rtcommNode.video = true; // Support Video
+    // Configure & attach the rtcommEndpoint to UI Video Endpoint
+    rtcommEndpoint.setMediaOut(OutboundVideoEndpoint);
+    rtcommEndpoint.setMediaIn(InboundVideoEndpoint);
+    rtcommEndpoint.audio = true; // Support audio
+    rtcommEndpoint.video = true; // Support Video
 
-To create an outbound real-time connection with a specific user, the developer would attach the action of a UI component (like a Button) to the addEndpoint method of the rtcommNode and call it when clicked:
+To create an outbound real-time connection with a specific user, the developer would attach the action of a UI component (like a Button) to the addEndpoint method of the rtcommEndpoint and call it when clicked:
 
     // Setup a real-time connection with specified user.
-    rtcommNode.addEndpoint('userid');
+    rtcommEndpoint.addEndpoint('userid');
 
 To disconnect a real-time connection, the developer should call disconnect().
 
-    // Disconnect this node from all other attached users.
-    rtcommNode.disconnect();
+    // Disconnect this endpoint from all other attached users.
+    rtcommEndpoint.disconnect();
 
 To handle events, the developer should attach callback functions to the events generated by the on() handler:
 	 
 	 // Attach a handler to the 'connected' event
-	 nodeObject.on('connected', function(event_object){
+	 endpointObject.on('connected', function(event_object){
          console.log(event_object.message);
      });
 
@@ -161,13 +161,13 @@ The available events are:
 </table>
         
 
-####Advanced Features of the RtcommNodeProvider & RtcommNode Objects
+####Advanced Features of the RtcommEndpointProvider & RtcommEndpoint Objects
 
 The above scenario is the simplest way to connect two endpoints using the rtcomm-1.0 feature infrastructure.  However, these objects support several additional features:
 
-1.  Each RtcommNodeProvider is tied specifically to the MQTT Server and Service Topic.  To use multiple MQTT Servers/ServiceTopics, multiple RtcommNodeProviders can be configured and intialized.
+1.  Each RtcommEndpointProvider is tied specifically to the MQTT Server and Service Topic.  To use multiple MQTT Servers/ServiceTopics, multiple RtcommEndpointProviders can be configured and intialized.
 
-2.  The RtcommNodeProvider can create many RtcommNodes.  Each RtcommNode can have a single WebRTCConnection.
+2.  The RtcommEndpointProvider can create many RtcommEndpoints.  Each RtcommEndpoint can have a single WebRTCConnection.
 
 
 ##Sample videoClient
@@ -185,7 +185,7 @@ The above scenario is the simplest way to connect two endpoints using the rtcomm
       connectorTopicName : "nodeConnector",
       connectorTopicPath: "/rtcomm/",
       register: true,
-      createNode: true
+      createEndpoint: true
     };
 ```
 

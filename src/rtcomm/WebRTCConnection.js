@@ -70,12 +70,12 @@ function WebRTCConnection(/* object */ config ) {
   var requiredConfig = { };
 
   /** Default parameter definition */
-  this.nodeConnection = null;
+  this.endpointConnection = null;
   this.audio = false;
   this.video = false;
   this.data = false;
   this.appContext = null;
-  this.rtcommNode = null;
+  this.rtcommEndpoint = null;
   this.toEndpointID = null;
   this.autoAnswer = false;
   
@@ -132,7 +132,7 @@ function WebRTCConnection(/* object */ config ) {
   
   this._referralSession = null;
   
-  this.autoAnswer = this.rtcommNode.getAutoAnswer();
+  this.autoAnswer = this.rtcommEndpoint.getAutoAnswer();
   this.id = this.toEndpointID;
   
   /** Changes loglevel for the whole webrtc module */
@@ -195,19 +195,19 @@ WebRTCConnection.prototype = function() {
       onComplete = config.onComplete || onComplete;
       
       l('DEBUG') && console.log(this+'.init caller is: ', caller);
-      // If we have a node attached, populate our variables from it.
-      if (config.rtcommNode) {
-        this.rtcommNode = config.rtcommNode;
-        this.audio = this.rtcommNode.audio || false;
-        this.video = this.rtcommNode.video || false;
-        this.data = this.rtcommNode.data || false;
-        this.iceServers = getIceServers(config.rtcommNode);
+      // If we have a endpoint attached, populate our variables from it.
+      if (config.rtcommEndpoint) {
+        this.rtcommEndpoint = config.rtcommEndpoint;
+        this.audio = this.rtcommEndpoint.audio || false;
+        this.video = this.rtcommEndpoint.video || false;
+        this.data = this.rtcommEndpoint.data || false;
+        this.iceServers = getIceServers(config.rtcommEndpoint);
       }
     } 
   
-    if (this.rtcommNode === null) {
-      console.error("rtcommNode required...");
-      throw new Error("WebRTCConnection.init() - rtcommNode required");
+    if (this.rtcommEndpoint === null) {
+      console.error("rtcommEndpoint required...");
+      throw new Error("WebRTCConnection.init() - rtcommEndpoint required");
     }
     
     
@@ -283,10 +283,10 @@ WebRTCConnection.prototype = function() {
  
   }, // End of init()
 
-  setRTCommNode = function(rtcommNode) {
+  setRTCommEndpoint = function(rtcommEndpoint) {
     // It is possible to have this done automatically by the onComplete callback.  If it happens, we MAY need to answer...
     // Validate it has everything we should have in it..
-    this.rtcommNode = rtcommNode;
+    this.rtcommEndpoint = rtcommEndpoint;
 
   },
   /* 
@@ -463,11 +463,11 @@ WebRTCConnection.prototype = function() {
     // 
     
     
-    if (this.rtcommNode && this.rtcommNode.localStream) {
+    if (this.rtcommEndpoint && this.rtcommEndpoint.localStream) {
       // We have a localstream - we only support 1 local stream...  We should be able to add more streams, like music, etc... not yet. 
       if (this._peerConnection && !this.streamAttached) {
-        l('DEBUG') && console.log(this+'.attachLocalStream() calling .addStream on peerConnection with: ', this.rtcommNode.localStream);
-        this._peerConnection.addStream(this.rtcommNode.localStream);
+        l('DEBUG') && console.log(this+'.attachLocalStream() calling .addStream on peerConnection with: ', this.rtcommEndpoint.localStream);
+        this._peerConnection.addStream(this.rtcommEndpoint.localStream);
         this.streamAttached = true;
         return true;
       } else {
@@ -475,7 +475,7 @@ WebRTCConnection.prototype = function() {
         return true;
       }
     } else {
-      console.error('this.rtcommNode.localStream is not set');
+      console.error('this.rtcommEndpoint.localStream is not set');
       return false;
     }
   },
@@ -668,7 +668,7 @@ WebRTCConnection.prototype = function() {
       connStatus.pcIceConnectionState = this._peerConnection.iceConnectionState;
     }
     connStatus.remoteID = this.toEndpointID;
-    connStatus.thisID = this.nodeConnection.userid;
+    connStatus.thisID = this.endpointConnection.userid;
     return connStatus;
   },
   getName = function() {
@@ -719,7 +719,7 @@ function createSignalingSession(context) {
     throw new Error('toEndpointID must be set in WebRTCConnection object');
   }
   
-  var session = context.nodeConnection.createSession({
+  var session = context.endpointConnection.createSession({
     id : sessid,
     toTopic : toTopic,
     toEndpointID: context.toEndpointID
@@ -843,19 +843,19 @@ function createPeerConnection(/* object */ context) {
        * 
        */
      
-      var rtcommNode = this.rtcommNode;
-      if (this._peerConnection && this.rtcommNode) {
+      var rtcommEndpoint = this.rtcommEndpoint;
+      if (this._peerConnection && this.rtcommEndpoint) {
         /* global URL: true */
-        this.rtcommNode.setInboundMediaStream(evt.stream);
-        l('DEBUG') && console.log('peerConnection.onaddstream - Attached stream to rtcommNode: ', this.rtcommNode);
+        this.rtcommEndpoint.setInboundMediaStream(evt.stream);
+        l('DEBUG') && console.log('peerConnection.onaddstream - Attached stream to rtcommEndpoint: ', this.rtcommEndpoint);
         /*  Commenting out -- Don't think we need to do this.
-         * if(this.rtcommNode.localStream){
-          console.log("onaddstream  --> Adding LocalStream to FOUND rtcommNode");
-          this._peerConnection.addStream(this.rtcommNode.localStream);
+         * if(this.rtcommEndpoint.localStream){
+          console.log("onaddstream  --> Adding LocalStream to FOUND rtcommEndpoint");
+          this._peerConnection.addStream(this.rtcommEndpoint.localStream);
         }*/
       } else {
         // No UI Component... Need to Disconnect...
-        console.error("peerConnection.onaddstream - Something is wrong, no peerConnection or rtcommNode");
+        console.error("peerConnection.onaddstream - Something is wrong, no peerConnection or rtcommEndpoint");
       }
     }.bind(context);
     

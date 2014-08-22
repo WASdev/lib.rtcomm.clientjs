@@ -18,8 +18,7 @@
  * @memberof module:rtcomm.connector
  *
  * @classdesc
- * The NodeConnection encapsulates the functionality to connect and create Sessions with the
- * server side nodeConnection.
+ * The EndpointConnection encapsulates the functionality to connect and create Sessions.
  * 
  * @param {object}  config   - Config object 
  * @param {string}  config.server -  MQ Server for mqtt.
@@ -41,7 +40,7 @@
  * @private
  */
 
-var NodeConnection = function(config) {
+var EndpointConnection = function(config) {
   /*
    * Registery Object 
    */
@@ -95,7 +94,7 @@ var NodeConnection = function(config) {
   } // End of Registry definition
 
   /*
-   * create an RtcommService for use by the NodeConnection
+   * create an RtcommService for use by the EndpointConnection
    */ 
   var createRtcommService = function(config) {
     var rtcService = new RtcommService(config);
@@ -139,7 +138,7 @@ var NodeConnection = function(config) {
   /*
    * Instance Properties
    */
-  this.objName = 'NodeConnection';
+  this.objName = 'EndpointConnection';
 //Define events we support
   this.events = {
       'message': [],
@@ -167,14 +166,14 @@ var NodeConnection = function(config) {
   this._init = true;
 };
 
-NodeConnection.prototype = util.RtcommBaseObject.extend (
+EndpointConnection.prototype = util.RtcommBaseObject.extend (
     (function() {
       /*
        * Class Globals
        */
       var registerTimer = null;
 
-      /** @lends module:rtcomm.connector.NodeConnection.prototype */
+      /** @lends module:rtcomm.connector.EndpointConnection.prototype */
       return {
         /*
          * Instance Methods
@@ -185,7 +184,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
         getLogLevel: getLogLevel,
         /* Factory Methods */
         /**
-         * Create a message for this NodeConnection
+         * Create a message for this EndpointConnection
          */
         createMessage: function(type) {
           if (!this.ready) {
@@ -199,7 +198,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           return message;
         },
         /**
-         * Create a Response Message for this NodeConnection
+         * Create a Response Message for this EndpointConnection
          */
         createResponse : function(type) {
           if (!this.ready) {
@@ -217,7 +216,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           }
           // options = {message: message, timeout:timeout}
           var t = new Transaction(options, onSuccess,onFailure);
-          t.nodeconnector = this;
+          t.endpointconnector = this;
           l('DEBUG') && console.log(this+'.createTransaction() Transaction created: ', t);
           this.transactions.add(t);
           return t;
@@ -233,8 +232,8 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
           // if message & fromEndpointID -- we are inbound..
           var session = new SigSession(config);
-          session.nodeconnector = this;
-          // apply NodeConnection
+          session.endpointconnector = this;
+          // apply EndpointConnection
           this.createEvent(session.id);
           this.on(session.id,session.processMessage.bind(session));
           this.sessions.add(session);
@@ -274,7 +273,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           }
         },
         /**
-         * connect the NodeConnection to the server nodeConnection
+         * connect the EndpointConnection to the server endpointConnection
          * 
          * @param {callback} [cbSuccess] Optional callbacks to confirm success/failure
          * @param {callback} [cbFailure] Optional callbacks to confirm success/failure
@@ -288,7 +287,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           }
           var onSuccess = function(service) {
             this.ready = true;
-            l('DEBUG') && console.log('NodeConnection.connect() Success, calling callback - service:', service);
+            l('DEBUG') && console.log('EndpointConnection.connect() Success, calling callback - service:', service);
             if (cbSuccess && typeof cbSuccess === 'function') {
               cbSuccess(service);
             } else {
@@ -306,7 +305,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           this.rtcService.connect(onSuccess.bind(this),onFailure.bind(this));
         },
         disconnect : function() {
-          l('DEBUG') && console.log('NodeConnection.disconnect() called: ', this.rtcService);
+          l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.rtcService);
           if (this.registered) {
             this.unregister();
             this.registered = false;
@@ -317,7 +316,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           this.ready = false;
         },
         /** 
-         *  Register the 'userid' used in {@link module:rtcomm.RtcommNodeProvider#init|init} with the
+         *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
          *  rtcomm service so it can be looked up and receive
          *  inbound requests.
          *
@@ -380,7 +379,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           }
         },
         /** 
-         *  Unregister the userid associated with the NodeConnection  
+         *  Unregister the userid associated with the EndpointConnection  
          */
         unregister : function() {
 
@@ -418,7 +417,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           }
         },
         /**
-         * Service Query for supported services by nodeConnection
+         * Service Query for supported services by endpointConnection
          */
         service_query: function(cbSuccess, cbFailure) {
           if (this.ready) {
@@ -446,7 +445,7 @@ NodeConnection.prototype = util.RtcommBaseObject.extend (
           if (config) { 
             this.rtcService.send({message:config.message, toTopic:config.toTopic});
           } else {
-            console.error('NodeConnection.send() Nothing to send');
+            console.error('EndpointConnection.send() Nothing to send');
           }
         }
       };

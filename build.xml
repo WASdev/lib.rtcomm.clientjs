@@ -72,8 +72,12 @@
 	     <var name="umd.contents" unset="true" /> 
 	 	   <basename property="module" file="${mod.dir}" />
 	      	<concat destfile="${build.dir}/tmp/${module}-contents" fixlastline="yes" append="true" >
+             <filelist dir="${js.packagesrc.dir}/${module}" files="ModuleGlobals.js" />
 	 	         <fileset id='contents' dir="${js.packagesrc.dir}/${module}" >
 	 	             <filename regex="^[A-Z]\S+\.js" />
+                  <not>
+                    <filename name="ModuleGlobals.js" />
+                  </not>
 	 	         </fileset>
 	 	      </concat>
 	     <loadfile  property="umd.contents"  srcFile="${build.dir}/tmp/${module}-contents" />
@@ -154,8 +158,12 @@
     	    
         	<property name="content.file" value="${build.dir}/tmp/${module}-2contents"/>
              <concat destfile="${content.file}" fixlastline="yes" append="true" >
+                <filelist dir="${js.packagesrc.dir}/${module}" files="ModuleGlobals.js" />
                 <fileset id='contents' dir="${js.packagesrc.dir}/${module}" >
                     <filename regex="^[A-Z]\S+\.js" />
+                    <not>
+                      <filename name="ModuleGlobals.js" />
+                    </not>
                 </fileset>
              </concat>
           <loadfile  property="sf.contents"  srcFile="${content.file}" />
