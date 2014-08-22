@@ -165,7 +165,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         applyConfig(config, this._private);
       }
 
-      this.endointConnection = this._private.parent.endointConnection;
+      this.endpointConnection = this._private.parent.endpointConnection;
 
       /* inbound and outbound Media Element DOM Endpoints */
       this.media = {
@@ -189,7 +189,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     },
     
     /**
-     *  Destroy this endoint.  Cleans up everything and disconnects any and all connections
+     *  Destroy this endpoint.  Cleans up everything and disconnects any and all connections
      *  
      */
     
@@ -235,7 +235,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         appContext: this._private.appContext,
         toEndpointID: config.toEndpointID,
         rtcommEndpoint: rtcommEndpoint,
-        endointConnection: this.endointConnection,
+        endpointConnection: this.endpointConnection,
         onEvent: function(event) {
           // This type of event is event.name...
           rtcommEndpoint.emit(event.name, event);

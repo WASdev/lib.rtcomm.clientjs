@@ -70,7 +70,7 @@ function WebRTCConnection(/* object */ config ) {
   var requiredConfig = { };
 
   /** Default parameter definition */
-  this.endopintConnection = null;
+  this.endpointConnection = null;
   this.audio = false;
   this.video = false;
   this.data = false;
@@ -195,7 +195,7 @@ WebRTCConnection.prototype = function() {
       onComplete = config.onComplete || onComplete;
       
       l('DEBUG') && console.log(this+'.init caller is: ', caller);
-      // If we have a endopint attached, populate our variables from it.
+      // If we have a endpoint attached, populate our variables from it.
       if (config.rtcommEndpoint) {
         this.rtcommEndpoint = config.rtcommEndpoint;
         this.audio = this.rtcommEndpoint.audio || false;
@@ -668,7 +668,7 @@ WebRTCConnection.prototype = function() {
       connStatus.pcIceConnectionState = this._peerConnection.iceConnectionState;
     }
     connStatus.remoteID = this.toEndpointID;
-    connStatus.thisID = this.endopintConnection.userid;
+    connStatus.thisID = this.endpointConnection.userid;
     return connStatus;
   },
   getName = function() {
@@ -719,7 +719,7 @@ function createSignalingSession(context) {
     throw new Error('toEndpointID must be set in WebRTCConnection object');
   }
   
-  var session = context.endopintConnection.createSession({
+  var session = context.endpointConnection.createSession({
     id : sessid,
     toTopic : toTopic,
     toEndpointID: context.toEndpointID
