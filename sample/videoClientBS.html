@@ -155,13 +155,13 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
 <script>
   
-  // Define the RtcommNodeProvider globabl variable
+  // Define the RtcommEndpointProvider globabl variable
   var ibmnp = null;
 
-  // In this sample, initializing rtcommNode variable as a GLOBAL
-  var rtcommNode = null;
+  // In this sample, initializing rtcommEndpoint variable as a GLOBAL
+  var rtcommEndpoint = null;
 
-  /* Define the configuration for the NodeProvider.  THis is REQUIRED and generally must be changed.
+  /* Define the configuration for the EndpointProvider.  THis is REQUIRED and generally must be changed.
    * It MUST match the rtcomm configuration used on the liberty server.
    *  This config can be passed in on the URL via params as well:
    *
@@ -174,7 +174,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     connectorTopicName : "nodeConnector",
     connectorTopicPath : "/rtcomm/",
     register : true,
-    createNode : true
+    createEndpoint : true
 
   };
 
@@ -212,17 +212,17 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
    */
   /*
    * This function is the meat of the sample and shows how to
-   * init the NodeProvider using npConfig provided above.  This
-   * config is using register/getRtcommNode = true so that 
-   * the init returns a rtcommNode object.  
+   * init the EndpointProvider using npConfig provided above.  This
+   * config is using register/getRtcommEndpoint = true so that 
+   * the init returns a rtcommEndpoint object.  
    * 
-   *  This can be decoupled and register() and getRtcommNode() can be
+   *  This can be decoupled and register() and getRtcommEndpoint() can be
    *  called individually.
    * 
    */
   function doRegister(userid) {
 
-    ibmnp = ibmnp || new ibm.rtcomm.RtcommNodeProvider();
+    ibmnp = ibmnp || new ibm.rtcomm.RtcommEndpointProvider();
     // Change the loglevel - default is 'INFO', possibilities are:
     // 'MESSAGES' --> Just log sent/received messages in console.
     // 'DEBUG' -- > log most everything
@@ -235,25 +235,25 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     npConfig.userid = userid;
     // make sure this is an integer.
     npConfig.port = parseInt(npConfig.port);
-    //  If the NodeProvider is ready, it has already been init'd, we don't need to init again. Just register again.
+    //  If the EndpointProvider is ready, it has already been init'd, we don't need to init again. Just register again.
 
     if (!ibmnp.ready) {
-      // Call init() on the Node Provider.
+      // Call init() on the Endpoint Provider.
       ibmnp
           .init(
               npConfig,
               function(object) { //onSuccess
-                // Because register/getRtcommNode is enabled, we expect an object
+                // Because register/getRtcommEndpoint is enabled, we expect an object
                 // returned in the onSuccess callback.
-                console.log('init was successful, rtcommNode: ', object);
+                console.log('init was successful, rtcommEndpoint: ', object);
                 updateMessage('Registered');
                 $('#displayNameStr').html(
                     'Welcome, <span class="blue">' + userid + '</span>')
                 $('#btnConnect').prop('disabled', false);
-                // Configure the rtcommNode now
-                rtcommNode = buildNode(object.node);
+                // Configure the rtcommEndpoint now
+                rtcommEndpoint = buildEndpoint(object.endpoint);
                 if (regwithAV) {
-                  rtcommNode
+                  rtcommEndpoint
                       .attachLocalMedia(function(value, message) {
                         if (!value) {
                           alertMessage('Failed to get local Audio/Video - nothing to broadcast');
@@ -285,39 +285,39 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     return false;
   };
 
-  function buildNode(nodeObject) {
+  function buildEndpoint(endpointObject) {
     // Assign the MediOut/MediaIn objects.  These are the <video> components for in/out media.
-    console.log(nodeObject);
-    nodeObject.setMediaOut(document.querySelector('#selfView'));
-    nodeObject.setMediaIn(document.querySelector('#remoteView'));
-    nodeObject.appContext = 'sample';
+    console.log(endpointObject);
+    endpointObject.setMediaOut(document.querySelector('#selfView'));
+    endpointObject.setMediaIn(document.querySelector('#remoteView'));
+    endpointObject.appContext = 'sample';
     // Assign the callbacks
-    // nodeObject.onNewConnection = onNewConnection;
+    // endpointObject.onNewConnection = onNewConnection;
     // This will ask user for access to video and attach it to MediaIn
     // This can be done  when addEndpoint/acceptEndpoint is called but right now,
     // the video/video is more reliable if it is attached before a call is created.
 
     /*
-     * onEvent -- This is the event handler callback that should be defined for the created rtcommNode.  It doesn't
-     *  need to be this way, but this is an example of receiving events from the node about connections.
+     * onEvent -- This is the event handler callback that should be defined for the created rtcommEndpoint.  It doesn't
+     *  need to be this way, but this is an example of receiving events from the endpoint about connections.
      */
 
-    nodeObject.on('connected', function(event_object) {
+    endpointObject.on('connected', function(event_object) {
       state = "connected";
       // $('#btnAnswer').prop('disabled', true);
       $('#cancel').prop('disabled', false);
       updateMessage(event_object.message);
     });
-    nodeObject.on('disconnected', function(event_object) {
+    endpointObject.on('disconnected', function(event_object) {
       console.log('DISCONNECTED! calling cancel()', event_object);
       updateMessage(event_object.message);
       try {
-        rtcommNode.disconnect();
+        rtcommEndpoint.disconnect();
       } catch (e) {
         console.error(e);
       }
     });
-    nodeObject.on('ringing', function(event_object) {
+    endpointObject.on('ringing', function(event_object) {
       if (event_object.object && event_object.object.pcSigState) {
         if (event_object.object.pcSigState === 'have-local-offer') {
           // we are the CALLER.
@@ -329,8 +329,8 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
       }
     });
 
-    nodeObject.on('incoming', function(conn) {
-      if (!rtcommNode.autoAnswer) {
+    endpointObject.on('incoming', function(conn) {
+      if (!rtcommEndpoint.autoAnswer) {
         console.log($('#answerDialog .modal-body'));
         $('#answerDialog .modal-body').html(
             "Inbound call from " + conn.toEndpointID);
@@ -341,7 +341,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     });
 
     // update UI?
-    return nodeObject;
+    return endpointObject;
   }
   /*
    * UI Related functionality
@@ -353,21 +353,21 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
   $('#answerYes').on('click', function() {
     $("#answerDialog").modal("hide");
-    rtcommNode.acceptEndpoint();
+    rtcommEndpoint.acceptEndpoint();
   });
 
   $('#answerNo').on('click', function() {
     $("#answerDialog").modal("hide");
-    rtcommNode.disconnect();
+    rtcommEndpoint.disconnect();
   });
 
   $('#cancel').on('click', function() {
-    rtcommNode.disconnect();
+    rtcommEndpoint.disconnect();
   });
 
   $('#btnReset').on('click', function() {
-    rtcommNode && rtcommNode.reset();
-    rtcommNode = null;
+    rtcommEndpoint && rtcommEndpoint.reset();
+    rtcommEndpoint = null;
     ibmnp && ibmnp.destroy();
     ibmnp = null;
     updateMessage('Please Register');
@@ -418,7 +418,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
       lobby.displayName = name;
       lobby.connect();
       initRecorder(); */
-      rtcommNode.addEndpoint(remoteid);
+      rtcommEndpoint.addEndpoint(remoteid);
       $("#connectModal").modal("hide");
       $('#connAlert').hide();
     }

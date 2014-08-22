@@ -7,11 +7,11 @@ This specification defines version v0.0.1 of the Rtcomm signaling protocol . All
 1. Signaling protocol for connecting WebRTC endpoints into media sessions.
 2. Service protocol for things like third party call control and event monitoring.    See [**rtcomm.service.proto.spec.md**](https://github.com/WASdev/lib.rtcomm.node/blob/master/rtcomm.service.proto.spec.md) for details
 
-This specification describes the signaling protocol that occurs between Rtcomm endpoints (aka Rtcomm nodes) and Rtcomm connectors (which connect Rtcomm nodes together). Examples of Rtcomm endpoints include:
-- Clients nodes
-- multiway nodes
-- record/playback nodes.
-- basically any endpoint that terminates a signalling session.
+This specification describes the signaling protocol that occurs between Rtcomm endpoints and Rtcomm connectors (which connect Rtcomm endpoints together). Examples of Rtcomm endpoints include:
+- Clients endpoints
+- multiway endpoints
+- record/playback endpoints.
+- basically any endpoint that terminates a signaling session.
 
 This protocol supports all of the following capabilities:
 
@@ -150,7 +150,7 @@ This is the first message sent from the endpoint to start a new signaling sessio
 Note:    sigSessID should be a UUID to insure it is globally unique.
 
 
-If this message is sent to a Rtcomm node connector service, the service looks up the toEndpointID in the registry, and forwards it to the destination endpoint.
+If this message is sent to a Rtcomm connector service, the service looks up the toEndpointID in the registry, and forwards it to the destination endpoint.
 
 
 In response to the START_SESSION message, the callee responds may respond with an optional PRANSWER:

@@ -16,19 +16,19 @@
 /** 
  *  @memberof module:rtcomm
  *  @description
- *  This object can only be created with the {@link module:rtcomm.RtcommNodeProvider#createRtcommNode|createRtcommNode} function.
+ *  This object can only be created with the {@link module:rtcomm.RtcommEndpointProvider#createRtcommEndpoint|createRtcommEndpoint} function.
  *  <p>
- *  The rtcommNode object provides an interface for the UI Developer to attach Video and Audio input/output. 
+ *  The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output. 
  *  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
  *  stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection 
  *  where to send that stream in the User Interface.  
  *  <p>
- *  See the example under {@link module:rtcomm.RtcommNodeProvider#createRtcommNode|createRtcommNode}
+ *  See the example under {@link module:rtcomm.RtcommEndpointProvider#createRtcommEndpoint|createRtcommEndpoint}
  *  @constructor
  *  
  *  @extends  module:rtcomm.util.RtcommBaseObject
  */  
-var RtcommNode = util.RtcommBaseObject.extend((function() {
+var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
   
   var validMediaElement = function(element) {
     return( (typeof element.srcObject !== 'undefined') ||
@@ -88,7 +88,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     console.log("Browser does not appear to be WebRTC-capable");
   }
   
-  /** @lends module:rtcomm.RtcommNode.prototype */
+  /** @lends module:rtcomm.RtcommEndpoint.prototype */
   return {
     
     _initialized: false,
@@ -118,38 +118,38 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
       this.events = {
           /**
            * A connection to a peer has been established
-           * @event module:rtcomm.RtcommNode#connected
+           * @event module:rtcomm.RtcommEndpoint#connected
            * @property {module:rtcomm#RtcommEvent}
            */
           "connected": [],
           "refer": [],
           /**
            * The connection to a peer has been closed
-           * @event module:rtcomm.RtcommNode#disconnected
+           * @event module:rtcomm.RtcommEndpoint#disconnected
            * @property {module:rtcomm#RtcommEvent}
            */
           "disconnected": [],
           /**
            * A peer has been reached, but not connected (inbound/outound)
-           * @event module:rtcomm.RtcommNode#ringing
+           * @event module:rtcomm.RtcommEndpoint#ringing
            * @property {module:rtcomm#RtcommEvent}
            */
           "ringing": [],
           /**
            * A connection is being attempted (outbound only)
-           * @event module:rtcomm.RtcommNode#trying
+           * @event module:rtcomm.RtcommEndpoint#trying
            * @property {module:rtcomm#RtcommEvent}
            */
           "trying": [],
           /**
            * An inbound connection is being requested.
-           * @event module:rtcomm.RtcommNode#incoming
+           * @event module:rtcomm.RtcommEndpoint#incoming
            * @property {module:rtcomm#RtcommEvent}
            */
           "incoming": [],
           /**
            * A message has arrived from a peer
-           * @event module:rtcomm.RtcommNode#message
+           * @event module:rtcomm.RtcommEndpoint#message
            * @property {module:rtcomm#RtcommEvent}
            */
           'message': []
@@ -165,9 +165,9 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         applyConfig(config, this._private);
       }
 
-      this.nodeConnection = this._private.parent.nodeConnection;
+      this.endointConnection = this._private.parent.endointConnection;
 
-      /* inbound and outbound Media Element DOM Nodes */
+      /* inbound and outbound Media Element DOM Endpoints */
       this.media = {
           In: null,
           Out: null
@@ -189,12 +189,12 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     },
     
     /**
-     *  Destroy this node.  Cleans up everything and disconnects any and all connections
+     *  Destroy this endoint.  Cleans up everything and disconnects any and all connections
      *  
      */
     
     destroy : function() {
-      l('DEBUG') && console.log(this+'.destroy Destroying RtcommNode');
+      l('DEBUG') && console.log(this+'.destroy Destroying RtcommEndpoint');
     },
 
     newSession : function(session) {
@@ -223,25 +223,25 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
       if (!this._initialized) {
         throw new Error('Not Ready! call init() first');
       }
-      // ourself is the rtcommNode
-      var rtcommNode = this;
+      // ourself is the rtcommEndpoint
+      var rtcommEndpoint = this;
       config = config || {};
-      config.rtcommNode = rtcommNode;
+      config.rtcommEndpoint = rtcommEndpoint;
       // Call the ClientServide createConnection with correct context set and config;
-      rtcommNode.conn  = new WebRTCConnection({
+      rtcommEndpoint.conn  = new WebRTCConnection({
         audio: this.getAudio(),
         video: this.getVideo(),
         data: this.getData(),
         appContext: this._private.appContext,
         toEndpointID: config.toEndpointID,
-        rtcommNode: rtcommNode,
-        nodeConnection: this.nodeConnection,
+        rtcommEndpoint: rtcommEndpoint,
+        endointConnection: this.endointConnection,
         onEvent: function(event) {
           // This type of event is event.name...
-          rtcommNode.emit(event.name, event);
+          rtcommEndpoint.emit(event.name, event);
         }
       });
-      return rtcommNode.conn;
+      return rtcommEndpoint.conn;
     },
 
     // TODO:  Remove?
@@ -259,33 +259,33 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         message = message || "No Message";
         console.log(this+"attachLocalMedia.callback should be overridden:("+value+","+message+")");
       };
-      var rtcommNode = this;
-      l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): Setting up the rtcommNode:', this);
+      var rtcommEndpoint = this;
+      l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Setting up the rtcommEndpoint:', this);
       if (this.getAudio() || this.getVideo()|| this.getData()) {
         if (this.getMediaIn() && this.getMediaOut()) {
           // Must be set...
           if (this.localStream) {
-            l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): Have a localStream already, apply it.', this.localStream);
+            l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Have a localStream already, apply it.', this.localStream);
             // we have a local stream, proceed to make a call. 
             // TODO:  This following COMPARE is not browser agnostic
             if (URL.createObjectURL(this.localStream) === this.getMediaOut().src) {
               // We are connected and everthing... 
-              l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): Already setup, skipping');
+              l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Already setup, skipping');
               callback(true);
             } else {
               // Apply the stream.
-              l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): Applying Local Stream');
-              rtcommNode.attachMediaStream(rtcommNode.getMediaOut(),rtcommNode.localStream);
+              l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Applying Local Stream');
+              rtcommEndpoint.attachMediaStream(rtcommEndpoint.getMediaOut(),rtcommEndpoint.localStream);
               callback(true);
             }
           } else {
             // No local stream, get it!
-            l('DEBUG') && console.log('rtcommNode.attachLocalMedia(): No Stream, getting one! audio:'+ this.getAudio()+' video: '+ this.getVideo());
+            l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): No Stream, getting one! audio:'+ this.getAudio()+' video: '+ this.getVideo());
             this.getUserMedia({audio: this.getAudio(), video: this.getVideo()} ,
                 /* onSuccess */ function(stream) {
               console.log('getUserMedia returned: ', stream);
-              rtcommNode.localStream = stream;
-              rtcommNode.attachMediaStream(rtcommNode.getMediaOut(),stream);
+              rtcommEndpoint.localStream = stream;
+              rtcommEndpoint.attachMediaStream(rtcommEndpoint.getMediaOut(),stream);
               callback(true);
             }, 
             /* onFailure */ function(error) {
@@ -312,15 +312,15 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     addEndpoint : function(/* String */ remoteId){
       // When call is invoked, we must have a RemoteID and we must have mediaIn & Out set. 
       // We need to confirm the stream is attached
-      var rtcommNode = this;
+      var rtcommEndpoint = this;
       l('DEBUG') && console.log(this + ".addEndpoint() Calling "+remoteId);
       if ( remoteId === null ) { throw new Error(".addEndpoint() requires an ID to be passed"); }
 
       this.attachLocalMedia(function(success, message) {
         if (success) {
-          if (typeof rtcommNode.createConnection === 'function') {
-            rtcommNode.createConnection({toEndpointID: remoteId, appContext: rtcommNode.getAppContext()});
-            rtcommNode.conn.connect();
+          if (typeof rtcommEndpoint.createConnection === 'function') {
+            rtcommEndpoint.createConnection({toEndpointID: remoteId, appContext: rtcommEndpoint.getAppContext()});
+            rtcommEndpoint.conn.connect();
           } else {
             console.error("Don't know what to do, createConnection missing...");
           }        
@@ -339,11 +339,11 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
      *  @throws Error Could not find connection to answer
      */
     acceptEndpoint : function(id) {
-      var rtcommNode = this;
+      var rtcommEndpoint = this;
       l('DEBUG') && console.log(this + ".answer() invoked ");
-      rtcommNode.attachLocalMedia(function(success, message) {
+      rtcommEndpoint.attachLocalMedia(function(success, message) {
         if (success) {
-          var connection = rtcommNode.getConnection(id);
+          var connection = rtcommEndpoint.getConnection(id);
           if(connection) {
             connection.connect();
           } else {
@@ -379,7 +379,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     getConnection: function() { return this.conn ;},
 
     /*jshint es5: true */
-    /** Whether audio is enabled or not in the RtcommNode.  
+    /** Whether audio is enabled or not in the RtcommEndpoint.  
      * @type Boolean 
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
@@ -391,7 +391,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         throw new Error("Unable to set value, would create a registration that already exists");
       }
     },
-    /** Whether Video is enabled or not in the RtcommNode.  
+    /** Whether Video is enabled or not in the RtcommEndpoint.  
      * @type Boolean 
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
@@ -403,7 +403,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         throw new Error("Unable to set value, would create a registration that already exists");
       }
     },
-    /** Whether data is enabled or not in the RtcommNode.  
+    /** Whether data is enabled or not in the RtcommEndpoint.  
      * @type Boolean 
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
@@ -415,24 +415,24 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         throw new Error("Unable to set value, would create a registration that already exists");
       }
     },
-    /** context of the node instance.  This is used to match nodes on endpoints so that each endpoint
+    /** context of the endpoint instance.  This is used to match nodes on endpoints so that each endpoint
      *  should have a node with the same context in order to communicate with each other. There can
      *  only be one context + audio/video/data combination. 
      *   
      *  @example
      *  // get the context
-     *  var context = rtcommNode.getAppContext();
+     *  var context = rtcommEndpoint.getAppContext();
      *  // set the context
-     *  rtcommNode.setAppContext("newcontext");
+     *  rtcommEndpoint.setAppContext("newcontext");
      *  
      *  @throws Error Context already exists
      */
     getAppContext:function() {return this._private.appContext;},
    
-    /** Return userid associated with this RtcommNode */
+    /** Return userid associated with this RtcommEndpoint */
     getUserid: function() { return this._private.userid;},
     getUuid: function() {return this._private.uuid;},
-    /** RtcommNode is ready to initiate a connection
+    /** RtcommEndpoint is ready to initiate a connection
      * @type Boolean */
     isReady: function() {return this._private.parent.isReady();},
     /* autoAnswer - used for testing */
@@ -448,8 +448,8 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     getInboundMediaStream: function() { return this._private.inboundMedia;},
 
     /** 
-     * DOM node to link the RtcommNode inbound media stream to. 
-     * @param {Object} value - DOM Node with 'src' attribute like a 'video' node.
+     * DOM node to link the RtcommEndpoint inbound media stream to. 
+     * @param {Object} value - DOM Endpoint with 'src' attribute like a 'video' node.
      * @throws Error Object does not have a src attribute
      */
     getMediaIn: function() {
@@ -468,8 +468,8 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
 
     },
     /** 
-     * DOM Node to link outbound media stream to.
-     * @param {Object} value - DOM Node with 'src' attribute like a 'video' node.
+     * DOM Endpoint to link outbound media stream to.
+     * @param {Object} value - DOM Endpoint with 'src' attribute like a 'video' node.
      * @throws Error Object does not have a src attribute
      */
     getMediaOut: function() { return this.media.Out; },
@@ -485,7 +485,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
       }
     },
     toString: function() {
-      return "RtcommNode["+this._private.uuid+"]";
+      return "RtcommEndpoint["+this._private.uuid+"]";
     }
   }; // end of Return    
 

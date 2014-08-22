@@ -19,7 +19,7 @@
  * 
  * <p>
  * It is part of a WebRTCConnection and should ONLY be used via a WebRTCConnection.  It 
- * should only be created by 'NodeConnection.createSession()'
+ * should only be created by 'EndpointConnection.createSession()'
  * <p>
  * 
  * 
@@ -39,7 +39,7 @@ var SigSession = function SigSession(config) {
 
   /* Instance Properties */
   this.objName = 'SigSession';
-  this.nodeconnector = null;
+  this.endpointconnector = null;
   this.id = null;
   this.toEndpointID = null;
   this.message = null;
@@ -174,7 +174,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         this.emit('failed', message);
       };
       
-      this._startTransaction = this.nodeconnector.createTransaction(
+      this._startTransaction = this.endpointconnector.createTransaction(
           { message: this.message,
             timeout: this.timeout
           },
@@ -212,7 +212,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       l('DEBUG') && console.log(this+'.respond() Respond called using this', this);
       var messageToSend = null;
       if (this._startTransaction) {
-        messageToSend = this.nodeconnector.createResponse('START_SESSION');
+        messageToSend = this.endpointconnector.createResponse('START_SESSION');
         messageToSend.transID = this._startTransaction.id;
         messageToSend.sigSessID = this.id;
         
@@ -245,7 +245,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
     stop : function() {
       var message = this.createMessage('STOP_SESSION');
       l('DEBUG') && console.log(this+'.stop() stopping...', message);
-      this.nodeconnector.send({message:message});
+      this.endpointconnector.send({message:message});
       // Let's concerned persons know we are stopped
       this.state = 'stopped';
       this.emit('stopped');
@@ -283,7 +283,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
           if (messageToSend.hasOwnProperty('transID')) {
             delete messageToSend.transID;
           }
-          this.nodeconnector.send({message:messageToSend}); 
+          this.endpointconnector.send({message:messageToSend}); 
         }
       }
     },
@@ -308,7 +308,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         type = object;
       }
       
-      var message = this.nodeconnector.createMessage(type);
+      var message = this.endpointconnector.createMessage(type);
       message.toEndpointID = this.toEndpointID;
       message.sigSessID = this.id;
       message.peerContent = peerContent ? object : null;
