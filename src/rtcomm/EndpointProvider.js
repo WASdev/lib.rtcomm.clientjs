@@ -326,7 +326,9 @@ var EndpointProvider =  function EndpointProvider() {
       cbFailure = success;
       cbSuccess = appContext;
       appContext = this.config.appContext;
-    }
+     } else {
+       this.config.appContext = appContext;
+     }
     //console.log('appContext is:'+ appContext);
     //console.log('cbSuccess is:'+ cbSuccess);
     //console.log('cbFailure is:'+ cbFailure);

@@ -473,6 +473,544 @@ var connection = (function() {
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/ 
+// rtcservice &amp; util should be defined here:
+/*global util:false*/
+var logging = new util.Log(),
+    setLogLevel = logging.s,
+    getLogLevel = logging.g,
+    l = logging.l,
+    generateUUID = util.generateUUID,    
+    validateConfig = util.validateConfig,
+    applyConfig = util.applyConfig,
+    setConfig = util.setConfig,
+    /*global log: false */
+    log = function log() {
+          // I want to log CallingObject[id].method Message [possibly an object]
+
+          var object = {},
+              method = '&lt;none>',
+              message = null,
+              remainder = null,
+              logMessage = "";
+
+          var args = [].slice.call(arguments);
+
+          if (args.length === 0 ) {
+            return;
+          } else if (args.length === 1 ) {
+            // Just a Message, log it...
+            message = args[0];
+          } else if (args.length === 2) {
+            object = args[0];
+            message = args[1];
+          } else if (args.length === 3 ) {
+            object = args[0];
+            method = args[1];
+            message = args[2];
+          } else {
+            object = args.shift();
+            method = args.shift();
+            message = args.shift();
+            remainder = args;
+          }
+
+          if (object) {
+            logMessage = object.toString() + "." + method + ' ' + message;
+          } else {
+            logMessage = "&lt;none>" + "." + method + ' ' + message;
+          }
+          // Ignore Colors...
+          if (object &amp;&amp; object.color) {object.color = null;}
+          
+          var css = "";
+          if (object &amp;&amp; object.color) {
+            logMessage = '%c ' + logMessage;
+            css = 'color: ' + object.color;
+            if (remainder) {
+              console.log(logMessage, css, remainder);
+            } else {
+              console.log(logMessage,css);
+            }
+          } else {
+            if (remainder) {
+              console.log(logMessage, remainder);
+            } else {
+              console.log(logMessage);
+            }
+          }
+        }; // end of log/ 
+        
+    
+        
+    
+/**
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/ 
+/**
+
+ * @memberof module:rtcomm.connector
+ *
+ * @classdesc
+ * The EndpointConnection encapsulates the functionality to connect and create Sessions.
+ * 
+ * @param {object}  config   - Config object 
+ * @param {string}  config.server -  MQ Server for mqtt.
+ * @param {integer} [config.port=1883] -  Server Port
+ * @param {string}  config.userid -  Unique user id representing user
+ * @param {string}  config.connectorTopicName - Default topic to register with ibmrtc Server
+ * @param {string}  [config.connectorTopicPath]
+ *  @param {object}  [config.credentials] - Optional Credentials for mqtt server.
+ *
+ *
+ * Events 
+ * @event message    Emit a message (MessageFactor.SigMessage)
+ * @event newsession  Called when an inbound new session is created, passes the new session.
+ * @param {function} config.on  - Called when an inbound message needs
+ *    'message' --> ['fromEndpointID': 'string', content: 'string']
+ * 
+ * @throws  {String} Throws new Error Exception if invalid arguments
+ * 
+ * @private
+ */
+
+var EndpointConnection = function(config) {
+  /*
+   * Registery Object 
+   */
+  function Registry(timer) {
+    timer = timer || false;
+    var registry = {};
+    var defaultTimeout = 5000;
+
+    var add = function(item) {
+
+      l('TRACE') &amp;&amp; console.log('Registry.add() Adding item to registry: ', item);
+      item.on('finished', function() {
+        this.remove(item);
+      }.bind(this));
+
+      registry[item.id] = item;
+      // Set a timeout for transaction
+      if (timer) {
+        setTimeout(function() {
+          if ( item.id in registry ) {
+            // didn't execute yet
+            var errorMsg = 'Registry timed out ['+item.id+']';
+            if (typeof registry[item.id].onFailure === 'function' ) {
+              l('DEBUG') &amp;&amp; console.log(errorMsg);
+              registry[item.id].onFailure({'failureReason': errorMsg});
+            } else {
+              l('DEBUG') &amp;&amp; console.log(errorMsg);
+            }
+            delete registry[item.id];
+          }
+        },
+        item.timeout || defaultTimeout);
+      }
+    };
+
+    return {
+      add: add,
+      remove: function(item) {
+        if (item.id in registry) {
+          l('DEBUG') &amp;&amp; console.log('Removing item from registry: ', item);
+          delete registry[item.id];
+        } 
+      },
+      list: function() {
+        return Object.keys(registry);
+      },
+      find: function(id) {
+        return registry[id] || null ;
+      }
+    };
+  } // End of Registry definition
+
+  /*
+   * create an RtcommService for use by the EndpointConnection
+   */ 
+  var createRtcommService = function(config) {
+    var rtcService = new RtcommService(config);
+    return rtcService; 
+  };
+  /*
+   * Process a message, expects a bind(this) attached.
+   */
+  var processMessage = function(message) {
+    var content = message.content;
+    var fromEndpointID = message.fromEndpointID;
+    var rtcommMessage = MessageFactory.cast(content);
+    l('DEBUG') &amp;&amp; console.log(this+'.processMessage() processing Message', rtcommMessage);
+    if (rtcommMessage.transID) {
+      // this is in context of a transaction.
+      if (rtcommMessage.method === 'RESPONSE') {
+        // close an existing transaction we started.
+        l('TRACE') &amp;&amp; console.log(this+'.processMessage() this is a RESPONSE', rtcommMessage);
+        var transaction = this.transactions.find(rtcommMessage.transID);
+        if (transaction) {
+          l('TRACE') &amp;&amp; console.log(this+'.processMessage() existing transaction: ', transaction);
+          transaction.finish(rtcommMessage);
+        } else { 
+          console.error('Transaction ID: ['+rtcommMessage.transID+'] not found, nothing to do with RESPONSE:',rtcommMessage);
+        }
+      } else if (rtcommMessage.method === 'START_SESSION' )  {
+        this.emit('newsession', this.createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
+      } else {
+        // We have a transID, we need to pass message to it.
+        // May fail? check.
+        this.transactions.find(rtcommMessage.transID).emit('message',rtcommMessage);
+      }
+    } else if (rtcommMessage.sigSessID) {
+      // has a session ID, fire it to that.
+      this.emit(rtcommMessage.sigSessID, rtcommMessage);
+    } else {
+      this.emit('message', rtcommMessage);
+    }
+  };
+
+  /*
+   * Instance Properties
+   */
+  this.objName = 'EndpointConnection';
+//Define events we support
+  this.events = {
+      'message': [],
+      'newsession': []};
+  this.registered = false;
+//Define configuration
+  this.config = {
+  };
+  this.ready = false;
+  this._init = false;
+  this.id = config.userid;
+
+//Registry Store for Session &amp; Transactions
+  this.sessions = new Registry();
+  this.transactions = new Registry(true);
+
+//create our Service
+  this.rtcService = createRtcommService(config);
+  this.rtcService.on('message', processMessage.bind(this));
+//Define configuration
+  this.config = {
+      userid  : config.userid,
+      myTopic : this.rtcService.config.myTopic
+  };
+  this._init = true;
+};
+
+EndpointConnection.prototype = util.RtcommBaseObject.extend (
+    (function() {
+      /*
+       * Class Globals
+       */
+      var registerTimer = null;
+
+      /** @lends module:rtcomm.connector.EndpointConnection.prototype */
+      return {
+        /*
+         * Instance Methods
+         */
+
+
+        setLogLevel: setLogLevel,
+        getLogLevel: getLogLevel,
+        /* Factory Methods */
+        /**
+         * Create a message for this EndpointConnection
+         */
+        createMessage: function(type) {
+          if (!this.ready) {
+            throw new Error('not Ready -- call connect() first');
+          }
+          var message = MessageFactory.createMessage(type);
+          if (message.hasOwnProperty('fromTopic')) {
+            message.fromTopic = this.config.myTopic;
+          }
+          l('DEBUG')&amp;&amp;console.log(this+'.createMessage() returned', message);
+          return message;
+        },
+        /**
+         * Create a Response Message for this EndpointConnection
+         */
+        createResponse : function(type) {
+          if (!this.ready) {
+            throw new Error('not Ready -- call connect() first');
+          }
+          var message = MessageFactory.createResponse(type);
+          return message;
+        },
+        /**
+         * Create a Transaction
+         */
+        createTransaction : function(options,onSuccess,onFailure) {
+          if (!this.ready) {
+            throw new Error('not Ready -- call connect() first');
+          }
+          // options = {message: message, timeout:timeout}
+          var t = new Transaction(options, onSuccess,onFailure);
+          t.endpointconnector = this;
+          l('DEBUG') &amp;&amp; console.log(this+'.createTransaction() Transaction created: ', t);
+          this.transactions.add(t);
+          return t;
+        },
+        /**
+         * Create a Session
+         */
+        createSession : function createSession(config) {
+          if (!this.ready) {
+            throw new Error('not Ready -- call connect() first');
+          }
+          // start a transaction of type START_SESSION
+          // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
+          // if message &amp; fromEndpointID -- we are inbound..
+          var session = new SigSession(config);
+          session.endpointconnector = this;
+          // apply EndpointConnection
+          this.createEvent(session.id);
+          this.on(session.id,session.processMessage.bind(session));
+          this.sessions.add(session);
+          return session;
+        },
+        /**
+         * common query fucntionality
+         * @private 
+         * 
+         */
+        _query : function(message, contentfield, cbSuccess, cbFailure) {
+          var successContent = contentfield || 'peerContent';
+          var onSuccess = function(query_response) {
+            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
+              if (query_response) {
+                var successMessage = query_response[successContent] || null;
+                cbSuccess(successMessage);
+              } 
+            } else {
+              l('DEBUG') &amp;&amp; console.log('query returned: ', query_response);
+            }
+          };
+          var onFailure = function(query_response) {
+            if (cbFailure &amp;&amp; typeof cbFailure === 'function') {
+              if (query_response &amp;&amp; query_response.failureReason) {
+                cbFailure(query_response.failureReason);
+              }
+            } else {
+              console.error('query failed:', query_response);
+            }
+          };
+          if (this.ready) {
+            var t = this.createTransaction({message: message}, onSuccess,onFailure);
+            t.start();
+          } else {
+            console.error(this+'._query(): not Ready!');
+          }
+        },
+        /**
+         * connect the EndpointConnection to the server endpointConnection
+         * 
+         * @param {callback} [cbSuccess] Optional callbacks to confirm success/failure
+         * @param {callback} [cbFailure] Optional callbacks to confirm success/failure
+         */
+        connect : function(cbSuccess, cbFailure) {
+          if (!this._init) {
+            throw new Error('not initialized -- call init() first');
+          }
+          if (this.ready) {
+            throw new Error(this+".connect() is already connected!");
+          }
+          var onSuccess = function(service) {
+            this.ready = true;
+            l('DEBUG') &amp;&amp; console.log('EndpointConnection.connect() Success, calling callback - service:', service);
+            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
+              cbSuccess(service);
+            } else {
+              console.log('No callback, but connect was successful');
+            }
+          };
+          var onFailure = function() {
+            this.ready = false;
+            if (cbFailure &amp;&amp; typeof cbFailure === 'function') {
+              cbFailure;
+              console.log('No callback, connect failed');
+            }
+          };
+
+          this.rtcService.connect(onSuccess.bind(this),onFailure.bind(this));
+        },
+        disconnect : function() {
+          l('DEBUG') &amp;&amp; console.log('EndpointConnection.disconnect() called: ', this.rtcService);
+          if (this.registered) {
+            this.unregister();
+            this.registered = false;
+          }
+          this.rtcService.destroy();
+          l('DEBUG') &amp;&amp; console.log('destroyed rtcService');
+          this.rtcService = null;
+          this.ready = false;
+        },
+        /** 
+         *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
+         *  rtcomm service so it can be looked up and receive
+         *  inbound requests.
+         *
+         *  @param {function} [onSuccess] Called when lookup completes successfully with the returned message about the userid                          
+         *  @param {function} [onFailure] Callback executed if lookup fails, argument contains reason.
+         */
+        register : function(appContext, cbSuccess, cbFailure) {
+          /*
+           * create a register message
+           * send it.
+           * onSuccess is called when a Response is received
+           * onFailure if a timeout or if send fails.
+           * TODO:  Change this when we start using LWT  
+           * 
+           */
+          l('DEBUG') &amp;&amp; console.log('Register Called! with this: ', this);
+          l('DEBUG') &amp;&amp; console.log('Register Called! args ', arguments);
+          var minimumReregister = 30;  // 30 seconds;
+          var onSuccess = function(register_message) {
+
+            l('DEBUG') &amp;&amp; console.log(this+'register() REGISTER RESPONSE: ', register_message);
+            if (register_message.orig === 'REGISTER' &amp;&amp; register_message.expires) {
+              var expires = register_message.expires;
+              l('DEBUG') &amp;&amp; console.log(this+'.register() Message Expires in: '+ expires);
+              /* We will reregister every expires/2 unless that is less than minimumReregister */
+              var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
+              // we have a expire in seconds, register a timer...
+              l('DEBUG') &amp;&amp; console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
+              registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
+            }
+            this.registered = true;
+            // Call our passed in w/ no info... 
+            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
+              cbSuccess();
+            } else {
+              l('DEBUG') &amp;&amp; console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", message);
+            }
+          };
+          // {'failureReason': 'some reason' }
+          var onFailure = function(errorObject) {
+            if (cbFailure &amp;&amp; typeof cbFailure === 'function') {
+              cbFailure(errorObject.failureReason);
+            } else {
+              console.error('Registration failed : '+errorObject.failureReason);
+            }
+          };
+          // Call register!
+          if (this.ready) {
+            var message = this.createMessage('REGISTER');
+            message.appContext = appContext || "none";
+            message.regTopic = message.fromTopic;
+            var t = this.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
+            t.start();
+          } else {
+            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
+              cbFailure('Not Ready, unable to register.');
+            } else {
+              console.error('Not Ready, unable to register.');
+            }
+          }
+        },
+        /** 
+         *  Unregister the userid associated with the EndpointConnection  
+         */
+        unregister : function() {
+
+          if (registerTimer) {
+            console.log('Timer is:'+registerTimer);
+            clearTimeout(registerTimer);
+            registerTimer=null;
+            var message = this.createMessage('REGISTER');
+            message.regTopic = message.fromTopic;
+            message.expires = "0";
+            this.send({'message':message});
+            this.registered = false;
+          } else {
+            l('DEBUG') &amp;&amp; console.log(this+' No registration found, cannot unregister');
+          }
+        },
+        /** 
+         * Query registry for a user
+         * 
+         * @param userid
+         * @param cbSuccess 
+         * @param cbFailure
+         * 
+         */
+        register_query : function(userid, cbSuccess, cbFailure) {
+          if (!this.ready) {
+            throw new Error('not Ready -- call connect() first');
+          }
+          if (userid) {
+            var message = this.createMessage('REGISTER_QUERY');
+            message.queryEndpointID = userid;
+            this._query(message, 'endpointTopicName', cbSuccess, cbFailure);
+          } else {
+            console.error('user was not specified');
+          }
+        },
+        /**
+         * Service Query for supported services by endpointConnection
+         */
+        service_query: function(cbSuccess, cbFailure) {
+          if (this.ready) {
+            var message = this.createMessage('SERVICE_QUERY');
+            this._query(message, 'services',cbSuccess,cbFailure);
+          } else {
+            console.error('not ready');
+          }
+        },
+
+        destroy : function() {
+          if (this.ready) {
+            this.disconnect();
+          }
+        },
+        /**
+         * Send a message
+         * 
+         */
+        send : function(config) {
+          if (!this.ready) {
+            throw new Error('not Ready -- call connect() first');
+          }
+
+          if (config) { 
+            this.rtcService.send({message:config.message, toTopic:config.toTopic});
+          } else {
+            console.error('EndpointConnection.send() Nothing to send');
+          }
+        }
+      };
+    })()
+);
+/**
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/ 
 /** @class
  * @memberof module:rtcomm.webrtc
  * @private
@@ -482,7 +1020,7 @@ var connection = (function() {
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'ibmRTC': 'v1.1',
+      'rtcommVer': 'v0.0.1',
        'method' : null,
        'fromTopic': null
   };
@@ -491,7 +1029,8 @@ var MessageFactory = (function (){
       'sigSessID':null,
       'transID':null,
       'reason': null,
-      'toEndpointID': null
+      'toEndpointID': null,
+      'appContext': null
   };
   
   // Override base headers and add new headers for the OUTBOUND message
@@ -513,7 +1052,6 @@ var MessageFactory = (function (){
         'transID':null,
         'toEndpointID': null,
         'peerContent': null,
-        'appContext': null
       },
      'STOP_SESSION' : {
         'method': 'STOP_SESSION',
@@ -727,545 +1265,6 @@ var MessageFactory = (function (){
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/ 
-// rtcservice &amp; util should be defined here:
-/*global util:false*/
-var logging = new util.Log(),
-    setLogLevel = logging.s,
-    getLogLevel = logging.g,
-    l = logging.l,
-    generateUUID = util.generateUUID,    
-    validateConfig = util.validateConfig,
-    applyConfig = util.applyConfig,
-    setConfig = util.setConfig,
-    /*global log: false */
-    log = function log() {
-          // I want to log CallingObject[id].method Message [possibly an object]
-
-          var object = {},
-              method = '&lt;none>',
-              message = null,
-              remainder = null,
-              logMessage = "";
-
-          var args = [].slice.call(arguments);
-
-          if (args.length === 0 ) {
-            return;
-          } else if (args.length === 1 ) {
-            // Just a Message, log it...
-            message = args[0];
-          } else if (args.length === 2) {
-            object = args[0];
-            message = args[1];
-          } else if (args.length === 3 ) {
-            object = args[0];
-            method = args[1];
-            message = args[2];
-          } else {
-            object = args.shift();
-            method = args.shift();
-            message = args.shift();
-            remainder = args;
-          }
-
-          if (object) {
-            logMessage = object.toString() + "." + method + ' ' + message;
-          } else {
-            logMessage = "&lt;none>" + "." + method + ' ' + message;
-          }
-          // Ignore Colors...
-          if (object &amp;&amp; object.color) {object.color = null;}
-          
-          var css = "";
-          if (object &amp;&amp; object.color) {
-            logMessage = '%c ' + logMessage;
-            css = 'color: ' + object.color;
-            if (remainder) {
-              console.log(logMessage, css, remainder);
-            } else {
-              console.log(logMessage,css);
-            }
-          } else {
-            if (remainder) {
-              console.log(logMessage, remainder);
-            } else {
-              console.log(logMessage);
-            }
-          }
-        }; // end of log/ 
-        
-    
-        
-    
-/**
- * Copyright 2014 IBM Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **/ 
-/**
-
- * @memberof module:rtcomm.connector
- *
- * @classdesc
- * The NodeConnection encapsulates the functionality to connect and create Sessions with the
- * server side nodeConnection.
- * 
- * @param {object}  config   - Config object 
- * @param {string}  config.server -  MQ Server for mqtt.
- * @param {integer} [config.port=1883] -  Server Port
- * @param {string}  config.userid -  Unique user id representing user
- * @param {string}  config.connectorTopicName - Default topic to register with ibmrtc Server
- * @param {string}  [config.connectorTopicPath]
- *  @param {object}  [config.credentials] - Optional Credentials for mqtt server.
- *
- *
- * Events 
- * @event message    Emit a message (MessageFactor.SigMessage)
- * @event newsession  Called when an inbound new session is created, passes the new session.
- * @param {function} config.on  - Called when an inbound message needs
- *    'message' --> ['fromEndpointID': 'string', content: 'string']
- * 
- * @throws  {String} Throws new Error Exception if invalid arguments
- * 
- * @private
- */
-
-var NodeConnection = function(config) {
-  /*
-   * Registery Object 
-   */
-  function Registry(timer) {
-    timer = timer || false;
-    var registry = {};
-    var defaultTimeout = 5000;
-
-    var add = function(item) {
-
-      l('TRACE') &amp;&amp; console.log('Registry.add() Adding item to registry: ', item);
-      item.on('finished', function() {
-        this.remove(item);
-      }.bind(this));
-
-      registry[item.id] = item;
-      // Set a timeout for transaction
-      if (timer) {
-        setTimeout(function() {
-          if ( item.id in registry ) {
-            // didn't execute yet
-            var errorMsg = 'Registry timed out ['+item.id+']';
-            if (typeof registry[item.id].onFailure === 'function' ) {
-              l('DEBUG') &amp;&amp; console.log(errorMsg);
-              registry[item.id].onFailure({'failureReason': errorMsg});
-            } else {
-              l('DEBUG') &amp;&amp; console.log(errorMsg);
-            }
-            delete registry[item.id];
-          }
-        },
-        item.timeout || defaultTimeout);
-      }
-    };
-
-    return {
-      add: add,
-      remove: function(item) {
-        if (item.id in registry) {
-          l('DEBUG') &amp;&amp; console.log('Removing item from registry: ', item);
-          delete registry[item.id];
-        } 
-      },
-      list: function() {
-        return Object.keys(registry);
-      },
-      find: function(id) {
-        return registry[id] || null ;
-      }
-    };
-  } // End of Registry definition
-
-  /*
-   * create an RtcommService for use by the NodeConnection
-   */ 
-  var createRtcommService = function(config) {
-    var rtcService = new RtcommService(config);
-    return rtcService; 
-  };
-  /*
-   * Process a message, expects a bind(this) attached.
-   */
-  var processMessage = function(message) {
-    var content = message.content;
-    var fromEndpointID = message.fromEndpointID;
-    var rtcommMessage = MessageFactory.cast(content);
-    l('DEBUG') &amp;&amp; console.log(this+'.processMessage() processing Message', rtcommMessage);
-    if (rtcommMessage.transID) {
-      // this is in context of a transaction.
-      if (rtcommMessage.method === 'RESPONSE') {
-        // close an existing transaction we started.
-        l('TRACE') &amp;&amp; console.log(this+'.processMessage() this is a RESPONSE', rtcommMessage);
-        var transaction = this.transactions.find(rtcommMessage.transID);
-        if (transaction) {
-          l('TRACE') &amp;&amp; console.log(this+'.processMessage() existing transaction: ', transaction);
-          transaction.finish(rtcommMessage);
-        } else { 
-          console.error('Transaction ID: ['+rtcommMessage.transID+'] not found, nothing to do with RESPONSE:',rtcommMessage);
-        }
-      } else if (rtcommMessage.method === 'START_SESSION' )  {
-        this.emit('newsession', this.createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
-      } else {
-        // We have a transID, we need to pass message to it.
-        // May fail? check.
-        this.transactions.find(rtcommMessage.transID).emit('message',rtcommMessage);
-      }
-    } else if (rtcommMessage.sigSessID) {
-      // has a session ID, fire it to that.
-      this.emit(rtcommMessage.sigSessID, rtcommMessage);
-    } else {
-      this.emit('message', rtcommMessage);
-    }
-  };
-
-  /*
-   * Instance Properties
-   */
-  this.objName = 'NodeConnection';
-//Define events we support
-  this.events = {
-      'message': [],
-      'newsession': []};
-  this.registered = false;
-//Define configuration
-  this.config = {
-  };
-  this.ready = false;
-  this._init = false;
-  this.id = config.userid;
-
-//Registry Store for Session &amp; Transactions
-  this.sessions = new Registry();
-  this.transactions = new Registry(true);
-
-//create our Service
-  this.rtcService = createRtcommService(config);
-  this.rtcService.on('message', processMessage.bind(this));
-//Define configuration
-  this.config = {
-      userid  : config.userid,
-      myTopic : this.rtcService.config.myTopic
-  };
-  this._init = true;
-};
-
-NodeConnection.prototype = util.RtcommBaseObject.extend (
-    (function() {
-      /*
-       * Class Globals
-       */
-      var registerTimer = null;
-
-      /** @lends module:rtcomm.connector.NodeConnection.prototype */
-      return {
-        /*
-         * Instance Methods
-         */
-
-
-        setLogLevel: setLogLevel,
-        getLogLevel: getLogLevel,
-        /* Factory Methods */
-        /**
-         * Create a message for this NodeConnection
-         */
-        createMessage: function(type) {
-          if (!this.ready) {
-            throw new Error('not Ready -- call connect() first');
-          }
-          var message = MessageFactory.createMessage(type);
-          if (message.hasOwnProperty('fromTopic')) {
-            message.fromTopic = this.config.myTopic;
-          }
-          l('DEBUG')&amp;&amp;console.log(this+'.createMessage() returned', message);
-          return message;
-        },
-        /**
-         * Create a Response Message for this NodeConnection
-         */
-        createResponse : function(type) {
-          if (!this.ready) {
-            throw new Error('not Ready -- call connect() first');
-          }
-          var message = MessageFactory.createResponse(type);
-          return message;
-        },
-        /**
-         * Create a Transaction
-         */
-        createTransaction : function(options,onSuccess,onFailure) {
-          if (!this.ready) {
-            throw new Error('not Ready -- call connect() first');
-          }
-          // options = {message: message, timeout:timeout}
-          var t = new Transaction(options, onSuccess,onFailure);
-          t.nodeconnector = this;
-          l('DEBUG') &amp;&amp; console.log(this+'.createTransaction() Transaction created: ', t);
-          this.transactions.add(t);
-          return t;
-        },
-        /**
-         * Create a Session
-         */
-        createSession : function createSession(config) {
-          if (!this.ready) {
-            throw new Error('not Ready -- call connect() first');
-          }
-          // start a transaction of type START_SESSION
-          // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
-          // if message &amp; fromEndpointID -- we are inbound..
-          var session = new SigSession(config);
-          session.nodeconnector = this;
-          // apply NodeConnection
-          this.createEvent(session.id);
-          this.on(session.id,session.processMessage.bind(session));
-          this.sessions.add(session);
-          return session;
-        },
-        /**
-         * common query fucntionality
-         * @private 
-         * 
-         */
-        _query : function(message, contentfield, cbSuccess, cbFailure) {
-          var successContent = contentfield || 'peerContent';
-          var onSuccess = function(query_response) {
-            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
-              if (query_response) {
-                var successMessage = query_response[successContent] || null;
-                cbSuccess(successMessage);
-              } 
-            } else {
-              l('DEBUG') &amp;&amp; console.log('query returned: ', query_response);
-            }
-          };
-          var onFailure = function(query_response) {
-            if (cbFailure &amp;&amp; typeof cbFailure === 'function') {
-              if (query_response &amp;&amp; query_response.failureReason) {
-                cbFailure(query_response.failureReason);
-              }
-            } else {
-              console.error('query failed:', query_response);
-            }
-          };
-          if (this.ready) {
-            var t = this.createTransaction({message: message}, onSuccess,onFailure);
-            t.start();
-          } else {
-            console.error(this+'._query(): not Ready!');
-          }
-        },
-        /**
-         * connect the NodeConnection to the server nodeConnection
-         * 
-         * @param {callback} [cbSuccess] Optional callbacks to confirm success/failure
-         * @param {callback} [cbFailure] Optional callbacks to confirm success/failure
-         */
-        connect : function(cbSuccess, cbFailure) {
-          if (!this._init) {
-            throw new Error('not initialized -- call init() first');
-          }
-          if (this.ready) {
-            throw new Error(this+".connect() is already connected!");
-          }
-          var onSuccess = function(service) {
-            this.ready = true;
-            l('DEBUG') &amp;&amp; console.log('NodeConnection.connect() Success, calling callback - service:', service);
-            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
-              cbSuccess(service);
-            } else {
-              console.log('No callback, but connect was successful');
-            }
-          };
-          var onFailure = function() {
-            this.ready = false;
-            if (cbFailure &amp;&amp; typeof cbFailure === 'function') {
-              cbFailure;
-              console.log('No callback, connect failed');
-            }
-          };
-
-          this.rtcService.connect(onSuccess.bind(this),onFailure.bind(this));
-        },
-        disconnect : function() {
-          l('DEBUG') &amp;&amp; console.log('NodeConnection.disconnect() called: ', this.rtcService);
-          if (this.registered) {
-            this.unregister();
-            this.registered = false;
-          }
-          this.rtcService.destroy();
-          l('DEBUG') &amp;&amp; console.log('destroyed rtcService');
-          this.rtcService = null;
-          this.ready = false;
-        },
-        /** 
-         *  Register the 'userid' used in {@link module:rtcomm.RtcommNodeProvider#init|init} with the
-         *  rtcomm service so it can be looked up and receive
-         *  inbound requests.
-         *
-         *  @param {function} [onSuccess] Called when lookup completes successfully with the returned message about the userid                          
-         *  @param {function} [onFailure] Callback executed if lookup fails, argument contains reason.
-         */
-        register : function(appContext, cbSuccess, cbFailure) {
-          /*
-           * create a register message
-           * send it.
-           * onSuccess is called when a Response is received
-           * onFailure if a timeout or if send fails.
-           * TODO:  Change this when we start using LWT  
-           * 
-           */
-          l('DEBUG') &amp;&amp; console.log('Register Called! with this: ', this);
-          l('DEBUG') &amp;&amp; console.log('Register Called! args ', arguments);
-          var minimumReregister = 30;  // 30 seconds;
-          var onSuccess = function(register_message) {
-
-            l('DEBUG') &amp;&amp; console.log(this+'register() REGISTER RESPONSE: ', register_message);
-            if (register_message.orig === 'REGISTER' &amp;&amp; register_message.expires) {
-              var expires = register_message.expires;
-              l('DEBUG') &amp;&amp; console.log(this+'.register() Message Expires in: '+ expires);
-              /* We will reregister every expires/2 unless that is less than minimumReregister */
-              var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
-              // we have a expire in seconds, register a timer...
-              l('DEBUG') &amp;&amp; console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
-              registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
-            }
-            this.registered = true;
-            // Call our passed in w/ no info... 
-            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
-              cbSuccess();
-            } else {
-              l('DEBUG') &amp;&amp; console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", message);
-            }
-          };
-          // {'failureReason': 'some reason' }
-          var onFailure = function(errorObject) {
-            if (cbFailure &amp;&amp; typeof cbFailure === 'function') {
-              cbFailure(errorObject.failureReason);
-            } else {
-              console.error('Registration failed : '+errorObject.failureReason);
-            }
-          };
-          // Call register!
-          if (this.ready) {
-            var message = this.createMessage('REGISTER');
-            message.appContext = appContext || "none";
-            message.regTopic = message.fromTopic;
-            var t = this.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
-            t.start();
-          } else {
-            if (cbSuccess &amp;&amp; typeof cbSuccess === 'function') {
-              cbFailure('Not Ready, unable to register.');
-            } else {
-              console.error('Not Ready, unable to register.');
-            }
-          }
-        },
-        /** 
-         *  Unregister the userid associated with the NodeConnection  
-         */
-        unregister : function() {
-
-          if (registerTimer) {
-            console.log('Timer is:'+registerTimer);
-            clearTimeout(registerTimer);
-            registerTimer=null;
-            var message = this.createMessage('REGISTER');
-            message.regTopic = message.fromTopic;
-            message.expires = "0";
-            this.send({'message':message});
-            this.registered = false;
-          } else {
-            l('DEBUG') &amp;&amp; console.log(this+' No registration found, cannot unregister');
-          }
-        },
-        /** 
-         * Query registry for a user
-         * 
-         * @param userid
-         * @param cbSuccess 
-         * @param cbFailure
-         * 
-         */
-        register_query : function(userid, cbSuccess, cbFailure) {
-          if (!this.ready) {
-            throw new Error('not Ready -- call connect() first');
-          }
-          if (userid) {
-            var message = this.createMessage('REGISTER_QUERY');
-            message.queryEndpointID = userid;
-            this._query(message, 'endpointTopicName', cbSuccess, cbFailure);
-          } else {
-            console.error('user was not specified');
-          }
-        },
-        /**
-         * Service Query for supported services by nodeConnection
-         */
-        service_query: function(cbSuccess, cbFailure) {
-          if (this.ready) {
-            var message = this.createMessage('SERVICE_QUERY');
-            this._query(message, 'services',cbSuccess,cbFailure);
-          } else {
-            console.error('not ready');
-          }
-        },
-
-        destroy : function() {
-          if (this.ready) {
-            this.disconnect();
-          }
-        },
-        /**
-         * Send a message
-         * 
-         */
-        send : function(config) {
-          if (!this.ready) {
-            throw new Error('not Ready -- call connect() first');
-          }
-
-          if (config) { 
-            this.rtcService.send({message:config.message, toTopic:config.toTopic});
-          } else {
-            console.error('NodeConnection.send() Nothing to send');
-          }
-        }
-      };
-    })()
-);
-/**
- * Copyright 2014 IBM Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **/ 
 /**
  * @class 
  * @memberof module:rtcomm.connector
@@ -1381,6 +1380,7 @@ var RtcommService = function RtcommService(config) {
   this._init = true;
 
 };
+
 /* global util: false */
 RtcommService.prototype  = util.RtcommBaseObject.extend(
     /** @lends module:rtcomm.connector.RtcommService.prototype */
@@ -1564,7 +1564,7 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
  * 
  * &lt;p>
  * It is part of a WebRTCConnection and should ONLY be used via a WebRTCConnection.  It 
- * should only be created by 'NodeConnection.createSession()'
+ * should only be created by 'EndpointConnection.createSession()'
  * &lt;p>
  * 
  * 
@@ -1584,13 +1584,14 @@ var SigSession = function SigSession(config) {
 
   /* Instance Properties */
   this.objName = 'SigSession';
-  this.nodeconnector = null;
+  this.endpointconnector = null;
   this.id = null;
   this.toEndpointID = null;
   this.message = null;
   this.toTopic = null;
   this.type = 'normal'; // or refer
   this.referralDetails = null;
+  this.appContext = null;
 
   if (config) {
     if (config.message &amp;&amp; config.message.sigSessID) {
@@ -1610,6 +1611,7 @@ var SigSession = function SigSession(config) {
    
     this.id = this.id || config.id;
     this.toTopic = this.toTopic || config.toTopic;
+    this.appContext = this.appContext|| config.appContext;
   } 
   
   this.id = this.id || generateUUID();
@@ -1700,6 +1702,9 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       if (!this.message) {
         this.message = this.createMessage('START_SESSION');
         this.message.peerContent = sdp || null;
+        if (this.appContext) {
+          this.message.appContext = this.appContext
+        }
       }
       var session_started = function(message) {
         // our session was successfully started, if Outbound session, it means we 
@@ -1719,7 +1724,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         this.emit('failed', message);
       };
       
-      this._startTransaction = this.nodeconnector.createTransaction(
+      this._startTransaction = this.endpointconnector.createTransaction(
           { message: this.message,
             timeout: this.timeout
           },
@@ -1757,7 +1762,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       l('DEBUG') &amp;&amp; console.log(this+'.respond() Respond called using this', this);
       var messageToSend = null;
       if (this._startTransaction) {
-        messageToSend = this.nodeconnector.createResponse('START_SESSION');
+        messageToSend = this.endpointconnector.createResponse('START_SESSION');
         messageToSend.transID = this._startTransaction.id;
         messageToSend.sigSessID = this.id;
         
@@ -1790,7 +1795,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
     stop : function() {
       var message = this.createMessage('STOP_SESSION');
       l('DEBUG') &amp;&amp; console.log(this+'.stop() stopping...', message);
-      this.nodeconnector.send({message:message});
+      this.endpointconnector.send({message:message});
       // Let's concerned persons know we are stopped
       this.state = 'stopped';
       this.emit('stopped');
@@ -1805,7 +1810,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      */
     send :  function(message) {
       var messageToSend = null;
-      if (message &amp;&amp; message.ibmRTC &amp;&amp; message.method) {
+      if (message &amp;&amp; message.rtcommVer &amp;&amp; message.method) {
         // we've already been cast... just send it raw...
         messageToSend = message;
       } else {
@@ -1828,7 +1833,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
           if (messageToSend.hasOwnProperty('transID')) {
             delete messageToSend.transID;
           }
-          this.nodeconnector.send({message:messageToSend}); 
+          this.endpointconnector.send({message:messageToSend}); 
         }
       }
     },
@@ -1853,7 +1858,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         type = object;
       }
       
-      var message = this.nodeconnector.createMessage(type);
+      var message = this.endpointconnector.createMessage(type);
       message.toEndpointID = this.toEndpointID;
       message.sigSessID = this.id;
       message.peerContent = peerContent ? object : null;
@@ -2004,7 +2009,7 @@ Transaction.prototype = util.RtcommBaseObject.extend(
       message.transID = message.transID || this.id;
       l('DEBUG') &amp;&amp; console.log('Transaction.send() ids...'+message.transID +' this.id '+ this.id+'toTopic: '+this.toTopic);
       if (message.transID === this.id) {
-        this.nodeconnector.send({message: message, toTopic:this.toTopic});
+        this.endpointconnector.send({message: message, toTopic:this.toTopic});
       } else {
         l('DEBUG') &amp;&amp; console.log(this+'.send() Message is not part of our tranaction, dropping!', message);
       }
@@ -2045,9 +2050,383 @@ Transaction.prototype = util.RtcommBaseObject.extend(
 });
 
 
-  return { NodeConnection:NodeConnection, MessageFactory:MessageFactory, RtcommService:RtcommService };
+  return { EndpointConnection:EndpointConnection, MessageFactory:MessageFactory, RtcommService:RtcommService };
   
 })();
+
+
+/**
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/ 
+/** 
+ * @class
+ * @memberof module:rtcomm
+ * @classdesc
+ * Provides Services to register a user and create RtcommEndpoints
+ * &lt;p>
+ * This programming interface lets a JavaScript client application use a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint} 
+ * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} &amp; {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the 
+ * RtcommEndpointProvider connects to the defined MQTT Server and subscribes to a unique topic that is used to receive inbound communication.   
+ * &lt;p>
+ * See the example in {@link module:rtcomm.EndpointProvider#init|EndpointProvider.init()}
+ * &lt;p>
+ * 
+ * @requires {@link mqttws31.js}
+ *   
+ */ 
+var EndpointProvider =  function EndpointProvider() {
+
+  var MISSING_DEPENDENCY = "RtcommEndpointProvider Missing Dependency: ";
+  if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
+  if (!connection) { throw new Error(MISSING_DEPENDENCY+"rtcomm.connection");}
+
+  /** @lends module:rtcomm.EndpointProvider */
+
+  /* configuration */
+  var defaultConfig = {
+      appContext: 'rtcomm',
+      server:null,
+      port: 1883,
+      userid : null,
+      connectorTopicName : "endpointConnector",
+      connectorTopicPath: "/rtcomm/",
+      credentials : { user: "", password: ""},
+      register: false,
+      createEndpoint: false
+  };
+
+  this.config = defaultConfig;
+  // Internal objects
+  this.ready = false;
+  
+  // Default rtcommEndpoint (First instance created)
+  this.defaultRtcommEndpoint = null;
+  
+  this.events = { 
+      /**
+       * A new RtcommEndpoint was created from an inbound 
+       * @event module:rtcomm.EndpointProvider#newendpoint
+       * @property {module:rtcomm#RtcommEndpoint}
+       */
+      'newendpoint': []};
+  
+  /** services supported by the EndpointConnection, populated in init()*/
+  this.services = null; 
+
+  /** 
+   * EndpointProvider Init config object
+   * @typedef  {Object} module:rtcomm.EndpointProvider~InitOptions
+   * @property {string} server MQTT Server
+   * @property {string} [port=1883] MQTT Server Port 
+   * @property {string} userid User ID or Identity
+   * @property {string} [connectorTopicName=endpointConnection] connectorTopicName on rtcomm server
+   * @property {string} [connectorTopicPath=/rtcomm/] MQTT Path to prefix connectorTopicName with and register under
+   * @property {boolean} [register=false] Automatically register
+   * @property {boolean} [createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
+   */
+
+  /** init method
+   *  This method is required to be called prior to doing anything else.
+   * @param  {module:rtcomm.EndpointProvider~InitOptions} config - Configuration object for init
+   * @param {function} [onSuccess] Callback function when init is complete successfully.
+   * @param {function} [onFailure] Callback funtion if a failure occurs during init
+   * @param {function} [status]  Callback function to monitor status of init
+   * 
+   * @example
+   * var endpointProvider = new ibm.rtcomm.RtcommEndpointProvider(); 
+   * var endpointProviderConfig = {
+   *   server : 'broker.mqttdashboard.com',       
+   *   userid : 'ibmAgent1@mysurance.org',
+   *   connectorTopicName : 'endpointConnector',   
+   *   connectorTopicPath : '/rtcomm/', 
+   *   port : 8000,                          
+   *   register: true,                     
+   *   createEndpoint : true,                   
+   *   credentials : null                  
+   * };
+   *
+   * // Initialize the Service. [Using onSuccess/onFailure callbacks]
+   * // This initializes the MQTT layer and enables inbound Communication.
+   * var rtcommEndpoint = null;  
+   * endpointProvider.init(endpointProviderConfig, 
+   *    function(object) { //onSuccess
+   *        console.log('init was successful, rtcommEndpoint: ', object);
+   *        rtcommEndpoint = object;
+   *    },
+   *    function(error) { //onFailure
+   *       console.error('init failed: ', error);
+   *      }
+   * );
+   * 
+   */
+  this.init = function init(options, cbSuccess, cbFailure) {
+    // You can only be init'd 1 time, without destroying reconnecting.
+    if (this.ready) {
+      l('INFO') &amp;&amp; console.log('EndpointProvider.init() has been called and the object is READY');
+      return true;
+    }
+    var requiredConfig = { server: 'string', port: 'number', userid: 'string'};
+    var config = this.config;
+    var endpointProvider = this;
+    if (options) {
+      // validates REQUIRED initOptions upon instantiation.
+      /*global _validateConfig: false */
+      validateConfig(options, requiredConfig);
+      // handle logLevel passed in...
+      if (options.logLevel) {
+        setLogLevel(options.logLevel);
+        delete options.logLevel;
+      }
+      applyConfig(options, config);
+
+    } else {
+      throw new Error("RtcommEndpointProvider initialization requires a minimum configuration: " + JSON.stringify(requiredConfig));
+    }
+
+    cbSuccess = cbSuccess || function(message) {
+      console.log(endpointProvider+'.init() Default Success message, use callback to process:', message);
+    };
+    cbFailure = cbFailure || function(error) {
+      console.log(endpointProvider+'.init() Default Failure message, use callback to process:', error);
+    };
+    this.userid = config.userid;
+
+    this.endpointConnection = new connection.EndpointConnection({
+      server: config.server,
+      port: config.port,
+      userid: config.userid,
+      connectorTopicName: config.connectorTopicName,
+      connectorTopicPath: config.connectorTopicPath
+    });
+
+    var endpointConnection = this.endpointConnection;
+    endpointConnection.setLogLevel(getLogLevel());
+
+
+    var onSuccess = function(message) {
+      var returnObj = {
+          'ready': true,
+          'registered': false,
+          'endpointObj': null
+      };
+      this.ready = true;
+      
+      endpointConnection.service_query(
+          /* onSuccess */ function(services) {
+            // Returned services
+            l('DEBUG') &amp;&amp; console.log('Supported services are: ', services);
+            this.services = services || null;
+            
+          }.bind(this),
+          /* onFailure */ function(error){
+            console.error('Unable to lookup supported services');
+          });
+     
+      if (config.register) {
+        endpointConnection.register(config.appContext, 
+            function(message) {
+          returnObj.registered = true;
+          if (config.createEndpoint) {
+            returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
+            cbSuccess(returnObj);
+          } else {
+            cbSuccess(returnObj);
+          }
+        }, 
+        function(error) {
+          cbFailure(error);
+        });
+      } else {
+        cbSuccess(returnObj);
+      }
+    };
+    var onFailure = function(error) {
+      this.ready = false;
+      cbFailure(error);
+    };
+
+    endpointConnection.on('newsession', function(session) {
+      /*
+       * What to do on an inbound request.
+       * 
+       * Options:
+       *  Do we have a default endpoint?  if so, just give the session to it. 
+       *  
+       *  if that endpoint is busy, create a new endpoint and emit it.
+       *  
+       *  If there isn't a endpoint, create a Endpoint and EMIT it.
+       *
+       */  
+      if(session) {
+        console.log("Handle a new incoming session: ", session);
+        var endpoint = endpointProvider.defaultRtcommEndpoint;
+        if (endpoint &amp;&amp; endpoint.available) {
+          console.log('using an existing endpoint...', endpoint);
+          endpoint.newSession(session);
+        } else {
+          endpoint = endpointProvider.createRtcommEndpoint();
+          endpoint.newSession(session);
+          endpointProvider.emit('newendpoint', endpoint);
+        }
+      } else {
+        console.error('newsession - expected a session object to be passed.');
+      }
+    });
+    
+    endpointConnection.on('message', function(message) {
+      if(message) {
+        console.log("TODO:  Handle an incoming message ", message);
+      }
+    });
+  
+    // Connect!
+    endpointConnection.connect( onSuccess.bind(this), onFailure.bind(this));
+  
+    
+  };  // End of RtcommEndpointProvider.init()
+
+
+  /** 
+   * @typedef {object} module:rtcomm.EndpointProvider~EndpointConfig 
+   *  @property {boolean} [audio=true] Support audio in the PeerConnection - defaults to true
+   *  @property {boolean} [video=true] Support video in the PeerConnection - defaults to true
+   *  @property {boolean} [data=true]  Support data in the PeerConnectio - defaults to true
+   *  @property {String}  [context='none'] Context for the Handler. Used in messages and with the server. defaults to 'none'
+   */
+
+  /**
+   * createRtcommEndpoint - Factory method that returns a RtcommEndpoint object to be used
+   * by a UI component.  
+   * 
+   *  The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output. 
+   *  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
+   *  stream.   When an inbound stream is added to a RTCPeerConnection, then the RtcommEndpoint object also informs the 
+   *  RTCPeerConnection where to send that stream in the User Interface.  
+   *
+   * @param {module:rtcomm.EndpointProvider~EndpointConfig} endpointConfig - Configuration to initialize endpoint with. 
+   *  
+   * @returns {module:rtcomm.RtcommEndpoint|RtcommEndpoint}  A RtcommEndpoint Object
+   * 
+   * @example 
+   *  var endpointConfig = { 
+   *    audio: true, 
+   *    video: true, 
+   *    data: false, 
+   *    };
+   *  rtcommEndpointProvider.createRtcommEndpoint(endpointConfig);
+   *  
+   *  @throws Error
+   */
+  this.createRtcommEndpoint = function createRtcommEndpoint(endpointConfig) {
+    var defaultConfig = {
+        autoAnswer: false,
+        appContext: this.config.appContext,
+        audio: true,
+        video: true,
+        data: true,
+        parent:this,
+        userid: this.userid
+    };
+    var objConfig = defaultConfig;
+    applyConfig(endpointConfig, objConfig);
+
+    // Reflect this into the RtcommEndpoint.
+    l('DEBUG') &amp;&amp; console.log(this+'.createRtcommEndpoint using config: ', objConfig);
+    var endpoint = Object.create(RtcommEndpoint);
+    endpoint.init(objConfig);
+    // Register
+    try {
+      this.defaultRtcommEndpoint = this.defaultRtcommEndpoint || endpoint;
+      return endpoint;
+    } catch(e){
+      throw new Error(e);
+    }
+  };
+  
+  this.destroy =    function() {
+    //TODO:  Add EndpointRegistry... 
+    // Unregister (be nice...)
+    
+    this.unregister();
+    l('DEBUG') &amp;&amp; console.log(this+'.destroy() Finished cleanup of endpointRegistry');
+    this.endpointConnection.destroy();
+    l('DEBUG') &amp;&amp; console.log(this+'.destroy() Finished cleanup of endpointConnection');
+    
+  }; 
+   
+  // exposing module global functions for set/get loglevel
+  this.setLogLevel = setLogLevel;
+  this.getLogLevel = getLogLevel;
+  /** 
+   *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
+   *  rtcomm service so it can be looked up and receive
+   *  inbound requests.
+   *
+   *  @param {function} [onSuccess] Called when lookup completes successfully with the returned message about the userid                          
+   *  @param {function} [onFailure] Callback executed if lookup fails, argument contains reason.
+   */
+  this.register = function(appContext, success, failure) {
+    var cbSuccess, cbFailure;
+    if (typeof appContext === 'function') {
+      cbFailure = success;
+      cbSuccess = appContext;
+      appContext = this.config.appContext;
+     } else {
+       this.config.appContext = appContext;
+     }
+    //console.log('appContext is:'+ appContext);
+    //console.log('cbSuccess is:'+ cbSuccess);
+    //console.log('cbFailure is:'+ cbFailure);
+    
+    if (!this.ready) {
+      throw new Error('Not Ready! call init() first');
+    }
+    this.endpointConnection.register(appContext, cbSuccess, cbFailure);
+  };
+  /** 
+   *  Unregister from the server
+   */
+  this.unregister = function() {
+    this.endpointConnection.unregister();
+  };
+  
+  /** 
+   * Query registry for a user
+   * 
+   * @param userid
+   * @param cbSuccess 
+   * @param cbFailure
+   * 
+   */
+  this.lookup = function(userid, cbSuccess, cbFailure) {
+    l('DEBUG') &amp;&amp; console.log(this+'.lookup() lookup of: '+userid);
+    this.endpointConnection.register_query(userid, cbSuccess, cbFailure);
+  };
+
+  this.currentState = function() {
+    return {
+      states:  this._private,
+      config : this.config,
+      defaultRtcommEndpoint: this.defaultRtcommEndpoint
+    };
+
+  };
+
+}; // end of constructor
+
+EndpointProvider.prototype = util.RtcommBaseObject.extend({});
 
 
 /**
@@ -2152,393 +2531,21 @@ var logging = new util.Log(),
  * limitations under the License.
  **/ 
 /** 
- * @class
- * @memberof module:rtcomm
- * @classdesc
- * Provides Services to register a user and create RtcommNodes
- * &lt;p>
- * This programming interface lets a JavaScript client application use a {@link module:rtcomm.RtcommNode|Real Time Communication Node} 
- * to implement WebRTC simply. When {@link module:rtcomm.NodeProvider|instantiated} &amp; {@link module:rtcomm.RtcommNodeProvider#init|initialized} the 
- * RtcommNodeProvider connects to the defined MQTT Server and subscribes to a unique topic that is used to receive inbound communication.   
- * &lt;p>
- * See the example in {@link module:rtcomm.NodeProvider#init|NodeProvider.init()}
- * &lt;p>
- * 
- * @requires {@link mqttws31.js}
- *   
- */ 
-var NodeProvider =  function NodeProvider() {
-
-  var MISSING_DEPENDENCY = "RtcommNodeProvider Missing Dependency: ";
-  if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
-  if (!connection) { throw new Error(MISSING_DEPENDENCY+"rtcomm.connection");}
-
-  /** @lends module:rtcomm.NodeProvider */
-
-  /* configuration */
-  var defaultConfig = {
-      appContext: 'rtcomm',
-      server:null,
-      port: 1883,
-      userid : null,
-      connectorTopicName : "nodeConnector",
-      connectorTopicPath: "/rtcomm/",
-      credentials : { user: "", password: ""},
-      register: false,
-      createNode: false
-  };
-
-  this.config = defaultConfig;
-  // Internal objects
-  this.ready = false;
-  
-  // Default rtcommNode (First instance created)
-  this.defaultRtcommNode = null;
-  
-  this.events = { 
-      /**
-       * A new RtcommNode was created from an inbound 
-       * @event module:rtcomm.NodeProvider#newnode
-       * @property {module:rtcomm#RtcommNode}
-       */
-      'newnode': []};
-  
-  /** services supported by the NodeConnection, populated in init()*/
-  this.services = null; 
-
-  /** 
-   * NodeProvider Init config object
-   * @typedef  {Object} module:rtcomm.NodeProvider~InitOptions
-   * @property {string} server MQTT Server
-   * @property {string} [port=1883] MQTT Server Port 
-   * @property {string} userid User ID or Identity
-   * @property {string} [connectorTopicName=nodeConnection] connectorTopicName on rtcomm server
-   * @property {string} [connectorTopicPath=/rtcomm/] MQTT Path to prefix connectorTopicName with and register under
-   * @property {boolean} [register=false] Automatically register
-   * @property {boolean} [createNode=false] Automatically create a {@link module:rtcomm.RtcommNode|RtcommNode}
-   */
-
-  /** init method
-   *  This method is required to be called prior to doing anything else.
-   * @param  {module:rtcomm.NodeProvider~InitOptions} config - Configuration object for init
-   * @param {function} [onSuccess] Callback function when init is complete successfully.
-   * @param {function} [onFailure] Callback funtion if a failure occurs during init
-   * @param {function} [status]  Callback function to monitor status of init
-   * 
-   * @example
-   * var nodeProvider = new ibm.rtcomm.RtcommNodeProvider(); 
-   * var nodeProviderConfig = {
-   *   server : 'broker.mqttdashboard.com',       
-   *   userid : 'ibmAgent1@mysurance.org',
-   *   connectorTopicName : 'nodeConnector',   
-   *   connectorTopicPath : '/rtcomm/', 
-   *   port : 8000,                          
-   *   register: true,                     
-   *   createNode : true,                   
-   *   credentials : null                  
-   * };
-   *
-   * // Initialize the Service. [Using onSuccess/onFailure callbacks]
-   * // This initializes the MQTT layer and enables inbound Communication.
-   * var rtcommNode = null;  
-   * nodeProvider.init(nodeProviderConfig, 
-   *    function(object) { //onSuccess
-   *        console.log('init was successful, rtcommNode: ', object);
-   *        rtcommNode = object;
-   *    },
-   *    function(error) { //onFailure
-   *       console.error('init failed: ', error);
-   *      }
-   * );
-   * 
-   */
-  this.init = function init(options, cbSuccess, cbFailure) {
-    // You can only be init'd 1 time, without destroying reconnecting.
-    if (this.ready) {
-      l('INFO') &amp;&amp; console.log('NodeProvider.init() has been called and the object is READY');
-      return true;
-    }
-    var requiredConfig = { server: 'string', port: 'number', userid: 'string'};
-    var config = this.config;
-    var nodeProvider = this;
-    if (options) {
-      // validates REQUIRED initOptions upon instantiation.
-      /*global _validateConfig: false */
-      validateConfig(options, requiredConfig);
-      // handle logLevel passed in...
-      if (options.logLevel) {
-        setLogLevel(options.logLevel);
-        delete options.logLevel;
-      }
-      applyConfig(options, config);
-
-    } else {
-      throw new Error("RtcommNodeProvider initialization requires a minimum configuration: " + JSON.stringify(requiredConfig));
-    }
-
-    cbSuccess = cbSuccess || function(message) {
-      console.log(nodeProvider+'.init() Default Success message, use callback to process:', message);
-    };
-    cbFailure = cbFailure || function(error) {
-      console.log(nodeProvider+'.init() Default Failure message, use callback to process:', error);
-    };
-    this.userid = config.userid;
-
-    this.nodeConnection = new connection.NodeConnection({
-      server: config.server,
-      port: config.port,
-      userid: config.userid,
-      connectorTopicName: config.connectorTopicName,
-      connectorTopicPath: config.connectorTopicPath
-    });
-
-    var nodeConnection = this.nodeConnection;
-    nodeConnection.setLogLevel(getLogLevel());
-
-
-    var onSuccess = function(message) {
-      var returnObj = {
-          'ready': true,
-          'registered': false,
-          'nodeObj': null
-      };
-      this.ready = true;
-      
-      nodeConnection.service_query(
-          /* onSuccess */ function(services) {
-            // Returned services
-            l('DEBUG') &amp;&amp; console.log('Supported services are: ', services);
-            this.services = services || null;
-            
-          }.bind(this),
-          /* onFailure */ function(error){
-            console.error('Unable to lookup supported services');
-          });
-     
-      if (config.register) {
-        nodeConnection.register(config.appContext, 
-            function(message) {
-          returnObj.registered = true;
-          if (config.createNode) {
-            returnObj.node  = nodeProvider.createRtcommNode();
-            cbSuccess(returnObj);
-          } else {
-            cbSuccess(returnObj);
-          }
-        }, 
-        function(error) {
-          cbFailure(error);
-        });
-      } else {
-        cbSuccess(returnObj);
-      }
-    };
-    var onFailure = function(error) {
-      this.ready = false;
-      cbFailure(error);
-    };
-
-    nodeConnection.on('newsession', function(session) {
-      /*
-       * What to do on an inbound request.
-       * 
-       * Options:
-       *  Do we have a default node?  if so, just give the session to it. 
-       *  
-       *  if that node is busy, create a new node and emit it.
-       *  
-       *  If there isn't a node, create a Node and EMIT it.
-       *
-       */  
-      if(session) {
-        console.log("Handle a new incoming session: ", session);
-        var node = nodeProvider.defaultRtcommNode;
-        if (node &amp;&amp; node.available) {
-          console.log('using an existing node...', node);
-          node.newSession(session);
-        } else {
-          node = nodeProvider.createRtcommNode();
-          node.newSession(session);
-          nodeProvider.emit('newnode', node);
-        }
-      } else {
-        console.error('newsession - expected a session object to be passed.');
-      }
-    });
-    
-    nodeConnection.on('message', function(message) {
-      if(message) {
-        console.log("TODO:  Handle an incoming message ", message);
-      }
-    });
-  
-    // Connect!
-    nodeConnection.connect( onSuccess.bind(this), onFailure.bind(this));
-  
-    
-  };  // End of RtcommNodeProvider.init()
-
-
-  /** 
-   * @typedef {object} module:rtcomm.NodeProvider~NodeConfig 
-   *  @property {boolean} [audio=true] Support audio in the PeerConnection - defaults to true
-   *  @property {boolean} [video=true] Support video in the PeerConnection - defaults to true
-   *  @property {boolean} [data=true]  Support data in the PeerConnectio - defaults to true
-   *  @property {String}  [context='none'] Context for the Handler. Used in messages and with the server. defaults to 'none'
-   */
-
-  /**
-   * createRtcommNode - Factory method that returns a RtcommNode object to be used
-   * by a UI component.  
-   * 
-   *  The rtcommNode object provides an interface for the UI Developer to attach Video and Audio input/output. 
-   *  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
-   *  stream.   When an inbound stream is added to a RTCPeerConnection, then the RtcommNode object also informs the 
-   *  RTCPeerConnection where to send that stream in the User Interface.  
-   *
-   * @param {module:rtcomm.NodeProvider~NodeConfig} nodeConfig - Configuration to initialize node with. 
-   *  
-   * @returns {module:rtcomm.RtcommNode|RtcommNode}  A RtcommNode Object
-   * 
-   * @example 
-   *  var nodeConfig = { 
-   *    audio: true, 
-   *    video: true, 
-   *    data: false, 
-   *    };
-   *  rtcommNodeProvider.createRtcommNode(nodeConfig);
-   *  
-   *  @throws Error
-   */
-  this.createRtcommNode = function createRtcommNode(nodeConfig) {
-    var defaultConfig = {
-        autoAnswer: false,
-        appContext: this.config.appContext,
-        audio: true,
-        video: true,
-        data: true,
-        parent:this,
-        userid: this.userid
-    };
-    var objConfig = defaultConfig;
-    applyConfig(nodeConfig, objConfig);
-
-    // Reflect this into the RtcommNode.
-    l('DEBUG') &amp;&amp; console.log(this+'.createRtcommNode using config: ', objConfig);
-    var node = Object.create(RtcommNode);
-    node.init(objConfig);
-    // Register
-    try {
-      this.defaultRtcommNode = this.defaultRtcommNode || node;
-      return node;
-    } catch(e){
-      throw new Error(e);
-    }
-  };
-  
-  this.destroy =    function() {
-    //TODO:  Add NodeRegistry... 
-    // Unregister (be nice...)
-    
-    this.unregister();
-    l('DEBUG') &amp;&amp; console.log(this+'.destroy() Finished cleanup of nodeRegistry');
-    this.nodeConnection.destroy();
-    l('DEBUG') &amp;&amp; console.log(this+'.destroy() Finished cleanup of nodeConnection');
-    
-  }; 
-   
-  // exposing module global functions for set/get loglevel
-  this.setLogLevel = setLogLevel;
-  this.getLogLevel = getLogLevel;
-  /** 
-   *  Register the 'userid' used in {@link module:rtcomm.RtcommNodeProvider#init|init} with the
-   *  rtcomm service so it can be looked up and receive
-   *  inbound requests.
-   *
-   *  @param {function} [onSuccess] Called when lookup completes successfully with the returned message about the userid                          
-   *  @param {function} [onFailure] Callback executed if lookup fails, argument contains reason.
-   */
-  this.register = function(appContext, success, failure) {
-    var cbSuccess, cbFailure;
-    if (typeof appContext === 'function') {
-      cbFailure = success;
-      cbSuccess = appContext;
-      appContext = this.config.appContext;
-    }
-    //console.log('appContext is:'+ appContext);
-    //console.log('cbSuccess is:'+ cbSuccess);
-    //console.log('cbFailure is:'+ cbFailure);
-    
-    if (!this.ready) {
-      throw new Error('Not Ready! call init() first');
-    }
-    this.nodeConnection.register(appContext, cbSuccess, cbFailure);
-  };
-  /** 
-   *  Unregister from the server
-   */
-  this.unregister = function() {
-    this.nodeConnection.unregister();
-  };
-  
-  /** 
-   * Query registry for a user
-   * 
-   * @param userid
-   * @param cbSuccess 
-   * @param cbFailure
-   * 
-   */
-  this.lookup = function(userid, cbSuccess, cbFailure) {
-    l('DEBUG') &amp;&amp; console.log(this+'.lookup() lookup of: '+userid);
-    this.nodeConnection.register_query(userid, cbSuccess, cbFailure);
-  };
-
-  this.currentState = function() {
-    return {
-      states:  this._private,
-      config : this.config,
-      defaultRtcommNode: this.defaultRtcommNode
-    };
-
-  };
-
-}; // end of constructor
-
-NodeProvider.prototype = util.RtcommBaseObject.extend({});
-
-
-/**
- * Copyright 2014 IBM Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **/ 
-/** 
  *  @memberof module:rtcomm
  *  @description
- *  This object can only be created with the {@link module:rtcomm.RtcommNodeProvider#createRtcommNode|createRtcommNode} function.
+ *  This object can only be created with the {@link module:rtcomm.RtcommEndpointProvider#createRtcommEndpoint|createRtcommEndpoint} function.
  *  &lt;p>
- *  The rtcommNode object provides an interface for the UI Developer to attach Video and Audio input/output. 
+ *  The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output. 
  *  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
  *  stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection 
  *  where to send that stream in the User Interface.  
  *  &lt;p>
- *  See the example under {@link module:rtcomm.RtcommNodeProvider#createRtcommNode|createRtcommNode}
+ *  See the example under {@link module:rtcomm.RtcommEndpointProvider#createRtcommEndpoint|createRtcommEndpoint}
  *  @constructor
  *  
  *  @extends  module:rtcomm.util.RtcommBaseObject
  */  
-var RtcommNode = util.RtcommBaseObject.extend((function() {
+var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
   
   var validMediaElement = function(element) {
     return( (typeof element.srcObject !== 'undefined') ||
@@ -2598,7 +2605,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     console.log("Browser does not appear to be WebRTC-capable");
   }
   
-  /** @lends module:rtcomm.RtcommNode.prototype */
+  /** @lends module:rtcomm.RtcommEndpoint.prototype */
   return {
     
     _initialized: false,
@@ -2628,38 +2635,38 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
       this.events = {
           /**
            * A connection to a peer has been established
-           * @event module:rtcomm.RtcommNode#connected
+           * @event module:rtcomm.RtcommEndpoint#connected
            * @property {module:rtcomm#RtcommEvent}
            */
           "connected": [],
           "refer": [],
           /**
            * The connection to a peer has been closed
-           * @event module:rtcomm.RtcommNode#disconnected
+           * @event module:rtcomm.RtcommEndpoint#disconnected
            * @property {module:rtcomm#RtcommEvent}
            */
           "disconnected": [],
           /**
            * A peer has been reached, but not connected (inbound/outound)
-           * @event module:rtcomm.RtcommNode#ringing
+           * @event module:rtcomm.RtcommEndpoint#ringing
            * @property {module:rtcomm#RtcommEvent}
            */
           "ringing": [],
           /**
            * A connection is being attempted (outbound only)
-           * @event module:rtcomm.RtcommNode#trying
+           * @event module:rtcomm.RtcommEndpoint#trying
            * @property {module:rtcomm#RtcommEvent}
            */
           "trying": [],
           /**
            * An inbound connection is being requested.
-           * @event module:rtcomm.RtcommNode#incoming
+           * @event module:rtcomm.RtcommEndpoint#incoming
            * @property {module:rtcomm#RtcommEvent}
            */
           "incoming": [],
           /**
            * A message has arrived from a peer
-           * @event module:rtcomm.RtcommNode#message
+           * @event module:rtcomm.RtcommEndpoint#message
            * @property {module:rtcomm#RtcommEvent}
            */
           'message': []
@@ -2675,9 +2682,9 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         applyConfig(config, this._private);
       }
 
-      this.nodeConnection = this._private.parent.nodeConnection;
+      this.endpointConnection = this._private.parent.endpointConnection;
 
-      /* inbound and outbound Media Element DOM Nodes */
+      /* inbound and outbound Media Element DOM Endpoints */
       this.media = {
           In: null,
           Out: null
@@ -2699,12 +2706,12 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     },
     
     /**
-     *  Destroy this node.  Cleans up everything and disconnects any and all connections
+     *  Destroy this endpoint.  Cleans up everything and disconnects any and all connections
      *  
      */
     
     destroy : function() {
-      l('DEBUG') &amp;&amp; console.log(this+'.destroy Destroying RtcommNode');
+      l('DEBUG') &amp;&amp; console.log(this+'.destroy Destroying RtcommEndpoint');
     },
 
     newSession : function(session) {
@@ -2733,25 +2740,25 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
       if (!this._initialized) {
         throw new Error('Not Ready! call init() first');
       }
-      // ourself is the rtcommNode
-      var rtcommNode = this;
+      // ourself is the rtcommEndpoint
+      var rtcommEndpoint = this;
       config = config || {};
-      config.rtcommNode = rtcommNode;
+      config.rtcommEndpoint = rtcommEndpoint;
       // Call the ClientServide createConnection with correct context set and config;
-      rtcommNode.conn  = new WebRTCConnection({
+      rtcommEndpoint.conn  = new WebRTCConnection({
         audio: this.getAudio(),
         video: this.getVideo(),
         data: this.getData(),
         appContext: this._private.appContext,
         toEndpointID: config.toEndpointID,
-        rtcommNode: rtcommNode,
-        nodeConnection: this.nodeConnection,
+        rtcommEndpoint: rtcommEndpoint,
+        endpointConnection: this.endpointConnection,
         onEvent: function(event) {
           // This type of event is event.name...
-          rtcommNode.emit(event.name, event);
+          rtcommEndpoint.emit(event.name, event);
         }
       });
-      return rtcommNode.conn;
+      return rtcommEndpoint.conn;
     },
 
     // TODO:  Remove?
@@ -2769,33 +2776,33 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         message = message || "No Message";
         console.log(this+"attachLocalMedia.callback should be overridden:("+value+","+message+")");
       };
-      var rtcommNode = this;
-      l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): Setting up the rtcommNode:', this);
+      var rtcommEndpoint = this;
+      l('DEBUG') &amp;&amp; console.log('rtcommEndpoint.attachLocalMedia(): Setting up the rtcommEndpoint:', this);
       if (this.getAudio() || this.getVideo()|| this.getData()) {
         if (this.getMediaIn() &amp;&amp; this.getMediaOut()) {
           // Must be set...
           if (this.localStream) {
-            l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): Have a localStream already, apply it.', this.localStream);
+            l('DEBUG') &amp;&amp; console.log('rtcommEndpoint.attachLocalMedia(): Have a localStream already, apply it.', this.localStream);
             // we have a local stream, proceed to make a call. 
             // TODO:  This following COMPARE is not browser agnostic
             if (URL.createObjectURL(this.localStream) === this.getMediaOut().src) {
               // We are connected and everthing... 
-              l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): Already setup, skipping');
+              l('DEBUG') &amp;&amp; console.log('rtcommEndpoint.attachLocalMedia(): Already setup, skipping');
               callback(true);
             } else {
               // Apply the stream.
-              l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): Applying Local Stream');
-              rtcommNode.attachMediaStream(rtcommNode.getMediaOut(),rtcommNode.localStream);
+              l('DEBUG') &amp;&amp; console.log('rtcommEndpoint.attachLocalMedia(): Applying Local Stream');
+              rtcommEndpoint.attachMediaStream(rtcommEndpoint.getMediaOut(),rtcommEndpoint.localStream);
               callback(true);
             }
           } else {
             // No local stream, get it!
-            l('DEBUG') &amp;&amp; console.log('rtcommNode.attachLocalMedia(): No Stream, getting one! audio:'+ this.getAudio()+' video: '+ this.getVideo());
+            l('DEBUG') &amp;&amp; console.log('rtcommEndpoint.attachLocalMedia(): No Stream, getting one! audio:'+ this.getAudio()+' video: '+ this.getVideo());
             this.getUserMedia({audio: this.getAudio(), video: this.getVideo()} ,
                 /* onSuccess */ function(stream) {
               console.log('getUserMedia returned: ', stream);
-              rtcommNode.localStream = stream;
-              rtcommNode.attachMediaStream(rtcommNode.getMediaOut(),stream);
+              rtcommEndpoint.localStream = stream;
+              rtcommEndpoint.attachMediaStream(rtcommEndpoint.getMediaOut(),stream);
               callback(true);
             }, 
             /* onFailure */ function(error) {
@@ -2822,15 +2829,15 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     addEndpoint : function(/* String */ remoteId){
       // When call is invoked, we must have a RemoteID and we must have mediaIn &amp; Out set. 
       // We need to confirm the stream is attached
-      var rtcommNode = this;
+      var rtcommEndpoint = this;
       l('DEBUG') &amp;&amp; console.log(this + ".addEndpoint() Calling "+remoteId);
       if ( remoteId === null ) { throw new Error(".addEndpoint() requires an ID to be passed"); }
 
       this.attachLocalMedia(function(success, message) {
         if (success) {
-          if (typeof rtcommNode.createConnection === 'function') {
-            rtcommNode.createConnection({toEndpointID: remoteId, appContext: rtcommNode.getAppContext()});
-            rtcommNode.conn.connect();
+          if (typeof rtcommEndpoint.createConnection === 'function') {
+            rtcommEndpoint.createConnection({toEndpointID: remoteId, appContext: rtcommEndpoint.getAppContext()});
+            rtcommEndpoint.conn.connect();
           } else {
             console.error("Don't know what to do, createConnection missing...");
           }        
@@ -2849,11 +2856,11 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
      *  @throws Error Could not find connection to answer
      */
     acceptEndpoint : function(id) {
-      var rtcommNode = this;
+      var rtcommEndpoint = this;
       l('DEBUG') &amp;&amp; console.log(this + ".answer() invoked ");
-      rtcommNode.attachLocalMedia(function(success, message) {
+      rtcommEndpoint.attachLocalMedia(function(success, message) {
         if (success) {
-          var connection = rtcommNode.getConnection(id);
+          var connection = rtcommEndpoint.getConnection(id);
           if(connection) {
             connection.connect();
           } else {
@@ -2889,7 +2896,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     getConnection: function() { return this.conn ;},
 
     /*jshint es5: true */
-    /** Whether audio is enabled or not in the RtcommNode.  
+    /** Whether audio is enabled or not in the RtcommEndpoint.  
      * @type Boolean 
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
@@ -2901,7 +2908,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         throw new Error("Unable to set value, would create a registration that already exists");
       }
     },
-    /** Whether Video is enabled or not in the RtcommNode.  
+    /** Whether Video is enabled or not in the RtcommEndpoint.  
      * @type Boolean 
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
@@ -2913,7 +2920,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         throw new Error("Unable to set value, would create a registration that already exists");
       }
     },
-    /** Whether data is enabled or not in the RtcommNode.  
+    /** Whether data is enabled or not in the RtcommEndpoint.  
      * @type Boolean 
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
@@ -2925,24 +2932,24 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
         throw new Error("Unable to set value, would create a registration that already exists");
       }
     },
-    /** context of the node instance.  This is used to match nodes on endpoints so that each endpoint
+    /** context of the endpoint instance.  This is used to match nodes on endpoints so that each endpoint
      *  should have a node with the same context in order to communicate with each other. There can
      *  only be one context + audio/video/data combination. 
      *   
      *  @example
      *  // get the context
-     *  var context = rtcommNode.getAppContext();
+     *  var context = rtcommEndpoint.getAppContext();
      *  // set the context
-     *  rtcommNode.setAppContext("newcontext");
+     *  rtcommEndpoint.setAppContext("newcontext");
      *  
      *  @throws Error Context already exists
      */
     getAppContext:function() {return this._private.appContext;},
    
-    /** Return userid associated with this RtcommNode */
+    /** Return userid associated with this RtcommEndpoint */
     getUserid: function() { return this._private.userid;},
     getUuid: function() {return this._private.uuid;},
-    /** RtcommNode is ready to initiate a connection
+    /** RtcommEndpoint is ready to initiate a connection
      * @type Boolean */
     isReady: function() {return this._private.parent.isReady();},
     /* autoAnswer - used for testing */
@@ -2958,8 +2965,8 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
     getInboundMediaStream: function() { return this._private.inboundMedia;},
 
     /** 
-     * DOM node to link the RtcommNode inbound media stream to. 
-     * @param {Object} value - DOM Node with 'src' attribute like a 'video' node.
+     * DOM node to link the RtcommEndpoint inbound media stream to. 
+     * @param {Object} value - DOM Endpoint with 'src' attribute like a 'video' node.
      * @throws Error Object does not have a src attribute
      */
     getMediaIn: function() {
@@ -2978,8 +2985,8 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
 
     },
     /** 
-     * DOM Node to link outbound media stream to.
-     * @param {Object} value - DOM Node with 'src' attribute like a 'video' node.
+     * DOM Endpoint to link outbound media stream to.
+     * @param {Object} value - DOM Endpoint with 'src' attribute like a 'video' node.
      * @throws Error Object does not have a src attribute
      */
     getMediaOut: function() { return this.media.Out; },
@@ -2995,7 +3002,7 @@ var RtcommNode = util.RtcommBaseObject.extend((function() {
       }
     },
     toString: function() {
-      return "RtcommNode["+this._private.uuid+"]";
+      return "RtcommEndpoint["+this._private.uuid+"]";
     }
   }; // end of Return    
 
@@ -3072,12 +3079,12 @@ function WebRTCConnection(/* object */ config ) {
   var requiredConfig = { };
 
   /** Default parameter definition */
-  this.nodeConnection = null;
+  this.endpointConnection = null;
   this.audio = false;
   this.video = false;
   this.data = false;
   this.appContext = null;
-  this.rtcommNode = null;
+  this.rtcommEndpoint = null;
   this.toEndpointID = null;
   this.autoAnswer = false;
   
@@ -3134,7 +3141,7 @@ function WebRTCConnection(/* object */ config ) {
   
   this._referralSession = null;
   
-  this.autoAnswer = this.rtcommNode.getAutoAnswer();
+  this.autoAnswer = this.rtcommEndpoint.getAutoAnswer();
   this.id = this.toEndpointID;
   
   /** Changes loglevel for the whole webrtc module */
@@ -3197,19 +3204,19 @@ WebRTCConnection.prototype = function() {
       onComplete = config.onComplete || onComplete;
       
       l('DEBUG') &amp;&amp; console.log(this+'.init caller is: ', caller);
-      // If we have a node attached, populate our variables from it.
-      if (config.rtcommNode) {
-        this.rtcommNode = config.rtcommNode;
-        this.audio = this.rtcommNode.audio || false;
-        this.video = this.rtcommNode.video || false;
-        this.data = this.rtcommNode.data || false;
-        this.iceServers = getIceServers(config.rtcommNode);
+      // If we have a endpoint attached, populate our variables from it.
+      if (config.rtcommEndpoint) {
+        this.rtcommEndpoint = config.rtcommEndpoint;
+        this.audio = this.rtcommEndpoint.audio || false;
+        this.video = this.rtcommEndpoint.video || false;
+        this.data = this.rtcommEndpoint.data || false;
+        this.iceServers = getIceServers(config.rtcommEndpoint);
       }
     } 
   
-    if (this.rtcommNode === null) {
-      console.error("rtcommNode required...");
-      throw new Error("WebRTCConnection.init() - rtcommNode required");
+    if (this.rtcommEndpoint === null) {
+      console.error("rtcommEndpoint required...");
+      throw new Error("WebRTCConnection.init() - rtcommEndpoint required");
     }
     
     
@@ -3285,10 +3292,10 @@ WebRTCConnection.prototype = function() {
  
   }, // End of init()
 
-  setRTCommNode = function(rtcommNode) {
+  setRTCommEndpoint = function(rtcommEndpoint) {
     // It is possible to have this done automatically by the onComplete callback.  If it happens, we MAY need to answer...
     // Validate it has everything we should have in it..
-    this.rtcommNode = rtcommNode;
+    this.rtcommEndpoint = rtcommEndpoint;
 
   },
   /* 
@@ -3465,11 +3472,11 @@ WebRTCConnection.prototype = function() {
     // 
     
     
-    if (this.rtcommNode &amp;&amp; this.rtcommNode.localStream) {
+    if (this.rtcommEndpoint &amp;&amp; this.rtcommEndpoint.localStream) {
       // We have a localstream - we only support 1 local stream...  We should be able to add more streams, like music, etc... not yet. 
       if (this._peerConnection &amp;&amp; !this.streamAttached) {
-        l('DEBUG') &amp;&amp; console.log(this+'.attachLocalStream() calling .addStream on peerConnection with: ', this.rtcommNode.localStream);
-        this._peerConnection.addStream(this.rtcommNode.localStream);
+        l('DEBUG') &amp;&amp; console.log(this+'.attachLocalStream() calling .addStream on peerConnection with: ', this.rtcommEndpoint.localStream);
+        this._peerConnection.addStream(this.rtcommEndpoint.localStream);
         this.streamAttached = true;
         return true;
       } else {
@@ -3477,7 +3484,7 @@ WebRTCConnection.prototype = function() {
         return true;
       }
     } else {
-      console.error('this.rtcommNode.localStream is not set');
+      console.error('this.rtcommEndpoint.localStream is not set');
       return false;
     }
   },
@@ -3670,7 +3677,7 @@ WebRTCConnection.prototype = function() {
       connStatus.pcIceConnectionState = this._peerConnection.iceConnectionState;
     }
     connStatus.remoteID = this.toEndpointID;
-    connStatus.thisID = this.nodeConnection.userid;
+    connStatus.thisID = this.endpointConnection.userid;
     return connStatus;
   },
   getName = function() {
@@ -3721,10 +3728,12 @@ function createSignalingSession(context) {
     throw new Error('toEndpointID must be set in WebRTCConnection object');
   }
   
-  var session = context.nodeConnection.createSession({
+  var session = context.endpointConnection.createSession({
     id : sessid,
     toTopic : toTopic,
-    toEndpointID: context.toEndpointID
+    toEndpointID: context.toEndpointID,
+    appContext: context.appContext
+    
     });
 
   return session;
@@ -3845,19 +3854,19 @@ function createPeerConnection(/* object */ context) {
        * 
        */
      
-      var rtcommNode = this.rtcommNode;
-      if (this._peerConnection &amp;&amp; this.rtcommNode) {
+      var rtcommEndpoint = this.rtcommEndpoint;
+      if (this._peerConnection &amp;&amp; this.rtcommEndpoint) {
         /* global URL: true */
-        this.rtcommNode.setInboundMediaStream(evt.stream);
-        l('DEBUG') &amp;&amp; console.log('peerConnection.onaddstream - Attached stream to rtcommNode: ', this.rtcommNode);
+        this.rtcommEndpoint.setInboundMediaStream(evt.stream);
+        l('DEBUG') &amp;&amp; console.log('peerConnection.onaddstream - Attached stream to rtcommEndpoint: ', this.rtcommEndpoint);
         /*  Commenting out -- Don't think we need to do this.
-         * if(this.rtcommNode.localStream){
-          console.log("onaddstream  --> Adding LocalStream to FOUND rtcommNode");
-          this._peerConnection.addStream(this.rtcommNode.localStream);
+         * if(this.rtcommEndpoint.localStream){
+          console.log("onaddstream  --> Adding LocalStream to FOUND rtcommEndpoint");
+          this._peerConnection.addStream(this.rtcommEndpoint.localStream);
         }*/
       } else {
         // No UI Component... Need to Disconnect...
-        console.error("peerConnection.onaddstream - Something is wrong, no peerConnection or rtcommNode");
+        console.error("peerConnection.onaddstream - Something is wrong, no peerConnection or rtcommEndpoint");
       }
     }.bind(context);
     
@@ -3958,7 +3967,7 @@ function createPeerConnection(/* object */ context) {
 
 
 
-return { RtcommNodeProvider: NodeProvider };
+return { RtcommEndpointProvider: EndpointProvider };
 
 
 }));
@@ -3974,13 +3983,13 @@ return { RtcommNodeProvider: NodeProvider };
 </div>
 
 <nav>
-    <h2><a href="index.html">Index</a></h2><h3>Modules</h3><ul><li><a href="module-rtcomm.html">rtcomm</a></li></ul><h3>Classes</h3><ul><li><a href="module-rtcomm.NodeProvider.html">NodeProvider</a></li><li><a href="module-rtcomm.RtcommNode.html">RtcommNode</a></li><li><a href="module-rtcomm.util.RtcommBaseObject.html">RtcommBaseObject</a></li></ul><h3>Events</h3><ul><li><a href="module-rtcomm.NodeProvider.html#event:newnode">newnode</a></li><li><a href="module-rtcomm.RtcommNode.html#event:connected">connected</a></li><li><a href="module-rtcomm.RtcommNode.html#event:disconnected">disconnected</a></li><li><a href="module-rtcomm.RtcommNode.html#event:incoming">incoming</a></li><li><a href="module-rtcomm.RtcommNode.html#event:message">message</a></li><li><a href="module-rtcomm.RtcommNode.html#event:ringing">ringing</a></li><li><a href="module-rtcomm.RtcommNode.html#event:trying">trying</a></li></ul>
+    <h2><a href="index.html">Index</a></h2><h3>Modules</h3><ul><li><a href="module-rtcomm.html">rtcomm</a></li></ul><h3>Classes</h3><ul><li><a href="module-rtcomm.EndpointProvider.html">EndpointProvider</a></li><li><a href="module-rtcomm.RtcommEndpoint.html">RtcommEndpoint</a></li><li><a href="module-rtcomm.util.RtcommBaseObject.html">RtcommBaseObject</a></li></ul><h3>Events</h3><ul><li><a href="module-rtcomm.EndpointProvider.html#event:newendpoint">newendpoint</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:connected">connected</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:disconnected">disconnected</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:incoming">incoming</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:message">message</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:ringing">ringing</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:trying">trying</a></li></ul>
 </nav>
 
 <br clear="both">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Fri Aug 15 2014 09:37:40 GMT-0600 (MDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Fri Aug 22 2014 14:15:20 GMT-0600 (MDT)
 </footer>
 
 <script> prettyPrint(); </script>

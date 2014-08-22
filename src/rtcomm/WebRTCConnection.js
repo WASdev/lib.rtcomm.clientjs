@@ -722,7 +722,9 @@ function createSignalingSession(context) {
   var session = context.endpointConnection.createSession({
     id : sessid,
     toTopic : toTopic,
-    toEndpointID: context.toEndpointID
+    toEndpointID: context.toEndpointID,
+    appContext: context.appContext
+    
     });
 
   return session;

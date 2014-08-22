@@ -47,7 +47,7 @@
 <li>Chrome or Firefox web browsers that support WebRTC.</li>
 <li>A Liberty Profile server that runs with the  <code>rtcomm-1.0</code> feature enabled. </li>
 </ol>
-<h2>Download</h2><p> Download the latest 'rtcomm.zip' from this link:[link]  This file contains the library, sample and documentation.</p>
+<h2>Download</h2><p> Download the latest 'rtcomm.zip' from this <a href="https://github.com/WASdev/lib.rtcomm.clientjs/releases/download/v1.0.0-beta.1/rtcomm.zip">link</a>  This file contains the library, sample and documentation.</p>
 <h2>Quickstart</h2><h3>Using a WAR file</h3><p>Given the directory structure:</p>
 <pre class="prettyprint source"><code>   WebContent/
       /WEB-INF/
@@ -66,11 +66,11 @@
    serviceTopic : "nodeConnector",
    topicPath: "/rtcomm/",
    register: false,
-   createNode: false
+   createEndpoint: false
  };</code></pre><p>The above are the defaults and need to be changed to match the rtcomm-1.0 feature configuration in the server.xml for the liberty profile server you are using.  This is documented <a href="http://www-01.ibm.com/support/knowledgecenter/was_beta_liberty/com.ibm.websphere.wlp.nd.multiplatform.doc/ae/twlp_config_rtcomm.html">here</a>:</p>
 <p>Once the above configuration has been changed, you should be able to DEPLOY your WAR file to the Liberty Server.  You can either place the WAR file in the <strong>dropins</strong> directory for your server or configure it in the server.xml and place it in the <strong>apps</strong> directory.</p>
 <p>Access your server url and the 'index.html' page should be displayed with links to the sample Client you have configured and the documentation for the library.</p>
-<h2>Library Overview</h2><p>The library exposes a single object called a 'RtcommNodeProvider'.  The RtcommNodeProvider utilizes MQTT over WebSockets to communicate with the rtcomm-1.0 feature via the 'nodeConnector'.  The RtcommNodeProvider object represents an Endpoint in the rtcomm infrastructure. The primary purpose of the RtcommNodeProvider is to create RtcommNodes.  Each RtcommNode object provides the functionality to create a WebRTCConnection between RtcommNode Objects and link these WebRTCConnection objects to UI components via events and media streams.   A WebRTCConnection is a combination of a Signaling Session and a RTCPeerConnection, enabling end-to-end communication between two Endpoints.</p>
+<h2>Library Overview</h2><p>The library exposes a single object called a 'RtcommEndpointProvider'.  The RtcommEndpointProvider utilizes MQTT over WebSockets to communicate with the rtcomm-1.0 feature via the 'nodeConnector'.  The RtcommEndpointProvider object represents an Endpoint in the rtcomm infrastructure. The primary purpose of the RtcommEndpointProvider is to create RtcommEndpoints.  Each RtcommEndpoint object provides the functionality to create a WebRTCConnection between RtcommEndpoint Objects and link these WebRTCConnection objects to UI components via events and media streams.   A WebRTCConnection is a combination of a Signaling Session and a RTCPeerConnection, enabling end-to-end communication between two Endpoints.</p>
 <p><p>
 <strong>NOTE:</strong>  This library does not include any UI related components.  A simple html file demonstrating the use of the rtcomm.js library is included in the rtcomm.zip file.  It is discussed in the Sample section.</p>
 <h2>Install</h2><p>After you have downloaded 'rtcomm.zip', Copy and unzip this file to the application development directory where JavaScript libraries are stored.  </p>
@@ -87,48 +87,48 @@
 <strong>Classically, imported to the 'ibm.rtcomm' namespace:</strong></p>
 <p><code>&lt;script src=&quot;js/ibm/rtcomm.js&quot;&gt;&lt;/script&gt;</code></p>
 <p><strong>Via AMD(assuming proper AMD configuration):</strong></p>
-<pre class="prettyprint source"><code>var nodeProvider = null; // We need to be global.
+<pre class="prettyprint source"><code>var endpointProvider = null; // We need to be global.
 require( ["ibm/rtcomm"],
 function(rtcomm) {
-  nodeProvider = new rtcomm.RtcommNodeProvider();
-});</code></pre><h2>Using the RtcommNodeProvider</h2><p>The following shows how to configure and instantiate the RtcommNodeProvider. You need to know the MQTT Server address and ensure you use a unique 'connectorTopicName':</p>
-<pre class="prettyprint source"><code> var nodeProvider = new ibm.rtcomm.RtcommNodeProvider(); 
- var nodeProviderConfig = {
+  endpointProvider = new rtcomm.RtcommEndpointProvider();
+});</code></pre><h2>Using the RtcommEndpointProvider</h2><p>The following shows how to configure and instantiate the RtcommEndpointProvider. You need to know the MQTT Server address and ensure you use a unique 'connectorTopicName':</p>
+<pre class="prettyprint source"><code> var endpointProvider = new ibm.rtcomm.RtcommEndpointProvider(); 
+ var endpointProviderConfig = {
         server : "iot.eclipse.org", // mqtt server 
         userid : 'ibmAgent1@mysurance.org', // userid
         connectorTopicName : 'nodeConnector', // RTCOMM connector Topic name
         connectorTopicPath: '/rtcomm/MyCompany/', // RTCOMM connector Topic path
         port : 80, // mqtt port
-        register: true, // Register w/ Signalling Node
-        createNode : true,  // generate RtcommNode instance, pass in onSuccess
+        register: true, // Register w/ Signalling Endpoint
+        createEndpoint : true,  // generate RtcommEndpoint instance, pass in onSuccess
         credentials : null // no security for this example (sso token, etc)
       };
 
  // Initialize the Service. [Using onSuccess/onFailure callbacks]
  // This initializes the MQTT layer and enables inbound Communication.
- var rtcommNode = null;  
- ibmNodeProvider.init(nodeProviderConfig, 
+ var rtcommEndpoint = null;  
+ ibmEndpointProvider.init(endpointProviderConfig, 
     /* onSuccess */ function(object) {
-         console.log('init was successful, rtcommNode: ', object);
-          rtcommNode = object;
+         console.log('init was successful, rtcommEndpoint: ', object);
+          rtcommEndpoint = object;
     },
    /* onFailure */ function(error) {
          console.error('init failed: ', error);
    }
- );</code></pre><p>The instantiation example above automatically registers with the 'rtcomm server' and creates a RtcommNode which is assigned to the 'rtcommNode' variable. However, the developer can choose to decouple this behavior and specifically register  and createRtcommNode.   The 'rtcommNode' can now be used to create connections(calls) to other Endpoints.</p>
-<h4>Using the rtcommNode object</h4><p>The rtcommNode object provides an interface for the UI Developer to attach Video and Audio input/output.  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection where to send that stream in the User Interface.  </p>
+ );</code></pre><p>The instantiation example above automatically registers with the 'rtcomm server' and creates a RtcommEndpoint which is assigned to the 'rtcommEndpoint' variable. However, the developer can choose to decouple this behavior and specifically register  and createRtcommEndpoint.   The 'rtcommEndpoint' can now be used to create connections(calls) to other Endpoints.</p>
+<h4>Using the rtcommEndpoint object</h4><p>The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection where to send that stream in the User Interface.  </p>
 <p>Once the object has been created, in order to enable audio/video between Endpoints, mediaIn &amp; mediaOut must be attached to DOM Nodes [The inbound <code>&lt;video&gt;</code> and outbound <code>&lt;video&gt;</code> elements for your application]. </p>
-<pre class="prettyprint source"><code>// Configure & attach the rtcommNode to UI Video Node
-rtcommNode.setMediaOut(OutboundVideoNode);
-rtcommNode.setMediaIn(InboundVideoNode);
-rtcommNode.audio = true; // Support audio
-rtcommNode.video = true; // Support Video</code></pre><p>To create an outbound real-time connection with a specific user, the developer would attach the action of a UI component (like a Button) to the addEndpoint method of the rtcommNode and call it when clicked:</p>
+<pre class="prettyprint source"><code>// Configure & attach the rtcommEndpoint to UI Video Endpoint
+rtcommEndpoint.setMediaOut(OutboundVideoEndpoint);
+rtcommEndpoint.setMediaIn(InboundVideoEndpoint);
+rtcommEndpoint.audio = true; // Support audio
+rtcommEndpoint.video = true; // Support Video</code></pre><p>To create an outbound real-time connection with a specific user, the developer would attach the action of a UI component (like a Button) to the addEndpoint method of the rtcommEndpoint and call it when clicked:</p>
 <pre class="prettyprint source"><code>// Setup a real-time connection with specified user.
-rtcommNode.addEndpoint('userid');</code></pre><p>To disconnect a real-time connection, the developer should call disconnect().</p>
-<pre class="prettyprint source"><code>// Disconnect this node from all other attached users.
-rtcommNode.disconnect();</code></pre><p>To handle events, the developer should attach callback functions to the events generated by the on() handler:</p>
+rtcommEndpoint.addEndpoint('userid');</code></pre><p>To disconnect a real-time connection, the developer should call disconnect().</p>
+<pre class="prettyprint source"><code>// Disconnect this endpoint from all other attached users.
+rtcommEndpoint.disconnect();</code></pre><p>To handle events, the developer should attach callback functions to the events generated by the on() handler:</p>
 <pre class="prettyprint source"><code> // Attach a handler to the 'connected' event
- nodeObject.on('connected', function(event_object){
+ endpointObject.on('connected', function(event_object){
      console.log(event_object.message);
  });</code></pre><p>The available events are:</p>
 <table>
@@ -143,11 +143,11 @@ rtcommNode.disconnect();</code></pre><p>To handle events, the developer should a
 </table>
 
 
-<h4>Advanced Features of the RtcommNodeProvider &amp; RtcommNode Objects</h4><p>The above scenario is the simplest way to connect two endpoints using the rtcomm-1.0 feature infrastructure.  However, these objects support several additional features:</p>
+<h4>Advanced Features of the RtcommEndpointProvider &amp; RtcommEndpoint Objects</h4><p>The above scenario is the simplest way to connect two endpoints using the rtcomm-1.0 feature infrastructure.  However, these objects support several additional features:</p>
 <ol>
-<li><p>Each RtcommNodeProvider is tied specifically to the MQTT Server and Service Topic.  To use multiple MQTT Servers/ServiceTopics, multiple RtcommNodeProviders can be configured and intialized.</p>
+<li><p>Each RtcommEndpointProvider is tied specifically to the MQTT Server and Service Topic.  To use multiple MQTT Servers/ServiceTopics, multiple RtcommEndpointProviders can be configured and intialized.</p>
 </li>
-<li><p>The RtcommNodeProvider can create many RtcommNodes.  Each RtcommNode can have a single WebRTCConnection.</p>
+<li><p>The RtcommEndpointProvider can create many RtcommEndpoints.  Each RtcommEndpoint can have a single WebRTCConnection.</p>
 </li>
 </ol>
 <h2>Sample videoClient</h2><p>'rtcomm.zip' contains a 'sample/videoClient.html' file that demonstrates how to use the rtcomm.js library.   This sample can be placed on a web server with the js/lib/mqttws31.js, js/ibm/rtcomm.js from the rtcomm.zip. This sample is also dependent on jQuery that is accessed with the jQuery CDN (http://code.jquery.com/jquery-2.1.1.js). You can obtain jQuery 2.1.1 from the Downloading jQuery site.</p>
@@ -164,10 +164,34 @@ rtcommNode.disconnect();</code></pre><p>To handle events, the developer should a
       connectorTopicName : "nodeConnector",
       connectorTopicPath: "/rtcomm/",
       register: true,
-      createNode: true
+      createEndpoint: true
     };</code></pre><ol>
 <li>Access the index.html file via your web browser.  This will provide links to the documentation and Sample Client.</li>
-</ol></article>
+</ol>
+<h1>Building the code</h1><p>If you want to clone the repository and build this yourself, you will need:</p>
+<ol>
+<li>ant v 1.8.4 (Not tested with any other, but may work)</li>
+<li>ant-contrib from:  http://sourceforge.net/projects/ant-contrib/files/ant-contrib/1.0b3/ant-contrib-1.0b3-bin.zip/download</li>
+</ol>
+<p>Then in order to build just run:</p>
+<pre class="prettyprint source"><code> ant</code></pre><p> This will create a build directory with the following contents:</p>
+<pre class="prettyprint source"><code>   README.md
+   index.html
+   |-docs
+   |---jsDoc
+   |-----scripts
+   |-------prettify
+   |-----styles
+   |-js
+   |---ibm
+   |---lib
+   |---umd
+   |-----ibm
+   |-------rtcomm
+   |-lib
+   |-sample
+   |---resources
+   |-----css</code></pre><p>It will also copy the rtcomm.zip and docs into the dist directory.</p></article>
     </section>
 
 
@@ -178,13 +202,13 @@ rtcommNode.disconnect();</code></pre><p>To handle events, the developer should a
 </div>
 
 <nav>
-    <h2><a href="index.html">Index</a></h2><h3>Modules</h3><ul><li><a href="module-rtcomm.html">rtcomm</a></li></ul><h3>Classes</h3><ul><li><a href="module-rtcomm.NodeProvider.html">NodeProvider</a></li><li><a href="module-rtcomm.RtcommNode.html">RtcommNode</a></li><li><a href="module-rtcomm.util.RtcommBaseObject.html">RtcommBaseObject</a></li></ul><h3>Events</h3><ul><li><a href="module-rtcomm.NodeProvider.html#event:newnode">newnode</a></li><li><a href="module-rtcomm.RtcommNode.html#event:connected">connected</a></li><li><a href="module-rtcomm.RtcommNode.html#event:disconnected">disconnected</a></li><li><a href="module-rtcomm.RtcommNode.html#event:incoming">incoming</a></li><li><a href="module-rtcomm.RtcommNode.html#event:message">message</a></li><li><a href="module-rtcomm.RtcommNode.html#event:ringing">ringing</a></li><li><a href="module-rtcomm.RtcommNode.html#event:trying">trying</a></li></ul>
+    <h2><a href="index.html">Index</a></h2><h3>Modules</h3><ul><li><a href="module-rtcomm.html">rtcomm</a></li></ul><h3>Classes</h3><ul><li><a href="module-rtcomm.EndpointProvider.html">EndpointProvider</a></li><li><a href="module-rtcomm.RtcommEndpoint.html">RtcommEndpoint</a></li><li><a href="module-rtcomm.util.RtcommBaseObject.html">RtcommBaseObject</a></li></ul><h3>Events</h3><ul><li><a href="module-rtcomm.EndpointProvider.html#event:newendpoint">newendpoint</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:connected">connected</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:disconnected">disconnected</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:incoming">incoming</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:message">message</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:ringing">ringing</a></li><li><a href="module-rtcomm.RtcommEndpoint.html#event:trying">trying</a></li></ul>
 </nav>
 
 <br clear="both">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Fri Aug 15 2014 09:37:40 GMT-0600 (MDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Fri Aug 22 2014 14:15:20 GMT-0600 (MDT)
 </footer>
 
 <script> prettyPrint(); </script>
