@@ -71,6 +71,8 @@
 	     <var name="module" unset="true"/>
 	     <var name="umd.contents" unset="true" /> 
 	 	   <basename property="module" file="${mod.dir}" />
+       <echo message="Building umdModule ${module}" />
+       <delete file="${build.dir}/tmp/${module}-contents" /> 
 	      	<concat destfile="${build.dir}/tmp/${module}-contents" fixlastline="yes" append="true" >
              <filelist dir="${js.packagesrc.dir}/${module}" files="ModuleGlobals.js" />
 	 	         <fileset id='contents' dir="${js.packagesrc.dir}/${module}" >
@@ -110,7 +112,6 @@
 	      <delete dir="${js.umdmodule.dir}"/>
 	      <mkdir dir="${js.umdmodule.dir}" />
 	 	 <!-- Build the subModules -->
-
 	 	 <foreach target="umdModule" param="mod.dir"> 
        <path>
           <dirset dir="${js.packagesrc.dir}">
@@ -119,7 +120,7 @@
       </path>
 	   </foreach>
 	 	 <!-- Make master Package.name Module -->
-	   
+     <delete file="${build.dir}/tmp/${package.name}-umdcontents" /> 
 	 	 <concat destfile="${build.dir}/tmp/${package.name}-umdcontents" fixlastline="yes" append="true" >
 	      <fileset id='contents' dir="${js.packagesrc.dir}/" >
 	          <filename regex="^[A-Z]\S+\.js" />
@@ -127,7 +128,7 @@
 	   </concat>
 	       <loadfile  property="contents"  srcFile="${build.dir}/tmp/${package.name}-umdcontents" />
 	      <!-- Template and replace everything ... -->
-	                <copy file="${build.resources}/umdTemplate.js" tofile="${js.umdmodule.dir}/../${package.name}.js">
+	                <copy file="${build.resources}/umdTemplate.js" tofile="${js.umdmodule.dir}/../${package.name}.js" overwrite="true" >
 	                   <filterchain>
 	                     <filterreader classname="org.apache.tools.ant.filters.ReplaceTokens">
 	                         <param type="propertiesfile" value="${js.packagesrc.dir}/jsBuild.properties"/>
@@ -311,7 +312,7 @@
 	  <target name="compile" depends="compile-js" />
 
 	  <!-- Replace jslint with jshint. jslint is too strict... -->
-	  <target name="compile-js" depends="clean, umdModules, singleModule" />
+	  <target name="compile-js" depends="clean, umdModules, singleModule, copyFilesToBuildDir" />
     
     <target name="buildLite" depends="clean, umdModules, singleModule, copyFilesToBuildDir" />
 

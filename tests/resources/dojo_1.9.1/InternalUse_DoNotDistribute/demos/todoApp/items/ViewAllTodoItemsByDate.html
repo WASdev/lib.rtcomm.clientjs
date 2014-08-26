@@ -1,0 +1,29 @@
+<div class="view mblView">
+	<script type="dojo/require">at: "dojox/mvc/at"</script>
+	<div id="datewrapper">
+	<div data-dojo-type="dojox/app/widgets/Container" data-app-constraint="center"  data-dojo-props="scrollable: true">
+		<ul id="itemsDate_list"
+			data-dojo-type="dojox/mobile/RoundRectList"
+			data-dojo-mixins="dojox/mvc/WidgetList,dojox/mvc/_InlineTemplateMixin"
+			data-mvc-child-type="dojox/mvc/Templated"
+			data-mvc-child-mixins="dojox/mobile/ListItem"
+			data-mvc-child-props="clickable: true,
+				transitionOptions: {title:'Detail', target:'details,EditTodoItem',url: '#details,EditTodoItem'},
+				onClick: function(){showItemDetails(this.indexAtStartup);}">
+			<script type="dojox/mvc/InlineTemplate">
+				<li class="mblVariableHeight">
+						<div preventTouch="true" class="lineItemPreventTouch"></div>
+						<input type="checkbox"
+							data-dojo-type="dojox/mobile/CheckBox"
+							data-dojo-props="preventTouch: true, checked: at('rel:', 'completed')"/>
+							<div data-dojo-type="dojox/mvc/Output" style="display: inline"
+								data-dojo-props="value: at('rel:','title')"></div>
+							<div data-dojo-type="dojox/mvc/Output" class="dateLabel"
+								data-dojo-props="value: at('rel:','reminderDate'),
+													class: at('rel:','reminderDate').direction(at.from).transform(dateListClassTransform)"></div>
+				</li>
+			</script>
+		</ul>
+	</div>
+	</div>
+</div>

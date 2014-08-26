@@ -326,10 +326,14 @@ var EndpointProvider =  function EndpointProvider() {
       cbFailure = success;
       cbSuccess = appContext;
       appContext = this.config.appContext;
-    }
-    //console.log('appContext is:'+ appContext);
-    //console.log('cbSuccess is:'+ cbSuccess);
-    //console.log('cbFailure is:'+ cbFailure);
+     } else {
+       this.config.appContext = appContext;
+       cbSuccess = success;
+       cbFailure = failure;
+     }
+    console.log('appContext is:'+ appContext);
+    console.log('cbSuccess is:'+ cbSuccess);
+    console.log('cbFailure is:'+ cbFailure);
     
     if (!this.ready) {
       throw new Error('Not Ready! call init() first');

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="US-ASCII">
+<title>WebRTC rtcomm.* test</title> <script type="text/javascript" src="../../lib/mqttws31.js" ></script>
+<script type="text/javascript" src="../../../build/js/ibm/rtcomm.js" ></script>
+</head>
+
+<body>
+
+<h1> Single NodeConnector web test.</h1>
+  <hr>
+  <p></p>
+
+
+<script type="text/javascript">
+
+	// Create a service
+	console.log("Starting Test");
+var np1 = new ibm.rtcomm.RtcommNodeProvider();
+var myConfig1 = { register: true, server: 'svt-msd1.rtp.raleigh.ibm.com', port: 1883, userid: 'scott', connectorTopicName: 'nodeConnector', connectorTopicPath: '/rtcommfvt/'};
+/*
+var np2 = new ibm.rtcomm.RtcommNodeProvider();
+var myConfig2 = { register: true, server: 'svt-msd1.rtp.raleigh.ibm.com', port: 1883, userid: 'lula', connectorTopicName: 'nodeConnector', connectorTopicPath: '/rtcommfvt/'};
+*/
+/*
+nodeProvider.init(myConfig,
+  function(message) { console.log('init was successful', message)},
+  function(message) { console.log('init failed', message)}
+);
+*/
+np1.init(myConfig1);
+/*np2.init(myConfig2);*/
+
+// This should create a Session Only node.
+var node1 =  np1.createRtcommNode({audio:false, video:false, data:false});
+
+
+/*setTimeout(function() {
+  conn1.connect();
+}, 3000);
+*/
+
+</script>
+</body>
+
+</html>

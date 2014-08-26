@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="US-ASCII">
+<title>WebRTC rtcomm.* test</title> <script type="text/javascript" src="../../lib/mqttws31.js" ></script>
+<script type="text/javascript" src="../../../build/js/ibm/rtcomm.js" ></script>
+
+</head>
+
+<body>
+
+<h1> Single web test of one RTCOMM service to another in same page.</h1>
+  <hr>
+  <p>This test runs locally, but uses the MQTT Server to pass an RTCOMM 'MESSAGE' (no channel or session involved.)</p>
+
+
+<script type="text/javascript">
+
+	// Create a service
+	console.log("Starting Test");
+var rtcomm = ibm.rtcomm;
+
+var config = {server: "9.37.214.4", port: 1883 , userid: "rtc1@ibm.com", connectorTopicName: "nodeConnector", connectorTopicPath: "/rtcommfvt/" };
+
+var nodeConnector = Object.create(rtcomm.connector.NodeConnector);
+
+nodeConnector.init(config);
+nodeConnector.on('message', function onInboundMessage(message) {
+
+   var service = this;
+    console.log("This: " + this);
+    console.log("Service:  " + service);
+
+    // THis is a NEW inbound Message - not a response to something...
+    // this is an RtcMessage we receive...
+    console.log("1: Received Message: "+ message.content + "from Endpoint: "+message.fromEndpointID);
+	});
+
+nodeConnector.connect(
+   /*onSuccess*/ function() { console.log("1 -- Connect was successful!");},
+   /*onFailure*/ function(error) {console.error('1 -- Connect failed!', error);});
+ 
+</script>
+</body>
+
+</html>

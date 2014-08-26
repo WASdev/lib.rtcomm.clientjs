@@ -46,6 +46,7 @@ var SigSession = function SigSession(config) {
   this.toTopic = null;
   this.type = 'normal'; // or refer
   this.referralDetails = null;
+  this.appContext = null;
 
   if (config) {
     if (config.message && config.message.sigSessID) {
@@ -65,6 +66,7 @@ var SigSession = function SigSession(config) {
    
     this.id = this.id || config.id;
     this.toTopic = this.toTopic || config.toTopic;
+    this.appContext = this.appContext|| config.appContext;
   } 
   
   this.id = this.id || generateUUID();
@@ -155,6 +157,9 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       if (!this.message) {
         this.message = this.createMessage('START_SESSION');
         this.message.peerContent = sdp || null;
+        if (this.appContext) {
+          this.message.appContext = this.appContext
+        }
       }
       var session_started = function(message) {
         // our session was successfully started, if Outbound session, it means we 
@@ -260,7 +265,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      */
     send :  function(message) {
       var messageToSend = null;
-      if (message && message.ibmRTC && message.method) {
+      if (message && message.rtcommVer && message.method) {
         // we've already been cast... just send it raw...
         messageToSend = message;
       } else {
