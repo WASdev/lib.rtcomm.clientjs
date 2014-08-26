@@ -1,0 +1,11 @@
+define(
+//begin v1.x content
+{
+	"timeFormat-long": "h:mm:ss a z",
+	"dateFormat-medium": "dd-MMM-y G",
+	"timeFormat-medium": "h:mm:ss a",
+	"timeFormat-short": "h:mm a",
+	"timeFormat-full": "h:mm:ss a zzzz"
+}
+//end v1.x content
+);

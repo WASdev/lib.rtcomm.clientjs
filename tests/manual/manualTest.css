@@ -1,0 +1,95 @@
+@CHARSET "UTF-8";
+
+body, html { 
+	width:100%; 
+	height:100%; 
+	margin:0; 
+	padding:0; 
+	overflow:hidden;
+	font-family: Arial;
+}
+
+
+#eventLog {
+	  position: relative;
+  width: 400px ;
+  height: 200px ;
+  margin-left: auto ;
+  margin-right: auto ;
+	
+}
+
+#securelogin {
+    position: relative;
+    top: 200px;
+  width: 400px ;
+  margin-left: auto ;
+  margin-right: auto ;
+
+}
+
+
+
+
+
+.impact_background {
+	background: transparent url(images/impact_swatch_small.png) center right;
+}
+
+.title {
+	background:  white;
+	
+	float: right;
+	font-size: 3em;
+	font-family: Arial;
+	font-weight: bold;
+}
+
+.realmMember {
+    font-size: 1em;
+    font-family: Arial;
+    
+}
+
+.active {
+	color: greenyellow;
+	padding-left: 20px;
+	background: transparent url(images/mobile_video_pal16.gif) no-repeat center left;
+	cursor: pointer; cursor: hand;
+}
+
+.self {
+	color: gray;
+	padding-left: 20px;
+}
+
+.login {
+	font-size: 1em;
+	border: 1px solid #d3d3d3;
+	padding: 3px;
+	width: 240px;
+	
+}
+.session {
+	font-size: 1em;
+	border: 1px solid #d3d3d3;
+	padding: 3px;
+	width: 240px;
+}
+
+
+.login_text {
+	width: 130px;
+	white-space: nowrap;
+	padding 0px 10px 0px 10px;
+}
+
+.login_status {
+	font-size: .75em;
+	text-align: center; 
+	font-style: italic;
+	padding: 3px;
+}
+.login_button {
+	display: inline;
+}

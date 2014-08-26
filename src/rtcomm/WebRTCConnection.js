@@ -905,26 +905,39 @@ function createPeerConnection(/* object */ context) {
 /*
  *  Following are used to handle different browser implementations of WebRTC
  */
+var getBrowser = function() {
+    if (navigator && navigator.mozGetUserMedia) {
+      // firefox
+      return("firefox", parseInt(navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1], 10));
+    } else if (navigator && navigator.webkitGetUserMedia) {
+     return("chrome", parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10));
+    } else {
+      return("Unknown","Unknown");
+    } 
+  };
+
   var MyRTCPeerConnection = (function() { 
     /*global mozRTCPeerConnection:false */
     /*global webkitRTCPeerConnection:false */
-    if (navigator.mozGetUserMedia) {
+    if (navigator && navigator.mozGetUserMedia) {
       return mozRTCPeerConnection;
-    } else if (navigator.webkitGetUserMedia) {
+    } else if (navigator && navigator.webkitGetUserMedia) {
       return webkitRTCPeerConnection;
     } else {
-      throw new Error("Unsupported Browser: ", getBrowser());
+      return null;
+    //  throw new Error("Unsupported Browser: ", getBrowser());
     }
   })();
   
   var MyRTCSessionDescription = (function() { 
     /*global mozRTCSessionDescription:false */
-    if (navigator.mozGetUserMedia) {
+    if (navigator && navigator.mozGetUserMedia) {
       return mozRTCSessionDescription;
-    } else if (RTCSessionDescription) {
+    } else if (typeof RTCSessionDescription !== 'undefined' ) {
       return RTCSessionDescription;
     } else {
-      throw new Error("Unsupported Browser: ", getBrowser());
+    	return null;
+    //  throw new Error("Unsupported Browser: ", getBrowser());
     }
   })();
  
@@ -934,25 +947,18 @@ function createPeerConnection(/* object */ context) {
     /*global mozRTCIceCandidate:false */
     /*global RTCIceCandidate:false */
     
-    if (navigator.mozGetUserMedia) {
+    if (navigator && navigator.mozGetUserMedia) {
       return mozRTCIceCandidate;
-    } else if (RTCIceCandidate) {
+    } else if (typeof RTCIceCandidate !== 'undefined') {
       return RTCIceCandidate;
     } else {
-      throw new Error("Unsupported Browser: ", getBrowser());
+      return null;
+    //  throw new Error("Unsupported Browser: ", getBrowser());
     }
   })();
   l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
-  var getBrowser = function() {
-    if (navigator.mozGetUserMedia) {
-      // firefox
-      return("firefox", parseInt(navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1], 10));
-    } else if (navigator.webkitGetUserMedia) {
-     return("chrome", parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10));
-    } else {
-      return("Unknown","Unknown");
-    } 
-  };
+  
+ 
   return WebRTCConnection;
 }());
 

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="US-ASCII">
+<title>Development IBMRTC Test Page</title>
+<link rel="stylesheet" type="text/css"
+  href="fancy.css">
+
+<script src="../../../build/js/lib/mqttws31.js"></script>
+<script src="../../../build/js/ibm/rtcomm.js"></script>
+
+</head>
+<body>
+<div id="MainContainer">
+<div id="rtcomm" class="subContainer" style="height:275px">
+<div class="title">
+RTCOMM
+</div>
+<div class="description" >
+This section configures the 'RTCOMM' Layer and Message Logging.  Typically, this would be done automatically via the application developer
+initializing the code. All that happens here is the connection to the MQ server.
+</div>
+			<fieldset id="mqtt" class="fs">
+			<legend>MQTT Server</legend>
+			 <input type="radio"  name="mqtt" id='mq1' value='9.37.214.4' checked='checked'><label for="mq1">svt-msd1[prod]</label><br />
+       <input type="radio" name="mqtt" id='mq2 ' value='9.37.214.5' ><label for="mq2">svt-msd2[dev]</label><br />
+       <input type="radio" name="mqtt" id='mq3' value='9.37.214.6' ><label for="mq3">svt-msd3[sndbx]</label>
+  		</fieldset>
+  		
+			<fieldset id="topic" class="fs">	
+			<legend>SvcTopic</legend>
+       <input type="radio"  name="topic" id='t1' value='nodeConnector' checked='checked'><label for="t1">nodeConnector</label><br />
+       <input type="radio" name="topic" id='t2' value='sharedServiceTopic'  ><label for="t2">sharedServiceTopic</label><br />
+       <input type="radio" name="topic" id='t3' value='custom' ><input id='svcTopic' type="text" style="width:105px">
+      </fieldset>
+      
+      <fieldset id="client" class="fs"> 
+      <legend>UserID</legend>
+       <input type="radio"  name="client" id='c1' value='devClient111@us.ibm.com' onclick='onUserIDClick("devClient222@us.ibm.com");' checked='checked'><label for="t1">client 1</label><br />
+       <input type="radio" name="client" id='c2' value='devClient222@us.ibm.com' onclick='onUserIDClick("devClient111@us.ibm.com");'><label for="t2">client 2</label><br />
+       <input type="radio" name="client" id='c3' value='custom'  onclick='onUserIDClick("Enter an ID");' ><input id='svcTopic' type="text" style="width:105px">
+      </fieldset>
+  		<fieldset id="log" class="fs">
+			<legend>Logging</legend>
+			 <input type="radio" name="log" id='log1' checked="checked" value='message'> <label for="log1" >Messages</label><br />
+       <input type="radio" name="log" id='log2' value='debug'><label for="log2">Debug</label><br/>
+       <input type="radio" name="log" id='log3' value='nothing'><label for="log3">Info</label><br/>
+       <br />
+			</fieldset>
+		   <br>
+			 <button id='btnInit' type="button" style='float:left' onClick='doInit()'>Initialize</button>
+			  <button id='btnReset' type="button" style='float:left' onClick='doReset()'>Reset</button>
+			 <div id='rtcomm_msg' class='messageBox' style='float:left; width:85%'>Initialize the Client Service and the RTCOMM Layer</div>
+		</div>
+
+<div id="webrtc" class="subContainer">
+<div class="title" >
+Signal Layer
+</div>
+<br>
+<fieldset style="width:200px; float: left; height: 150px">
+<legend>Register/Lookup</legend>
+ <button id='btnRegister' type="button" onClick='doRegister()' style='floate:left'>Register</button><br>
+ <button id='btnUnRegister' type="button" onClick='doUnRegister()' style='floate:left'>UnRegister</button><br>
+ <button id='btnLookup' type="button" onClick='doLookup()' >Lookup</button>
+ <input id='lookup' type="text" value="devClient222@us.ibm.com">
+ <div id='registerMsg' class='messageBox' >Initialize the Client Service and the RTCOMM Layer</div>
+</fieldset>
+
+<fieldset style="align: right; height:150px">
+<legend>Connection</legend>
+<input type="checkbox" id='video' disabled='true'><label>video</label><input type="checkbox" id='audio' disabled='true'><label>audio</label>
+<input id='target' type="text" value='Enter Id to Call'>
+ <button id='btnCall' type="button" onClick='doCall()'>Call</button>
+ <button id='btnHangup' type="button" onClick='doHangup()'>Hangup</button>
+ <div id='state' class='messageBox'></div>
+ <div id="ConnectMsg" class='messageBox' style='height:50%'></div>
+</fieldset>
+		</div>
+</div>
+
+
+<script>
+// Get Elements...
+ function log(obj, event){
+                       var time = new Date();
+                       var msg = time.toTimeString();
+                       if (event.name && event.message) {
+                         msg += ":"+event.name+" "+event.message+"\n";
+                       } else {
+                        msg = event + "\n";
+                       }
+                      obj.innerHTML += msg;
+  };
+  
+function getCheckedValue(name) {
+  var elements = document.getElementsByName(name);
+  for (var i = 0; i< elements.length; i++) {
+    if (elements[i].checked) { return elements[i].value }
+  }
+}
+function onUserIDClick(id) {
+  document.getElementById('target').value=id;
+  
+}
+
+
+function getUserID() {
+ if (getCheckedValue('client') === 'custom') {
+    return document.getElementById('userid').value;
+  } else {
+    return getCheckedValue('client');
+  }
+}
+
+function getServiceTopic() {
+  if (getCheckedValue('topic') === 'custom') {
+    return document.getElementById('svcTopic').value;
+  } else {
+    return getCheckedValue('topic');
+  }
+}
+function updateRtcommMessage(message) {
+  var rtcommMsg = document.getElementById('rtcomm_msg');
+  rtcommMsg.innerHTML = message;
+}
+function disableByID(id) {
+  document.getElementById(id).disabled=true;
+}
+function enableByID(id) {
+  document.getElementById(id).disabled=false;
+}
+
+function updateStateMsg(state) {
+  var stateMsg = document.getElementById('state')
+  var igs = state.pcIceGatheringState;
+  var ics = state.pcIceConnectionState;
+  var ss = state.pcSigState;
+  var s = state.state;
+  
+  var html = "<b>"+ s +" --> ice["+ics+"|"+igs+"] PC["+ss+"]</b>" 
+  stateMsg.innerHTML = html;
+  
+}
+
+
+
+function doInit() {
+   // console.log('getCheckedValue()', getCheckedValue('mqtt'));
+  var log = getCheckedValue('log');
+  var logging = {message: false, debug: false};
+  if (log ==='message') {
+    ibmnp.setLogLevel('MESSAGE');
+  } else if (log ==='debug'){
+    ibmnp.setLogLevel('DEBUG');
+  } else {
+    ibmnp.setLogLevel('INFO');
+  }
+  var rtcommConfig = { server: getCheckedValue('mqtt'),
+                       port: 1883,
+                       userid: getUserID(),
+                       serviceTopic: getServiceTopic(),
+  }
+  
+  console.log("UI: Using config",rtcommConfig);
+  
+  var onSuccess = function () {
+    updateRtcommMessage('RTCOMM Layer Initialized with ID: ' + this.clientid + 'USER ID: '+ getUserID());
+    disableByID('btnInit');
+    document.getElementById('rtcomm').className='subContainer success';
+   }.bind(ibmnp);
+
+  ibmnp.init(rtcommConfig, onSuccess);  
+}
+
+function doReset() {  
+  ibmnp.destroy();
+  enableByID('btnInit'); 
+}
+
+function doHangup() {
+  alert("Not Implemented");
+}
+
+function doRegister(){
+  var msg =  document.getElementById('registerMsg');
+    msg.innerHTML = "Registering...";
+    if (ibmnp) {
+      ibmnp.register(
+      /* onSuccess */ function(message) {
+          msg.innerHTML = "Successfully Registered";
+           msg.className = msg.className + ' success';
+        },
+      /* onFailure */ function(error) {
+        msg.className = msg.className + ' failure';
+        msg.innerHTML = error
+        }
+      );
+    } else {
+      alert("the RTCOMM Layer does not appear to be initialized!");
+    } 
+
+}
+
+function doUnRegister() {
+  if (ibmnp) {
+    ibmnp.unregister();  
+  }
+}
+
+function doLookup(){
+  var msg =  document.getElementById('registerMsg');
+  var id = document.getElementById('lookup').value;
+  if (ibmnp) {
+    ibmnp.lookup(id, 
+      /*onSuccess*/ function(message) {
+        msg.innerHTML=message;
+        msg.className = msg.className + ' success';
+      },
+      /*onFailure*/ function(message){
+        msg.innerHTML=message;
+        msg.className = msg.className + ' failure';
+      });  
+  }
+
+}
+
+function doCall() {
+
+// Todo:  more checking...timeouts, etc...m Fail if no RTCOMM Layer... 
+    var targetId = document.getElementById('target').value;
+    log(connMsg, "Connecting....");
+    if (ibmnp) {
+      var connection = rtc.createConnection({toEndpointID:targetId});
+      connection.connect();
+    } else {
+      alert("the RTCOMM Layer does not appear to be initialized!");
+    } 
+}
+/* -------------------------------------------------------------------------------------
+ *  This is the Required instantiation... will have an 'Init()' too - Maybe unnecessary.
+ *--------------------------------------------------------------------------------------
+ */
+var ibmnp = new ibm.rtcomm.RtcommNodeProvider();
+/*
+ *  Then, we need to define and attach the uiComponent 
+ *  that will be used.
+ * 
+ *  the choice is to pass in a widget that is 'Augmented' 
+ *  Or to have everything in the widget that we need.  
+ *  
+ *  Not sure what is best here - I like the Factory approach,
+ *  but we should 'register' if we 'create'.  
+ *  Alternatively, what should we do w/ audio/video?
+ *  
+ */ 
+
+var connMsg = document.getElementById('ConnectMsg');
+// Get our Widget and Configure it... 
+
+
+// Register Our Handler [basically who wants incoming vents/connections]
+var rtc = ibmnp.registerHandler({context: "devTestClient", audio: true, video: true, data: true });
+// Returns a ConnectionFactory Object that can be used for connction.
+
+rtc.onNewConnection = function (connection) {
+  console.log('Inbound Connection', connection);
+}
+/* callback when inbound Events arrive */
+rtc.onEvent = function(event) {
+  console.log("Received Event: ", event);
+  log(connMsg, event);
+  if (event.object) { 
+   updateStateMsg(event.object);
+   }
+ // var message = event.name + " " + event.message;
+ // connMsg.innerHTML= message; 
+}
+
+/* for testing, automatically send an answer if we have an Offer */
+rtc.autoAnswer = true;
+
+// PROBLEM:  we may want Audio/Video to be dynamic... :-/  ick.  
+// Also, if I ask for a 'Widget' via createWidget - I assume its registered and will updated appropriately if I change properties of it...
+// How do I do that?
+
+// ibmnp.registerWidget(connectionWidget);
+
+console.log('the rtc:', rtc);
+</script>
+
+</body>
+
+
+
+</html>

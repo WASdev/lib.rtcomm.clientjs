@@ -1,0 +1,111 @@
+define(
+//begin v1.x content
+{
+	"field-dayperiod": "Tageshälfti",
+	"dayPeriods-format-wide-pm": "nam.",
+	"field-minute": "Minuute",
+	"dateFormatItem-MMMEd": "E d. MMM",
+	"field-day-relative+-1": "geschter",
+	"field-weekday": "Wuchetag",
+	"field-day-relative+-2": "vorgeschter",
+	"months-standAlone-narrow": [
+		"J",
+		"F",
+		"M",
+		"A",
+		"M",
+		"J",
+		"J",
+		"A",
+		"S",
+		"O",
+		"N",
+		"D"
+	],
+	"field-era": "Epoche",
+	"field-hour": "Schtund",
+	"dayPeriods-format-wide-am": "vorm.",
+	"dateFormatItem-y": "y",
+	"dateFormatItem-Ed": "E d.",
+	"field-day-relative+0": "hüt",
+	"field-day-relative+1": "moorn",
+	"days-standAlone-narrow": [
+		"S",
+		"M",
+		"D",
+		"M",
+		"D",
+		"F",
+		"S"
+	],
+	"field-day-relative+2": "übermoorn",
+	"dateFormat-long": "d. MMMM y G",
+	"field-zone": "Zone",
+	"dateFormatItem-Hm": "H:mm",
+	"dateFormat-medium": "d. MMM y G",
+	"field-year": "Jaar",
+	"field-week": "Wuche",
+	"dateFormatItem-MMMd": "d. MMM",
+	"months-format-abbr": [
+		"Jan",
+		"Feb",
+		"Mär",
+		"Apr",
+		"Mai",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Okt",
+		"Nov",
+		"Dez"
+	],
+	"field-month": "Monet",
+	"dateFormatItem-H": "H",
+	"days-format-abbr": [
+		"Su.",
+		"Mä.",
+		"Zi.",
+		"Mi.",
+		"Du.",
+		"Fr.",
+		"Sa."
+	],
+	"field-second": "Sekunde",
+	"field-day": "Tag",
+	"dateFormatItem-MEd": "E, d.M.",
+	"dateFormat-short": "d.M.y",
+	"dateFormat-full": "EEEE d. MMMM y G",
+	"dateFormatItem-Md": "d.M.",
+	"months-format-wide": [
+		"Januar",
+		"Februar",
+		"März",
+		"April",
+		"Mai",
+		"Juni",
+		"Juli",
+		"Auguscht",
+		"Septämber",
+		"Oktoober",
+		"Novämber",
+		"Dezämber"
+	],
+	"quarters-format-wide": [
+		"1. Quartal",
+		"2. Quartal",
+		"3. Quartal",
+		"4. Quartal"
+	],
+	"days-format-wide": [
+		"Sunntig",
+		"Määntig",
+		"Ziischtig",
+		"Mittwuch",
+		"Dunschtig",
+		"Friitig",
+		"Samschtig"
+	]
+}
+//end v1.x content
+);
