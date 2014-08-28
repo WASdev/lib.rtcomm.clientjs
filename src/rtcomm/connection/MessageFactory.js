@@ -43,11 +43,6 @@ var MessageFactory = (function (){
         'method': 'SERVICE_QUERY',
         'transID': null,
       },
-      'REGISTER_QUERY' : {
-        'method': 'REGISTER_QUERY',
-        'queryEndpointID': null,
-        'transID': null,
-      },
       'START_SESSION' : {
         'method': 'START_SESSION',
         'sigSessID':null,
@@ -93,10 +88,6 @@ var MessageFactory = (function (){
       'SERVICE_QUERY' : {
         'orig': 'SERVICE_QUERY',
         'services':null
-      },
-      'REGISTER_QUERY' : {
-        'orig':'REGISTER_QUERY',
-        'endpointTopicName': null,
       },
       'START_SESSION' : {
         'orig': 'START_SESSION',

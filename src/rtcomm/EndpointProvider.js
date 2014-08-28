@@ -314,11 +314,10 @@ var EndpointProvider =  function EndpointProvider() {
   this.getLogLevel = getLogLevel;
   /** 
    *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
-   *  rtcomm service so it can be looked up and receive
-   *  inbound requests.
+   *  rtcomm service so it can receive inbound requests.
    *
-   *  @param {function} [onSuccess] Called when lookup completes successfully with the returned message about the userid                          
-   *  @param {function} [onFailure] Callback executed if lookup fails, argument contains reason.
+   *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid                          
+   *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
    */
   this.register = function(appContext, success, failure) {
     var cbSuccess, cbFailure;
@@ -347,19 +346,6 @@ var EndpointProvider =  function EndpointProvider() {
     this.endpointConnection.unregister();
   };
   
-  /** 
-   * Query registry for a user
-   * 
-   * @param userid
-   * @param cbSuccess 
-   * @param cbFailure
-   * 
-   */
-  this.lookup = function(userid, cbSuccess, cbFailure) {
-    l('DEBUG') && console.log(this+'.lookup() lookup of: '+userid);
-    this.endpointConnection.register_query(userid, cbSuccess, cbFailure);
-  };
-
   this.currentState = function() {
     return {
       states:  this._private,

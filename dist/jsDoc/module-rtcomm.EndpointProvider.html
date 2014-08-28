@@ -87,7 +87,7 @@ See the example in <a href="module-rtcomm.EndpointProvider.html#init">EndpointPr
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2062">line 2062</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2032">line 2032</a>
     </li></ul></dd>
     
 
@@ -182,7 +182,7 @@ See the example in <a href="module-rtcomm.EndpointProvider.html#init">EndpointPr
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2099">line 2099</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2069">line 2069</a>
     </li></ul></dd>
     
 
@@ -303,7 +303,7 @@ by a UI component.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2305">line 2305</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2275">line 2275</a>
     </li></ul></dd>
     
 
@@ -582,7 +582,7 @@ rtcommEndpointProvider.createRtcommEndpoint(endpointConfig);
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2147">line 2147</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2117">line 2117</a>
     </li></ul></dd>
     
 
@@ -640,156 +640,6 @@ endpointProvider.init(endpointProviderConfig,
         
             
 <dt>
-    <h4 class="name" id="lookup"><span class="type-signature"></span>lookup<span class="signature">(userid, cbSuccess, cbFailure)</span><span class="type-signature"></span></h4>
-
-    
-</dt>
-<dd>
-
-    
-    <div class="description">
-        Query registry for a user
-    </div>
-    
-
-    
-
-    
-
-    
-        <h5>Parameters:</h5>
-        
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>userid</code></td>
-            
-
-            <td class="type">
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>cbSuccess</code></td>
-            
-
-            <td class="type">
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>cbFailure</code></td>
-            
-
-            <td class="type">
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-    
-
-    
-<dl class="details">
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2388">line 2388</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dd>
-
-        
-            
-<dt>
     <h4 class="name" id="register"><span class="type-signature"></span>register<span class="signature">(onSuccess<span class="signature-attributes">opt</span>, onFailure<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
 
     
@@ -799,8 +649,7 @@ endpointProvider.init(endpointProviderConfig,
     
     <div class="description">
         Register the 'userid' used in init with the
- rtcomm service so it can be looked up and receive
- inbound requests.
+ rtcomm service so it can receive inbound requests.
     </div>
     
 
@@ -862,7 +711,7 @@ endpointProvider.init(endpointProviderConfig,
 
             
 
-            <td class="description last">Called when lookup completes successfully with the returned message about the userid</td>
+            <td class="description last">Called when register completes successfully with the returned message about the userid</td>
         </tr>
 
     
@@ -895,7 +744,7 @@ endpointProvider.init(endpointProviderConfig,
 
             
 
-            <td class="description last">Callback executed if lookup fails, argument contains reason.</td>
+            <td class="description last">Callback executed if register fails, argument contains reason.</td>
         </tr>
 
     
@@ -926,7 +775,7 @@ endpointProvider.init(endpointProviderConfig,
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2353">line 2353</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2322">line 2322</a>
     </li></ul></dd>
     
 
@@ -997,7 +846,7 @@ endpointProvider.init(endpointProviderConfig,
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2376">line 2376</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2345">line 2345</a>
     </li></ul></dd>
     
 
@@ -1255,7 +1104,7 @@ endpointProvider.init(endpointProviderConfig,
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2274">line 2274</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2244">line 2244</a>
     </li></ul></dd>
     
 
@@ -1604,7 +1453,7 @@ endpointProvider.init(endpointProviderConfig,
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2101">line 2101</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2071">line 2071</a>
     </li></ul></dd>
     
 
@@ -1718,7 +1567,7 @@ endpointProvider.init(endpointProviderConfig,
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2091">line 2091</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2061">line 2061</a>
     </li></ul></dd>
     
 
@@ -1763,7 +1612,7 @@ endpointProvider.init(endpointProviderConfig,
 <br clear="both">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Tue Aug 26 2014 09:20:20 GMT-0600 (MDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Thu Aug 28 2014 13:20:04 GMT-0600 (MDT)
 </footer>
 
 <script> prettyPrint(); </script>

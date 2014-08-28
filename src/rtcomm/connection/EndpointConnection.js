@@ -317,11 +317,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
         /** 
          *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
-         *  rtcomm service so it can be looked up and receive
-         *  inbound requests.
+         *  rtcomm service so it can receive inbound requests.
          *
-         *  @param {function} [onSuccess] Called when lookup completes successfully with the returned message about the userid                          
-         *  @param {function} [onFailure] Callback executed if lookup fails, argument contains reason.
+         *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid                          
+         *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
          */
         register : function(appContext, cbSuccess, cbFailure) {
           /*
@@ -394,26 +393,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             this.registered = false;
           } else {
             l('DEBUG') && console.log(this+' No registration found, cannot unregister');
-          }
-        },
-        /** 
-         * Query registry for a user
-         * 
-         * @param userid
-         * @param cbSuccess 
-         * @param cbFailure
-         * 
-         */
-        register_query : function(userid, cbSuccess, cbFailure) {
-          if (!this.ready) {
-            throw new Error('not Ready -- call connect() first');
-          }
-          if (userid) {
-            var message = this.createMessage('REGISTER_QUERY');
-            message.queryEndpointID = userid;
-            this._query(message, 'endpointTopicName', cbSuccess, cbFailure);
-          } else {
-            console.error('user was not specified');
           }
         },
         /**
