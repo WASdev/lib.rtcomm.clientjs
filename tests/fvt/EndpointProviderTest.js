@@ -269,46 +269,6 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
          },
          T3
      ),
-     // Should fail until we start testing with the actual Service.
-     new p2pFixture("Lookup",  /*direct*/ false,  
-         function() {
-            var self = this;
-            var user1 = this.np.userid;
-            var user2 = this.np2.userid;
-            var SUCCESS= false;
-            
-            setTimeout(function() {
-              try {
-                self.np.register('audiovideo',
-                    /*onSuccess*/ function(message) {
-                      console.log('register onSuccess message:', message);
-                   });
-                self.np2.register('audiovideo',
-                    /*onSuccess*/ function(message) {
-                      console.log('register onSuccess message:', message);
-                      // Chaining a Lookup in here...
-                      self.np2.lookup(user1, 
-                          /* onSuccess*/ function(message) {
-                          console.log('LOOKUP SUCCESS: ', message);
-                          SUCCESS=true;
-                      });  
-                    });
-              } catch(e) {
-                console.log(e);
-                self.error = e;
-              };
-            },T1);
-            // Now, we need to do a lookup...
-            var deferred = new doh.Deferred();
-            setTimeout(deferred.getTestCallback(function() {
-                 doh.t(SUCCESS);
-                 }),
-            T2);
-            return deferred;
-         },
-         T3
-     ),
-  
      new p2pFixture("in Browser A calls B", /*direct*/ false,
          function() {
             var self = this;
