@@ -254,7 +254,7 @@
 	<target name='sample'>
 		
 	</target>
-	
+
   <target name="copyFilesToBuildDir" >
 		<!-- Copy the lib dir to build -->
 		<delete dir="${build.dir}/js/lib"/>
@@ -298,7 +298,20 @@
     </copy>
 
 	</target>
-	
+  <!-- create a release version of the rtcomm.zip file, will be used to 'release' -->
+  <target name="release" depends="build" >
+    <property name="release.name" value="${package.name}-${version}" />
+    <mkdir dir="${build.dir}/tmp/${release.name}" />
+    <unzip src="${build.dir}/lib/${package.name}.zip" dest="${build.dir}/tmp/${release.name}" />
+		<zip destfile="${build.dir}/lib/${release.name}.zip">
+      <fileset dir="${build.dir}/tmp/">
+        <include name="${release.name}/" />
+      </fileset>
+    </zip>
+    <!-- remove the temp dir -->
+    <delete dir="${build.dir}/tmp/${release.name}" />
+  </target>
+
 	<!-- Override -->
   
 	<target name="clean-js" >
