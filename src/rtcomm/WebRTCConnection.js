@@ -187,6 +187,9 @@ WebRTCConnection.prototype = function() {
           caller = false;
         } else if (config.session.type === 'refer') {
           this._referralSession = config.session;
+          // Changes for REFER 
+          this._referralSession.start();
+          this._referralSession.pranswer();
         } else {
           console.error('Invalid Session passed: ', config.session);
         }
