@@ -344,7 +344,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
               var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
               // we have a expire in seconds, register a timer...
               l('DEBUG') && console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
-              registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
+              registerTimer = setTimeout(this.register.bind(this,appContext), regAgain*1000);
             }
             this.registered = true;
             // Call our passed in w/ no info... 
