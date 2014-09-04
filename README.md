@@ -11,7 +11,7 @@ The rtcomm.js library is a JavaScript Universal Module Description(UMD) formatte
 
 ##Download
 
- Download the latest 'rtcomm.zip' from this [link](https://github.com/WASdev/lib.rtcomm.clientjs/releases/download/v1.0.0-beta.1/rtcomm.zip)  This file contains the library, sample and documentation.
+ Download the latest 'rtcomm.zip' from this [link](https://github.com/WASdev/lib.rtcomm.clientjs/releases/latest)  This file contains the library, sample and documentation.
  
 ##Quickstart
 
@@ -23,8 +23,19 @@ Given the directory structure:
       /WEB-INF/
       /META-INF/
 ```
-Extract rtcomm.zip into the WebContent directory.  It should end up looking like:
 
+Extract the 'rtcomm-<release>.zip' file into a temporary directory:
+
+```
+cd /tmp
+unzip <path to rtcomm-<release>.zip> 
+ls
+rtcomm-<release>/
+```
+
+Move the contents of the rtcomm-<release>/ directory into the WebContent directory.  It should end up looking like:
+
+```
     WebContent/
       /WEB-INF/
       /META-INF/
@@ -32,9 +43,9 @@ Extract rtcomm.zip into the WebContent directory.  It should end up looking like
       /sample/
       /docs
       index.html
- 
+``` 
 Edit the file 'WebContent/sample/videoClient.html' or 'WebContent/sample/videoClientBS.html'.  Find the creation of the npConfig object:
-
+```
      var npConfig = {
        server: 'broker.mqttdashboard.com',
        port: 8000,
@@ -44,7 +55,7 @@ Edit the file 'WebContent/sample/videoClient.html' or 'WebContent/sample/videoCl
        register: false,
        createEndpoint: false
      };
-     
+```
 The above are the defaults and need to be changed to match the rtcomm-1.0 feature configuration in the server.xml for the liberty profile server you are using.  This is documented [here](http://www-01.ibm.com/support/knowledgecenter/was_beta_liberty/com.ibm.websphere.wlp.nd.multiplatform.doc/ae/twlp_config_rtcomm.html):
 
 Once the above configuration has been changed, you should be able to DEPLOY your WAR file to the Liberty Server.  You can either place the WAR file in the **dropins** directory for your server or configure it in the server.xml and place it in the **apps** directory.
@@ -59,13 +70,13 @@ The library exposes a single object called a 'RtcommEndpointProvider'.  The Rtco
 
 ##Install
 
-After you have downloaded 'rtcomm.zip', Copy and unzip this file to the application development directory where JavaScript libraries are stored.  
+After you have downloaded 'rtcomm-<release>.zip', Copy and unzip this file to the application development directory where JavaScript libraries are stored.  
 
-1. Unzip rtcomm.zip file and copy two files into your application($APPDIR):
+1. Unzip rtcomm-<release>.zip file and copy two files into your application($APPDIR):
 ```
-    unzip rtcomm.zip
-    cp ibm/rtcomm.js $APPDIR
-    cp lib/mqtt31ws.js $APPDIR 
+    unzip rtcomm-<release>.zip
+    cp rtcomm-<release>/ibm/rtcomm.js $APPDIR
+    cp rtcomm-<release>/lib/mqtt31ws.js $APPDIR 
 ```
 2. Embed in your application:
 
@@ -223,5 +234,4 @@ Then in order to build just run:
    |---resources
    |-----css
 ```
-It will also copy the rtcomm.zip and docs into the dist directory.
 

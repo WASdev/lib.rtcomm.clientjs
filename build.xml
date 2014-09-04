@@ -288,15 +288,6 @@
 			 <exclude name="lib/*.zip" />
 			</fileset>
 			</zip>
-      <!-- create a 'dist' directory -->
-    <mkdir dir="${basedir}/dist" />
-    <!-- Copy built library to it -->
-    <copy file="${build.dir}/lib/rtcomm.zip" todir="${basedir}/dist" overwrite="true" verbose="true"/> 
-    <!-- Copy docs to it -->
-    <copy todir="${basedir}/dist" >
-       <fileset dir="${build.dir}/docs/" />
-    </copy>
-
 	</target>
   <!-- create a release version of the rtcomm.zip file, will be used to 'release' -->
   <target name="release" depends="build" >
