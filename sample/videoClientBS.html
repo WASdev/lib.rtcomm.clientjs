@@ -304,6 +304,12 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
         status = 'Automatically Answering...';
       }
     });
+    endpointObject.on('refer', function(conn) {
+      console.log($('#answerDialog .modal-body'));
+      $('#answerDialog .modal-body').html(
+          "[3PCC] Initiate call to " + conn.toEndpointID);
+      $('#answerDialog').modal('show');
+    });
     return endpointObject;
   }
 

@@ -36,6 +36,8 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         (typeof element.src !== 'undefined'));
   };
 
+
+
   /*
    * Assign getUserMedia, attachMediaStream as private class functions
    */
@@ -155,7 +157,9 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           'message': []
       };
 
+      console.log('LOG LEVEL in RtcommEndpoint is: '+getLogLevel());
 
+      l('DEBUG') && console.log('LOG LEVEL in RtcommEndpoint is: '+getLogLevel());
 
       l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
 
@@ -203,18 +207,20 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       // then we need to behave differently:
       // should be just display 'RINGING' and let them create ANOTHER session.
       // 
+      l('DEBUG') && console.log(this + '.newSession() new session called w/ ',session);
       
       if (this.available) {
         var event = 'incoming';
         
         if (session.type === 'refer') {
-          session.pranswer();
+          l('DEBUG') && console.log(this + '.newSession() REFER, sending pranswer()');
+    //      session.pranswer();
           event = 'refer';
         }
         
         this.conn = this.createConnection();
         this.conn.init({session:session});
-        this.emit('incoming', this.conn);
+        this.emit(event, this.conn);
       }
     },
 

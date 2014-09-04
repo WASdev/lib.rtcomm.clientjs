@@ -49,7 +49,14 @@
 
     
     <div class="description">
-        This object can only be created with the createRtcommEndpoint function. <p> The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection  where to send that stream in the User Interface.   <p> See the example under createRtcommEndpoint
+        This object can only be created with the createRtcommEndpoint function.
+ <p>
+ The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output. 
+ Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
+ stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection 
+ where to send that stream in the User Interface.  
+ <p>
+ See the example under createRtcommEndpoint
     </div>
     
 
@@ -146,7 +153,9 @@
 
     
     <div class="description">
-        Answers a call - [Sends an 'answer' on a connection that is inbound] There MAY be more than one connection present, if so, uses a passed ID to answer  the right connection
+        Answers a call - [Sends an 'answer' on a connection that is inbound]
+ There MAY be more than one connection present, if so, uses a passed ID to answer 
+ the right connection
     </div>
     
 
@@ -239,7 +248,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2789">line 2789</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2795">line 2795</a>
     </li></ul></dd>
     
 
@@ -289,7 +298,10 @@
 
     
     <div class="description">
-        Create a connection and send an offer to the id passed<p>This will go through event state "trying" --> "ringing" --> "connected", These should be handled through onEvent
+        Create a connection and send an offer to the id passed
+<p>
+This will go through event state "trying" --> "ringing" --> "connected", 
+These should be handled through onEvent
     </div>
     
 
@@ -370,7 +382,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2760">line 2760</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2766">line 2766</a>
     </li></ul></dd>
     
 
@@ -420,7 +432,10 @@
 
     
     <div class="description">
-        attachLocalMedia method used to validate internal setup and set things up if not already done.The setup requires a mediaOut & mediaIn object w/ src attribute.  it also requires a localStream, or it will add it.We should decouple this...
+        attachLocalMedia method used to validate internal setup and set things up if not already done.
+
+The setup requires a mediaOut & mediaIn object w/ src attribute.  it also requires a localStream, or it will add it.
+We should decouple this...
     </div>
     
 
@@ -453,7 +468,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2705">line 2705</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2711">line 2711</a>
     </li></ul></dd>
     
 
@@ -524,7 +539,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2644">line 2644</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2648">line 2648</a>
     </li></ul></dd>
     
 
@@ -595,7 +610,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2811">line 2811</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2817">line 2817</a>
     </li></ul></dd>
     
 
@@ -645,7 +660,9 @@
 
     
     <div class="description">
-        context of the endpoint instance.  This is used to match nodes on endpoints so that each endpoint should have a node with the same context in order to communicate with each other. There can only be one context + audio/video/data combination.
+        context of the endpoint instance.  This is used to match nodes on endpoints so that each endpoint
+ should have a node with the same context in order to communicate with each other. There can
+ only be one context + audio/video/data combination.
     </div>
     
 
@@ -678,7 +695,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2878">line 2878</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2884">line 2884</a>
     </li></ul></dd>
     
 
@@ -717,7 +734,12 @@
     
         <h5>Example</h5>
         
-    <pre class="prettyprint"><code>// get the contextvar context = rtcommEndpoint.getAppContext();// set the contextrtcommEndpoint.setAppContext("newcontext");</code></pre>
+    <pre class="prettyprint"><code>// get the context
+var context = rtcommEndpoint.getAppContext();
+// set the context
+rtcommEndpoint.setAppContext("newcontext");
+
+</code></pre>
 
     
 </dd>
@@ -766,7 +788,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2834">line 2834</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2840">line 2840</a>
     </li></ul></dd>
     
 
@@ -849,7 +871,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2858">line 2858</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2864">line 2864</a>
     </li></ul></dd>
     
 
@@ -980,7 +1002,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2903">line 2903</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2909">line 2909</a>
     </li></ul></dd>
     
 
@@ -1111,7 +1133,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2923">line 2923</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2929">line 2929</a>
     </li></ul></dd>
     
 
@@ -1194,7 +1216,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2881">line 2881</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2887">line 2887</a>
     </li></ul></dd>
     
 
@@ -1265,7 +1287,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2846">line 2846</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2852">line 2852</a>
     </li></ul></dd>
     
 
@@ -1348,7 +1370,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2544">line 2544</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2546">line 2546</a>
     </li></ul></dd>
     
 
@@ -1419,7 +1441,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2885">line 2885</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2891">line 2891</a>
     </li></ul></dd>
     
 
@@ -1545,7 +1567,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2567">line 2567</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2569">line 2569</a>
     </li></ul></dd>
     
 
@@ -1663,7 +1685,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2574">line 2574</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2576">line 2576</a>
     </li></ul></dd>
     
 
@@ -1781,7 +1803,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2592">line 2592</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2594">line 2594</a>
     </li></ul></dd>
     
 
@@ -1899,7 +1921,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2598">line 2598</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2600">line 2600</a>
     </li></ul></dd>
     
 
@@ -2017,7 +2039,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2580">line 2580</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2582">line 2582</a>
     </li></ul></dd>
     
 
@@ -2135,7 +2157,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2586">line 2586</a>
+        <a href="rtcomm.js.html">rtcomm.js</a>, <a href="rtcomm.js.html#line2588">line 2588</a>
     </li></ul></dd>
     
 
@@ -2180,7 +2202,7 @@
 <br clear="both">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Tue Sep 02 2014 10:27:11 GMT-0600 (MDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-dev</a> on Wed Sep 03 2014 14:31:17 GMT-0600 (MDT)
 </footer>
 
 <script> prettyPrint(); </script>
