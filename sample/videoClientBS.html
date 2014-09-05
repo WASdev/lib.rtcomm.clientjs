@@ -47,12 +47,6 @@
       <button id='btnConnect' class='btn btn-default' disabled='disabled'>
          Connect  
       </button>
-      <button  id="cancel" class='btn btn-default'>
-        Cancel
-       </button>
-       <button id='btnReset' class='btn btn-default'>
-       Reset
-      </button>
     </div>
      <div id='statusMessage' class="pull-right logo" style="font-size: 24px; padding-right: 30px">
           Please Register
@@ -154,170 +148,142 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
 
 <script>
-  
-  // Define the RtcommNodeProvider globabl variable
-  var ibmnp = null;
 
-  // In this sample, initializing rtcommNode variable as a GLOBAL
-  var rtcommNode = null;
+  /*************************************************
+   * Define Globals 
+   *************************************************/
+  // Define the RtcommEndpointProvider globabl variable
+  var ibmep = null;
+  // In this sample, initializing rtcommEndpoint variable as a GLOBAL
+  var rtcommEndpoint = null;
 
-  /* Define the configuration for the NodeProvider.  THis is REQUIRED and generally must be changed.
+  // UI State
+  var registered = false;
+  var connected = false;
+
+  /* Define the configuration for the EndpointProvider.  THis is REQUIRED and generally must be changed.
    * It MUST match the rtcomm configuration used on the liberty server.
    *  This config can be passed in on the URL via params as well:
    *
    * Example:  videoClient.html?server=servername&port=1883&connectorTopicPath=/rtcommfvt/
    */
   var npConfig = {
-
     server : 'broker.mqttdashboard.com',
     port : 8000,
     connectorTopicName : "nodeConnector",
     connectorTopicPath : "/rtcomm/",
     register : true,
-    createNode : true
-
+    createEndpoint : true
   };
-
+  // Config from URL --> Example:  videoClient.html?server=servername&port=1883&connectorTopicPath=/rtcommfvt/
   var urlConfig = getUrlParams();
   /* can be passed on URL videoClient.html?regwithoutAV=true */
   var regwithAV = !(urlConfig.regwithoutAV === 'true');
   console.log('Config passed in via URL:', urlConfig);
-
   // This uses any params passed on URL to override config.
   updateConfig(npConfig, urlConfig);
 
-  // Display the configuration we are using in the UI
-  //  displayConfig();
+  /********************************************************************
+   *  Rtcomm Functions
+   *******************************************************************/
 
-  function setUIState(state) {
-    switch (state) {
-
-    case 'reset':
-      $('#btnConnect').prop('disabled', 'disabled');
-
-      $('#btnRegister').prop('disabled', false);
-      $('#cancel').prop('disabled', false);
-      $('#btnRegister').button('reset');
-    case 'registered':
-      $('#btnConnect').prop('disabled', 'disabled');
-      $('#btnRegister').prop('disabled', false);
-      $('#btnRegister').prop('disabled', false);
-      $('#btnRegister').prop('disabled', false);
-    }
-    ;
-
-  }
-  /*
-   *  *********Register Logic **************
-   */
-  /*
+   /* doRegister()
+   *
    * This function is the meat of the sample and shows how to
-   * init the NodeProvider using npConfig provided above.  This
-   * config is using register/getRtcommNode = true so that 
-   * the init returns a rtcommNode object.  
+   * init the EndpointProvider using npConfig provided above.  This
+   * config is using register/getRtcommEndpoint = true so that 
+   * the init returns a rtcommEndpoint object.  
    * 
-   *  This can be decoupled and register() and getRtcommNode() can be
+   *  This can be decoupled and register() and getRtcommEndpoint() can be
    *  called individually.
    * 
    */
   function doRegister(userid) {
-
-    ibmnp = ibmnp || new ibm.rtcomm.RtcommNodeProvider();
+    ibmep = ibmep || new ibm.rtcomm.RtcommEndpointProvider();
     // Change the loglevel - default is 'INFO', possibilities are:
     // 'MESSAGES' --> Just log sent/received messages in console.
     // 'DEBUG' -- > log most everything
     // 'TRACE' --> log everything
-    ibmnp.setLogLevel('DEBUG');
+    ibmep.setLogLevel('DEBUG');
+    updateMessage('Registering... '+ userid);
 
-    console.log('Enable AV during register?' + regwithAV);
-    console.log('Registering... ', userid);
-    updateMessage('Registering...');
     npConfig.userid = userid;
     // make sure this is an integer.
     npConfig.port = parseInt(npConfig.port);
-    //  If the NodeProvider is ready, it has already been init'd, we don't need to init again. Just register again.
-
-    if (!ibmnp.ready) {
-      // Call init() on the Node Provider.
-      ibmnp
+    //  If the EndpointProvider is ready, it has already been init'd, we don't need to init again. Just register again.
+    if (!ibmep.ready) {
+      // Call init() on the Endpoint Provider.
+      ibmep
           .init(
               npConfig,
               function(object) { //onSuccess
-                // Because register/getRtcommNode is enabled, we expect an object
+                // Because register/getRtcommEndpoint is enabled, we expect an object
                 // returned in the onSuccess callback.
-                console.log('init was successful, rtcommNode: ', object);
+                console.log('init was successful, rtcommEndpoint: ', object);
                 updateMessage('Registered');
-                $('#displayNameStr').html(
-                    'Welcome, <span class="blue">' + userid + '</span>')
-                $('#btnConnect').prop('disabled', false);
-                // Configure the rtcommNode now
-                rtcommNode = buildNode(object.node);
+                uiRegister(userid);
+                // Configure the rtcommEndpoint now
+                rtcommEndpoint = buildEndpoint(object.endpoint);
                 if (regwithAV) {
-                  rtcommNode
+                  // Enable Audio Video here.
+                  rtcommEndpoint
                       .attachLocalMedia(function(value, message) {
                         if (!value) {
                           alertMessage('Failed to get local Audio/Video - nothing to broadcast');
-                          if (ibmnp) {
-                            ibmnp.unregister();
-                            setUIState('reset');
+                          if (ibmep) {
+                            ibmep.unregister();
+                            uiUnregister();
                           }
                         }
-
                       });
                 }
-
               }, function(error) { //onFailure
                 console.error('init failed: ', error);
                 alertMessage('Initialization and registration failed!');
-                $('#btnRegister').button('toggle');
+                uiUnregister();
               });
     } else {
       // The init above only happens 1 time.  This enables us to register/unregister
       // while staying init'd.
-      ibmnp.register(function(msg) {
-        updateMessage('Registered');
-        $('#btnConnect').prop('disabled', false);
+      ibmep.register(
+       function(msg) {
+        uiRegister(ibmep.userid);
       }, function(error) {
         alertMessage('Registration failed!' + error);
-        $('#btnRegister').button('toggle');
+        uiUnregister(ibmep.userid);
       });
     }
     return false;
   };
 
-  function buildNode(nodeObject) {
+  function buildEndpoint(endpointObject) {
     // Assign the MediOut/MediaIn objects.  These are the <video> components for in/out media.
-    console.log(nodeObject);
-    nodeObject.setMediaOut(document.querySelector('#selfView'));
-    nodeObject.setMediaIn(document.querySelector('#remoteView'));
-    nodeObject.appContext = 'sample';
+    endpointObject.setMediaOut(document.querySelector('#selfView'));
+    endpointObject.setMediaIn(document.querySelector('#remoteView'));
+    endpointObject.appContext = 'sample';
     // Assign the callbacks
-    // nodeObject.onNewConnection = onNewConnection;
+    // endpointObject.onNewConnection = onNewConnection;
     // This will ask user for access to video and attach it to MediaIn
     // This can be done  when addEndpoint/acceptEndpoint is called but right now,
     // the video/video is more reliable if it is attached before a call is created.
 
     /*
-     * onEvent -- This is the event handler callback that should be defined for the created rtcommNode.  It doesn't
-     *  need to be this way, but this is an example of receiving events from the node about connections.
+     * onEvent -- This is the event handler callback that should be defined for the created rtcommEndpoint.  It doesn't
+     *  need to be this way, but this is an example of receiving events from the endpoint about connections.
      */
-
-    nodeObject.on('connected', function(event_object) {
-      state = "connected";
-      // $('#btnAnswer').prop('disabled', true);
-      $('#cancel').prop('disabled', false);
-      updateMessage(event_object.message);
+    endpointObject.on('connected', function(event_object) {
+      uiConnect(event_object.message);
     });
-    nodeObject.on('disconnected', function(event_object) {
-      console.log('DISCONNECTED! calling cancel()', event_object);
-      updateMessage(event_object.message);
+    endpointObject.on('disconnected', function(event_object) {
+      uiDisconnect(event_object.message);
       try {
-        rtcommNode.disconnect();
+        rtcommEndpoint.disconnect();
       } catch (e) {
         console.error(e);
       }
     });
-    nodeObject.on('ringing', function(event_object) {
+
+    endpointObject.on('ringing', function(event_object) {
       if (event_object.object && event_object.object.pcSigState) {
         if (event_object.object.pcSigState === 'have-local-offer') {
           // we are the CALLER.
@@ -328,9 +294,8 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
         }
       }
     });
-
-    nodeObject.on('incoming', function(conn) {
-      if (!rtcommNode.autoAnswer) {
+    endpointObject.on('incoming', function(conn) {
+      if (!rtcommEndpoint.autoAnswer) {
         console.log($('#answerDialog .modal-body'));
         $('#answerDialog .modal-body').html(
             "Inbound call from " + conn.toEndpointID);
@@ -339,55 +304,94 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
         status = 'Automatically Answering...';
       }
     });
-
-    // update UI?
-    return nodeObject;
+    endpointObject.on('refer', function(conn) {
+      console.log($('#answerDialog .modal-body'));
+      $('#answerDialog .modal-body').html(
+          "[3PCC] Initiate call to " + conn.toEndpointID);
+      $('#answerDialog').modal('show');
+    });
+    return endpointObject;
   }
-  /*
+
+  /*****************************************************************
    * UI Related functionality
-   */ 
+   ****************************************************************/ 
+
+  // Display the configuration we are using in the UI
+  //  displayConfig();
+
+
+  function uiReset() {
+    // unused...
+      $('#btnConnect').prop('disabled', 'disabled');
+      $('#btnRegister').prop('disabled', false);
+      $('#cancel').prop('disabled', false);
+      $('#btnRegister').button('reset');
+  }
+
+  function uiConnect(message) {
+      $('#btnConnect').text('Disconnect');
+      updateMessage(message || 'Unknown');
+      connected = true;
+  };
+
+  function uiDisconnect(message) {
+      $('#btnConnect').text('Connect');
+      updateMessage(message || 'Unknown');
+      connected = false;
+  };
+
+  function uiRegister(id) {
+    var userid = id || 'unknown';
+    $('#displayNameStr').html('Welcome, <span class="blue">' + userid + '</span>');
+    updateMessage('Registered');
+    $('#btnConnect').prop('disabled', false);
+    $('#btnRegister').text('Unregister');
+    registered = true;
+  };
+
+  function uiUnregister() {
+    $('#displayNameStr').html('Please Register');
+    updateMessage('Unregistered');
+    $('#btnConnect').prop('disabled', true);
+    $('#btnRegister').text('Register');
+    registered = false;
+  }
 
   function updateMessage(message) {
+    console.log('updateMessage --> '+message);
     $('#statusMessage').html(message);
   }
 
   $('#answerYes').on('click', function() {
     $("#answerDialog").modal("hide");
-    rtcommNode.acceptEndpoint();
+    rtcommEndpoint.acceptEndpoint();
   });
 
   $('#answerNo').on('click', function() {
     $("#answerDialog").modal("hide");
-    rtcommNode.disconnect();
-  });
-
-  $('#cancel').on('click', function() {
-    rtcommNode.disconnect();
+    state='disconnected';
+    rtcommEndpoint.disconnect();
   });
 
   $('#btnReset').on('click', function() {
-    rtcommNode && rtcommNode.reset();
-    rtcommNode = null;
-    ibmnp && ibmnp.destroy();
-    ibmnp = null;
+    rtcommEndpoint && rtcommEndpoint.reset();
+    rtcommEndpoint = null;
+    ibmep && ibmep.destroy();
+    ibmep = null;
     updateMessage('Please Register');
     $('#btnRegister').hasClass('active') && $('#btnRegister').button('toggle');
 
   });
 
   $('#btnRegister').on('click', function() {
-
-    if ($(this).hasClass('active')) {
-      // Unregister
-      $(this).button('toggle');
-      ibmnp.unregister();
+    if (registered) {
+      ibmep.unregister();
+      uiUnregister();
     } else {
       updateMessage('Registering');
       $('#registerModal').modal('show');
-      console.log('toggle');
-      $(this).button('toggle');
     }
-
   });
 
   $('#regGo').on('click', function() {
@@ -403,7 +407,12 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   });
 
   $('#btnConnect').on('click', function() {
-    $('#connectModal').modal('show');
+    if (connected) {
+      rtcommEndpoint.disconnect();
+      uiDisconnect("Disconnected");
+    } else {
+      $('#connectModal').modal('show');
+    }
   });
 
   $("#connectGo").on('click', function(event) {
@@ -418,7 +427,8 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
       lobby.displayName = name;
       lobby.connect();
       initRecorder(); */
-      rtcommNode.addEndpoint(remoteid);
+      updateMessage('Connecting to '+remoteid);
+      rtcommEndpoint.addEndpoint(remoteid);
       $("#connectModal").modal("hide");
       $('#connAlert').hide();
     }

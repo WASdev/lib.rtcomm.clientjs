@@ -128,6 +128,7 @@ var RtcommService = function RtcommService(config) {
   this._init = true;
 
 };
+
 /* global util: false */
 RtcommService.prototype  = util.RtcommBaseObject.extend(
     /** @lends module:rtcomm.connector.RtcommService.prototype */

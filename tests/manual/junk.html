@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="US-ASCII">
+<title>Development IBMRTC Test Page</title>
+<link rel="stylesheet" type="text/css"
+  href="fancy.css">
+
+<script src="../../../js/lib/mqttws31.js"></script>
+<script src="../../../build/js/ibm/rtcomm.js"></script>
+
+</head>
+<body>
+Test
+<script>
+//var node = new rtcomm.NodeProvider();
+var config1 = {server: "svt-msd1.rtp.raleigh.ibm.com", port:1883, userid: 'devClient111@us.ibm.com', serviceTopic: 'callSwSigNodeFVT'};
+var config2 = {server: "svt-msd1.rtp.raleigh.ibm.com", port:1883, userid: 'devClient222@us.ibm.com', serviceTopic: 'callSwSigNodeFVT'};
+var rtcNode, rtcNode2;
+
+      console.log("*** Creating NodeProvider1 ***", config1);
+          rtcNode = new ibm.rtcomm.RTCommNodeProvider();
+          rtcNode.setLogLevel('MESSAGE');
+          rtcNode.init(config1, /*onSuccess*/ function(rtcommNode) {
+            if (rtcommNode) {
+              this.node1 = rtcommNode;
+            }
+            console.log("node provider 1 initialized", rtcNode);
+          }.bind(this));
+         
+          /*
+           * Client2
+           * 
+           */
+          console.log("*** Creating NodeProvider2 ***", config2);
+          rtcNode2 = new ibm.rtcomm.RTCommNodeProvider();
+          rtcNode2.setLogLevel('DEBUG');
+          rtcNode2.init(config2, 
+           /* onSuccess */ function(rtcommNode) {
+            if (rtcommNode) {
+              this.node2 = rtcommNode;
+            }
+            console.log("node provider 2 initialized ", rtcNode2);
+         }.bind(this)
+         );
+
+
+</script>
+
+
+
+</body>
+</html>

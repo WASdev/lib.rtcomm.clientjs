@@ -22,7 +22,7 @@
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'ibmRTC': 'v1.1',
+      'rtcommVer': 'v0.0.1',
        'method' : null,
        'fromTopic': null
   };
@@ -31,7 +31,8 @@ var MessageFactory = (function (){
       'sigSessID':null,
       'transID':null,
       'reason': null,
-      'toEndpointID': null
+      'toEndpointID': null,
+      'appContext': null
   };
   
   // Override base headers and add new headers for the OUTBOUND message
@@ -42,18 +43,12 @@ var MessageFactory = (function (){
         'method': 'SERVICE_QUERY',
         'transID': null,
       },
-      'REGISTER_QUERY' : {
-        'method': 'REGISTER_QUERY',
-        'queryEndpointID': null,
-        'transID': null,
-      },
       'START_SESSION' : {
         'method': 'START_SESSION',
         'sigSessID':null,
         'transID':null,
         'toEndpointID': null,
         'peerContent': null,
-        'appContext': null
       },
      'STOP_SESSION' : {
         'method': 'STOP_SESSION',
@@ -93,10 +88,6 @@ var MessageFactory = (function (){
       'SERVICE_QUERY' : {
         'orig': 'SERVICE_QUERY',
         'services':null
-      },
-      'REGISTER_QUERY' : {
-        'orig':'REGISTER_QUERY',
-        'endpointTopicName': null,
       },
       'START_SESSION' : {
         'orig': 'START_SESSION',

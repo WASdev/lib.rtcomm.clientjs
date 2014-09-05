@@ -99,7 +99,7 @@ Transaction.prototype = util.RtcommBaseObject.extend(
       message.transID = message.transID || this.id;
       l('DEBUG') && console.log('Transaction.send() ids...'+message.transID +' this.id '+ this.id+'toTopic: '+this.toTopic);
       if (message.transID === this.id) {
-        this.nodeconnector.send({message: message, toTopic:this.toTopic});
+        this.endpointconnector.send({message: message, toTopic:this.toTopic});
       } else {
         l('DEBUG') && console.log(this+'.send() Message is not part of our tranaction, dropping!', message);
       }

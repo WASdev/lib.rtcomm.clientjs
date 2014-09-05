@@ -71,9 +71,15 @@
 	     <var name="module" unset="true"/>
 	     <var name="umd.contents" unset="true" /> 
 	 	   <basename property="module" file="${mod.dir}" />
+       <echo message="Building umdModule ${module}" />
+       <delete file="${build.dir}/tmp/${module}-contents" /> 
 	      	<concat destfile="${build.dir}/tmp/${module}-contents" fixlastline="yes" append="true" >
+             <filelist dir="${js.packagesrc.dir}/${module}" files="ModuleGlobals.js" />
 	 	         <fileset id='contents' dir="${js.packagesrc.dir}/${module}" >
 	 	             <filename regex="^[A-Z]\S+\.js" />
+                  <not>
+                    <filename name="ModuleGlobals.js" />
+                  </not>
 	 	         </fileset>
 	 	      </concat>
 	     <loadfile  property="umd.contents"  srcFile="${build.dir}/tmp/${module}-contents" />
@@ -106,7 +112,6 @@
 	      <delete dir="${js.umdmodule.dir}"/>
 	      <mkdir dir="${js.umdmodule.dir}" />
 	 	 <!-- Build the subModules -->
-
 	 	 <foreach target="umdModule" param="mod.dir"> 
        <path>
           <dirset dir="${js.packagesrc.dir}">
@@ -115,7 +120,7 @@
       </path>
 	   </foreach>
 	 	 <!-- Make master Package.name Module -->
-	   
+     <delete file="${build.dir}/tmp/${package.name}-umdcontents" /> 
 	 	 <concat destfile="${build.dir}/tmp/${package.name}-umdcontents" fixlastline="yes" append="true" >
 	      <fileset id='contents' dir="${js.packagesrc.dir}/" >
 	          <filename regex="^[A-Z]\S+\.js" />
@@ -123,7 +128,7 @@
 	   </concat>
 	       <loadfile  property="contents"  srcFile="${build.dir}/tmp/${package.name}-umdcontents" />
 	      <!-- Template and replace everything ... -->
-	                <copy file="${build.resources}/umdTemplate.js" tofile="${js.umdmodule.dir}/../${package.name}.js">
+	                <copy file="${build.resources}/umdTemplate.js" tofile="${js.umdmodule.dir}/../${package.name}.js" overwrite="true" >
 	                   <filterchain>
 	                     <filterreader classname="org.apache.tools.ant.filters.ReplaceTokens">
 	                         <param type="propertiesfile" value="${js.packagesrc.dir}/jsBuild.properties"/>
@@ -154,8 +159,12 @@
     	    
         	<property name="content.file" value="${build.dir}/tmp/${module}-2contents"/>
              <concat destfile="${content.file}" fixlastline="yes" append="true" >
+                <filelist dir="${js.packagesrc.dir}/${module}" files="ModuleGlobals.js" />
                 <fileset id='contents' dir="${js.packagesrc.dir}/${module}" >
                     <filename regex="^[A-Z]\S+\.js" />
+                    <not>
+                      <filename name="ModuleGlobals.js" />
+                    </not>
                 </fileset>
              </concat>
           <loadfile  property="sf.contents"  srcFile="${content.file}" />
@@ -245,7 +254,7 @@
 	<target name='sample'>
 		
 	</target>
-	
+
   <target name="copyFilesToBuildDir" >
 		<!-- Copy the lib dir to build -->
 		<delete dir="${build.dir}/js/lib"/>
@@ -279,17 +288,21 @@
 			 <exclude name="lib/*.zip" />
 			</fileset>
 			</zip>
-      <!-- create a 'dist' directory -->
-    <mkdir dir="${basedir}/dist" />
-    <!-- Copy built library to it -->
-    <copy file="${build.dir}/lib/rtcomm.zip" todir="${basedir}/dist" overwrite="true" verbose="true"/> 
-    <!-- Copy docs to it -->
-    <copy todir="${basedir}/dist" >
-       <fileset dir="${build.dir}/docs/" />
-    </copy>
-
 	</target>
-	
+  <!-- create a release version of the rtcomm.zip file, will be used to 'release' -->
+  <target name="release" depends="build" >
+    <property name="release.name" value="${package.name}-${version}" />
+    <mkdir dir="${build.dir}/tmp/${release.name}" />
+    <unzip src="${build.dir}/lib/${package.name}.zip" dest="${build.dir}/tmp/${release.name}" />
+		<zip destfile="${build.dir}/lib/${release.name}.zip">
+      <fileset dir="${build.dir}/tmp/">
+        <include name="${release.name}/" />
+      </fileset>
+    </zip>
+    <!-- remove the temp dir -->
+    <delete dir="${build.dir}/tmp/${release.name}" />
+  </target>
+
 	<!-- Override -->
   
 	<target name="clean-js" >
@@ -303,7 +316,7 @@
 	  <target name="compile" depends="compile-js" />
 
 	  <!-- Replace jslint with jshint. jslint is too strict... -->
-	  <target name="compile-js" depends="clean, umdModules, singleModule" />
+	  <target name="compile-js" depends="clean, umdModules, singleModule, copyFilesToBuildDir" />
     
     <target name="buildLite" depends="clean, umdModules, singleModule, copyFilesToBuildDir" />
 

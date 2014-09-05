@@ -1,0 +1,144 @@
+@CHARSET "UTF-8";
+
+body, html { 
+	width:100%; 
+	height:100%; 
+	margin:0; 
+	padding:0; 
+	overflow:hidden;
+	font-family: Arial;
+}
+
+fieldset {
+  padding: 1em;
+  font:80%/1 sans-serif;
+  font-size: .75em;
+  height: 75px;
+  }
+  
+label {
+  width:25%;
+  margin-right:0.5em;
+  padding-top:0.2em;
+  text-align:right;
+  }
+
+#MainContainer {
+	width: 700px;
+	height: 640px;
+	margin: 0 auto;
+	
+	
+}
+.fs {
+	float: left;
+  top: 3px;
+  width:20%;	
+}
+
+.subContainer {
+  font-size: 1em;
+  border: 1px solid #d3d3d3;
+  padding: 3px;
+  width: 95%;
+  margin-left: auto ;
+  margin-right: auto ;
+}
+
+
+.description {
+	font-size: .75em;
+	width: 80%;
+	float: right;
+border: 1px solid;
+margin: 10px 0px;
+padding:15px 10px 15px 50px;
+background-repeat: no-repeat;
+background-position: 10px center;
+color: #00529B;
+background-color: #BDE5F8;
+}
+	
+}
+
+#eventLog {
+	  position: relative;
+  width: 100% ;
+  height: 75px  ;
+  margin-left: auto ;
+  margin-right: auto ;
+  disabled: true;
+  
+	
+}
+
+.messageBox {
+	font-size: .75em;
+  border: 1px solid #d3d3d3;
+  padding: 3px;
+  height: 2em;
+}
+
+
+
+.impact_background {
+	background: transparent url(images/impact_swatch_small.png) center right;
+}
+
+.title {
+	background:  lightgray;
+	font-size: 1em;
+	height: 1em;
+	font-family: Arial;
+	font-weight: bold;
+}
+
+.realmMember {
+    font-size: 1em;
+    font-family: Arial;
+    
+}
+.failure {
+	border: 1px solid red;
+	
+}
+
+.success {
+	border: 1px solid greenyellow;
+}
+
+.self {
+	color: gray;
+	padding-left: 20px;
+}
+
+.login {
+	font-size: 1em;
+	border: 1px solid #d3d3d3;
+	padding: 3px;
+	width: 240px;
+	
+}
+.session {
+	font-size: 1em;
+	border: 1px solid #d3d3d3;
+	padding: 3px;
+	width: 240px;
+}
+
+
+.login_text {
+	width: 130px;
+	white-space: nowrap;
+	padding 0px 10px 0px 10px;
+}
+
+.login_status {
+	font-size: .75em;
+	text-align: center; 
+	font-style: italic;
+	padding: 3px;
+}
+.login_button {
+	display: inline;
+}

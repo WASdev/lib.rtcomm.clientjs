@@ -1,0 +1,8 @@
+{
+   "mqttServers" : ["svt-msd1.rtp.raleigh.ibm.com:1883",
+                    "svt-msd2.rtp.raleigh.ibm.com:1883",
+                    "svt-msd3.rtp.raleigh.ibm.com:1883"],
+   "connectorTopicName" : "nodeConnector",
+   "connectorTopicPath" : "/rtcommfvt/"
+
+}

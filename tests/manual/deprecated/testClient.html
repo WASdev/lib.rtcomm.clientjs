@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" type="text/css"
+  href="manualTest.css">
+
+<meta charset="US-ASCII">
+<title>Signaling Service</title> 
+
+<script src="../../../js/lib/mqttws31.js"></script>
+<script src="../../../js/lib/adapter.js"></script>
+<script src="../../../js/ibmrtc/util.js"></script>
+<script src="../../../js/ibmrtc/rtcomm.js"></script>
+<script src="../../../js/ibmrtc/webrtc.js"></script>
+
+</head>
+
+<body>
+<script type="text/javascript" >
+	
+	console.log("Logging something");
+</script>
+
+<h1>ibmrtc.webrtc &amp; ibmrtc.rtcomm manual test client</h1>
+	<hr>
+	<p>This test creates an ibm webrtc Signaling Client (does not do the audio video portion yet)</p>
+	<hr>
+	<table>
+		<tbody>
+		<tr>
+        <td></td>
+        <td>MQTT:<input id="mqtt" type="text"> </td>
+        <td>TopicName:<input id="topic" type="text"></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+			<tr>
+				<td>1.</td><td><button onclick="doRegister()" id="btnRegister">Register</button></td>
+				<td><input id="clientid" type="text"></td>
+				<td></td>
+				<td></td>
+				<td></td>
+			</tr>
+			
+			<tr>
+			 <td>2.</td><td><button onclick="doConnect()" id="btnConnect" disabled="true" >Connect</button>
+					</td>
+				<td><input id="targetid" type="text" disabled="true"></td><td></td>
+        <td></td>
+        <td></td>
+			</tr>
+			
+			<tr>
+				<td><div></div></td><td><button onclick="doSend()" id="btnSend" disabled="true">Send</button></td>
+				<td><input id="msgid" type="text" disabled="true"></td>
+				<td></td>
+				<td></td>
+				<td></td>
+			</tr>
+			<tr>
+        <td><div>3.</div></td><td><button onclick="doHangup()" id="btnHangup" disabled="true">Hangup</button></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+			<tr>
+				<td></td><td></td>
+				<td></td><td></td>
+				<td></td>
+				<td></td>
+			</tr>
+			
+			<tr>
+				<td></td><td><div id="msgBox">Connected to:</div></td>
+				<td></td><td></td>
+				<td></td>
+				<td></td>
+			</tr>
+			
+		</tbody>
+	</table>
+	<textarea id='eventLog'></textarea>
+
+	<script type="text/javascript">
+
+  // UI Components we will use later... 
+  
+  var targetTxt = document.getElementById("targetid");
+  var clientTxt = document.getElementById("clientid");
+  var eventLog = document.getElementById("eventLog");
+  var topicTxt = document.getElementById("topic");
+  var mqttTxt = document.getElementById("mqtt");
+  var msgTxt = document.getElementById("msgid");
+  
+  var targetid = "";
+  var clientid = "";
+  var mqttserver = "";
+  var serviceTopic = "";
+  
+	function getParameterByName( name,href )  {
+ 		name = name.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
+  		var regexS = "[\\?&]"+name+"=([^&#]*)";
+  		var regex = new RegExp( regexS );
+  		var results = regex.exec( href );
+  		if( results == null )
+    		return "";
+  		else
+    		return decodeURIComponent(results[1].replace(/\+/g, " "));
+	}
+
+  function doConnect() {
+    
+    // TODO:  Confirm we are registered?
+     if (targetTxt.value) {
+      targetTxt.disabled = true;
+      btnConnect.disabled=true;
+      btnSend.disabled = false;
+      msgTxt.disabled = false;
+      btnHangup.disabled = false;
+      log("Connecting to Client:" + targetTxt.value);
+      webrtcCS.call({toEndpointID:targetTxt.value});
+      
+     } else {
+      alert("Fill in the Connect Text Box with your Target ID");
+     }
+  }
+  
+  
+  
+  
+  function doRegister() {
+  
+    
+    
+    var clientid = clientTxt.value;
+    var mqttserver = mqttTxt.value;
+    var serviceTopic = topicTxt.value;
+  
+    if (clientid) {
+      mqttTxt.disabled = true;
+      topicTxt.disabled = true;
+      btnRegister.disabled = true;
+      clientTxt.disabled = true;
+      
+      webrtcCS.onSuccess = function() {
+         this.register();
+         btnConnect.disabled=false;
+         targetTxt.disabled=false;
+      }.bind(webrtcCS);
+      
+      webrtcCS.init({server: mqttserver , port: 1883, userid: clientid, serviceTopic: serviceTopic});
+      log("Registering Client:" + clientTxt.value);
+      
+    } else {
+      alert("Fill in the Register Text Box with your Client ID");
+     }
+    
+  }
+  
+  function doSend() {
+    
+  }
+  
+  function doHangup() {
+  
+    log("Hanging up Client:" + targetTxt.value);
+   webrtcCS.hangup(targetTxt.value);
+    
+  }
+  function log(event){
+                       var time = new Date();
+                       var msg = time.toTimeString();
+                       if (event.name && event.message) {
+                         msg += ":"+event.name+" "+event.message+"\n";
+                       } else {
+                        msg = event + "\n";
+                       }
+                      eventLog.value += msg;
+                 
+  };
+  
+  // Initialize on Load (Parameters can be set in URL);
+ 
+  targetid = getParameterByName('targetid',document.URL) || "targetid1";
+ 	clientid = getParameterByName('clientid',document.URL) || "clientid1";
+	mqttserver = getParameterByName('mqtt',document.URL) || "9.37.214.6";
+	serviceTopic = getParameterByName('topic',document.URL) || "sharedTopicName"
+	
+	// Display in Text
+	 targetTxt.value = targetid;
+	 clientTxt.value = clientid;
+   mqttTxt.value = mqttserver;
+   topicTxt.value = serviceTopic;
+  
+  
+	var webrtcCS = new ibmrtc.webrtc.WebRTCClientServices();
+	webrtcCS.registerWidget({
+	context: "LOG",
+	mediaIn: null,
+	                   mediaOut: null,
+	                   onEvent : log
+	                 })
+	
+ 
+	var msgBox = document.getElementById("msgBox");
+	msgBox.innerHTML = "I will connect "+clientid+" to "+targetid;
+  console.log("Starting Test");
+ 
+</script>
+</body>
+
+</html>
