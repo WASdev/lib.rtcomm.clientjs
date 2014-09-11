@@ -284,8 +284,8 @@ RtcommService.prototype  = util.RtcommBaseObject.extend(
       destroy: function() {
         this.ready = false;
         //Testin, disconnect can hang for some reason. Commenting out.
+        this.dependencies.mqttClient.disconnect();
         this.dependencies.mqttClient = null;
-        // this.dependencies.mqttClient.disconnect();
         l('DEBUG') && console.log(this+'.destroy() called and finished');
       }
     }); // end of Return

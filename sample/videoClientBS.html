@@ -153,10 +153,14 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
    * Define Globals 
    *************************************************/
   // Define the RtcommEndpointProvider globabl variable
-  var ibmep = null;
+  var ibmep = new ibm.rtcomm.RtcommEndpointProvider();
+  // Change the loglevel - default is 'INFO', possibilities are:
+  // 'MESSAGES' --> Just log sent/received messages in console.
+  // 'DEBUG' -- > log most everything
+  // 'TRACE' --> log everything
+  ibmep.setLogLevel('DEBUG');
   // In this sample, initializing rtcommEndpoint variable as a GLOBAL
   var rtcommEndpoint = null;
-
   // UI State
   var registered = false;
   var connected = false;
@@ -199,14 +203,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
    * 
    */
   function doRegister(userid) {
-    ibmep = ibmep || new ibm.rtcomm.RtcommEndpointProvider();
-    // Change the loglevel - default is 'INFO', possibilities are:
-    // 'MESSAGES' --> Just log sent/received messages in console.
-    // 'DEBUG' -- > log most everything
-    // 'TRACE' --> log everything
-    ibmep.setLogLevel('DEBUG');
     updateMessage('Registering... '+ userid);
-
     npConfig.userid = userid;
     // make sure this is an integer.
     npConfig.port = parseInt(npConfig.port);
@@ -231,7 +228,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
                         if (!value) {
                           alertMessage('Failed to get local Audio/Video - nothing to broadcast');
                           if (ibmep) {
-                            ibmep.unregister();
+                            rtcommEndpoint.unregister();
                             uiUnregister();
                           }
                         }
@@ -386,7 +383,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
   $('#btnRegister').on('click', function() {
     if (registered) {
-      ibmep.unregister();
+      rtcommEndpoint.unregister();
       uiUnregister();
     } else {
       updateMessage('Registering');

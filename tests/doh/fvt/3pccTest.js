@@ -11,7 +11,19 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
     var T1 = 5000;  // How long we wait to setup, before sending messages.
     var T2 = T1 + 3000; // How long we wait to check results
     var T3 = T2 +3000;  // How long we wait to timeout test.
-    
+
+    var ThreePccClient = function ThreePccClient() {
+      var ep = new rtcomm.RtcommEndpointProvider();
+      var config = config.clientConfig1();
+      ep.init(config);
+
+    }
+
+
+
+
+
+
     /*
      * p2pFixture -- Test Fixture some tests are based on.
      */

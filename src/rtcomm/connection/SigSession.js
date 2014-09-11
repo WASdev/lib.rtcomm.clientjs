@@ -54,6 +54,7 @@ var SigSession = function SigSession(config) {
       // We are INBOUND. 
       this.message = config.message;
       this.id = config.message.sigSessID;
+      this.appContext = config.message.appContext || null;
       this.toEndpointID = config.fromEndpointID || null;
       this.toTopic = config.toTopic || config.message.fromTopic || null;
 
@@ -220,18 +221,19 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         messageToSend = this.endpointconnector.createResponse('START_SESSION');
         messageToSend.transID = this._startTransaction.id;
         messageToSend.sigSessID = this.id;
-        
+
         if (SUCCESS) { 
           messageToSend.result = 'SUCCESS';
           messageToSend.peerContent = (this.type === 'refer') ? {type: 'refer'} : message; 
+          this.state = 'started';
         } else {
           messageToSend.result = 'FAILURE';
           messageToSend.reason = message || "Unknown";
+          this.state = 'failed';
         }
         // Finish the transaction
         this._startTransaction.finish(messageToSend);
-        this.state = 'started';
-        this.emit('started');
+        this.emit(this.state);
       } else {
         // No transaction to respond to.
         console.log('NO TRANSACTION TO RESPOND TO.');

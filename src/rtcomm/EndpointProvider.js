@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +12,98 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/ 
+ */ 
+
+
+/*
+ * This is a private EndpointRegistry object that 
+ * can be used to manage endpoints.
+ */
+var EndpointRegistry = function EndpointRegistry() {
+  var registry = {};
+
+
+  /* get an endpoint based on a key */
+  function get(key) {
+    if (registry.hasOwnProperty(key)) {
+      return registry[key];
+    } else {
+      return null;
+    }
+  }
+
+  /* add an endpoint, if a key for that 
+   * endpoint already exists, return it.
+   * Otherwise, return null if nothing passed
+   */
+  function add(object) {
+    var key =  null;
+    if (object) {
+      key = object.userid + '|'+object.appContext;
+      console.log("Adding key to registry: " + key);
+      if (registry.hasOwnProperty(key) ) {
+        console.log('Returning existing object');
+        return registry[key];
+      } else {
+        registry[key] = object;
+        return registry[key]
+      }
+    } else {
+      return null;
+    }
+  }
+
+  /*
+   * Remove an object from the registry
+   */
+  function remove(object) {
+    var key = null;
+    if (object) {
+      key = object.userid + '|'+object.appContext;
+      if (registry.hasOwnProperty(key) ) {
+        delete registry[key];
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
+
+  /*
+   * Destroy the registry and all objects in it
+   *  calls .destroy() on contained objects if
+   *  they have that method
+   */
+  function destroy() {
+    // call destroy on all objects, remove them.
+    Object.keys(registry).forEach(function(obj) {
+      console.log('destroying... ', obj);
+      if (typeof obj.destroy === 'function') {
+        obj.destroy();
+      }
+      remove(obj);
+    });
+  }
+  /*
+   * return the registry object for perusal.
+   */
+
+  function list() {
+    return registry;
+  }
+
+  return {
+    add: add,
+    get: get,
+    remove: remove,
+    destroy: destroy,
+    list: list
+  };
+
+};
+
 /** 
  * @class
  * @memberof module:rtcomm
@@ -31,11 +122,14 @@
  */ 
 var EndpointProvider =  function EndpointProvider() {
 
+  /** @lends module:rtcomm.EndpointProvider */
+
   var MISSING_DEPENDENCY = "RtcommEndpointProvider Missing Dependency: ";
   if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
   if (!connection) { throw new Error(MISSING_DEPENDENCY+"rtcomm.connection");}
 
-  /** @lends module:rtcomm.EndpointProvider */
+  /* Instantiate the endpoint Registry */
+  var endpointRegistry = new EndpointRegistry();
 
   /* configuration */
   var defaultConfig = {
@@ -43,7 +137,7 @@ var EndpointProvider =  function EndpointProvider() {
       server:null,
       port: 1883,
       userid : null,
-      connectorTopicName : "endpointConnector",
+      connectorTopicName : "nodeConnector",
       connectorTopicPath: "/rtcomm/",
       credentials : { user: "", password: ""},
       register: false,
@@ -54,8 +148,6 @@ var EndpointProvider =  function EndpointProvider() {
   // Internal objects
   this.ready = false;
   
-  // Default rtcommEndpoint (First instance created)
-  this.defaultRtcommEndpoint = null;
   
   this.events = { 
       /**
@@ -162,10 +254,12 @@ var EndpointProvider =  function EndpointProvider() {
       var returnObj = {
           'ready': true,
           'registered': false,
-          'endpointObj': null
+          'endpoint': null
       };
+      
       this.ready = true;
       
+      // Query the sever for its services
       endpointConnection.service_query(
           /* onSuccess */ function(services) {
             // Returned services
@@ -177,20 +271,25 @@ var EndpointProvider =  function EndpointProvider() {
             console.error('Unable to lookup supported services');
           });
      
-      if (config.register) {
-        endpointConnection.register(config.appContext, 
-            function(message) {
-          returnObj.registered = true;
-          if (config.createEndpoint) {
-            returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
-            cbSuccess(returnObj);
-          } else {
-            cbSuccess(returnObj);
-          }
-        }, 
-        function(error) {
-          cbFailure(error);
-        });
+      /*
+       * Depending on the configuration, the init() can do some different things
+       */
+
+      if (config.register || config.createEndpoint) {
+        returnObj.endpoint  = endpointProvider.createRtcommEndpoint({appContext: config.appContext});
+        // If register, go ahead and register the endpoint
+        config.register && returnObj.endpoint.register(
+          function(message) {
+            returnObj.registered = true;
+            if (config.createEndpoint) {
+              cbSuccess(returnObj);
+            } else {
+              cbSuccess(returnObj);
+            }
+          }, 
+          function(error) {
+            cbFailure(error);
+          });
       } else {
         cbSuccess(returnObj);
       }
@@ -213,15 +312,23 @@ var EndpointProvider =  function EndpointProvider() {
        *
        */  
       if(session) {
-        console.log("Handle a new incoming session: ", session);
-        var endpoint = endpointProvider.defaultRtcommEndpoint;
-        if (endpoint && endpoint.available) {
-          console.log('using an existing endpoint...', endpoint);
-          endpoint.newSession(session);
+        l('DEBUG') && console.log("Handle a new incoming session: ", session);
+        // Send it to the same id/appContext;
+        var epKey = endpointProvider.userid + '|' + session.appContext;
+        var endpoint = endpointRegistry.get(epKey) || null;
+
+        if (endpoint) {
+          if (endpoint.available) {
+            endpoint.newSession(session);
+          } else {
+            session.respond(false, 'No available endpoint for session');
+            // Should I delete the session?
+          }
         } else {
-          endpoint = endpointProvider.createRtcommEndpoint();
-          endpoint.newSession(session);
-          endpointProvider.emit('newendpoint', endpoint);
+          // Deny the session.
+          //
+          session.respond(false, 'No endpoint for appContext:  '+ session.appContext);
+          // Should I delete the session?
         }
       } else {
         console.error('newsession - expected a session object to be passed.');
@@ -289,20 +396,12 @@ var EndpointProvider =  function EndpointProvider() {
     l('DEBUG') && console.log(this+'.createRtcommEndpoint using config: ', objConfig);
     var endpoint = Object.create(RtcommEndpoint);
     endpoint.init(objConfig);
-    // Register
-    try {
-      this.defaultRtcommEndpoint = this.defaultRtcommEndpoint || endpoint;
-      return endpoint;
-    } catch(e){
-      throw new Error(e);
-    }
+    // Add to registry or return the one already there
+    return endpointRegistry.add(endpoint);
   };
   
-  this.destroy =    function() {
-    //TODO:  Add EndpointRegistry... 
-    // Unregister (be nice...)
-    
-    this.unregister();
+  this.destroy = function() {
+    endpointRegistry.destroy()
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointRegistry');
     this.endpointConnection.destroy();
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointConnection');
@@ -312,45 +411,17 @@ var EndpointProvider =  function EndpointProvider() {
   // exposing module global functions for set/get loglevel
   this.setLogLevel = setLogLevel;
   this.getLogLevel = getLogLevel;
-  /** 
-   *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
-   *  rtcomm service so it can receive inbound requests.
-   *
-   *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid                          
-   *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
-   */
-  this.register = function(appContext, success, failure) {
-    var cbSuccess, cbFailure;
-    if (typeof appContext === 'function') {
-      cbFailure = success;
-      cbSuccess = appContext;
-      appContext = this.config.appContext;
-     } else {
-       this.config.appContext = appContext;
-       cbSuccess = success;
-       cbFailure = failure;
-     }
-    console.log('appContext is:'+ appContext);
-    console.log('cbSuccess is:'+ cbSuccess);
-    console.log('cbFailure is:'+ cbFailure);
-    
-    if (!this.ready) {
-      throw new Error('Not Ready! call init() first');
-    }
-    this.endpointConnection.register(appContext, cbSuccess, cbFailure);
+
+  this.endpoints = function() {
+    return endpointRegistry.list();
   };
-  /** 
-   *  Unregister from the server
-   */
-  this.unregister = function() {
-    this.endpointConnection.unregister();
-  };
+
   
   this.currentState = function() {
     return {
       states:  this._private,
       config : this.config,
-      defaultRtcommEndpoint: this.defaultRtcommEndpoint
+      endpointRegistry: endpointRegistry.list()
     };
 
   };

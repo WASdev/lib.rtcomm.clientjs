@@ -64,13 +64,13 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
               error = e;
             }
             doh.f(error);
-            doh.t(this.endpointProvider.defaultRtcommEndpoint);
+            doh.t(Object.keys(this.endpointProvider.endpoints()).length === 1);
             doh.t(rtc);
             console.log(this.endpointProvider.currentState());
         }
       ),    
       new TestFixture(
-          "createRtcommEndpoint() - create multiple objects sets default.",
+          "createRtcommEndpoint() - Multiples w/ same config return same object.",
           function(){
             var error = null;
             try {
@@ -81,11 +81,9 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
               error = e;
             }
 
-            doh.t(rtc);
-            doh.t(rtc2);
-
+            doh.t(rtc === rtc2);
             doh.f(error);
-            doh.assertEqual(rtc,  this.endpointProvider.defaultRtcommEndpoint);
+            doh.t(Object.keys(this.endpointProvider.endpoints()).length === 1);
             console.log(this.endpointProvider.currentState());
           }
       ),    
@@ -105,6 +103,8 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
             console.log(rtc2);
             doh.t(rtc);
             doh.t(rtc2);
+            doh.f(rtc === rtc2);
+            doh.t(Object.keys(this.endpointProvider.endpoints()).length === 2);
 
             doh.f(error);
             console.log(this.endpointProvider.currentState());
@@ -200,18 +200,6 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
             doh.f(error);
           }
       ),      
-      new TestFixture(
-          "register() w/o init() throws error",
-          function(){
-            var error = null;
-            try {
-              this.endpointProvider.register();
-            }  catch(e) {
-              error = e;
-            }
-            doh.assertEqual('Not Ready! call init() first', error.message);
-          }
-      ),
       new TestFixture(
           "logLevel",
           function(){

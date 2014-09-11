@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/ 
+ */ 
 /**
 
  * @memberof module:rtcomm.connector
@@ -314,86 +314,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           l('DEBUG') && console.log('destroyed rtcService');
           this.rtcService = null;
           this.ready = false;
-        },
-        /** 
-         *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
-         *  rtcomm service so it can receive inbound requests.
-         *
-         *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid                          
-         *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
-         */
-        register : function(appContext, cbSuccess, cbFailure) {
-          /*
-           * create a register message
-           * send it.
-           * onSuccess is called when a Response is received
-           * onFailure if a timeout or if send fails.
-           * TODO:  Change this when we start using LWT  
-           * 
-           */
-          l('DEBUG') && console.log('Register Called! with this: ', this);
-          l('DEBUG') && console.log('Register Called! args ', arguments);
-          var minimumReregister = 30;  // 30 seconds;
-          var onSuccess = function(register_message) {
-
-            l('DEBUG') && console.log(this+'register() REGISTER RESPONSE: ', register_message);
-            if (register_message.orig === 'REGISTER' && register_message.expires) {
-              var expires = register_message.expires;
-              l('DEBUG') && console.log(this+'.register() Message Expires in: '+ expires);
-              /* We will reregister every expires/2 unless that is less than minimumReregister */
-              var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
-              // we have a expire in seconds, register a timer...
-              l('DEBUG') && console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
-              registerTimer = setTimeout(this.register.bind(this,appContext), regAgain*1000);
-            }
-            this.registered = true;
-            // Call our passed in w/ no info... 
-            if (cbSuccess && typeof cbSuccess === 'function') {
-              cbSuccess();
-            } else {
-              l('DEBUG') && console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", message);
-            }
-          };
-          // {'failureReason': 'some reason' }
-          var onFailure = function(errorObject) {
-            if (cbFailure && typeof cbFailure === 'function') {
-              cbFailure(errorObject.failureReason);
-            } else {
-              console.error('Registration failed : '+errorObject.failureReason);
-            }
-          };
-          // Call register!
-          if (this.ready) {
-            var message = this.createMessage('REGISTER');
-            message.appContext = appContext || "none";
-            message.regTopic = message.fromTopic;
-            var t = this.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
-            t.start();
-          } else {
-            if (cbSuccess && typeof cbSuccess === 'function') {
-              cbFailure('Not Ready, unable to register.');
-            } else {
-              console.error('Not Ready, unable to register.');
-            }
-          }
-        },
-        /** 
-         *  Unregister the userid associated with the EndpointConnection  
-         */
-        unregister : function() {
-
-          if (registerTimer) {
-            console.log('Timer is:'+registerTimer);
-            clearTimeout(registerTimer);
-            registerTimer=null;
-            var message = this.createMessage('REGISTER');
-            message.regTopic = message.fromTopic;
-            message.expires = "0";
-            this.send({'message':message});
-            this.registered = false;
-          } else {
-            l('DEBUG') && console.log(this+' No registration found, cannot unregister');
-          }
         },
         /**
          * Service Query for supported services by endpointConnection

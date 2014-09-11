@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- **/ 
+ */ 
 /** 
  *  @memberof module:rtcomm
  *  @description
@@ -29,14 +29,15 @@
  *  @extends  module:rtcomm.util.RtcommBaseObject
  */  
 var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
-  
+
+  // Used to store registration timer.
+  var registerTimer = null;
+
   var validMediaElement = function(element) {
     return( (typeof element.srcObject !== 'undefined') ||
         (typeof element.mozSrcObject !== 'undefined') ||
         (typeof element.src !== 'undefined'));
   };
-
-
 
   /*
    * Assign getUserMedia, attachMediaStream as private class functions
@@ -103,7 +104,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           audio: true,
           video: true,
           data: true,
-          appContext: 'none',
+          appContext: 'rtcomm',
           userid: null,
           parent: null,
           inboundMedia: null,
@@ -156,19 +157,12 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
            */
           'message': []
       };
-
-      console.log('LOG LEVEL in RtcommEndpoint is: '+getLogLevel());
-
-      l('DEBUG') && console.log('LOG LEVEL in RtcommEndpoint is: '+getLogLevel());
-
       l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
-
       if (config) {
         this.update = (config.update)?config.update: this.update;
         delete config.update;
         applyConfig(config, this._private);
       }
-
       this.endpointConnection = this._private.parent.endpointConnection;
 
       /* inbound and outbound Media Element DOM Endpoints */
@@ -176,11 +170,81 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           In: null,
           Out: null
       };
+      // Expose the appcontext/userid on the object
+      this.appContext = this._private.appContext;
+      this.userid = this._private.userid;
       this.available = true;
-      // Our events we generate OUTBOUND.
-      // needed?
       this.localStream=null;
       this._initialized = true;
+    },
+    /** 
+     *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
+     *  rtcomm service so it can receive inbound requests.
+     *
+     *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid                          
+     *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
+     */
+    register : function(cbSuccess, cbFailure) {
+      var minimumReregister = 30;  // 30 seconds;
+      var onSuccess = function(register_message) {
+        l('DEBUG') && console.log(this+'register() REGISTER RESPONSE: ', register_message);
+        if (register_message.orig === 'REGISTER' && register_message.expires) {
+          var expires = register_message.expires;
+          l('DEBUG') && console.log(this+'.register() Message Expires in: '+ expires);
+          /* We will reregister every expires/2 unless that is less than minimumReregister */
+          var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
+          // we have a expire in seconds, register a timer...
+          l('DEBUG') && console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
+          registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
+        }
+        this.registered = true;
+        // Call our passed in w/ no info... 
+        if (cbSuccess && typeof cbSuccess === 'function') {
+          cbSuccess();
+        } else {
+          l('DEBUG') && console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", message);
+        }
+      };
+
+      // {'failureReason': 'some reason' }
+      var onFailure = function(errorObject) {
+        if (cbFailure && typeof cbFailure === 'function') {
+          cbFailure(errorObject.failureReason);
+        } else {
+          console.error('Registration failed : '+errorObject.failureReason);
+        }
+      };
+      // Call register!
+      if (this._initialized) {
+        var message = this.endpointConnection.createMessage('REGISTER');
+        message.appContext = this.appContext || "none";
+        message.regTopic = message.fromTopic;
+        var t = this.endpointConnection.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
+        t.start();
+      } else {
+        if (cbSuccess && typeof cbSuccess === 'function') {
+          cbFailure('Not Ready, unable to register.');
+        } else {
+          console.error('Not Ready, unable to register.');
+        }
+      }
+    },
+    /** 
+     *  Unregister the userid associated with the EndpointConnection  
+     */
+    unregister : function() {
+      if (registerTimer) {
+        clearTimeout(registerTimer);
+        registerTimer=null;
+        var message = this.endpointConnection.createMessage('REGISTER');
+        message.regTopic = message.fromTopic;
+        message.appContext = this.appContext;
+        message.expires = "0";
+        this.endpointConnection.send({'message':message});
+        this.registered = false;
+      } else {
+        l('DEBUG') && console.log(this+' No registration found, cannot unregister');
+      }
     },
 
     update: function() { console.log('Default function, should have been overridden');},
@@ -191,14 +255,17 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       detachMediaStream(this.getMediaIn());
       detachMediaStream(this.getMediaOut());
     },
-    
     /**
      *  Destroy this endpoint.  Cleans up everything and disconnects any and all connections
-     *  
+     *
      */
-    
     destroy : function() {
       l('DEBUG') && console.log(this+'.destroy Destroying RtcommEndpoint');
+      this.registered && this.unregister(); 
+      this.disconnect();
+      this.localStream && this.localStream.stop();
+      detachMediaStream(this.getMediaIn());
+      detachMediaStream(this.getMediaOut());
     },
 
     newSession : function(session) {

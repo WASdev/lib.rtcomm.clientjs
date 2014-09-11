@@ -3,8 +3,8 @@
 // The paths are relative to where node is launched from.
 //
 require({
-     paths: { "ibm" : "../../../../build/js/umd/ibm" ,
-              "lib"  : "../../../../build/js/lib",
+     paths: { "ibm" : "../../../../../build/js/umd/ibm" ,
+              "lib"  : "../../../../../build/js/lib",
 //               "lib"  : "../../js/tests/node.js",
-              "tests"  : "../../../../tests"}
+              "tests"  : "../../../../../tests/doh"}
 });
