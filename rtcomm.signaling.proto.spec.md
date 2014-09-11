@@ -101,6 +101,14 @@ Here is an example of a REGISTER response:
 | result    	        | result of the operation    e.g.  SUCCESS or FAILURE |
 | reason				| Optionally included if FAILURE is the result. String explaining why the request failed |
 
+Here is an example of a UNREGISTER message sent to the service:
+
+| Key                   | Value                                     |
+| ----------------------|:-------------------------------------------|
+| method                | UNREGISTER |
+| rtcommVer             | e.g.  v0.0.1          |
+| regTopic              | topic that the endpoint is subscribed to. e.g.  /rtcomm/2123928217 |
+| appContext            | application context associated with the registration   e.g. "XYZ video app"|
 
 ## Service query
 
@@ -248,3 +256,15 @@ This following is the response to the refer:
 | reason				| Optionally included if FAILURE is the result. String explaining why the request failed |
 
 After a successful refer, the session remains active until the STOP_SESSION is sent. This could eventually allow status information about the call to be send via the refer session. 
+
+## Last Will and Testament Message
+
+Here is an example of an LWT message sent to the configured rtcomm LWT topic:
+
+| Key                   | Value                                     |
+| ----------------------|:-------------------------------------------|
+| method                | RTCOMM_LWT |
+| rtcommVer             | e.g.  v0.0.1          |
+| fromTopic             | topic that the endpoint is subscribed to. e.g.  /rtcomm/2123928217 |
+
+Any client or rtcomm service will subscribe on the root rtcomm LWT path or sub path to pick up LWT messages of interest.
