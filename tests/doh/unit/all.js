@@ -1,6 +1,6 @@
 
 define([
-  "tests/unit/RtcServiceTest",
+  "tests/unit/MqttConnectionTest",
   "tests/unit/SigMessageTest",
   "tests/unit/EndpointConnectionTest",
   "tests/unit/EndpointProviderTest"

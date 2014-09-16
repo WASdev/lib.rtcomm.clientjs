@@ -43,6 +43,7 @@ var SigSession = function SigSession(config) {
   this.id = null;
   this.toEndpointID = null;
   this.message = null;
+  this.source = null;
   this.toTopic = null;
   this.type = 'normal'; // or refer
   this.referralDetails = null;
@@ -50,12 +51,12 @@ var SigSession = function SigSession(config) {
 
   if (config) {
     if (config.message && config.message.sigSessID) {
-
       // We are INBOUND. 
       this.message = config.message;
       this.id = config.message.sigSessID;
       this.appContext = config.message.appContext || null;
       this.toEndpointID = config.fromEndpointID || null;
+      this.source = config.source || null;
       this.toTopic = config.toTopic || config.message.fromTopic || null;
 
       if (config.message.peerContent && config.message.peerContent.type === 'refer') {
@@ -69,7 +70,8 @@ var SigSession = function SigSession(config) {
     this.toTopic = this.toTopic || config.toTopic;
     this.appContext = this.appContext|| config.appContext;
   } 
-  
+
+  /* global generateUUID: false */
   this.id = this.id || generateUUID();
  
   this.events = {
@@ -93,6 +95,7 @@ var SigSession = function SigSession(config) {
 };
 
 
+/* global util: false */
 SigSession.prototype = util.RtcommBaseObject.extend((function() {
   /** @lends module:rtcomm.connector.SigSession.prototype */
   return { 
@@ -136,6 +139,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      */
     start : function(config) {
       this._setupQueue();
+      /*global l:false*/
       l('DEBUG') && console.log('SigSession.start() using config: ', config);
       var toEndpointID = this.toEndpointID;
       var sdp = null;
@@ -159,7 +163,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         this.message = this.createMessage('START_SESSION');
         this.message.peerContent = sdp || null;
         if (this.appContext) {
-          this.message.appContext = this.appContext
+          this.message.appContext = this.appContext;
         }
       }
       var session_started = function(message) {
