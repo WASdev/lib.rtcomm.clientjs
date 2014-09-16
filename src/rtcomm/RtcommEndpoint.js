@@ -275,19 +275,26 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       // should be just display 'RINGING' and let them create ANOTHER session.
       // 
       l('DEBUG') && console.log(this + '.newSession() new session called w/ ',session);
-      
-      if (this.available) {
-        var event = 'incoming';
-        
-        if (session.type === 'refer') {
+      if ((session.appContext === this.appContext) || this.ignoreAppContext) {
+        if (this.available) {
+          var event = 'incoming';
+          if (session.type === 'refer') {
           l('DEBUG') && console.log(this + '.newSession() REFER, sending pranswer()');
     //      session.pranswer();
           event = 'refer';
         }
-        
         this.conn = this.createConnection();
         this.conn.init({session:session});
         this.emit(event, this.conn);
+        } else {
+          var msg = 'Busy';
+          l('DEBUG') && console.log(this+'.newSession() '+msg);
+          session.resond(false,'Busy');
+        }
+      } else {
+        var msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.appContext+')';
+        l('DEBUG') && console.log(this+'.newSession() '+msg);
+        session.resond(false,msg);
       }
     },
 

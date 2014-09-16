@@ -23,13 +23,23 @@ var EndpointRegistry = function EndpointRegistry() {
   var registry = {};
 
 
-  /* get an endpoint based on a key */
+  /* get an endpoint based on a key
+   *  If key is NULL and there is only 1 object in the registry, return it
+   */
   function get(key) {
-    if (registry.hasOwnProperty(key)) {
-      return registry[key];
-    } else {
-      return null;
-    }
+    if (key) { 
+      if (registry.hasOwnProperty(key)) {
+        return registry[key];
+      } else {
+        return null;
+      }
+   } else {
+     if (this.length() === 1) {
+       return registry[Object.keys(registry)[0]];
+     } else {
+       return null;
+     }
+   }
   }
 
   /* add an endpoint, if a key for that 
@@ -90,6 +100,10 @@ var EndpointRegistry = function EndpointRegistry() {
    * return the registry object for perusal.
    */
 
+  function length() {
+    return Object.keys(registry).length;
+  }
+
   function list() {
     return registry;
   }
@@ -99,6 +113,7 @@ var EndpointRegistry = function EndpointRegistry() {
     get: get,
     remove: remove,
     destroy: destroy,
+    length: length,
     list: list
   };
 
@@ -125,7 +140,9 @@ var EndpointProvider =  function EndpointProvider() {
   /** @lends module:rtcomm.EndpointProvider */
 
   var MISSING_DEPENDENCY = "RtcommEndpointProvider Missing Dependency: ";
+  /*global util:false*/
   if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
+  /*global connection:false*/
   if (!connection) { throw new Error(MISSING_DEPENDENCY+"rtcomm.connection");}
 
   /* Instantiate the endpoint Registry */
@@ -217,7 +234,11 @@ var EndpointProvider =  function EndpointProvider() {
     var endpointProvider = this;
     if (options) {
       // validates REQUIRED initOptions upon instantiation.
-      /*global _validateConfig: false */
+      /*global validateConfig: false */
+      /*global setLogLevel: false */
+      /*global getLogLevel: false */
+      /*global applyConfig: false */
+      /*global l: false */
       validateConfig(options, requiredConfig);
       // handle logLevel passed in...
       if (options.logLevel) {
@@ -315,18 +336,12 @@ var EndpointProvider =  function EndpointProvider() {
         l('DEBUG') && console.log("Handle a new incoming session: ", session);
         // Send it to the same id/appContext;
         var epKey = endpointProvider.userid + '|' + session.appContext;
-        var endpoint = endpointRegistry.get(epKey) || null;
-
+        var endpoint = endpointRegistry.get(epKey) || endpointRegistry.get() || null;
+        //TODO:  For the SessQueue thing, we need to lookup based on the session.source
         if (endpoint) {
-          if (endpoint.available) {
-            endpoint.newSession(session);
-          } else {
-            session.respond(false, 'No available endpoint for session');
-            // Should I delete the session?
-          }
+          endpoint.newSession(session);
         } else {
           // Deny the session.
-          //
           session.respond(false, 'No endpoint for appContext:  '+ session.appContext);
           // Should I delete the session?
         }
@@ -399,9 +414,14 @@ var EndpointProvider =  function EndpointProvider() {
     // Add to registry or return the one already there
     return endpointRegistry.add(endpoint);
   };
+
+  this.createMqttEndpoint = function() {
+    return new MqttEndpoint({connection: this.endpointConnection});
+  };
+
   
   this.destroy = function() {
-    endpointRegistry.destroy()
+    endpointRegistry.destroy();
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointRegistry');
     this.endpointConnection.destroy();
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointConnection');

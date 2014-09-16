@@ -207,12 +207,17 @@ var MessageFactory = (function (){
   }
   
   function cast(obj) {
+    /*global l:false*/
     l('TRACE') && console.log('MessageFactory.cast() Attempting to cast message: ', obj);
   
     if ( typeof obj === 'string') {
       l('TRACE') && console.log('MessageFactory.cast() It is a string... ', obj);
       /* if its a 'STRING' then convert to a object */
-      obj = JSON.parse(obj);
+      try {
+        obj = JSON.parse(obj);
+      } catch (e) {
+        throw new TypeError('Unable to cast object as a SigMessage');
+      }
       l('TRACE') && console.log('MessageFactory.cast() After JSON.parse... ', obj);
     }
     var template = null;

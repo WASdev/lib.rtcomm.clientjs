@@ -13,32 +13,30 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm/connect
     var T2 = T1 + 2000; // How long we wait to check results
     var T3 = T2 +2000;  // How long we wait to timeout test.
 
-    doh.register("RtcServiceFVTTests", [
+    doh.register("MqttConnection", [
        { name: "Send and Receive a Simple Message via the RtcService [without rtcomm]",
          setUp: function() {
              var self = this;
-            // this.client1 = Object.create(connection.RtcommService);
+            // this.client1 = Object.create(connection.MqttConnection);
             // this.client1.init(config1);
-             this.client1 = new connection.RtcommService(config1);
-             
+             this.client1 = new connection.MqttConnection(config1);
              this.client1.on('message', function(message) {
                 console.log('Client1 received message: ', message);
-                 self.message1 = message.content;
+                 self.message1 = message;
              });
              this.client1.connect();
-             //this.client2 = Object.create(connection.RtcommService);
+             //this.client2 = Object.create(connection.MqttConnection);
              // this.client2.init(config2);
-             this.client2 = new connection.RtcommService(config2);
+             this.client2 = new connection.MqttConnection(config2);
              this.client2.on('message', function(message){
                console.log('Client2 received message: ', message);
-                 self.message2 = message.content;
+                 self.message2 = message;
              });
              this.client2.connect();
          },
          runTest: function() {
              this.msg1 = "Hello from client1";
              this.msg2 = "Hello from client2";
-             
              var deferred = new doh.Deferred();
              var self = this;
 
@@ -57,8 +55,13 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm/connect
                console.log('self.msg2', self.msg2);
                console.log('self.message1', self.message1);
                console.log('self.message2', self.message2);
-               doh.assertEqual(self.msg2.toString(), self.message1.toString());
-                 doh.assertEqual(self.msg1.toString(), self.message2.toString());
+               // Ensure fromEndpointID is correct:
+               doh.assertEqual(self.client2.config.userid, self.message1.fromEndpointID);
+               doh.assertEqual(self.client1.config.userid, self.message2.fromEndpointID);
+               doh.assertEqual(null, self.message1.topic);
+               doh.assertEqual(null, self.message2.topic);
+               doh.assertEqual(self.msg2.toString(), self.message1.content.toString());
+               doh.assertEqual(self.msg1.toString(), self.message2.content.toString());
              }),T2);
              return deferred;
          },

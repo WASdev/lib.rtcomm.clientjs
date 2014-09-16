@@ -1,5 +1,5 @@
 /*
- * RTCService UNITTESTs
+ * MqttConnection UNITTESTs
  */
 
 define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(doh, config,connection ){
@@ -18,13 +18,13 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
 			   connectorTopicName: "sometopic",
 			   connectorTopicPath: "/rtcomm/"};
     
-    doh.register("RtcServiceUnitTests", [
-      { name: "Minimum RtcService Configuration Test",
+    doh.register("MqttConnectionUnitTests", [
+      { name: "Minimum MqttConnection Configuration Test",
         runTest: function(){
             try {
-                var rtcsvc = new connection.RtcommService();
+                var rtcsvc = new connection.MqttConnection();
             } catch(e) {
-                doh.assertEqual('RtcService instantiation requires a minimum configuration: {"server":"string","port":"number","userid":"string","connectorTopicName":"string","connectorTopicPath":"string"}', e.message);
+                doh.assertEqual('MqttConnection instantiation requires a minimum configuration: {"server":"string","port":"number","userid":"string","connectorTopicName":"string","connectorTopicPath":"string"}', e.message);
             }
         }
 
@@ -32,7 +32,7 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
        { name: "Number as Server in config",
            runTest: function() {
                try {
-                   var rtcsvc = new connection.RtcommService(badconfig);
+                   var rtcsvc = new connection.MqttConnection(badconfig);
                    
                } catch(e) {
                    doh.assertEqual('Typeof server is incorrect. number  Should be a string', e.message);
@@ -45,7 +45,7 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
            	   // change each to be good as we go down...
             	  badconfig.server = "astring";
                   try {
-                    var rtcsvc =new connection.RtcommService(badconfig);
+                    var rtcsvc =new connection.MqttConnection(badconfig);
                   } catch(e) {
                       doh.assertEqual('Typeof port is incorrect. string  Should be a number', e.message);
                   }
@@ -57,7 +57,7 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
            	   // change each to be good as we go down...
             	  badconfig.port = 1;
                   try {
-                    var rtcsvc = new connection.RtcommService(badconfig);
+                    var rtcsvc = new connection.MqttConnection(badconfig);
                  
                   } catch(e) {
                       doh.assertEqual('Typeof userid is incorrect. number  Should be a string', e.message);
@@ -71,7 +71,7 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
                  	   // change each to be good as we go down...
                   	  validconfig.junk = "astring";
                         try {
-                          var rtcsvc = new connection.RtcommService(validconfig);
+                          var rtcsvc = new connection.MqttConnection(validconfig);
                         } catch(e) {
                             doh.assertEqual('junk is an invalid property for {"server":"a","port":1,"userid":"someuser","connectorTopicName":"sometopic","connectorTopicPath":"/rtcomm/","credentials":null,"myTopic":null}', e.message);
                         }
@@ -85,7 +85,7 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
               { name:"valid but incorrect config throws an error",
                  runTest: function(){
               	      try {
-              	        var rtcsvc = new connection.RtcommService(validconfig);
+              	        var rtcsvc = new connection.MqttConnection(validconfig);
                      
                      } catch(e) {
                     	 doh.t(e);

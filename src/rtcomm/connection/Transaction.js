@@ -42,6 +42,7 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
       'finished':[]};
   this.timeout = timeout || null;
   this.outbound = (message && message.transID) ? false : true;
+  /*global generateUUID:false*/
   this.id = (message && message.transID) ? message.transID : generateUUID(); 
   this.method = (message && message.method) ? message.method : 'UNKNOWN'; 
   this.toTopic = null;
@@ -54,7 +55,7 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   };
   l('DEBUG') && console.log('Are we outbound?', this.outbound);
 };
-
+/*global util:false*/
 Transaction.prototype = util.RtcommBaseObject.extend(
    /** @lends module:rtcomm.connector.Transaction.prototype */
     {
@@ -82,6 +83,7 @@ Transaction.prototype = util.RtcommBaseObject.extend(
    * @param [timeout] can set a timeout for the transaction
    */
   start: function(timeout) {
+    /*global l:false*/
     l('TRACE') && console.log(this+'.start() Starting Transaction for ID: '+this.id);
     if (this.outbound) {
       this.message.transID = this.id;

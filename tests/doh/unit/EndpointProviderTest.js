@@ -7,7 +7,7 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
       connectorTopicName: {}
   };
   var validconfig = { server: "a",
-      port: 1,
+      port: 1883,
       userid: "someuser",
       connectorTopicName: "sometopic"};
   // define a subclass of the Fixture class
