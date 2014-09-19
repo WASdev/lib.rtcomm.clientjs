@@ -12,22 +12,22 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */ 
-/** 
+ */
+/**
  *  @memberof module:rtcomm
  *  @description
  *  This object can only be created with the {@link module:rtcomm.RtcommEndpointProvider#createRtcommEndpoint|createRtcommEndpoint} function.
  *  <p>
- *  The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output. 
+ *  The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.
  *  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
- *  stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection 
- *  where to send that stream in the User Interface.  
+ *  stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection
+ *  where to send that stream in the User Interface.
  *  <p>
  *  See the example under {@link module:rtcomm.RtcommEndpointProvider#createRtcommEndpoint|createRtcommEndpoint}
  *  @constructor
- *  
+ *
  *  @extends  module:rtcomm.util.RtcommBaseObject
- */  
+ */
 var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
 
   // Used to store registration timer.
@@ -55,7 +55,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     detachMediaStream = function(element) {
       l('DEBUG') && console.log("FIREFOX --> Detaching media stream");
       if (element) {
-     
+
         element.mozSrcObject = null;
         console.log('Element is: ', element);
       }
@@ -90,13 +90,51 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
   } else {
     console.log("Browser does not appear to be WebRTC-capable");
   }
-  
+
+
+  var Queues = function Queues(availableQueues) {
+    var Queue = function Queue(queue) {
+      this.endpointID= queue.endpointID;
+      this.topic = queue.topic;
+      this.active= false;
+      this.callback= null;
+      this.paused= false;
+      this.regex= null;
+    };
+
+    var queues = {};
+
+    this.add = function(availableQueues) {
+      availableQueues.forEach( function(queue) {
+        queues[queue.endpointID] = new Queue(queue);
+      })
+    };
+
+    this.findByTopic = function(topic) {
+      // Typically used on an inbound topic, will iterate through queue and return it.
+      var matches = [];
+      Object.keys(queues).forEach(function(queue) {
+        queues[queue].regex.test(topic) && matches.push(queues[queue]);
+        });
+     if (matches.length === 1 ) {
+       return matches[0];
+     } else {
+       throw new Error('Multiple Queue matches for topic('+topic+')- should not be possible');
+     }
+    }
+  };
+
+  Queues.prototype.toString = function() {
+    return Object.keys(this);
+  };
+
+
   /** @lends module:rtcomm.RtcommEndpoint.prototype */
   return {
-    
+
     _initialized: false,
     /** initialize the object */
-    init: function(config) { 
+    init: function(config) {
       /* Object to store private information */
       this._private =  {
           uuid: generateUUID(),
@@ -110,14 +148,14 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           inboundMedia: null,
           attachMedia: false
       };
-      
-      /** @typedef {object} module:rtcomm#RtcommEvent 
+
+      /** @typedef {object} module:rtcomm#RtcommEvent
        *  @property {string} name - name of event
        *  @property {object} object - an object passed with the event
        *  @property {message} message - a message associated with the event
        */
-      
-      
+
+
       this.events = {
           /**
            * A connection to a peer has been established
@@ -157,6 +195,8 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
            */
           'message': []
       };
+
+
       l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
       if (config) {
         this.update = (config.update)?config.update: this.update;
@@ -164,12 +204,13 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         applyConfig(config, this._private);
       }
       this.endpointConnection = this._private.parent.endpointConnection;
-
+      this.queues = new Queues().add(this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE.queues || []);
       /* inbound and outbound Media Element DOM Endpoints */
       this.media = {
           In: null,
           Out: null
       };
+
       // Expose the appcontext/userid on the object
       this.appContext = this._private.appContext;
       this.userid = this._private.userid;
@@ -177,11 +218,11 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       this.localStream=null;
       this._initialized = true;
     },
-    /** 
+    /**
      *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
      *  rtcomm service so it can receive inbound requests.
      *
-     *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid                          
+     *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid
      *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
      */
     register : function(cbSuccess, cbFailure) {
@@ -198,7 +239,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
         }
         this.registered = true;
-        // Call our passed in w/ no info... 
+        // Call our passed in w/ no info...
         if (cbSuccess && typeof cbSuccess === 'function') {
           cbSuccess();
         } else {
@@ -229,8 +270,8 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         }
       }
     },
-    /** 
-     *  Unregister the userid associated with the EndpointConnection  
+    /**
+     *  Unregister the userid associated with the EndpointConnection
      */
     unregister : function() {
       if (registerTimer) {
@@ -252,8 +293,8 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     reset: function() {
       this.disconnect();
       this.localStream && this.localStream.stop();
-      detachMediaStream(this.getMediaIn());
-      detachMediaStream(this.getMediaOut());
+      detachMediaStream && detachMediaStream(this.getMediaIn());
+      detachMediaStream && detachMediaStream(this.getMediaOut());
     },
     /**
      *  Destroy this endpoint.  Cleans up everything and disconnects any and all connections
@@ -261,11 +302,13 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      */
     destroy : function() {
       l('DEBUG') && console.log(this+'.destroy Destroying RtcommEndpoint');
-      this.registered && this.unregister(); 
+      this.registered && this.unregister();
       this.disconnect();
       this.localStream && this.localStream.stop();
-      detachMediaStream(this.getMediaIn());
-      detachMediaStream(this.getMediaOut());
+      l('DEBUG') && console.log(this+'.destroy() - detaching media streams');
+      detachMediaStream && detachMediaStream(this.getMediaIn());
+      detachMediaStream && detachMediaStream(this.getMediaOut());
+      l('DEBUG') && console.log(this+'.destroy() - Finished');
     },
 
     newSession : function(session) {
@@ -273,8 +316,27 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       // If our session is not 'normal', i.e. it is a 3PCC session
       // then we need to behave differently:
       // should be just display 'RINGING' and let them create ANOTHER session.
-      // 
+      //
       l('DEBUG') && console.log(this + '.newSession() new session called w/ ',session);
+      // If session.source is in a queue we have open
+      // Match the source, then immediately pause the queue (if that is on...)
+      if (session.source) {
+        var q = null;
+        try {
+          q = this.queues.findByTopic(session.source);
+          if(q.active) { 
+            this.pauseSessQueue(q.endpointID);
+          } else {
+            // Even though we matched a queue, we aren't active. drop it.
+            console.error('Session recieved on a Topic that is not active for this endpoint');
+            return false;
+          }
+        } catch(e) {
+          console.error('This Enpdoint does not support inbound calls from this source');
+        }
+        console.log('found q: ', q);
+      }
+
       if ((session.appContext === this.appContext) || this.ignoreAppContext) {
         if (this.available) {
           var event = 'incoming';
@@ -289,12 +351,12 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         } else {
           var msg = 'Busy';
           l('DEBUG') && console.log(this+'.newSession() '+msg);
-          session.resond(false,'Busy');
+          session.respond(false,'Busy');
         }
       } else {
         var msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.appContext+')';
         l('DEBUG') && console.log(this+'.newSession() '+msg);
-        session.resond(false,msg);
+        session.respond(false,msg);
       }
     },
 
@@ -327,12 +389,12 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     // TODO:  Remove?
     /**
      * attachLocalMedia method used to validate internal setup and set things up if not already done.
-     * 
+     *
      * The setup requires a mediaOut & mediaIn object w/ src attribute.  it also requires a localStream, or it will add it.
-     * We should decouple this... 
-     * 
+     * We should decouple this...
+     *
      * @params {function} callback  Passed true/false if attachMedia is successful. If false, also gets a reason message.
-     * 
+     *
      */
     attachLocalMedia : function(/*callback*/ cbFunction) {
       var callback = cbFunction || function(value,message) {
@@ -346,10 +408,10 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           // Must be set...
           if (this.localStream) {
             l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Have a localStream already, apply it.', this.localStream);
-            // we have a local stream, proceed to make a call. 
+            // we have a local stream, proceed to make a call.
             // TODO:  This following COMPARE is not browser agnostic
             if (URL.createObjectURL(this.localStream) === this.getMediaOut().src) {
-              // We are connected and everthing... 
+              // We are connected and everthing...
               l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Already setup, skipping');
               callback(true);
             } else {
@@ -367,7 +429,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
               rtcommEndpoint.localStream = stream;
               rtcommEndpoint.attachMediaStream(rtcommEndpoint.getMediaOut(),stream);
               callback(true);
-            }, 
+            },
             /* onFailure */ function(error) {
               callback(false, "getUserMedia failed");
             });
@@ -380,17 +442,17 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       }
     },
 
-    /** 
+    /**
      * Create a connection and send an offer to the id passed
      * <p>
-     * This will go through event state "trying" --> "ringing" --> "connected", 
+     * This will go through event state "trying" --> "ringing" --> "connected",
      * These should be handled through onEvent
-     * 
+     *
      * @param {string} remoteId  - Id of CALLEE.
-     * @throws Error No ID passed 
+     * @throws Error No ID passed
      */
     addEndpoint : function(/* String */ remoteId){
-      // When call is invoked, we must have a RemoteID and we must have mediaIn & Out set. 
+      // When call is invoked, we must have a RemoteID and we must have mediaIn & Out set.
       // We need to confirm the stream is attached
       var rtcommEndpoint = this;
       l('DEBUG') && console.log(this + ".addEndpoint() Calling "+remoteId);
@@ -403,19 +465,19 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
             rtcommEndpoint.conn.connect();
           } else {
             console.error("Don't know what to do, createConnection missing...");
-          }        
+          }
         } else {
           throw new Error(".addEndpoint() failed: "+ message);
         }
       });
     },
-    /** 
+    /**
      *  Answers a call - [Sends an 'answer' on a connection that is inbound]
-     *  There MAY be more than one connection present, if so, uses a passed ID to answer 
+     *  There MAY be more than one connection present, if so, uses a passed ID to answer
      *  the right connection
-     *  
+     *
      *  @param {string} [id] Optional Id to answer.  Required if more than 1 connection
-     *  
+     *
      *  @throws Error Could not find connection to answer
      */
     acceptEndpoint : function(id) {
@@ -436,9 +498,9 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     },
 
     /**  Destroys an existing connection. If there are more than one, then requires an ID
-     *  
+     *
      *  @throws Error Could not find connection to hangup
-     *  
+     *
      */
     disconnect : function() {
       if (this.conn  && this.conn.getState() !== 'DISCONNECTED') {
@@ -449,9 +511,47 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       }
 
     },
+    //SessionQueue methods
+    /**
+     * Join a Session Queue
+     */
+    joinSessQueue: function joinSessQueue(/*String*/ queueid, /*object*/ options) {
+    // Is queue a valid queuename?
+      var rtcommEP = this;
+      var callback = function(message) {
+        //TODO: Emit only part of message or verify we should accept it?
+        console.log('Received a normal message from Queue', message);
+        rtcommEP.emit('message', message);
+      };
+
+      if (this.queues[queueid]) {
+        // Queue Exists... Join it
+        // This callback is how inbound messages (that are NOT START_SESSION would be received)
+        this.queues[queueid].active = true;
+        this.queues[queueid].callback = callback;
+        this.queues[queueid].regex = this.endpointConnection.subscribe(this.queues[queueid].topic, callback);
+        return true;
+      } else {
+        throw new Error('Unable to find queue('+queuid+') available queues: '+this.queues);
+      }
+    },
+
+    pauseSessQueue: function pauseSessQueue(queueid) {
+      l('DEBUG') && console.log(this+'.pauseSessQueue() ', queueid);
+      this.queues[queueid].paused = true;
+      this.endpointConnection.unsubscribe(q.topic);
+    },
+    resumeSessQueue: function resumeSessQueue(queueid) {
+      this.queues[queueid].paused = false;
+      this.endpointConnection.subscribe(queue,this.queues[queue]);
+    },
+    leaveSessQueue: function leaveSessQueue(queueid) {
+       this.queues[queueid].active = false;
+       this.endpointConnection.unsubscribe(queue);
+    },
 
     // UserMedia Methods
-  
+
     getUserMedia : getUserMedia,
     attachMediaStream : attachMediaStream,
     detachMediaStream : detachMediaStream,
@@ -459,8 +559,8 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     getConnection: function() { return this.conn ;},
 
     /*jshint es5: true */
-    /** Whether audio is enabled or not in the RtcommEndpoint.  
-     * @type Boolean 
+    /** Whether audio is enabled or not in the RtcommEndpoint.
+     * @type Boolean
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
     getAudio: function() { return this._private.audio; },
@@ -471,8 +571,8 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         throw new Error("Unable to set value, would create a registration that already exists");
       }
     },
-    /** Whether Video is enabled or not in the RtcommEndpoint.  
-     * @type Boolean 
+    /** Whether Video is enabled or not in the RtcommEndpoint.
+     * @type Boolean
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
     getVideo: function() { return this._private.video;},
@@ -483,8 +583,8 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         throw new Error("Unable to set value, would create a registration that already exists");
       }
     },
-    /** Whether data is enabled or not in the RtcommEndpoint.  
-     * @type Boolean 
+    /** Whether data is enabled or not in the RtcommEndpoint.
+     * @type Boolean
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
     getData: function() {return this._private.data;},
@@ -497,18 +597,20 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     },
     /** context of the endpoint instance.  This is used to match nodes on endpoints so that each endpoint
      *  should have a node with the same context in order to communicate with each other. There can
-     *  only be one context + audio/video/data combination. 
-     *   
+     *  only be one context + audio/video/data combination.
+     *
      *  @example
      *  // get the context
      *  var context = rtcommEndpoint.getAppContext();
      *  // set the context
      *  rtcommEndpoint.setAppContext("newcontext");
-     *  
+     *
      *  @throws Error Context already exists
      */
     getAppContext:function() {return this._private.appContext;},
-   
+
+    setAppContext:function(appcontext) {this.appContext = this._private.appContext = appcontext;},
+
     /** Return userid associated with this RtcommEndpoint */
     getUserid: function() { return this._private.userid;},
     getUuid: function() {return this._private.uuid;},
@@ -523,12 +625,12 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       this._private.inboundMedia=URL.createObjectURL(stream);
       if (this.getMediaIn()) {
         this.attachMediaStream(this.getMediaIn(), stream);
-      } 
+      }
     },
     getInboundMediaStream: function() { return this._private.inboundMedia;},
 
-    /** 
-     * DOM node to link the RtcommEndpoint inbound media stream to. 
+    /**
+     * DOM node to link the RtcommEndpoint inbound media stream to.
      * @param {Object} value - DOM Endpoint with 'src' attribute like a 'video' node.
      * @throws Error Object does not have a src attribute
      */
@@ -547,7 +649,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       }
 
     },
-    /** 
+    /**
      * DOM Endpoint to link outbound media stream to.
      * @param {Object} value - DOM Endpoint with 'src' attribute like a 'video' node.
      * @throws Error Object does not have a src attribute
@@ -567,6 +669,6 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     toString: function() {
       return "RtcommEndpoint["+this._private.uuid+"]";
     }
-  }; // end of Return    
+  }; // end of Return
 
 })());

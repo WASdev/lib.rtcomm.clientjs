@@ -22,7 +22,6 @@
 var EndpointRegistry = function EndpointRegistry() {
   var registry = {};
 
-
   /* get an endpoint based on a key
    *  If key is NULL and there is only 1 object in the registry, return it
    */
@@ -154,8 +153,8 @@ var EndpointProvider =  function EndpointProvider() {
       server:null,
       port: 1883,
       userid : null,
-      connectorTopicName : "nodeConnector",
-      connectorTopicPath: "/rtcomm/",
+      serviceTopicName : "nodeConnector",
+      topicPath: "/rtcomm/",
       credentials : { user: "", password: ""},
       register: false,
       createEndpoint: false
@@ -183,8 +182,8 @@ var EndpointProvider =  function EndpointProvider() {
    * @property {string} server MQTT Server
    * @property {string} [port=1883] MQTT Server Port 
    * @property {string} userid User ID or Identity
-   * @property {string} [connectorTopicName=endpointConnection] connectorTopicName on rtcomm server
-   * @property {string} [connectorTopicPath=/rtcomm/] MQTT Path to prefix connectorTopicName with and register under
+   * @property {string} [serviceTopicName=endpointConnection] serviceTopicName on rtcomm server
+   * @property {string} [topicPath=/rtcomm/] MQTT Path to prefix serviceTopicName with and register under
    * @property {boolean} [register=false] Automatically register
    * @property {boolean} [createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    */
@@ -201,8 +200,8 @@ var EndpointProvider =  function EndpointProvider() {
    * var endpointProviderConfig = {
    *   server : 'broker.mqttdashboard.com',       
    *   userid : 'ibmAgent1@mysurance.org',
-   *   connectorTopicName : 'endpointConnector',   
-   *   connectorTopicPath : '/rtcomm/', 
+   *   serviceTopicName : 'endpointConnector',   
+   *   topicPath : '/rtcomm/', 
    *   port : 8000,                          
    *   register: true,                     
    *   createEndpoint : true,                   
@@ -263,8 +262,8 @@ var EndpointProvider =  function EndpointProvider() {
       server: config.server,
       port: config.port,
       userid: config.userid,
-      connectorTopicName: config.connectorTopicName,
-      connectorTopicPath: config.connectorTopicPath
+      serviceTopicName: config.serviceTopicName,
+      topicPath: config.topicPath
     });
 
     var endpointConnection = this.endpointConnection;
@@ -279,19 +278,7 @@ var EndpointProvider =  function EndpointProvider() {
       };
       
       this.ready = true;
-      
-      // Query the sever for its services
-      endpointConnection.service_query(
-          /* onSuccess */ function(services) {
-            // Returned services
-            l('DEBUG') && console.log('Supported services are: ', services);
-            this.services = services || null;
-            
-          }.bind(this),
-          /* onFailure */ function(error){
-            console.error('Unable to lookup supported services');
-          });
-     
+
       /*
        * Depending on the configuration, the init() can do some different things
        */
@@ -319,7 +306,6 @@ var EndpointProvider =  function EndpointProvider() {
       this.ready = false;
       cbFailure(error);
     };
-
     endpointConnection.on('newsession', function(session) {
       /*
        * What to do on an inbound request.

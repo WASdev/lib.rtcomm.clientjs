@@ -12,37 +12,37 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */ 
+ */
 /**
 
  * @memberof module:rtcomm.connector
  *
  * @classdesc
  * The EndpointConnection encapsulates the functionality to connect and create Sessions.
- * 
- * @param {object}  config   - Config object 
+ *
+ * @param {object}  config   - Config object
  * @param {string}  config.server -  MQ Server for mqtt.
  * @param {integer} [config.port=1883] -  Server Port
  * @param {string}  config.userid -  Unique user id representing user
- * @param {string}  config.connectorTopicName - Default topic to register with ibmrtc Server
- * @param {string}  [config.connectorTopicPath]
+ * @param {string}  [config.serviceTopicName] - Default topic to register with ibmrtc Server
+ * @param {string}  [config.topicPath]
  *  @param {object}  [config.credentials] - Optional Credentials for mqtt server.
  *
  *
- * Events 
+ * Events
  * @event message    Emit a message (MessageFactor.SigMessage)
  * @event newsession  Called when an inbound new session is created, passes the new session.
  * @param {function} config.on  - Called when an inbound message needs
  *    'message' --> ['fromEndpointID': 'string', content: 'string']
- * 
+ *
  * @throws  {String} Throws new Error Exception if invalid arguments
- * 
+ *
  * @private
  */
 
-var EndpointConnection = function(config) {
+var EndpointConnection = function EndpointConnection(config) {
   /*
-   * Registery Object 
+   * Registery Object
    */
   function Registry(timer) {
     timer = timer || false;
@@ -65,7 +65,6 @@ var EndpointConnection = function(config) {
             // didn't execute yet
             var errorMsg = 'Registry timed out ['+item.id+']';
             if (typeof registry[item.id].onFailure === 'function' ) {
-              l('DEBUG') && console.log(errorMsg);
               registry[item.id].onFailure({'failureReason': errorMsg});
             } else {
               l('DEBUG') && console.log(errorMsg);
@@ -83,7 +82,7 @@ var EndpointConnection = function(config) {
         if (item.id in registry) {
           l('DEBUG') && console.log('Removing item from registry: ', item);
           delete registry[item.id];
-        } 
+        }
       },
       list: function() {
         return Object.keys(registry);
@@ -94,14 +93,13 @@ var EndpointConnection = function(config) {
     };
   } // End of Registry definition
 
-
   /*
    * create an MqttConnection for use by the EndpointConnection
-   */ 
+   */
   /*global MqttConnection:false*/
   var createMqttConnection = function(config) {
     var mqttConn= new MqttConnection(config);
-    return mqttConn; 
+    return mqttConn;
   };
   /*
    * Process a message, expects a bind(this) attached.
@@ -128,7 +126,7 @@ var EndpointConnection = function(config) {
         if (transaction) {
           l('TRACE') && console.log(this+'.processMessage() existing transaction: ', transaction);
           transaction.finish(rtcommMessage);
-        } else { 
+        } else {
           console.error('Transaction ID: ['+rtcommMessage.transID+'] not found, nothing to do with RESPONSE:',rtcommMessage);
         }
       } else if (rtcommMessage.method === 'START_SESSION' )  {
@@ -148,7 +146,8 @@ var EndpointConnection = function(config) {
       var subs  = this.subscriptions;
       Object.keys(subs).forEach(function(key) {
          if (subs[key].regex.test(message.topic)){
-            subs[key].callback(message);
+           l('DEBUG') && console.log('Emitting Message to listener -> topic '+message.topic);
+           subs[key].callback(message);
          }
       });
     } else {
@@ -163,29 +162,51 @@ var EndpointConnection = function(config) {
   this.events = {
       'message': [],
       'newsession': []};
-  this.registered = false;
-//Define configuration
-  this.config = {
-  };
   this.ready = false;
   this._init = false;
-  this.id = config.userid;
+
+  var configDefinition = {
+    required: { server: 'string', port: 'number', userid: 'string'},
+    optional: { credentials : 'object', myTopic: 'string', topicPath: 'string', serviceTopicName: 'string'},
+    defaults: { topicPath: '/rtcomm/', serviceTopicName: 'serviceTopicName'}
+  };
+
+  // the configuration for Endpoint
+  if (config) {
+    /* global setConfig:false */
+    // Set any defaults
+    this.config = setConfig(config,configDefinition);
+  } else {
+    throw new Error("EndpointConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition));
+  }
+
+  this.id = this.config.userid || 'unknown';
+  var mqttConfig = { server: this.config.server,
+                     port: this.config.port,
+                     topicPath: this.config.topicPath ,
+                     userid: this.config.userid ,
+                     credentials: this.config.credentials || null,
+                     myTopic: this.config.myTopic || null };
 
 //Registry Store for Session & Transactions
   this.sessions = new Registry();
   this.transactions = new Registry(true);
   this.subscriptions = {};
 
+// Services Config.
+  this.RTCOMM_CONNECTOR_SERVICE = {};
+  this.connectorTopicName = "";
+  this.RTCOMM_CALL_CONTROL_SERVICE = {};
+  this.RTCOMM_CALL_QUEUE_SERVICE = {};
+
 //create our Service
-  this.mqttConnection = createMqttConnection(config);
+  this.mqttConnection = createMqttConnection(mqttConfig);
   this.mqttConnection.on('message', processMessage.bind(this));
-//Define configuration
-  this.config = {
-      userid  : config.userid,
-      myTopic : this.mqttConnection.config.myTopic
-  };
+
+  this.config.myTopic = this.mqttConnection.config.myTopic;
   this._init = true;
-};
+};  // End of Constructor
+
 /*global util:false */
 EndpointConnection.prototype = util.RtcommBaseObject.extend (
     (function() {
@@ -196,7 +217,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
 
       /* optimize string for subscription */
       var optimizeTopic = function(topic) {
-        // start at the end, replace each
+      // start at the end, replace each
         // + w/ a # recursively until no other filter...
         var optimized = topic.replace(/(\/\+)+$/g,'\/#');
         return optimized;
@@ -204,9 +225,44 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
 
       /* build a regular expression to match the topic */
       var buildTopicRegex= function(topic) {
-        var regex = topic.replace(/\/\+/g,'\\/.+').replace(/\/#$/g,'');
+        // If it starts w/ a $ its a Shared subscription.  Essentially:
+        // $SharedSubscription/something//<publishTopic>
+        // We need to Remove the $-> //
+        // /^\$.+\/\//, ''
+        var regex = topic.replace(/^\$SharedSubscription.+\/\//, '\/')
+                    .replace(/\/\+/g,'\\/.+')
+                    .replace(/\/#$/g,'');
         // The ^ at the beginning in the return ensures that it STARTS w/ the topic passed.
         return new RegExp('^'+regex);
+      };
+      /*
+       * Parse the results of the service_query and apply them to the connection object
+       * "services":{
+       * "RTCOMM_CONNECTOR_SERVICE":{
+       *   "iceURL":"stun:stun.juberti.com:3478,turn:test@stun.juberti.com:3478:credential:test",
+       *  "eventMonitoringTopic":"\/7c73b5a5-14d9-4c19-824d-dd05edc45576\/rtcomm\/event",
+       *  "topic":"\/7c73b5a5-14d9-4c19-824d-dd05edc45576\/rtcomm\/bvtConnector"},
+       * "RTCOMM_CALL_CONTROL_SERVICE":{
+       *   "topic":"\/7c73b5a5-14d9-4c19-824d-dd05edc45576\/rtcomm\/callControl"},
+       * "RTCOMM_CALL_QUEUE_SERVICE":{
+       *   "queues":[
+       *     {"endpointID":"callQueueEndpointID","topic":"\/7c73b5a5-14d9-4c19-824d-dd05edc45576\/rtcomm\/callQueueTopicName"}
+       *   ]}
+       *  }
+       */
+      var parseServices = function parseServices(services, connection) {
+        if (services) {
+          if (services.RTCOMM_CONNECTOR_SERVICE) {
+            connection.RTCOMM_CONNECTOR_SERVICE = services.RTCOMM_CONNECTOR_SERVICE;
+            connection.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic;
+          }
+          if (services.RTCOMM_CALL_CONTROL_SERVICE) {
+            connection.RTCOMM_CALL_CONTROL_SERVICE = services.RTCOMM_CALL_CONTROL_SERVICE;
+          }
+          if (services.RTCOMM_CALL_QUEUE_SERVICE) {
+            connection.RTCOMM_CALL_QUEUE_SERVICE = services.RTCOMM_CALL_QUEUE_SERVICE;
+          }
+        }
       };
 
       /** @lends module:rtcomm.connector.EndpointConnection.prototype */
@@ -281,8 +337,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
         /**
          * common query fucntionality
-         * @private 
-         * 
+         * @private
+         *
          */
         _query : function(message, contentfield, cbSuccess, cbFailure) {
           var successContent = contentfield || 'peerContent';
@@ -291,7 +347,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
               if (query_response) {
                 var successMessage = query_response[successContent] || null;
                 cbSuccess(successMessage);
-              } 
+              }
             } else {
               l('DEBUG') && console.log('query returned: ', query_response);
             }
@@ -306,7 +362,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             }
           };
           if (this.ready) {
-            var t = this.createTransaction({message: message}, onSuccess,onFailure);
+            var t = this.createTransaction({message: message, toTopic: this.config.serviceTopicName }, onSuccess,onFailure);
             t.start();
           } else {
             console.error(this+'._query(): not Ready!');
@@ -314,11 +370,22 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
         /**
          * connect the EndpointConnection to the server endpointConnection
-         * 
+         *
          * @param {callback} [cbSuccess] Optional callbacks to confirm success/failure
          * @param {callback} [cbFailure] Optional callbacks to confirm success/failure
          */
         connect : function(cbSuccess, cbFailure) {
+          var epConn = this;
+
+          cbSuccess = (typeof cbSuccess === 'function') ? cbSuccess :
+            function(service) {
+              l('DEBUG') && console.log('Success - specify a callback for more information', service);
+          };
+
+          cbFailure = (typeof cbFailure === 'function') ? cbFailure :
+            function(error) {
+              console.error('EndpointConnection.connect() failed - specify a callback for more information', error);
+          };
           if (!this._init) {
             throw new Error('not initialized -- call init() first');
           }
@@ -328,28 +395,28 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           var onSuccess = function(service) {
             this.ready = true;
             l('DEBUG') && console.log('EndpointConnection.connect() Success, calling callback - service:', service);
-            if (cbSuccess && typeof cbSuccess === 'function') {
-              cbSuccess(service);
-            } else {
-              console.log('No callback, but connect was successful');
-            }
+            this.service_query(
+              /*onSuccess*/ function(services) {
+                epConn.mqttConnection.setDefaultTopic(epConn.connectorTopicName);
+                console.log('MQTTCOnnection: ',epConn.mqttConnection);
+                cbSuccess(services);
+              },
+              function(error) {
+                var newError = error;
+                if (/^Registry timed out/.test(error)) {
+                  newError = "Unable to connect to running RtcommServer, check your config[server, port, serviceTopicName and TopicPath]";
+                 }
+                 onFailure.call(epConn, newError);
+             });
           };
-          var onFailure = function() {
+          var onFailure = function(error) {
             this.ready = false;
-            if (cbFailure && typeof cbFailure === 'function') {
-              cbFailure;
-              console.log('No callback, connect failed');
-            }
+            cbFailure(error);
           };
-
           this.mqttConnection.connect(onSuccess.bind(this),onFailure.bind(this));
         },
         disconnect : function() {
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
-          if (this.registered) {
-            this.unregister();
-            this.registered = false;
-          }
           this.mqttConnection.destroy();
           l('DEBUG') && console.log('destroyed mqttConnection');
           this.mqttConnection = null;
@@ -359,9 +426,15 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          * Service Query for supported services by endpointConnection
          */
         service_query: function(cbSuccess, cbFailure) {
+          var self = this;
           if (this.ready) {
             var message = this.createMessage('SERVICE_QUERY');
-            this._query(message, 'services',cbSuccess,cbFailure);
+            this._query(message, 'services',
+                        function(services) {
+                          parseServices(services,self);
+                          cbSuccess(services);
+                        },
+                        cbFailure);
           } else {
             console.error('not ready');
           }
@@ -370,14 +443,13 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          * Subscribe to an MQTT topic.
          * To receive messages on the topic, use .on(topic, callback);
          *
-         * If callback is passed here, then the on() is created automatically.
-         * 
          */
         subscribe: function(topic,callback) {
-          var topicRegex = buildTopicRegex(optimizeTopic(topic));
+           var topicRegex = buildTopicRegex(optimizeTopic(topic));
           this.subscriptions[topicRegex] = {regex: topicRegex, callback: callback};
           this.mqttConnection.subscribe(topic);
-          return true;
+          // RegExp Object can be used to match inbound messages. (as a string it is a key)
+          return topicRegex;
         },
         unsubscribe: function(topic) {
           var topicRegex = buildTopicRegex(optimizeTopic(topic));
@@ -398,14 +470,14 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
         /**
          * Send a message
-         * 
+         *
          */
         send : function(config) {
           if (!this.ready) {
             throw new Error('not Ready -- call connect() first');
           }
 
-          if (config) { 
+          if (config) {
             this.mqttConnection.send({message:config.message, toTopic:config.toTopic});
           } else {
             console.error('EndpointConnection.send() Nothing to send');

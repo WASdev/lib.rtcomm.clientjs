@@ -31,10 +31,12 @@
    * @private
    */
 var Transaction = function Transaction(options, cbSuccess, cbFailure) {
-  var message, timeout;
+  var message, timeout, toTopic;
+  l('DEBUG') && console.log('Transaction constructor using options: ',options);
   if (options) {
     message = options.message || null;
     timeout = options.timeout || null;
+    toTopic = options.toTopic || null;
   }
   /* Instance Properties */
   this.objName = "Transaction";
@@ -45,7 +47,7 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   /*global generateUUID:false*/
   this.id = (message && message.transID) ? message.transID : generateUUID(); 
   this.method = (message && message.method) ? message.method : 'UNKNOWN'; 
-  this.toTopic = null;
+  this.toTopic = toTopic;
   this.message = message;
   this.onSuccess = cbSuccess || function(object) {
     console.log(this+' Response for Transaction received, requires callback for more information:', object);
@@ -122,7 +124,6 @@ Transaction.prototype = util.RtcommBaseObject.extend(
         this.method === rtcommMessage.orig) {
       if (this.outbound) {
         if (rtcommMessage.result  === 'SUCCESS' && this.onSuccess ) {
-          
           this.onSuccess(rtcommMessage);
         } else if (rtcommMessage.result === 'FAILURE' && this.onFailure) {
           this.onFailure(rtcommMessage);

@@ -25,7 +25,7 @@
  * @param {string}  config.server -  MQ Server for mqtt.
  * @param {integer} [config.port=1883] -  Server Port
  * @param {string}  config.userid -  Unique user id representing user
- * @param {string}  config.connectorTopicName - Default topic to register with ibmrtc Server
+ * @param {string}  [config.defaultTopic] - Default topic to publish to with ibmrtc Server
  * @param {string}  [config.myTopic] - Optional myTopic, defaults to a hash from userid
  * @param {object}  [config.credentials] - Optional Credentials for mqtt server.
  *
@@ -112,20 +112,21 @@ var MqttConnection = function MqttConnection(config) {
   this.events = {'message':[]};
 
   //config items that are required and must be the correct type or an error will be thrown
-  var requiredConfig = { server: 'string', port: 'number', userid: 'string', connectorTopicName: 'string', connectorTopicPath: 'string'};
-  var possibleConfig = { credentials : 'object', myTopic: 'string'};
-
+  var configDefinition = { 
+    required: { server: 'string',port: 'number', userid: 'string', topicPath: 'string'},
+    optional: { credentials : 'object', myTopic: 'string', defaultTopic: 'string'},
+  };
   // the configuration for MqttConnection
   if (config) {
     /* global setConfig:false */
-    this.config = setConfig(config,requiredConfig,possibleConfig);
+    this.config = setConfig(config,configDefinition);
   } else {
-    throw new Error("MqttConnection instantiation requires a minimum configuration: "+ JSON.stringify(requiredConfig));
+    throw new Error("MqttConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition));
   }
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();
-  this.config.myTopic = this.config.myTopic || this.config.connectorTopicPath + this.config.clientID;
-  this.config.destinationTopic = this.config.connectorTopicPath + this.config.connectorTopicName;
+  this.config.myTopic = this.config.myTopic || this.config.topicPath + this.config.clientID;
+  this.config.destinationTopic = this.config.defaultTopic ? this.config.topicPath + this.config.defaultTopic : '';
   // Save an 'ID' for this service.
   this.id = this.config.clientID;
   this.ready = false;
@@ -270,7 +271,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
           throw new Error('connect() must be called before calling init()');
         }
         var message = config.message,
-        toTopic  = config.toTopic || this.config.destinationTopic,
+        toTopic  = config.toTopic|| this.config.destinationTopic,
         // onSuccess Callback
         onSuccess = config.onSuccess || function() {
           l('DEBUG')&& console.log(this+'.send was successful, override for more information');
@@ -303,7 +304,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
         // our topic should contain the topicPath -- we MUST stay in the topic Path... and we MUST append our ID after it, so...
         if (toTopic) {
           l('TRACE') && console.log(this+'.send toTopic is: '+toTopic);
-          var begin = this.config.connectorTopicPath;
+          var begin = this.config.topicPath;
           var end = this.config.userid;
           var p = new RegExp("^" + begin,"g");
           toTopic = p.test(toTopic)? toTopic : begin + toTopic;
@@ -345,6 +346,15 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
         this.dependencies.mqttClient.disconnect();
         this.dependencies.mqttClient = null;
         l('DEBUG') && console.log(this+'.destroy() called and finished');
+      },
+      setDefaultTopic: function(topic) {
+        this.config.defaultTopic = topic;
+        var r = new RegExp('^'+this.config.topicPath);
+        if (r.test(topic)) {
+          this.config.destinationTopic = this.config.defaultTopic;
+        } else {
+          this.config.destinationTopic = this.config.topicPath+this.config.defaultTopic;
+        }
       }
     }); // end of Return
 
