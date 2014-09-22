@@ -88,6 +88,7 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
       { name: "Connection Test",
         runTest: function() {
           var nc = new connection.EndpointConnection(config1);
+          nc.setLogLevel('DEBUG');
         
           var success = false;
           nc.connect( function() {
@@ -105,7 +106,7 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
             doh.t(success);
             nc.disconnect();
           }),
-          T1)
+          T2)
           return def;
         },
         timeout: T3

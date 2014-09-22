@@ -267,9 +267,15 @@ var EndpointProvider =  function EndpointProvider() {
     });
 
     var endpointConnection = this.endpointConnection;
+
+    // If we already have some enpdoints, their connection will be null, fix it
+    if (endpointRegistry.length() > 0 ) {
+      Object.keys(endpointRegistry.list()).forEach(function(endpoint) {
+        endpointRegistry.get(endpoint).setEndpointConnection(endpointConnection);
+      });
+    }
+
     endpointConnection.setLogLevel(getLogLevel());
-
-
     var onSuccess = function(message) {
       var returnObj = {
           'ready': true,

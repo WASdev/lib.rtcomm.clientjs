@@ -9,7 +9,7 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
     var config2 = config.clientConfig2();
  //   config2.serviceTopic= "/WebRTC";
 
-    var T1 = 2000;  // How long we wait to setup, before sending messages.
+    var T1 = 5000;  // How long we wait to setup, before sending messages.
     var T2 = T1 + 2000; // How long we wait to check results
     var T3 = T2 +2000;  // How long we wait to timeout test.
     var T4 = T3 +2000;

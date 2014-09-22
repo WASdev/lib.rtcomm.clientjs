@@ -399,7 +399,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
               /*onSuccess*/ function(services) {
                 epConn.mqttConnection.setDefaultTopic(epConn.connectorTopicName);
                 console.log('MQTTCOnnection: ',epConn.mqttConnection);
-                cbSuccess(services);
+                cbSuccess(service);
               },
               function(error) {
                 var newError = error;

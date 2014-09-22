@@ -121,7 +121,7 @@ var MqttConnection = function MqttConnection(config) {
     /* global setConfig:false */
     this.config = setConfig(config,configDefinition);
   } else {
-    throw new Error("MqttConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition));
+    throw new Error("MqttConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition.required));
   }
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();

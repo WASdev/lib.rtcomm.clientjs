@@ -106,8 +106,11 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
 
     this.add = function(availableQueues) {
       availableQueues.forEach( function(queue) {
-        queues[queue.endpointID] = new Queue(queue);
-      })
+        // Only overwrite a queue if it doesn't exist 
+        if(!queues.hasOwnProperty[queue.endpointID]) {
+          queues[queue.endpointID] = new Queue(queue);
+        }
+      });
     };
 
     this.findByTopic = function(topic) {
@@ -204,7 +207,11 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         applyConfig(config, this._private);
       }
       this.endpointConnection = this._private.parent.endpointConnection;
-      this.queues = new Queues().add(this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE.queues || []);
+      this.queues = new Queues()
+                        .add((this.endpointConnection && 
+                              this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE && 
+                              this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE.queues)
+                              || []);
       /* inbound and outbound Media Element DOM Endpoints */
       this.media = {
           In: null,
@@ -558,7 +565,18 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
 
     getConnection: function() { return this.conn ;},
 
-    /*jshint es5: true */
+    /** set the endpointConnection IFF it is null */
+    setEndpointConnection: function(endpointConnection) {
+      if (!this.endpointConnection) {
+        this.endpointConnection = endpointConnection;
+        this.queues.add((endpointConnection.RTCOMM_CALL_QUEUE_SERVICE && 
+                         endpointConnection.RTCOMM_CALL_QUEUE_SERVICE.queues) 
+                         || []);
+        return true;
+      } else {
+        return false;
+      }
+    },
     /** Whether audio is enabled or not in the RtcommEndpoint.
      * @type Boolean
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.

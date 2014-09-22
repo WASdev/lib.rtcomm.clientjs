@@ -3,8 +3,10 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm/connect
   // MQTT ServerConfig
   // client1 Config
     var config1 = config.clientConfig1();
+    delete config1.serviceTopicName;
     // client2 Config
     var config2 = config.clientConfig2();
+    delete config2.serviceTopicName;
     
     console.log('CONFIG 1', config1);
     console.log('CONFIG 2', config2);

@@ -119,7 +119,7 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
     // BadConfig (Server is not correct)
     var badConfig = new config._ServerConfig();
     badConfig.userid = "rtc2@ibm.com";
-    badConfig.connectorTopicName = "/WebRTC";
+    badConfig.serviceTopicName = "/WebRTC";
     badConfig.server="9.4.8.23" ;
 
 
