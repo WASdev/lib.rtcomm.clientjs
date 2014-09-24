@@ -153,7 +153,7 @@ var EndpointProvider =  function EndpointProvider() {
       server:null,
       port: 1883,
       userid : null,
-      serviceTopicName : "nodeConnector",
+      serviceTopicName : "serviceTopicName",
       topicPath: "/rtcomm/",
       credentials : { user: "", password: ""},
       register: false,

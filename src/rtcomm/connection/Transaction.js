@@ -41,6 +41,7 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   /* Instance Properties */
   this.objName = "Transaction";
   this.events = {'message': [],
+      'timeout_changed':[],
       'finished':[]};
   this.timeout = timeout || null;
   this.outbound = (message && message.transID) ? false : true;
@@ -76,6 +77,10 @@ Transaction.prototype = util.RtcommBaseObject.extend(
   /*
    * Instance Methods
    */
+  setTimeout: function(timeout)  {
+    this.timeout = timeout;
+    this.emit('timeout_changed');
+  },
  
   getInbound: function() {
     return !(this.outbound);

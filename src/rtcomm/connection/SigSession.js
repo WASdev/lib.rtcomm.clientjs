@@ -87,11 +87,11 @@ var SigSession = function SigSession(config) {
   };
   // Initial State
   this.state = 'stopped';
-  // Default our timeout waiting for initial start to 30 seconds.
-  this.timeout = 30000; 
-  
-  
 
+  /** The timeout we will wait for a PRANSWER indicating someone is at other end */
+  this.initialTimeout = 5000; 
+  /** The timeout we will wait for a ANSWER (responding to session START)*/
+  this.finalTimeout = 30000; 
 };
 
 
@@ -186,7 +186,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       
       this._startTransaction = this.endpointconnector.createTransaction(
           { message: this.message,
-            timeout: this.timeout
+            timeout: this.initialTimeout
           },
           session_started.bind(this), 
           session_failed.bind(this));
@@ -246,10 +246,20 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
     /**
      *  send a pranswer
      */
-    pranswer : function(peerContent) {
-      peerContent = peerContent || {'type':'pranswer'};
+    pranswer : function(peerContent, timeout) {
+
+      if (typeof peerContent !== 'number') { 
+        peerContent = peerContent || {'type':'pranswer'};
+      } else {
+        timeout = peerContent;
+        peerContent = {'type':'pranswer'};
+      }
+      var pranswerMessage = this.createMessage(peerContent);
+      if (timeout) { 
+        pranswerMessage.holdTimeout=timeout;
+      }
       this.state = 'pranswer';
-      this.send(peerContent);
+      this.send(pranswerMessage);
       this.emit('pranswer');
     },
 
@@ -344,6 +354,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       case 'PRANSWER':
         // change our state, emit content if it is there.
         this.state = 'have_pranswer';
+        this._startTransaction && this._startTransaction.setTimeout(message.holdTimeout || this.finalTimout);
         this.emit('have_pranswer', message.peerContent);
         break;
       case 'ICE_CANDIDATE':

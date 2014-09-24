@@ -95,14 +95,22 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
   var Queues = function Queues(availableQueues) {
     var Queue = function Queue(queue) {
       this.endpointID= queue.endpointID;
-      this.topic = queue.topic;
+
+      // If it ends
+      if (/#$/.test(queue.topic)) {
+        this.topic = queue.topic;
+      } else if (/\/$/.test(queue.topic)) {
+        this.topic = queue.topic + "#";
+      } else { 
+        this.topic = queue.topic + "/#";
+      }
       this.active= false;
       this.callback= null;
       this.paused= false;
       this.regex= null;
     };
 
-    var queues = {};
+    var queues  = {};
 
     this.add = function(availableQueues) {
       availableQueues.forEach( function(queue) {
@@ -113,6 +121,9 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       });
     };
 
+    this.get = function(queueid) {
+      return queues[queueid] || null;
+    };
     this.findByTopic = function(topic) {
       // Typically used on an inbound topic, will iterate through queue and return it.
       var matches = [];
@@ -124,11 +135,14 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      } else {
        throw new Error('Multiple Queue matches for topic('+topic+')- should not be possible');
      }
-    }
+    };
+    this.list = function(){
+      return Object.keys(queues);
+    };
   };
 
   Queues.prototype.toString = function() {
-    return Object.keys(this);
+    this.list();
   };
 
 
@@ -207,11 +221,14 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         applyConfig(config, this._private);
       }
       this.endpointConnection = this._private.parent.endpointConnection;
-      this.queues = new Queues()
-                        .add((this.endpointConnection && 
+      this.queues = new Queues();
+      console.log('QUEUES: ',this.queues.list());
+      this.queues.add((this.endpointConnection && 
                               this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE && 
                               this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE.queues)
                               || []);
+      console.log('QUEUES: ',this.queues.list());
+      l('DEBUG') && console.log('RtcommEndpoint.init() queues are: ', this.queues);
       /* inbound and outbound Media Element DOM Endpoints */
       this.media = {
           In: null,
@@ -530,31 +547,65 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         console.log('Received a normal message from Queue', message);
         rtcommEP.emit('message', message);
       };
+      var q = this.queues.get(queueid);
+      l('DEBUG') && console.log(this+'.joinSessQueue() Looking for queueid:'+queueid);
 
-      if (this.queues[queueid]) {
+      if (q) {
         // Queue Exists... Join it
         // This callback is how inbound messages (that are NOT START_SESSION would be received)
-        this.queues[queueid].active = true;
-        this.queues[queueid].callback = callback;
-        this.queues[queueid].regex = this.endpointConnection.subscribe(this.queues[queueid].topic, callback);
+        q.active = true;
+        q.callback = callback;
+        q.regex = this.endpointConnection.subscribe(q.topic, callback);
         return true;
       } else {
-        throw new Error('Unable to find queue('+queuid+') available queues: '+this.queues);
+        throw new Error('Unable to find queue('+queueid+') available queues: '+ this.queues.list());
       }
     },
-
     pauseSessQueue: function pauseSessQueue(queueid) {
       l('DEBUG') && console.log(this+'.pauseSessQueue() ', queueid);
-      this.queues[queueid].paused = true;
-      this.endpointConnection.unsubscribe(q.topic);
+      var q = this.queues.get(queueid);
+      if (q && q.paused) {
+        l('DEBUG') && console.log(this+'.pauseSessQueue() - ALREADY PAUSED.');
+        return true;
+      }
+      if (q) {
+        q.paused = true;
+        this.endpointConnection.unsubscribe(q.topic);
+        return true;
+      } else {
+        console.error(this+'.pauseSessQueue() Queue not found: '+queueid);
+        return false;
+      }
     },
     resumeSessQueue: function resumeSessQueue(queueid) {
-      this.queues[queueid].paused = false;
-      this.endpointConnection.subscribe(queue,this.queues[queue]);
+      var q = this.queues.get(queueid);
+      if (q && !q.paused) {
+        l('DEBUG') && console.log(this+'.resumeSessQueue() - Not Paused, no need to resume.');
+        return true;
+      }
+      if (q ) {
+        q.paused = false;
+        this.endpointConnection.subscribe(q.topic,q.callback);
+        return true;
+      } else {
+        console.error(this+'.resumeSessQueue() Queue not found: '+queueid);
+        return false;
+      }
     },
     leaveSessQueue: function leaveSessQueue(queueid) {
-       this.queues[queueid].active = false;
-       this.endpointConnection.unsubscribe(queue);
+      var q = this.queues.get(queueid);
+      if (q && !q.active) {
+        l('DEBUG') && console.log(this+'.leaveSessQueue() - Not Active,  cannot leave.');
+        return true;
+      }
+      if (q) {
+       q.active = false;
+       this.endpointConnection.unsubscribe(q.topic);
+       return true;
+      } else {
+        console.error(this+'.leaveSessQueue() Queue not found: '+queueid);
+        return false;
+      }
     },
 
     // UserMedia Methods

@@ -49,21 +49,15 @@ var EndpointConnection = function EndpointConnection(config) {
     var registry = {};
     var defaultTimeout = 5000;
 
-    var add = function(item) {
-      /*global l:false*/
-
-      l('TRACE') && console.log('Registry.add() Adding item to registry: ', item);
-      item.on('finished', function() {
-        this.remove(item);
-      }.bind(this));
-
-      registry[item.id] = item;
-      // Set a timeout for transaction
-      if (timer) {
-        setTimeout(function() {
-          if ( item.id in registry ) {
+    var addTimer = function addTimer(item){
+      if(item.timer) {
+        console.log('Clearing existing Timer: '+item.timer);
+        clearTimeout(item.timer);
+      }
+      item.timer  = setTimeout(function() {
+          if (item.id in registry ) {
             // didn't execute yet
-            var errorMsg = 'Registry timed out ['+item.id+']';
+            var errorMsg = item.objName + ' '+item.timer+' Timed out ['+item.id+'] '+Date();
             if (typeof registry[item.id].onFailure === 'function' ) {
               registry[item.id].onFailure({'failureReason': errorMsg});
             } else {
@@ -73,7 +67,25 @@ var EndpointConnection = function EndpointConnection(config) {
           }
         },
         item.timeout || defaultTimeout);
-      }
+      };
+
+    var add = function(item) {
+      /*global l:false*/
+
+      l('TRACE') && console.log('Registry.add() Adding item to registry: ', item);
+
+      item.on('finished', function() {
+        this.remove(item);
+      }.bind(this));
+
+      timer && item.on('timeout_changed', function() {
+        console.log('TIMEOUT CHANGED called: ', item);
+        addTimer(item);
+      }.bind(this));
+
+      timer && addTimer(item);
+
+      registry[item.id] = item;
     };
 
     return {
