@@ -136,6 +136,9 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
        throw new Error('Multiple Queue matches for topic('+topic+')- should not be possible');
      }
     };
+    this.all = function() {
+      return queues;
+    };
     this.list = function(){
       return Object.keys(queues);
     };
@@ -180,6 +183,10 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
            * @property {module:rtcomm#RtcommEvent}
            */
           "connected": [],
+          /**
+           * An inbound request to establish a call via 
+           * 3PCC was initiated
+           */
           "refer": [],
           /**
            * The connection to a peer has been closed
@@ -410,7 +417,6 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       return rtcommEndpoint.conn;
     },
 
-    // TODO:  Remove?
     /**
      * attachLocalMedia method used to validate internal setup and set things up if not already done.
      *
@@ -535,9 +541,20 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       }
 
     },
-    //SessionQueue methods
     /**
      * Join a Session Queue
+     *
+     * A Session Queue is a subscription to a Shared Topic.  By joining a queue, it enables
+     * the RtcommEndpoint to be 'available' to receive an inbound request from the queue topic.
+     * Generally, this could be used for an Agent scenario where many endpoints have joined the 
+     * queue, but only 1 endpoint will receive the inbound request.  Upon receipt, we immediately
+     * unsubscribe.  
+     *
+     * TODO:  Immediate unsubscribe will be an option upon adding chat support. 
+     *
+     * @param {string} queueid Id of a queue to join.
+     * @param {object} [options] Options to use for queue
+     *
      */
     joinSessQueue: function joinSessQueue(/*String*/ queueid, /*object*/ options) {
     // Is queue a valid queuename?
@@ -561,6 +578,10 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         throw new Error('Unable to find queue('+queueid+') available queues: '+ this.queues.list());
       }
     },
+    /**
+     * Manually pause a queue (unsubscribe)
+     * @param {string} queueid Id of a queue to pause.
+     */
     pauseSessQueue: function pauseSessQueue(queueid) {
       l('DEBUG') && console.log(this+'.pauseSessQueue() ', queueid);
       var q = this.queues.get(queueid);
@@ -577,6 +598,10 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         return false;
       }
     },
+    /**
+     * Manually resume a paused queue
+     * @param {string} queueid Id of a queue to resume.
+     */
     resumeSessQueue: function resumeSessQueue(queueid) {
       var q = this.queues.get(queueid);
       if (q && !q.paused) {
@@ -592,6 +617,10 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         return false;
       }
     },
+    /**
+     * Leave a queue
+     * @param {string} queueid Id of a queue to leave.
+     */
     leaveSessQueue: function leaveSessQueue(queueid) {
       var q = this.queues.get(queueid);
       if (q && !q.active) {
@@ -606,6 +635,16 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         console.error(this+'.leaveSessQueue() Queue not found: '+queueid);
         return false;
       }
+    },
+    /**
+     * List Available Session Queues
+     *
+     * @returns {object} Object keyed on QueueID. The value is a Queue Object
+     * that can be used to determine is the queue is active or not.
+     *
+     */
+    listSessQueues: function() {
+      return  this.queues.all();
     },
 
     // UserMedia Methods
