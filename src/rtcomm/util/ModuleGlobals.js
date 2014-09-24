@@ -105,7 +105,16 @@ applyConfig = function applyConfig(config, obj, lenient ) {
   //console.log(configurable);
 },
 
-setConfig = function(config,requiredConfig, possibleConfig) {
+
+/*
+ * setConfig
+ *  @param configDefinition { required: {}, optional: {}, defaults{}}
+ *  @param config config to check and apply defaults 
+ */
+setConfig = function(config,configDefinition) {
+  var requiredConfig = configDefinition.required || {};
+  var possibleConfig = configDefinition.optional || {};
+  var defaultConfig = configDefinition.defaults || {};
   if (config) {
     // validates REQUIRED config upon instantiation.
     if (requiredConfig) {
@@ -117,11 +126,13 @@ setConfig = function(config,requiredConfig, possibleConfig) {
       logging.setLogLevel(config.logLevel);
       delete config.logLevel;
     }
+
     var configObj = possibleConfig?combineObjects(requiredConfig, possibleConfig): requiredConfig; 
     // at this point, everything in configObj are just available parameters and types, null it out.
+    // null out and apply defaults
     for (var key in configObj) {
       if (configObj.hasOwnProperty(key)) {
-        configObj[key] = null;
+        configObj[key] = defaultConfig.hasOwnProperty(key) ? defaultConfig[key] : null;
       }
     }
     // Apply 'config' to configObj and return it.
@@ -134,12 +145,15 @@ setConfig = function(config,requiredConfig, possibleConfig) {
         throw new Error(key + ' is an invalid property for '+ JSON.stringify(configObj) );
       }
     }
-    
     return configObj;
   } else {
     throw new Error("A minumum config is required: " + JSON.stringify(requiredConfig));
   }
 },
+/*
+ * combine left object with right object
+ * left object takes precendence
+ */
 combineObjects = function combineObjects(obj1, obj2) {
   var allkeys = [];
   var combinedObj = {};

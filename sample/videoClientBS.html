@@ -174,8 +174,8 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   var npConfig = {
     server : 'broker.mqttdashboard.com',
     port : 8000,
-    connectorTopicName : "nodeConnector",
-    connectorTopicPath : "/rtcomm/",
+    serviceTopicName : "serviceTopicName",
+    topicPath: "/rtcomm/",
     register : true,
     createEndpoint : true
   };
@@ -207,6 +207,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     npConfig.userid = userid;
     // make sure this is an integer.
     npConfig.port = parseInt(npConfig.port);
+    npConfig.appContext = 'sample';
     //  If the EndpointProvider is ready, it has already been init'd, we don't need to init again. Just register again.
     if (!ibmep.ready) {
       // Call init() on the Endpoint Provider.
@@ -257,7 +258,6 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     // Assign the MediOut/MediaIn objects.  These are the <video> components for in/out media.
     endpointObject.setMediaOut(document.querySelector('#selfView'));
     endpointObject.setMediaIn(document.querySelector('#remoteView'));
-    endpointObject.appContext = 'sample';
     // Assign the callbacks
     // endpointObject.onNewConnection = onNewConnection;
     // This will ask user for access to video and attach it to MediaIn

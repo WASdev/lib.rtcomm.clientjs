@@ -18,8 +18,8 @@ define(['dojo/json', 'dojo/text!./testConfig.json'], function(JSON, testconfig) 
   var 
     mqttServer= mqArray[1],
     mqttPort = parseInt(mqArray[2]),
-    connectorTopicName = configdata.connectorTopicName,
-    connectorTopicPath = configdata.connectorTopicPath;
+    serviceTopicName= configdata.serviceTopicName,
+    topicPath= configdata.topicPath;
   
   function randomID() {
     var num = Math.floor(Math.random()*10000);
@@ -31,10 +31,10 @@ define(['dojo/json', 'dojo/text!./testConfig.json'], function(JSON, testconfig) 
     // Not used yet...
     IBMRTC_TEST_TYPE: "normal",
     
-    connectorTopicName: connectorTopicName,
+    serviceTopicName: serviceTopicName,
     mqttServer : mqttServer,
     mqttPort : mqttPort,
-    connectorTopicPath: connectorTopicPath,
+    topicPath: topicPath,
     
     _ServerConfig : function(userid, Topic) {
      
@@ -42,8 +42,8 @@ define(['dojo/json', 'dojo/text!./testConfig.json'], function(JSON, testconfig) 
         server: mqttServer,
         port: mqttPort,
         userid: userid || null,
-        connectorTopicName: Topic || connectorTopicName,
-        connectorTopicPath: connectorTopicPath
+        serviceTopicName: Topic || serviceTopicName,
+        topicPath:topicPath 
       };
     },
     

@@ -9,13 +9,20 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
     var config2 = config.clientConfig2();
  //   config2.serviceTopic= "/WebRTC";
 
-    var T1 = 2000;  // How long we wait to setup, before sending messages.
+    var T1 = 5000;  // How long we wait to setup, before sending messages.
     var T2 = T1 + 2000; // How long we wait to check results
     var T3 = T2 +2000;  // How long we wait to timeout test.
     var T4 = T3 +2000;
     // serviceTopic Config
     var serviceTopic = new config._ServerConfig("servicetopic@ibm.com","/WebRTC");
     serviceTopic.myTopic = "/WebRTC";
+
+    var getTime = function() {
+      var d = new Date();
+      return d.getTime();
+    };
+
+
 
     var p2pFixture = function(name, /*boolean*/ direct, /*function*/ runTest, /*integer*/ timeout) {
       return {
@@ -162,8 +169,86 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
           },
           T3
       ),
-      
-    
+      new p2pFixture('Start Session - Initial Timeout', true, 
+         function() {
+           console.log('************* Running Test *********');
+           var test = this;
+           var sess1 = null;
+           var d = new Date();
+           var error = null;
+           var initialTime = getTime();
+           var errorTime = null;
+           var timeout = 5000; // 5 seconds
+           this.conn2.on('newsession', function(session) {
+              // Do nothing here... 
+           });
+           var def = new doh.Deferred();
+            // After T1, start the session. ensures everything is ready.
+           setTimeout(function() {
+              sess1 = test.conn1.createSession();
+              sess1.on('failed', function(message){
+                errorTime = getTime();
+                console.log('TEST: Failure message '+ message);
+                error = message;
+              });
+              sess1.toTopic = test.topic2;
+              sess1.start({toEndpointID: config2.userid});
+              console.log('********* After Start of session **************');
+            },T1);
+
+            setTimeout(def.getTestCallback(function() {
+              console.log('Error is: '+ error);
+              console.log('Time for error was: ', errorTime-initialTime);
+              doh.t(error);
+              doh.t(errorTime-initialTime > timeout);
+            }),T1+6000);
+            return def;
+         },
+         T1+8000 
+      ),
+      new p2pFixture('Start Session - final Timeout', true, 
+         function() {
+           console.log('************* Running Test *********');
+           var test = this;
+           var sess1 = null;
+           var d = new Date();
+           var error = null;
+           var initialTime = getTime();
+           var time = null;
+           var errortime= null;
+           var timeout = 10000;
+           this.conn2.on('newsession', function(session) {
+             session.start();
+             session.pranswer(timeout);
+             time = getTime();
+           });
+           var def = new doh.Deferred();
+            // After T1, start the session. ensures everything is ready.
+           setTimeout(function() {
+              sess1 = test.conn1.createSession();
+              sess1.on('failed', function(message){
+                errortime = getTime();
+                error = message;
+              });
+              sess1.finalTimeout=timeout;
+              sess1.toTopic = test.topic2;
+              sess1.start({toEndpointID: config2.userid});
+              console.log('********* After Start of session **************');
+            },T1);
+
+            setTimeout(def.getTestCallback(function() {
+              console.log('time:'+ time);
+              console.log('errortime:'+ errortime);
+              console.log('Time for error was: ', errortime-time);
+              console.log('Error is: '+ error);
+              doh.t(errortime-time > timeout);
+              doh.t(error);
+            }),T1+12000); // Wait T1 + 10000 plus some extra... 
+            return def;
+         },
+         T1+14000
+      ),
+
       new p2pFixture('Start Session test...', true, 
           function() {
         console.log('******* Running Test ***********');

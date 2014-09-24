@@ -1,17 +1,17 @@
 define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm/rtcomm"], function(doh,require,mqtt, config, rtcomm ){
     /*
      * EndpointProvider FVT -- This runs the following tests:
-     * 
+     *
      */
-    
+
     var config1 = config.clientConfig1();
     // client2 Config
     var config2 = config.clientConfig2();
-    // Timings 
+    // Timings
     var T1 = 5000;  // How long we wait to setup, before sending messages.
     var T2 = T1 + 3000; // How long we wait to check results
     var T3 = T2 +3000;  // How long we wait to timeout test.
-    
+
     /*
      * p2pFixture -- Test Fixture some tests are based on.
      */
@@ -22,32 +22,32 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
           /*
            * This creates TWO EndpointProvider objects that
            * we connect together by swapping their ServiceTopics
-           * 
+           *
            * There is no liberty RTCOMM Signaling Endpoint on the back end expected.
-           * 
+           *
            * if 'direct' = true, then we will create it to each other.
-           * 
+           *
            */
           console.log('setup of p2pFixture called');
           this.direct = direct;
-          
+
           if (!direct) {
             config1.register=false;
             config2.register=false;
             config1.createEndpoint=false;
             config2.createEndpoint=false;
-            
-          } 
-      
+
+          }
+
           /*
-           * Client1 
+           * Client1
            */
           console.log("*** Creating EndpointProvider1 ***", config1);
           this.np = new rtcomm.RtcommEndpointProvider();
           this.np.setLogLevel('INFO');
           this.np.init(config1, /*onSuccess*/ function() {
             console.log("node provider 1 initialized", this);
-            // If we get an rtcommEndpoint back, assign it.  
+            // If we get an rtcommEndpoint back, assign it.
             if (this.direct) {
               try {
                 this.np2._t.setServiceTopic(this.np.clientid);
@@ -55,17 +55,17 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
                 console.error(e);
               }
             }
-           
+
           }.bind(this));
-         
+
           /*
            * Client2
-           * 
+           *
            */
           console.log("*** Creating EndpointProvider2 ***", config2);
           this.np2 = new rtcomm.RtcommEndpointProvider();
           this.np2.setLogLevel('INFO');
-          this.np2.init(config2, 
+          this.np2.init(config2,
            /* onSuccess */ function() {
             if (this.direct) {
               try {
@@ -77,14 +77,14 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             console.log("node provider 2 initialized ", this);
          }.bind(this)
          );
-          
+
          // Creating NODES this w/ no avd.
          this.node1 = this.np.createRtcommEndpoint({appContext: "audiovideo", audio:false, video:false,data:false});
          console.log("HUB1:", this.node1);
-        
+
          this.node2 =  this.np2.createRtcommEndpoint({appContext: "audiovideo", audio:false, video:false,data:false, autoAnswer: true });
-         console.log("HUB2:", this.node2); 
-         
+         console.log("HUB2:", this.node2);
+
         },
         runTest: runTest,
         tearDown: function() {
@@ -113,20 +113,20 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
         timeout: timeout
       };
     };
-    
-    
-    
+
+
+
     // BadConfig (Server is not correct)
     var badConfig = new config._ServerConfig();
     badConfig.userid = "rtc2@ibm.com";
-    badConfig.connectorTopicName = "/WebRTC";
+    badConfig.serviceTopicName = "/WebRTC";
     badConfig.server="9.4.8.23" ;
 
-    
+
     /*
      *  Start of FVT for EndpointProvider
      */
-    
+
     doh.register("FVT EndpointProvider ", [
       function constructorTest() {
             var np = null;
@@ -138,8 +138,8 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             np = null;
       },
       /**
-       *  This test creates a EndpointProvider and calls init() on it. 
-       *  
+       *  This test creates a EndpointProvider and calls init() on it.
+       *
        */
       { name: "simple init() of goodConfigTest",
         setUp: function() {
@@ -153,7 +153,7 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             var deferred = new doh.Deferred();
             this.np.init(config1);
             var self = this;
-            // Wait for 'ready' 
+            // Wait for 'ready'
             setTimeout(deferred.getTestCallback(function() {
                   console.log("*** Asserting *** ", self.np.ready);
                   doh.assertTrue(self.np.ready);
@@ -181,13 +181,13 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
            var deferred = new doh.Deferred();
            config1.register = true;
            var success = false;
-           this.np.init(config1, 
+           this.np.init(config1,
                /*onSuccess*/ function(obj){
                  success = obj.registered;
                });
-           
+
            var self = this;
-           // Wait for 'ready' 
+           // Wait for 'ready'
            setTimeout(deferred.getTestCallback(function() {
                  console.log("*** Asserting *** ready ", self.np.ready);
                  doh.assertTrue(self.np.ready);
@@ -209,8 +209,8 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
        timeout: T2
     },
      /**
-      * This test uses an incorrect/unavailable MQTT Server 
-      * 
+      * This test uses an incorrect/unavailable MQTT Server
+      *
       */
      { name: "MQTT Server Unavailable/Incorrect test",
        setUp: function() {
@@ -236,7 +236,7 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
          timeout: T2// 1 second timeout
      },
      // Should fail until we start testing with the actual Service.
-     new p2pFixture("Register",  /*direct*/ false,  
+     new p2pFixture("Register",  /*direct*/ false,
          function() {
            console.log('********** Run Test ************');
             var self = this;
@@ -279,9 +279,9 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             this.np.setLogLevel('TRACE');
             this.np2.setLogLevel = ('TRACE');
             /* Wait 1 second to 'createConnection' */
-            
+
             console.log('calling register... ');
-           
+
             setTimeout(function() {
               console.log("************** REGISTERING 2 ***************");
               self.node2.register(function() {
@@ -301,16 +301,16 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             },T1);
             var deferred = new doh.Deferred();
             setTimeout(deferred.getTestCallback(function() {
-          
+
                console.log("******************Asserting now...***********************");
                console.log("State of 1: " + self.node1.getConnection().getState());
                console.log("State of 2: " + self.node2.getConnection().getState());
-               
+
                  doh.assertTrue(self.node1.getConnection().getState() === 'STARTED');
                  doh.assertTrue(self.node2.getConnection().getState() === 'STARTED');
                //  console.log("State of 1: " + self.node1.getConnection().getState());
                 // console.log("State of 2: " + self.node2.getConnection().getState());
-       
+
             }),
             T2+5000);
             return deferred;
@@ -322,15 +322,15 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             var self = this;
             var user1 = this.np.userid;
             var user2 = this.np2.userid;
-            
+
             var message1 = null;
             var message2 = null;
-            
+
             this.node1.on('message',  function(event){
               console.log( "******EVENT 1 *******", event);
               message1 = event.message.message;
             });
-            
+
             setTimeout(function() {
               console.log("************** REGISTERING 2 ***************");
               self.node2.register(function() {
@@ -348,7 +348,7 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
               });
             });
             },T1);
-           
+
             this.node2.on('message', function(event){
               console.log( "******EVENT 2 *******", event);
                message2 = event.message.message;
@@ -358,13 +358,13 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             setTimeout(function() {
               self.node2.conn.send("HELLO");
             },T2);
-            
+
             var deferred = new doh.Deferred();
             setTimeout(deferred.getTestCallback(function() {
-              
+
               doh.assertTrue(self.node1.getConnection().getState() === 'STARTED');
               doh.assertTrue(self.node2.getConnection().getState() === 'STARTED');
-         
+
                   doh.assertEqual("HELLO",message1);
                  }),
            T3);
@@ -372,7 +372,7 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
          },
          T3+1000
      )
-     
-    
+
+
    ]);
 });

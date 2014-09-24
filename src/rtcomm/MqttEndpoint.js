@@ -32,6 +32,7 @@ MqttEndpoint.prototype = util.RtcommBaseObject.extend({
              this.dependencies.connection.publish(topic, message);
   },
   destroy: function() {
+      console.log('Destroying mqtt(unsubscribing everything... ');
              var mqttEP = this;
              Object.keys(this.subscriptions).forEach( function(key) {
                mqttEP.unsubscribe(key);

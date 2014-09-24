@@ -1,6 +1,6 @@
 {
    "mqttServers" : ["@MQTT1@", "@MQTT2@"],
-   "connectorTopicName" : "@TOPICNAME@",
-   "connectorTopicPath" : "/rtcomm/"
+   "serviceTopicName" : "@TOPICNAME@",
+   "topicPath" : "/rtcomm/"
 
 }

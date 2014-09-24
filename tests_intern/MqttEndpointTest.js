@@ -137,6 +137,7 @@ define([
         },
         'mqtt Test 1': function () {
           var self = this;
+          this.skip();
           var dfd= this.async(5000);
           var error;
           var start = function(ms) {
