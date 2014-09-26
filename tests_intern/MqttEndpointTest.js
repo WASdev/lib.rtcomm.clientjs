@@ -26,6 +26,7 @@ define([
     var ep = null;
     var mq1 = null;
     var mq2 = null;
+    var globals = null;
 
     var mqttPublish = function(topic, message, ms) {
       // publish 'message' from mq1 to mq2 on topic

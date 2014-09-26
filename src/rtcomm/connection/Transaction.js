@@ -56,6 +56,7 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   this.onFailure = cbFailure || function(object) {
     console.log(this+' Transaction failed, requires callback for more information:', object);
   };
+
   l('DEBUG') && console.log('Are we outbound?', this.outbound);
 };
 /*global util:false*/

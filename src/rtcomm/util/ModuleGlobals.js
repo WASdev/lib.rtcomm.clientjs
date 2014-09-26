@@ -21,7 +21,6 @@ var Log = function Log() {
         "TRACE": 15 }; // bin '1111' (includes) all
     var logLevel = 'INFO';
     this.l = function l(value, obj) {
-      
       var ll = (obj && obj.getLogLevel ) ? obj.getLogLevel() : logLevel;
         /*jslint bitwise: true */
             return (LOG_LEVEL[ll] & LOG_LEVEL[value]) === LOG_LEVEL[value];
@@ -36,7 +35,6 @@ var Log = function Log() {
           throw new Error(value + 'is not a valid Log level, try: '+JSON.stringify(LOG_LEVEL));
         }
       };
-      
     this.getLogLevel = this.g = function(value) {
        return logLevel;
     };
@@ -44,9 +42,10 @@ var Log = function Log() {
 
 // Enables logging for util methods.
 // If already defined, use that one?
-var logging =  new Log(),
-    l = logging.l,
+console.log('logging already set? ', logging);
 
+var logging =  logging || new Log(),
+    l = logging.l,
 /**
  *  validate a config object against a reference object
  *

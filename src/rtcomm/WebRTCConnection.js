@@ -78,7 +78,8 @@ function WebRTCConnection(/* object */ config ) {
   this.rtcommEndpoint = null;
   this.toEndpointID = null;
   this.autoAnswer = false;
-  
+  this.sessionQueue = null;
+
   this.streamAttached = false;
   // peer connection config
   this.pranswer = false;
@@ -677,6 +678,10 @@ WebRTCConnection.prototype = function() {
   getName = function() {
     return this.name || this.constructor.name;
   },
+
+  setSessionQueue = function(queue) {
+    this.sessionQueue = queue;
+  },
   
  
   toString = function() {
@@ -699,6 +704,7 @@ WebRTCConnection.prototype = function() {
     send: send,
     sendData: sendData,
     getName: getName,
+    setSessionQueue: setSessionQueue,
     toString: toString
   };
 

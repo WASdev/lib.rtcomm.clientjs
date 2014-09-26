@@ -85,6 +85,8 @@ var SigSession = function SigSession(config) {
       'pranswer':[],
       'finished':[]
   };
+
+
   // Initial State
   this.state = 'stopped';
 
@@ -204,6 +206,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      * Finish the 'Start'
      */
     respond : function(/* boolean */ SUCCESS, /* String */ message) {
+
       
       /* 
        * Generally, respond is called w/ a message, but could just be a boolean indicating success.
@@ -214,10 +217,10 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         message = SUCCESS;
         SUCCESS = true;
       }
-      
-      // If it isn't set at all, make sure it is true;
-      SUCCESS = SUCCESS || true;
+      // If SUCCESS is undefined, set it to true
+      SUCCESS = (typeof SUCCESS !== 'undefined')? SUCCESS: true;
 
+      l('DEBUG') && console.log(this+'.respond() Respond called with SUCCESS', SUCCESS);
       l('DEBUG') && console.log(this+'.respond() Respond called with message', message);
       l('DEBUG') && console.log(this+'.respond() Respond called using this', this);
       var messageToSend = null;
@@ -243,6 +246,14 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         console.log('NO TRANSACTION TO RESPOND TO.');
       }
     },
+    /**
+     * Fail the session, this is only a RESPONSE to a START_SESSION
+     */
+    fail: function(message) {
+      this.start();
+      this.respond(false,message);
+    },
+
     /**
      *  send a pranswer
      */
@@ -304,7 +315,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
           if (messageToSend.hasOwnProperty('transID')) {
             delete messageToSend.transID;
           }
-          this.endpointconnector.send({message:messageToSend}); 
+          this.endpointconnector.send({message:messageToSend, toTopic: this.toTopic}); 
         }
       }
     },
@@ -353,9 +364,14 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       switch(message.method) {
       case 'PRANSWER':
         // change our state, emit content if it is there.
-        this.state = 'have_pranswer';
-        this._startTransaction && this._startTransaction.setTimeout(message.holdTimeout || this.finalTimout);
-        this.emit('have_pranswer', message.peerContent);
+        // holdTimeout is in seconds, rather than milliseconds.
+        this._startTransaction && this._startTransaction.setTimeout(message.holdTimeout*1000 || this.finalTimout);
+        if (message.holdTimeout) {
+          // This is a QUEUE Pranswer (a special pranswer type that DOES NOT Mean someone is ready at the other end
+        } else {
+          this.state = 'have_pranswer';
+          this.emit('have_pranswer', message.peerContent);
+        }
         break;
       case 'ICE_CANDIDATE':
         this.emit('ice_candidate', message.peerContent);

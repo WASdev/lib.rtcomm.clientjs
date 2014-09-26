@@ -153,7 +153,7 @@ var EndpointProvider =  function EndpointProvider() {
       server:null,
       port: 1883,
       userid : null,
-      serviceTopicName : "serviceTopicName",
+      rtcommTopicName : "management",
       topicPath: "/rtcomm/",
       credentials : { user: "", password: ""},
       register: false,
@@ -182,8 +182,8 @@ var EndpointProvider =  function EndpointProvider() {
    * @property {string} server MQTT Server
    * @property {string} [port=1883] MQTT Server Port 
    * @property {string} userid User ID or Identity
-   * @property {string} [serviceTopicName=endpointConnection] serviceTopicName on rtcomm server
-   * @property {string} [topicPath=/rtcomm/] MQTT Path to prefix serviceTopicName with and register under
+   * @property {string} [rtcommTopicName=endpointConnection] rtcommTopicName on rtcomm server
+   * @property {string} [topicPath=/rtcomm/] MQTT Path to prefix rtcommTopicName with and register under
    * @property {boolean} [register=false] Automatically register
    * @property {boolean} [createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    */
@@ -200,7 +200,7 @@ var EndpointProvider =  function EndpointProvider() {
    * var endpointProviderConfig = {
    *   server : 'broker.mqttdashboard.com',       
    *   userid : 'ibmAgent1@mysurance.org',
-   *   serviceTopicName : 'endpointConnector',   
+   *   rtcommTopicName : 'endpointConnector',   
    *   topicPath : '/rtcomm/', 
    *   port : 8000,                          
    *   register: true,                     
@@ -262,7 +262,7 @@ var EndpointProvider =  function EndpointProvider() {
       server: config.server,
       port: config.port,
       userid: config.userid,
-      serviceTopicName: config.serviceTopicName,
+      rtcommTopicName: config.rtcommTopicName,
       topicPath: config.topicPath
     });
 

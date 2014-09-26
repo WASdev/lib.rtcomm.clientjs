@@ -39,11 +39,12 @@ define({
 
 	// The desired AMD loader to use when running unit tests (client.html/client.js). Omit to use the default Dojo
 	// loader
-	useLoader: {
-		'host-node': 'dojo/dojo',
-		'host-browser': 'node_modules/dojo/dojo.js'
-	},
-
+	//useLoader: {
+	//	'host-node': 'dojo/dojo',
+	//	'host-browser': 'node_modules/dojo/dojo.js'
+	//},
+  //reporters: ['console','junit'], 
+  
 	// Configuration options for the module loader; any AMD configuration options supported by the specified AMD loader
 	// can be used here
 	loader: {
@@ -52,7 +53,8 @@ define({
 	},
 
 	// Non-functional test suite(s) to run in each browser
-	suites: [ 'tests_intern/MqttEndpointTest.js'],
+	suites: [ 'tests_intern/MqttEndpointTest.js', 'tests_intern/SessionQueue.js'],
+	//suites: [ ],
 
 	// Functional test suite(s) to run in each browser once non-functional tests are completed
 	functionalSuites: [ /* 'myPackage/tests/functional' */ ],

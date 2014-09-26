@@ -216,7 +216,7 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
            var initialTime = getTime();
            var time = null;
            var errortime= null;
-           var timeout = 10000;
+           var timeout = 10;
            this.conn2.on('newsession', function(session) {
              session.start();
              session.pranswer(timeout);
@@ -226,22 +226,28 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
             // After T1, start the session. ensures everything is ready.
            setTimeout(function() {
               sess1 = test.conn1.createSession();
+              console.log('events 1', sess1.events);
+              console.log('this._l?', sess1._l('DEBUG'));
               sess1.on('failed', function(message){
+                // OnFailed called... 
+                console.log('On Failed called...', message);
                 errortime = getTime();
                 error = message;
               });
-              sess1.finalTimeout=timeout;
+              console.log('events 2', sess1.events);
+              sess1.finalTimeout=timeout*1000;
               sess1.toTopic = test.topic2;
               sess1.start({toEndpointID: config2.userid});
               console.log('********* After Start of session **************');
             },T1);
 
             setTimeout(def.getTestCallback(function() {
+              console.log('events 2', sess1.events);
               console.log('time:'+ time);
               console.log('errortime:'+ errortime);
               console.log('Time for error was: ', errortime-time);
               console.log('Error is: '+ error);
-              doh.t(errortime-time > timeout);
+              doh.t(errortime-time > timeout*1000);
               doh.t(error);
             }),T1+12000); // Wait T1 + 10000 plus some extra... 
             return def;

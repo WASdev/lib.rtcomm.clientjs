@@ -80,13 +80,14 @@ var RtcommBaseObject = {
     emit : function(event, object) {
       var self = this;
       if (this.events && this.events[event] ) {
-        l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", object);
+        l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);
         // Event exists, call all callbacks
         self.events[event].forEach(function(callback) {
             if (typeof callback === 'function') {
+              l('EVENT', self) && console.log(this+".emit()  executing callback for event["+event+"]"+ callback);
               callback(object);
             } else {
-              l('EVENT') && console.log(self+' Emitting, but no callback for event['+event+']');
+              l('EVENT', self) && console.log(self+' Emitting, but no callback for event['+event+']');
             }   
         });
       } else {
@@ -102,6 +103,14 @@ var RtcommBaseObject = {
         }
       }
       return obj;
+    },
+    // Test Function
+    _l: function(level){
+      if (typeof l === 'function') {
+        return l(level,this);
+      } else {
+        return 'unknown';  
+      }
     },
     toString: function() {
       return this.objName + '['+this.id+']';

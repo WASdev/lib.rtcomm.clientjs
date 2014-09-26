@@ -18,7 +18,7 @@ define(['dojo/json', 'dojo/text!./testConfig.json'], function(JSON, testconfig) 
   var 
     mqttServer= mqArray[1],
     mqttPort = parseInt(mqArray[2]),
-    serviceTopicName= configdata.serviceTopicName,
+    rtcommTopicName= configdata.rtcommTopicName,
     topicPath= configdata.topicPath;
   
   function randomID() {
@@ -31,7 +31,7 @@ define(['dojo/json', 'dojo/text!./testConfig.json'], function(JSON, testconfig) 
     // Not used yet...
     IBMRTC_TEST_TYPE: "normal",
     
-    serviceTopicName: serviceTopicName,
+    rtcommTopicName: rtcommTopicName,
     mqttServer : mqttServer,
     mqttPort : mqttPort,
     topicPath: topicPath,
@@ -42,7 +42,7 @@ define(['dojo/json', 'dojo/text!./testConfig.json'], function(JSON, testconfig) 
         server: mqttServer,
         port: mqttPort,
         userid: userid || null,
-        serviceTopicName: Topic || serviceTopicName,
+        rtcommTopicName: Topic || rtcommTopicName,
         topicPath:topicPath 
       };
     },

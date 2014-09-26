@@ -79,12 +79,6 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
     };
     
     doh.register("EndpointConnectionTest - using Server", [
-      function assertTrueTest(){
-        doh.assertTrue(true);
-        doh.assertTrue(1);
-        doh.assertTrue(!false);
-      },
-      
       { name: "Connection Test",
         runTest: function() {
           var nc = new connection.EndpointConnection(config1);

@@ -9,6 +9,10 @@ define(["doh/runner", "tests/common/config","ibm/rtcomm/connection"], function(d
       
       }   
       */
+
+   dojo.require("lib/mqttws31");
+   var config1 = config.clientConfig1();
+    
   
     var messageTestFixture = function(name, /*function*/ runTest ) {
       return {
@@ -29,8 +33,14 @@ define(["doh/runner", "tests/common/config","ibm/rtcomm/connection"], function(d
         doh.assertTrue(true);
         doh.assertTrue(1);
         doh.assertTrue(!false);
+      }, 
+      function logLevelTest() {
+        var conn = new connection.EndpointConnection(config1);
+        console.log(conn);
+        var d1 = conn.getLogLevel();
+        conn.setLogLevel('DEBUG');
+        doh.t(conn._l('DEBUG'));
       }
-     
                // doh.assertEqual("RtcService", this.thingerToTest.toString());
         //  doh.assertFalse(this.thingerToTest.falseProp);
         // ...

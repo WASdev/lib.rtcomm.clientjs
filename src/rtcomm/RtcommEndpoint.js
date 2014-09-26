@@ -94,9 +94,11 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
 
   var Queues = function Queues(availableQueues) {
     var Queue = function Queue(queue) {
-      this.endpointID= queue.endpointID;
-
-      // If it ends
+      var self = this;
+      Object.keys(queue).forEach(function(key){
+        queue.hasOwnProperty(key) && (self[key] = queue[key]);
+      });
+      // fix the topic, make sure it has a #
       if (/#$/.test(queue.topic)) {
         this.topic = queue.topic;
       } else if (/\/$/.test(queue.topic)) {
@@ -104,12 +106,13 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       } else { 
         this.topic = queue.topic + "/#";
       }
+      // Augment the passed in queue.
       this.active= false;
       this.callback= null;
       this.paused= false;
       this.regex= null;
+      this.autoPause = false;
     };
-
     var queues  = {};
 
     this.add = function(availableQueues) {
@@ -127,8 +130,10 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     this.findByTopic = function(topic) {
       // Typically used on an inbound topic, will iterate through queue and return it.
       var matches = [];
+      console.log(Object.keys(queues));
       Object.keys(queues).forEach(function(queue) {
-        queues[queue].regex.test(topic) && matches.push(queues[queue]);
+        l('DEBUG') && console.log('Queues.findByTopic testing '+topic+' against regex: '+queues[queue].regex);
+        queues[queue].regex && queues[queue].regex.test(topic) && matches.push(queues[queue]);
         });
      if (matches.length === 1 ) {
        return matches[0];
@@ -351,43 +356,60 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       l('DEBUG') && console.log(this + '.newSession() new session called w/ ',session);
       // If session.source is in a queue we have open
       // Match the source, then immediately pause the queue (if that is on...)
+      // 
+      // When we get a new session, we must confirm its OURS - there are two checks:
+      //
+      // 1.  do we match AppContext?
+      // 2.  if its a queue, do we match it?
+      // 3.  
+      //
+      //
+      var event = null;
+      var q=null;
       if (session.source) {
-        var q = null;
+        var msg = null;
+        // We have a session.source, so this is received on a queue.
         try {
           q = this.queues.findByTopic(session.source);
-          if(q.active) { 
-            this.pauseSessQueue(q.endpointID);
-          } else {
-            // Even though we matched a queue, we aren't active. drop it.
-            console.error('Session recieved on a Topic that is not active for this endpoint');
-            return false;
-          }
-        } catch(e) {
-          console.error('This Enpdoint does not support inbound calls from this source');
+        } catch(e){
+          msg = 'This Endpoint does not support inbound calls from this source: ('+session.source+')';
         }
-        console.log('found q: ', q);
+        if (q && !q.active) {
+          msg = 'This Endpoint is not subscribed to this source: ('+session.source+')';
+        }
+        if (msg) {
+          l('DEBUG') && console.log(this+'.newSession() '+msg);
+          session.fail(msg);
+          return false;
+        }
+        l('DEBUG') && console.log(this+'.newSession() found a SessionQueue for this session:',q);
       }
 
       if ((session.appContext === this.appContext) || this.ignoreAppContext) {
+        // We match appContexts (or don't care)
         if (this.available) {
-          var event = 'incoming';
+          // We are available (we can mark ourselves busy to not accept the call)
+          event = 'incoming';
           if (session.type === 'refer') {
-          l('DEBUG') && console.log(this + '.newSession() REFER, sending pranswer()');
-    //      session.pranswer();
-          event = 'refer';
-        }
-        this.conn = this.createConnection();
-        this.conn.init({session:session});
-        this.emit(event, this.conn);
+            l('DEBUG') && console.log(this + '.newSession() REFER');
+            event = 'refer';
+          }
+          this.conn = this.createConnection();
+          if (q) {
+            this.conn.setSessionQueue(q);
+            q.autoPause && this.pauseSessQueue(q.endpointID);
+          }
+          this.conn.init({session:session});
+          this.emit(event, this.conn);
         } else {
           var msg = 'Busy';
           l('DEBUG') && console.log(this+'.newSession() '+msg);
-          session.respond(false,'Busy');
+          session.fail('Busy');
         }
       } else {
         var msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.appContext+')';
         l('DEBUG') && console.log(this+'.newSession() '+msg);
-        session.respond(false,msg);
+        session.fail(msg);
       }
     },
 
@@ -553,7 +575,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      * TODO:  Immediate unsubscribe will be an option upon adding chat support. 
      *
      * @param {string} queueid Id of a queue to join.
-     * @param {object} [options] Options to use for queue
+     * @param {object} [options]  set autoPause:true to autopase queue when a message is received Options to use for queue
      *
      */
     joinSessQueue: function joinSessQueue(/*String*/ queueid, /*object*/ options) {
@@ -566,12 +588,12 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       };
       var q = this.queues.get(queueid);
       l('DEBUG') && console.log(this+'.joinSessQueue() Looking for queueid:'+queueid);
-
       if (q) {
         // Queue Exists... Join it
         // This callback is how inbound messages (that are NOT START_SESSION would be received)
         q.active = true;
         q.callback = callback;
+        q.autoPause = (options && options.autoPause) || false;
         q.regex = this.endpointConnection.subscribe(q.topic, callback);
         return true;
       } else {

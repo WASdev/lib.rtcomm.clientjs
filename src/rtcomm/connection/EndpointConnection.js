@@ -24,7 +24,7 @@
  * @param {string}  config.server -  MQ Server for mqtt.
  * @param {integer} [config.port=1883] -  Server Port
  * @param {string}  config.userid -  Unique user id representing user
- * @param {string}  [config.serviceTopicName] - Default topic to register with ibmrtc Server
+ * @param {string}  [config.rtcommTopicName] - Default topic to register with ibmrtc Server
  * @param {string}  [config.topicPath]
  *  @param {object}  [config.credentials] - Optional Credentials for mqtt server.
  *
@@ -179,8 +179,8 @@ var EndpointConnection = function EndpointConnection(config) {
 
   var configDefinition = {
     required: { server: 'string', port: 'number', userid: 'string'},
-    optional: { credentials : 'object', myTopic: 'string', topicPath: 'string', serviceTopicName: 'string'},
-    defaults: { topicPath: '/rtcomm/', serviceTopicName: 'serviceTopicName'}
+    optional: { credentials : 'object', myTopic: 'string', topicPath: 'string', rtcommTopicName: 'string'},
+    defaults: { topicPath: '/rtcomm/', rtcommTopicName: 'management'}
   };
 
   // the configuration for Endpoint
@@ -217,6 +217,7 @@ var EndpointConnection = function EndpointConnection(config) {
 
   this.config.myTopic = this.mqttConnection.config.myTopic;
   this._init = true;
+
 };  // End of Constructor
 
 /*global util:false */
@@ -241,9 +242,13 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         // $SharedSubscription/something//<publishTopic>
         // We need to Remove the $-> //
         // /^\$.+\/\//, ''
-        var regex = topic.replace(/^\$SharedSubscription.+\/\//, '\/')
+        var regex = topic.replace(/^\$SharedSubscription.+\/\//, '\\/')
                     .replace(/\/\+/g,'\\/.+')
-                    .replace(/\/#$/g,'');
+                    .replace(/\/#$/g,'\\/.+')
+                    .replace(/(\\)?\//g, function($0, $1){
+                      return $1 ? $0 : '\\/';
+                    });
+        console.log('regex string: '+regex);
         // The ^ at the beginning in the return ensures that it STARTS w/ the topic passed.
         return new RegExp('^'+regex);
       };
@@ -285,7 +290,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
 
 
         /*global setLogLevel:false */
-        setLogLevel: setLogLevel,
+        setLogLevel: function(level) {
+          setLogLevel(level);
+        //  util && util.setLogLevel(level);
+        },
         /*global getLogLevel:false */
         getLogLevel: getLogLevel,
         /* Factory Methods */
@@ -345,6 +353,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           this.createEvent(session.id);
           this.on(session.id,session.processMessage.bind(session));
           this.sessions.add(session);
+          session.on('failed', function() {
+            this.sessions.remove(session);
+          }.bind(this));
           return session;
         },
         /**
@@ -374,7 +385,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             }
           };
           if (this.ready) {
-            var t = this.createTransaction({message: message, toTopic: this.config.serviceTopicName }, onSuccess,onFailure);
+            var t = this.createTransaction({message: message, toTopic: this.config.rtcommTopicName }, onSuccess,onFailure);
             t.start();
           } else {
             console.error(this+'._query(): not Ready!');
@@ -416,7 +427,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
               function(error) {
                 var newError = error;
                 if (/^Registry timed out/.test(error)) {
-                  newError = "Unable to connect to running RtcommServer, check your config[server, port, serviceTopicName and TopicPath]";
+                  newError = "Unable to connect to running RtcommServer, check your config[server, port, rtcommTopicName and TopicPath]";
                  }
                  onFailure.call(epConn, newError);
              });
@@ -457,7 +468,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          *
          */
         subscribe: function(topic,callback) {
-           var topicRegex = buildTopicRegex(optimizeTopic(topic));
+          var topicRegex = buildTopicRegex(optimizeTopic(topic));
           this.subscriptions[topicRegex] = {regex: topicRegex, callback: callback};
           this.mqttConnection.subscribe(topic);
           // RegExp Object can be used to match inbound messages. (as a string it is a key)
