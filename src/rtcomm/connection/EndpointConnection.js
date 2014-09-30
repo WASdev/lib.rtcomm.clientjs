@@ -51,13 +51,13 @@ var EndpointConnection = function EndpointConnection(config) {
 
     var addTimer = function addTimer(item){
       if(item.timer) {
-        console.log('Clearing existing Timer: '+item.timer);
+        l('DEBUG') && console.log('Timer: Clearing existing Timer: '+item.timer + 'item.timeout: '+ item.timeout);
         clearTimeout(item.timer);
       }
       item.timer  = setTimeout(function() {
           if (item.id in registry ) {
             // didn't execute yet
-            var errorMsg = item.objName + ' '+item.timer+' Timed out ['+item.id+'] '+Date();
+            var errorMsg = item.objName + ' '+item.timer+' Timed out ['+item.id+'] after  '+item.timeout+': '+Date();
             if (typeof registry[item.id].onFailure === 'function' ) {
               registry[item.id].onFailure({'failureReason': errorMsg});
             } else {
@@ -77,8 +77,8 @@ var EndpointConnection = function EndpointConnection(config) {
       item.on('finished', function() {
         this.remove(item);
       }.bind(this));
-
-      timer && item.on('timeout_changed', function() {
+      timer && item.on('timeout_changed', function(newtimeout) {
+        console.log('TIMEOUT CHANGED called: ', newtimeout);
         console.log('TIMEOUT CHANGED called: ', item);
         addTimer(item);
       }.bind(this));
@@ -548,9 +548,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         setUserID : function(id) {
           id = id || createGuestUserID();
+          l('DEBUG') && console.log(this+'.setUserID id is '+id);
           if (this.id === 'unset') {
             // Set the id to what was passed.
-            this.id = id;
+            this.id = this.config.userid = id;
             return id;
           } else {
             console.error(this+'.setUserID() ID already set, cannot be changed: '+ this.id);

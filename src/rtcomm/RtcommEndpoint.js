@@ -283,9 +283,9 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         this.registered = true;
         // Call our passed in w/ no info...
         if (cbSuccess && typeof cbSuccess === 'function') {
-          cbSuccess();
+          cbSuccess(register_message);
         } else {
-          l('DEBUG') && console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", message);
+          l('DEBUG') && console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", register_message);
         }
       };
 
@@ -313,7 +313,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           t.start();
 
         } else {
-          if (cbSuccess && typeof cbSuccess === 'function') {
+          if (cbFailure&& typeof cbFailure === 'function') {
             cbFailure('Not Ready, unable to register.');
           } else {
             console.error('Not Ready, unable to register.');
@@ -562,6 +562,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       rtcommEndpoint.attachLocalMedia(function(success, message) {
         if (success) {
           var connection = rtcommEndpoint.getConnection(id);
+          console.log('REMOVE ME:  using webrtcconnection: ', connection);
           if(connection) {
             connection.connect();
           } else {

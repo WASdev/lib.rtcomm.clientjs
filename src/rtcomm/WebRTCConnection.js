@@ -279,6 +279,7 @@ WebRTCConnection.prototype = function() {
         if (this.autoAnswer) {
           session.respond({'type':'answer', sdp:''});
         } else {
+          this._setState('RINGING');
           session.pranswer();
         }
         //console.error('No message on inbound session, unsure what to do');
@@ -557,7 +558,7 @@ WebRTCConnection.prototype = function() {
         });
       } else {
         l('DEBUG') && console.log(this+'.connect - beginning session');
-        this._sigSession.start({toEndpointID:this.toEndpointID, content: null});
+        this._sigSession.start({toEndpointID:this.toEndpointID, content: '{type: offer}'});
       }
       break;
     default:

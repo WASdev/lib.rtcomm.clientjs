@@ -32,6 +32,8 @@
    */
 var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   var message, timeout, toTopic;
+
+  this.defaultTimeout = 5000;
   l('DEBUG') && console.log('Transaction constructor using options: ',options);
   if (options) {
     message = options.message || null;
@@ -43,7 +45,7 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   this.events = {'message': [],
       'timeout_changed':[],
       'finished':[]};
-  this.timeout = timeout || null;
+  this.timeout = timeout || this.defaultTimeout;
   this.outbound = (message && message.transID) ? false : true;
   /*global generateUUID:false*/
   this.id = (message && message.transID) ? message.transID : generateUUID(); 
@@ -79,8 +81,8 @@ Transaction.prototype = util.RtcommBaseObject.extend(
    * Instance Methods
    */
   setTimeout: function(timeout)  {
-    this.timeout = timeout;
-    this.emit('timeout_changed');
+    this.timeout = timeout || this.defaultTimeout;
+    this.emit('timeout_changed', this.timeout);
   },
  
   getInbound: function() {

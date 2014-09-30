@@ -365,10 +365,12 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       case 'PRANSWER':
         // change our state, emit content if it is there.
         // holdTimeout is in seconds, rather than milliseconds.
-        this._startTransaction && this._startTransaction.setTimeout(message.holdTimeout*1000 || this.finalTimout);
-        if (message.holdTimeout) {
-          // This is a QUEUE Pranswer (a special pranswer type that DOES NOT Mean someone is ready at the other end
-        } else {
+        console.log('PRANSWER --> '+ message.holdTimeout+"="+ (typeof message.holdTimeout === 'undefined') + " - "+this.finalTimeout);
+
+        var timeout = (typeof message.holdTimeout === 'undefined') ? this.finalTimeout : message.holdTimeout*1000;
+        console.log('PRANSWER, resetting timeout to :',timeout);
+        this._startTransaction && this._startTransaction.setTimeout(timeout);
+        if (!message.holdTimeout) {
           this.state = 'have_pranswer';
           this.emit('have_pranswer', message.peerContent);
         }
