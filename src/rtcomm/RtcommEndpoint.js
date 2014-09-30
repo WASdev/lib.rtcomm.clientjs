@@ -168,6 +168,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           video: true,
           data: true,
           appContext: 'rtcomm',
+          anonymous: false,
           userid: null,
           parent: null,
           inboundMedia: null,
@@ -225,34 +226,39 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           'message': []
       };
 
-
       l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
       if (config) {
         this.update = (config.update)?config.update: this.update;
         delete config.update;
         applyConfig(config, this._private);
       }
+
+      // Expose the appcontext/userid on the object
       this.endpointConnection = this._private.parent.endpointConnection;
+      this.appContext = this._private.appContext;
+      this.userid = this._private.anonymous ? this.endpointConnection.setUserID():this.endpointConnection.setUserID(this._private.userid);
+
+      // Get the availabe queues... 
       this.queues = new Queues();
-      console.log('QUEUES: ',this.queues.list());
-      this.queues.add((this.endpointConnection && 
-                              this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE && 
-                              this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE.queues)
-                              || []);
-      console.log('QUEUES: ',this.queues.list());
-      l('DEBUG') && console.log('RtcommEndpoint.init() queues are: ', this.queues);
+      this.endpointConnection.serviceQuery(function() {
+        this.queues.add((this.endpointConnection && 
+                                this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE && 
+                                this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE.queues)
+                                || []);
+        console.log('QUEUES: ',this.queues.list());
+        this._initialized = true;
+      }.bind(this));
       /* inbound and outbound Media Element DOM Endpoints */
       this.media = {
           In: null,
           Out: null
       };
 
-      // Expose the appcontext/userid on the object
-      this.appContext = this._private.appContext;
-      this.userid = this._private.userid;
       this.available = true;
       this.localStream=null;
-      this._initialized = true;
+
+      // return  a reference to ourselves for chaining
+      return this;
     },
     /**
      *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
@@ -292,19 +298,28 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         }
       };
       // Call register!
-      if (this._initialized) {
-        var message = this.endpointConnection.createMessage('REGISTER');
-        message.appContext = this.appContext || "none";
-        message.regTopic = message.fromTopic;
-        var t = this.endpointConnection.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
-        t.start();
-      } else {
-        if (cbSuccess && typeof cbSuccess === 'function') {
-          cbFailure('Not Ready, unable to register.');
+      //
+      //
+      util.whenTrue( 
+        /* test */ function() {
+          return this._initialized;
+        }.bind(this),
+        /* action */ function(success) {
+        if (success) {
+          var message = this.endpointConnection.createMessage('REGISTER');
+          message.appContext = this.appContext || "none";
+          message.regTopic = message.fromTopic;
+          var t = this.endpointConnection.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
+          t.start();
+
         } else {
-          console.error('Not Ready, unable to register.');
+          if (cbSuccess && typeof cbSuccess === 'function') {
+            cbFailure('Not Ready, unable to register.');
+          } else {
+            console.error('Not Ready, unable to register.');
+          }
         }
-      }
+      }.bind(this), 1500);
     },
     /**
      *  Unregister the userid associated with the EndpointConnection
@@ -323,6 +338,15 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         l('DEBUG') && console.log(this+' No registration found, cannot unregister');
       }
     },
+
+    send: function(message) {
+      if (this.conn.getState() === 'STARTED')  {
+        message && this.conn.send(message);
+      } else {
+        throw new Error ('A connection to an Endpoint should exist, call addEndpoint() first');
+      }
+    },
+
 
     update: function() { console.log('Default function, should have been overridden');},
 

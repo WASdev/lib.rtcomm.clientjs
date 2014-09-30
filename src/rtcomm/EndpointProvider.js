@@ -149,10 +149,8 @@ var EndpointProvider =  function EndpointProvider() {
 
   /* configuration */
   var defaultConfig = {
-      appContext: 'rtcomm',
       server:null,
       port: 1883,
-      userid : null,
       rtcommTopicName : "management",
       topicPath: "/rtcomm/",
       credentials : { user: "", password: ""},
@@ -228,27 +226,45 @@ var EndpointProvider =  function EndpointProvider() {
       l('INFO') && console.log('EndpointProvider.init() has been called and the object is READY');
       return true;
     }
-    var requiredConfig = { server: 'string', port: 'number', userid: 'string'};
-    var config = this.config;
-    var endpointProvider = this;
-    if (options) {
-      // validates REQUIRED initOptions upon instantiation.
-      /*global validateConfig: false */
-      /*global setLogLevel: false */
-      /*global getLogLevel: false */
-      /*global applyConfig: false */
-      /*global l: false */
-      validateConfig(options, requiredConfig);
-      // handle logLevel passed in...
-      if (options.logLevel) {
-        setLogLevel(options.logLevel);
-        delete options.logLevel;
-      }
-      applyConfig(options, config);
 
+    // Used to set up config for endoint connection;
+    var config = null;
+
+    var configDefinition = {
+        required: { server: 'string', port: 'number'},
+        optional: { credentials : 'object', topicPath: 'string', rtcommTopicName: 'string', userid: 'string', register: 'boolean', createEndpoint: 'boolean', appContext: 'string'},
+        defaults: { topicPath: '/rtcomm/', rtcommTopicName: 'management', port: 1883, register: false, createEndpoint: false }
+      };
+    
+    // the configuration for Endpoint Provider
+    if (options) {
+      /* global setConfig:false */
+      // Set any defaults
+      config = this.config = setConfig(options,configDefinition);
+      console.log(this.config);
     } else {
-      throw new Error("RtcommEndpointProvider initialization requires a minimum configuration: " + JSON.stringify(requiredConfig));
+      throw new Error("EndpointProvider instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition));
     }
+    
+    var endpointProvider = this;
+//    if (options) {
+//      // validates REQUIRED initOptions upon instantiation.
+//      /*global validateConfig: false */
+//      /*global setLogLevel: false */
+//      /*global getLogLevel: false */
+//      /*global applyConfig: false */
+//      /*global l: false */
+//      validateConfig(options, requiredConfig);
+//      // handle logLevel passed in...
+//      if (options.logLevel) {
+//        setLogLevel(options.logLevel);
+//        delete options.logLevel;
+//      }
+//      applyConfig(options, config);
+//
+//    } else {
+//      throw new Error("RtcommEndpointProvider initialization requires a minimum configuration: " + JSON.stringify(requiredConfig));
+//    }
 
     cbSuccess = cbSuccess || function(message) {
       console.log(endpointProvider+'.init() Default Success message, use callback to process:', message);
@@ -256,16 +272,16 @@ var EndpointProvider =  function EndpointProvider() {
     cbFailure = cbFailure || function(error) {
       console.log(endpointProvider+'.init() Default Failure message, use callback to process:', error);
     };
-    this.userid = config.userid;
 
-    this.endpointConnection = new connection.EndpointConnection({
-      server: config.server,
-      port: config.port,
-      userid: config.userid,
-      rtcommTopicName: config.rtcommTopicName,
-      topicPath: config.topicPath
-    });
+    var connectionConfig =  util.makeCopy(config);
 
+    // everything else is the same config.
+    connectionConfig.hasOwnProperty('register') && delete connectionConfig.register;
+    connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
+    connectionConfig.hasOwnProperty('appContext') &&  delete connectionConfig.appContext;
+
+    this.endpointConnection = new connection.EndpointConnection(connectionConfig);
+    
     var endpointConnection = this.endpointConnection;
 
     // If we already have some enpdoints, their connection will be null, fix it
@@ -288,9 +304,9 @@ var EndpointProvider =  function EndpointProvider() {
       /*
        * Depending on the configuration, the init() can do some different things
        */
-
       if (config.register || config.createEndpoint) {
         returnObj.endpoint  = endpointProvider.createRtcommEndpoint({appContext: config.appContext});
+        console.log('REMOVE ME: ',returnObj.endpoint);
         // If register, go ahead and register the endpoint
         config.register && returnObj.endpoint.register(
           function(message) {
@@ -357,10 +373,13 @@ var EndpointProvider =  function EndpointProvider() {
 
   /** 
    * @typedef {object} module:rtcomm.EndpointProvider~EndpointConfig 
+   *  @property {String} [appContext=rtcomm] Use an appContext with the Endpoint 
+   *  @property {String} [userid] Specify a userid if not specified in the init()
+   *  @property {boolean} [anonymous=false] A userid will not be provided if true.
+   *  @property {boolean} [audio=true] Support audio in the PeerConnection - defaults to true
    *  @property {boolean} [audio=true] Support audio in the PeerConnection - defaults to true
    *  @property {boolean} [video=true] Support video in the PeerConnection - defaults to true
-   *  @property {boolean} [data=true]  Support data in the PeerConnectio - defaults to true
-   *  @property {String}  [context='none'] Context for the Handler. Used in messages and with the server. defaults to 'none'
+   *  @property {boolean} [data=true]  Support data in the PeerConnection - defaults to true
    */
 
   /**
@@ -390,15 +409,21 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         autoAnswer: false,
         appContext: this.config.appContext,
+        anonymous: false,
         audio: true,
         video: true,
         data: true,
         parent:this,
-        userid: this.userid
+        userid: this.config.userid
     };
     var objConfig = defaultConfig;
     applyConfig(endpointConfig, objConfig);
-
+    if (!objConfig.appContext) {
+      throw new Error("createRtcommEndpoint requires appContext to be set");
+    }
+    if (!objConfig.userid && !objConfig.anonymous) {
+      throw new Error("createRtcommEndpoint requires appContext to be set");
+    }
     // Reflect this into the RtcommEndpoint.
     l('DEBUG') && console.log(this+'.createRtcommEndpoint using config: ', objConfig);
     var endpoint = Object.create(RtcommEndpoint);

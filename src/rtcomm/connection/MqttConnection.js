@@ -24,7 +24,6 @@
  * @param {object}  config   - Config object for MqttConnection
  * @param {string}  config.server -  MQ Server for mqtt.
  * @param {integer} [config.port=1883] -  Server Port
- * @param {string}  config.userid -  Unique user id representing user
  * @param {string}  [config.defaultTopic] - Default topic to publish to with ibmrtc Server
  * @param {string}  [config.myTopic] - Optional myTopic, defaults to a hash from userid
  * @param {object}  [config.credentials] - Optional Credentials for mqtt server.
@@ -113,7 +112,7 @@ var MqttConnection = function MqttConnection(config) {
 
   //config items that are required and must be the correct type or an error will be thrown
   var configDefinition = { 
-    required: { server: 'string',port: 'number', userid: 'string', topicPath: 'string'},
+    required: { server: 'string',port: 'number',  topicPath: 'string'},
     optional: { credentials : 'object', myTopic: 'string', defaultTopic: 'string'},
   };
   // the configuration for MqttConnection
@@ -261,7 +260,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
        *  Send a Message
        *
        *  @param {object} message -  RtcMessage to send.
-       *  @param {string} [toTopic]  - Topic to send to.  Testing Only.
+       *  @param {string} toTopic  - Topic to send to.  Testing Only.
        *  @param {function} onSuccess
        *  @param {function} onFailure
        *
@@ -271,7 +270,8 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
           throw new Error('connect() must be called before calling init()');
         }
         var message = config.message,
-        toTopic  = config.toTopic|| this.config.destinationTopic,
+            userid = config.userid,
+            toTopic  = config.toTopic,
         // onSuccess Callback
         onSuccess = config.onSuccess || function() {
           l('DEBUG')&& console.log(this+'.send was successful, override for more information');
@@ -292,29 +292,9 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
         } else {
           console.error('MqttConnection.send: invalid message', message);
         }
-        /*
-         * The messaging standard is such that we will send to a topic
-         * by appending our clientID as follows:  topic/<clientid>
-         *
-         * This can be Overridden by passing a qualified topic in as
-         * toTopic, in that case we will leave it alone.
-         *
-         */
-
-        // our topic should contain the topicPath -- we MUST stay in the topic Path... and we MUST append our ID after it, so...
-        if (toTopic) {
-          l('TRACE') && console.log(this+'.send toTopic is: '+toTopic);
-          var begin = this.config.topicPath;
-          var end = this.config.userid;
-          var p = new RegExp("^" + begin,"g");
-          toTopic = p.test(toTopic)? toTopic : begin + toTopic;
-          var p2 = new RegExp(end + "$", "g");
-          toTopic = p2.test(toTopic) ? toTopic: toTopic + "/" + this.config.userid;
-        } 
 
         l('TRACE') && console.log(this+'.send using toTopic: '+toTopic);
         if (messageToSend) {
-          // Append the 'userid'  We send to /service/userid
           messageToSend.destinationName = toTopic;
           util.whenTrue(
               /* test */ function(){
@@ -325,10 +305,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
                   l('MESSAGE') && console.log(this+'.send() Sent message['+toTopic+']:',message);
                   mqttClient.send(messageToSend);
                   if (typeof onSuccess === 'function' ) {
-                    try {
-                      onSuccess(null);
-                    } catch(e) {
-                      console.error('An error was thrown in the onSuccess callback chain', e);
+                    try { onSuccess(null); } catch(e) { console.error('An error was thrown in the onSuccess callback chain', e);
                     }
                   }
                 } else {

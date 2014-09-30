@@ -4,9 +4,11 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm/connect
   // client1 Config
     var config1 = config.clientConfig1();
     delete config1.rtcommTopicName;
+    delete config1.userid;
     // client2 Config
     var config2 = config.clientConfig2();
     delete config2.rtcommTopicName;
+    delete config2.userid;
     
     console.log('CONFIG 1', config1);
     console.log('CONFIG 2', config2);
@@ -22,6 +24,7 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm/connect
             // this.client1 = Object.create(connection.MqttConnection);
             // this.client1.init(config1);
              this.client1 = new connection.MqttConnection(config1);
+             this.client1.setLogLevel('DEBUG');
              this.client1.on('message', function(message) {
                 console.log('Client1 received message: ', message);
                  self.message1 = message;
@@ -30,6 +33,7 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm/connect
              //this.client2 = Object.create(connection.MqttConnection);
              // this.client2.init(config2);
              this.client2 = new connection.MqttConnection(config2);
+             this.client2.setLogLevel('DEBUG');
              this.client2.on('message', function(message){
                console.log('Client2 received message: ', message);
                  self.message2 = message;
@@ -46,9 +50,9 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm/connect
 
              setTimeout( function() {
               // 2 sends message to 1
-              self.client2.send({message: self.msg2, toTopic: self.client1.id}, 1000);
+              self.client2.send({message: self.msg2, toTopic: self.client1.config.myTopic}, 1000);
               // 1 sends message to 2
-              self.client1.send({message: self.msg1, toTopic: self.client2.id},1000);
+              self.client1.send({message: self.msg1, toTopic: self.client2.config.myTopic},1000);
              }, T1);
 
              // Wait 6 seconds to confirm message is there, this is a bit of overkill I think.
@@ -57,11 +61,8 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm/connect
                console.log('self.msg2', self.msg2);
                console.log('self.message1', self.message1);
                console.log('self.message2', self.message2);
-               // Ensure fromEndpointID is correct:
-               doh.assertEqual(self.client2.config.userid, self.message1.fromEndpointID);
-               doh.assertEqual(self.client1.config.userid, self.message2.fromEndpointID);
-               doh.assertEqual(null, self.message1.topic);
-               doh.assertEqual(null, self.message2.topic);
+               doh.t(self.message1);
+               doh.t(self.message2);
                doh.assertEqual(self.msg2.toString(), self.message1.content.toString());
                doh.assertEqual(self.msg1.toString(), self.message2.content.toString());
              }),T2);

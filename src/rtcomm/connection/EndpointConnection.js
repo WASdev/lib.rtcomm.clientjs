@@ -23,10 +23,10 @@
  * @param {object}  config   - Config object
  * @param {string}  config.server -  MQ Server for mqtt.
  * @param {integer} [config.port=1883] -  Server Port
- * @param {string}  config.userid -  Unique user id representing user
+ * @param {string}  [config.userid] -  Unique user id representing user
  * @param {string}  [config.rtcommTopicName] - Default topic to register with ibmrtc Server
  * @param {string}  [config.topicPath]
- *  @param {object}  [config.credentials] - Optional Credentials for mqtt server.
+ * @param {object}  [config.credentials] - Optional Credentials for mqtt server.
  *
  *
  * Events
@@ -166,20 +166,27 @@ var EndpointConnection = function EndpointConnection(config) {
       this.emit('message', message);
     }
   };
+
+
   /*
    * Instance Properties
    */
   this.objName = 'EndpointConnection';
-//Define events we support
+  //Define events we support
   this.events = {
       'message': [],
       'newsession': []};
-  this.ready = false;
+
+  // If we have services and are configured
+  // We are fully functional at this point.
+  this._ready = false;
+  // If we are connected
+  this.connected = false;
   this._init = false;
 
   var configDefinition = {
-    required: { server: 'string', port: 'number', userid: 'string'},
-    optional: { credentials : 'object', myTopic: 'string', topicPath: 'string', rtcommTopicName: 'string'},
+    required: { server: 'string', port: 'number'},
+    optional: { credentials : 'object', myTopic: 'string', topicPath: 'string', rtcommTopicName: 'string', userid: 'string', secure: 'boolean'},
     defaults: { topicPath: '/rtcomm/', rtcommTopicName: 'management'}
   };
 
@@ -191,33 +198,33 @@ var EndpointConnection = function EndpointConnection(config) {
   } else {
     throw new Error("EndpointConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition));
   }
+  l('DEBUG') && console.log('EndpointConnection constructor config: ', this.config);
 
-  this.id = this.config.userid || 'unknown';
+  this.id = this.config.userid || 'unset';
+
   var mqttConfig = { server: this.config.server,
                      port: this.config.port,
                      topicPath: this.config.topicPath ,
-                     userid: this.config.userid ,
                      credentials: this.config.credentials || null,
                      myTopic: this.config.myTopic || null };
 
-//Registry Store for Session & Transactions
+  //Registry Store for Session & Transactions
   this.sessions = new Registry();
   this.transactions = new Registry(true);
   this.subscriptions = {};
 
-// Services Config.
+  // Services Config.
   this.RTCOMM_CONNECTOR_SERVICE = {};
   this.connectorTopicName = "";
   this.RTCOMM_CALL_CONTROL_SERVICE = {};
   this.RTCOMM_CALL_QUEUE_SERVICE = {};
 
-//create our Service
+  //create our Mqtt Layer
   this.mqttConnection = createMqttConnection(mqttConfig);
   this.mqttConnection.on('message', processMessage.bind(this));
 
   this.config.myTopic = this.mqttConnection.config.myTopic;
   this._init = true;
-
 };  // End of Constructor
 
 /*global util:false */
@@ -253,7 +260,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         return new RegExp('^'+regex);
       };
       /*
-       * Parse the results of the service_query and apply them to the connection object
+       * Parse the results of the serviceQuery and apply them to the connection object
        * "services":{
        * "RTCOMM_CONNECTOR_SERVICE":{
        *   "iceURL":"stun:stun.juberti.com:3478,turn:test@stun.juberti.com:3478:credential:test",
@@ -267,6 +274,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
        *   ]}
        *  }
        */
+
       var parseServices = function parseServices(services, connection) {
         if (services) {
           if (services.RTCOMM_CONNECTOR_SERVICE) {
@@ -282,11 +290,46 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         }
       };
 
+      var  createGuestUserID = function createGuestUserID() {
+          /* global generateRandomBytes: false */
+          var prefix = "GUEST";
+          var randomBytes = generateRandomBytes('xxxxxx');
+          return prefix + "-" + randomBytes;
+      };
+
       /** @lends module:rtcomm.connector.EndpointConnection.prototype */
       return {
         /*
          * Instance Methods
          */
+
+        normalizeTopic: function normalizeTopic(topic) {
+        /*
+         * The messaging standard is such that we will send to a topic
+         * by appending our clientID as follows:  topic/<clientid>
+         *
+         * This can be Overridden by passing a qualified topic in as
+         * toTopic, in that case we will leave it alone.
+         *
+         */
+
+        // our topic should contain the topicPath -- we MUST stay in the topic Path... and we MUST append our ID after it, so...
+
+          if (topic) {
+            l('TRACE') && console.log(this+'.send toTopic is: '+topic);
+            var begin = this.config.topicPath;
+            var end = this.config.userid;
+            var p = new RegExp("^" + begin,"g");
+            topic = p.test(topic)? topic : begin + topic;
+            var p2 = new RegExp(end + "$", "g");
+            topic = p2.test(topic) ? topic: topic + "/" + end;
+          } else {
+            console.log('REMOVE ME! recursively claling normalize topic w/ topic:', topic);
+            topic = this.normalizeTopic(this.connectorTopicName);
+          }
+          l('TRACE') && console.log(this+'.getTopic returing topic: '+topic);
+          return topic;
+        },
 
 
         /*global setLogLevel:false */
@@ -301,9 +344,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          * Create a message for this EndpointConnection
          */
         createMessage: function(type) {
-          if (!this.ready) {
-            throw new Error('not Ready -- call connect() first');
-          }
           var message = MessageFactory.createMessage(type);
           if (message.hasOwnProperty('fromTopic')) {
             message.fromTopic = this.config.myTopic;
@@ -315,9 +355,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          * Create a Response Message for this EndpointConnection
          */
         createResponse : function(type) {
-          if (!this.ready) {
-            throw new Error('not Ready -- call connect() first');
-          }
           var message = MessageFactory.createResponse(type);
           return message;
         },
@@ -325,7 +362,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          * Create a Transaction
          */
         createTransaction : function(options,onSuccess,onFailure) {
-          if (!this.ready) {
+          if (!this.connected) {
             throw new Error('not Ready -- call connect() first');
           }
           // options = {message: message, timeout:timeout}
@@ -340,7 +377,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          * Create a Session
          */
         createSession : function createSession(config) {
-          if (!this.ready) {
+          if (!this.connected) {
             throw new Error('not Ready -- call connect() first');
           }
           // start a transaction of type START_SESSION
@@ -384,7 +421,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
               console.error('query failed:', query_response);
             }
           };
-          if (this.ready) {
+          if (this.connected) {
             var t = this.createTransaction({message: message, toTopic: this.config.rtcommTopicName }, onSuccess,onFailure);
             t.start();
           } else {
@@ -412,28 +449,16 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           if (!this._init) {
             throw new Error('not initialized -- call init() first');
           }
-          if (this.ready) {
+          if (this.connected) {
             throw new Error(this+".connect() is already connected!");
           }
           var onSuccess = function(service) {
-            this.ready = true;
+            this.connected = true;
             l('DEBUG') && console.log('EndpointConnection.connect() Success, calling callback - service:', service);
-            this.service_query(
-              /*onSuccess*/ function(services) {
-                epConn.mqttConnection.setDefaultTopic(epConn.connectorTopicName);
-                console.log('MQTTCOnnection: ',epConn.mqttConnection);
-                cbSuccess(service);
-              },
-              function(error) {
-                var newError = error;
-                if (/^Registry timed out/.test(error)) {
-                  newError = "Unable to connect to running RtcommServer, check your config[server, port, rtcommTopicName and TopicPath]";
-                 }
-                 onFailure.call(epConn, newError);
-             });
+            cbSuccess(service);
           };
           var onFailure = function(error) {
-            this.ready = false;
+            this.connected = false;
             cbFailure(error);
           };
           this.mqttConnection.connect(onSuccess.bind(this),onFailure.bind(this));
@@ -443,24 +468,33 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           this.mqttConnection.destroy();
           l('DEBUG') && console.log('destroyed mqttConnection');
           this.mqttConnection = null;
+          this.connected = false;
           this.ready = false;
         },
         /**
          * Service Query for supported services by endpointConnection
          */
-        service_query: function(cbSuccess, cbFailure) {
+        serviceQuery: function(cbSuccess, cbFailure) {
           var self = this;
-          if (this.ready) {
-            var message = this.createMessage('SERVICE_QUERY');
-            this._query(message, 'services',
-                        function(services) {
+          util.whenTrue(
+            /*true */ function() {
+              return this.connected;
+            }.bind(this),
+            /*action*/ function(success) {
+              if(success) {
+                var message = this.createMessage('SERVICE_QUERY');
+                this._query(message, 'services',
+                       function(services) {
                           parseServices(services,self);
+                          self.ready = true;
                           cbSuccess(services);
                         },
                         cbFailure);
-          } else {
-            console.error('not ready');
-          }
+               } else {
+                 console.error('Unable to execute service query, not connected');
+               }
+              }.bind(this),
+          1500);  
         },
         /**
          * Subscribe to an MQTT topic.
@@ -487,25 +521,42 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
 
         destroy : function() {
-          if (this.ready) {
+          if (this.connected) {
             this.disconnect();
           }
         },
         /**
          * Send a message
-         *
+         *  @param toTopic
+         *  @param message
+         *  @param fromEndpointID  // optional...
          */
         send : function(config) {
-          if (!this.ready) {
+          if (!this.connected) {
             throw new Error('not Ready -- call connect() first');
           }
-
+          var toTopic = null;
           if (config) {
-            this.mqttConnection.send({message:config.message, toTopic:config.toTopic});
+            toTopic = this.normalizeTopic(config.toTopic);
+            this.mqttConnection.send({userid: this.config.userid, message:config.message, toTopic:toTopic});
           } else {
             console.error('EndpointConnection.send() Nothing to send');
           }
+        },
+        /**
+         * set the userid
+         */
+        setUserID : function(id) {
+          id = id || createGuestUserID();
+          if (this.id === 'unset') {
+            // Set the id to what was passed.
+            this.id = id;
+            return id;
+          } else {
+            console.error(this+'.setUserID() ID already set, cannot be changed: '+ this.id);
+            return id;
+           }
         }
-      };
-    })()
+    };
+  })()
 );

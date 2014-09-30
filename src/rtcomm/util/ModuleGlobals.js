@@ -174,6 +174,14 @@ combineObjects = function combineObjects(obj1, obj2) {
   return combinedObj;
 },
 
+makeCopy = function(obj) {
+  var returnObject = {};;
+  Object.keys(obj).forEach(function(key){
+    returnObject[key] = obj[key];
+  });
+  return returnObject;
+},
+
 Event = function() {
   /** so, no matter what is passed, let's return a:
   * {name:
@@ -243,16 +251,32 @@ whenTrue = function(func1, callback, timeout) {
   test();
 };
 
+/**
+ * generate a random byte pattern
+ * Pattern should contain an 'x' to be replaced w/ a Hex Byte, or a 'y' to be
+ * replaced w/ a 
+ */
+
+var generateRandomBytes = function(pattern) {
+  /*jslint bitwise: true */
+	var d = new Date().getTime();
+  var bytes = pattern.replace(/[xy]/g, function(c) {
+  		// Take the date + a random number times 16 (so it will be between 0 & 16), get modulus
+  	  // we then get the remainder of dividing by 16 (modulus) and the | 0 converts to an integer.
+  	  // r will be between 0 & 16 (0000 & 1111)
+      var r = (d + Math.random()*16)%16 | 0;
+      d = Math.floor(d/16);
+      
+      // if it is x, just return the random number (0 to 16)
+      // if it is not x, then return a value between 8 & 16 (mainly to ctonrol values in a UUID);
+      return (c==='x' ? r : (r&0x7|0x8)).toString(16);
+  });
+  return bytes;
+};
+
 
 var generateUUID = function() {
-    /*jslint bitwise: true */
-    var d = new Date().getTime();
-    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = (d + Math.random()*16)%16 | 0;
-        d = Math.floor(d/16);
-        return (c==='x' ? r : (r&0x7|0x8)).toString(16);
-    });
-    return uuid;
+	return generateRandomBytes('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx');
 };
 
 

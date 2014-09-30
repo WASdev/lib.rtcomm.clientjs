@@ -44,7 +44,7 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
            */
           console.log("*** Creating EndpointProvider1 ***", config1);
           this.np = new rtcomm.RtcommEndpointProvider();
-          this.np.setLogLevel('INFO');
+          this.np.setLogLevel('DEBUG');
           this.np.init(config1, /*onSuccess*/ function() {
             console.log("node provider 1 initialized", this);
             // If we get an rtcommEndpoint back, assign it.
@@ -64,7 +64,7 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
            */
           console.log("*** Creating EndpointProvider2 ***", config2);
           this.np2 = new rtcomm.RtcommEndpointProvider();
-          this.np2.setLogLevel('INFO');
+          this.np2.setLogLevel('DEBUG');
           this.np2.init(config2,
            /* onSuccess */ function() {
             if (this.direct) {
@@ -180,6 +180,7 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
        runTest: function() {
            var deferred = new doh.Deferred();
            config1.register = true;
+           config1.appContext = 'Register';
            var success = false;
            this.np.init(config1,
                /*onSuccess*/ function(obj){
@@ -272,12 +273,12 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
      new p2pFixture("in Browser A calls B", /*direct*/ false,
          function() {
             var self = this;
-            var user1 = this.np.userid;
-            var user2 = this.np2.userid;
+            var user1 = this.node1.userid;
+            var user2 = this.node2.userid;
             console.log('userid1: ', user1);
             console.log('userid2: ', user2);
-            this.np.setLogLevel('TRACE');
-            this.np2.setLogLevel = ('TRACE');
+            this.np.setLogLevel('DEBUG');
+            this.np2.setLogLevel = ('DEBUG');
             /* Wait 1 second to 'createConnection' */
 
             console.log('calling register... ');
@@ -306,8 +307,8 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
                console.log("State of 1: " + self.node1.getConnection().getState());
                console.log("State of 2: " + self.node2.getConnection().getState());
 
-                 doh.assertTrue(self.node1.getConnection().getState() === 'STARTED');
-                 doh.assertTrue(self.node2.getConnection().getState() === 'STARTED');
+               doh.assertTrue(self.node1.getConnection().getState() === 'STARTED');
+               doh.assertTrue(self.node2.getConnection().getState() === 'STARTED');
                //  console.log("State of 1: " + self.node1.getConnection().getState());
                 // console.log("State of 2: " + self.node2.getConnection().getState());
 
@@ -320,8 +321,8 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
      new p2pFixture("Pass a Message over the Signaling Session",/*direct*/ false,
          function() {
             var self = this;
-            var user1 = this.np.userid;
-            var user2 = this.np2.userid;
+            var user1 = this.node1.userid;
+            var user2 = this.node2.userid;
 
             var message1 = null;
             var message2 = null;
@@ -356,7 +357,7 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             console.log('Sending HELLO from 2 to 1 ')
             /* Wait 2 seconds to send   */
             setTimeout(function() {
-              self.node2.conn.send("HELLO");
+              self.node2.send("HELLO");
             },T2);
 
             var deferred = new doh.Deferred();
