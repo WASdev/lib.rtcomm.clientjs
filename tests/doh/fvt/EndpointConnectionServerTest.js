@@ -9,7 +9,7 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
     var config2 = config.clientConfig2();
  //   config2.serviceTopic= "/WebRTC";
 
-    var T1 = 2000;  // How long we wait to setup, before sending messages.
+    var T1 = 5000;  // How long we wait to setup, before sending messages.
     var T2 = T1 + 2000; // How long we wait to check results
     var T3 = T2 +2000;  // How long we wait to timeout test.
     var T4 = T3 +2000;
@@ -77,13 +77,12 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
         timeout: timeout
       };
     };
-    
+
     doh.register("EndpointConnectionTest - using Server", [
       { name: "Connection Test",
         runTest: function() {
           var nc = new connection.EndpointConnection(config1);
           nc.setLogLevel('DEBUG');
-        
           var success = false;
           nc.connect( function() {
             console.log('CONNECT SUCCESS!');
@@ -112,7 +111,7 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
           var register = false;
           nc.connect(function() {
             console.log('CONNECT SUCCESS!');
-            nc.service_query(function(info){
+            nc.serviceQuery(function(info){
               console.log('Service_QuerySuccess: ',info);
               success = true;
             }, function(error){
@@ -135,7 +134,108 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
         },
         timeout: T3
       },
+      { name: "Service Query Test (no userid)",
+        runTest: function() {
 
+          var cfg = config.clientConfig1();
+          delete cfg.userid;
+          var nc = new connection.EndpointConnection(cfg);
+          var success = false;
+          var failure = false;
+          var register = false;
+          nc.connect(function() {
+            console.log('CONNECT SUCCESS!');
+            nc.serviceQuery(function(info){
+              console.log('Service_QuerySuccess: ',info);
+              success = true;
+            }, function(error){
+              console.error(error);
+              failure=true;
+            });
+          }, 
+          function() {
+            console.log('CONNECT FAILURE!');
+            success = false;
+          })
+          var def = new doh.Deferred();
+          setTimeout(def.getTestCallback(function() {
+            console.log('nc.ready', nc.ready);
+            console.log(nc);
+            doh.t(failure);
+            nc.disconnect();
+          }),
+          T1)
+          return def;
+        },
+        timeout: T3
+      },
+      { name: "register( no userid)",
+        runTest: function() {
+          var cfg = config.clientConfig1();
+          delete cfg.userid;
+          var nc = new connection.EndpointConnection(cfg);
+          var success = false;
+          var failure = false;
+          var register = false;
+          nc.connect(function() {
+            console.log('CONNECT SUCCESS!');
+            nc.register(function(info){
+              console.log('Register success: ',info);
+              success = true;
+            }, function(error){
+              console.error(error);
+              failure=true;
+            });
+          }, 
+          function() {
+            console.log('CONNECT FAILURE!');
+            success = false;
+          })
+          var def = new doh.Deferred();
+          setTimeout(def.getTestCallback(function() {
+            console.log('nc.ready', nc.ready);
+            console.log(nc);
+            doh.t(failure);
+            nc.disconnect();
+          }),
+          T1)
+          return def;
+        },
+        timeout: T3
+      },
+      { name: "register( with userid)",
+        runTest: function() {
+          var cfg = config.clientConfig1();
+          var nc = new connection.EndpointConnection(cfg);
+          var success = false;
+          var failure = false;
+          var register = false;
+          nc.connect(function() {
+            console.log('CONNECT SUCCESS!');
+            nc.register(function(info){
+              console.log('Register success: ',info);
+              success = true;
+            }, function(error){
+              console.error(error);
+              failure=true;
+            });
+          }, 
+          function() {
+            console.log('CONNECT FAILURE!');
+            success = false;
+          })
+          var def = new doh.Deferred();
+          setTimeout(def.getTestCallback(function() {
+            console.log('nc.ready', nc.ready);
+            console.log(nc);
+            doh.t(success);
+            nc.disconnect();
+          }),
+          T1)
+          return def;
+        },
+        timeout: T3
+      },
       new p2pConnFixture('Initiate Connections', true, 
           function() {
             var self = this;
@@ -147,10 +247,10 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
             console.log('ll1: '+ll1+ ' ll2: '+ll2);
             var def = new doh.Deferred();
             setTimeout(def.getTestCallback(function(){
-              console.log('conn1 ready? ', self.conn1.ready);
-              console.log('conn2 ready? ', self.conn2.ready);
-              doh.t(self.conn1.ready);
-              doh.t(self.conn2.ready);
+              console.log('conn1 ready? ', self.conn1.connected);
+              console.log('conn2 ready? ', self.conn2.connected);
+              doh.t(self.conn1.connected);
+              doh.t(self.conn2.connected);
             }), T2);
             return def;
           },

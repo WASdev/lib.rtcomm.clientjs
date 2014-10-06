@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-var config= {server: 'svt-msd1.rtp.raleigh.ibm.com', port: 1883, connectorTopicPath: '/rtcommfvt/' };
+var config= {server: 'svt-msd1.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommfvt/' };
 
 define([
     'intern!object',

@@ -175,8 +175,8 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     server : 'broker.mqttdashboard.com',
     port : 8000,
     rtcommTopicName : "management",
+    appContext: "videosample",
     topicPath: "/rtcomm/",
-    register : true,
     createEndpoint : true
   };
   // Config from URL --> Example:  videoClient.html?server=servername&port=1883&connectorTopicPath=/rtcommfvt/
@@ -207,7 +207,6 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     npConfig.userid = userid;
     // make sure this is an integer.
     npConfig.port = parseInt(npConfig.port);
-    npConfig.appContext = 'sample';
     //  If the EndpointProvider is ready, it has already been init'd, we don't need to init again. Just register again.
     if (!ibmep.ready) {
       // Call init() on the Endpoint Provider.

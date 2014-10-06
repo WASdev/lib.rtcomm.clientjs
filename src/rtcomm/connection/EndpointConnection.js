@@ -174,19 +174,20 @@ var EndpointConnection = function EndpointConnection(config) {
   this.objName = 'EndpointConnection';
   //Define events we support
   this.events = {
+      'servicesupdate': [],
       'message': [],
       'newsession': []};
 
   // If we have services and are configured
   // We are fully functional at this point.
-  this._ready = false;
+  this.ready = false;
   // If we are connected
   this.connected = false;
   this._init = false;
 
   var configDefinition = {
     required: { server: 'string', port: 'number'},
-    optional: { credentials : 'object', myTopic: 'string', topicPath: 'string', rtcommTopicName: 'string', userid: 'string', secure: 'boolean'},
+    optional: { credentials : 'object', myTopic: 'string', topicPath: 'string', rtcommTopicName: 'string', userid: 'string', appContext: 'string', secure: 'boolean'},
     defaults: { topicPath: '/rtcomm/', rtcommTopicName: 'management'}
   };
 
@@ -200,7 +201,7 @@ var EndpointConnection = function EndpointConnection(config) {
   }
   l('DEBUG') && console.log('EndpointConnection constructor config: ', this.config);
 
-  this.id = this.config.userid || 'unset';
+  this.id = this.userid = this.config.userid || null;
 
   var mqttConfig = { server: this.config.server,
                      port: this.config.port,
@@ -212,6 +213,9 @@ var EndpointConnection = function EndpointConnection(config) {
   this.sessions = new Registry();
   this.transactions = new Registry(true);
   this.subscriptions = {};
+
+  // Only support 1 appContext per connection
+  this.appContext = this.config.appContext || 'rtcomm';
 
   // Services Config.
   this.RTCOMM_CONNECTOR_SERVICE = {};
@@ -325,7 +329,12 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             topic = p2.test(topic) ? topic: topic + "/" + end;
           } else {
             console.log('REMOVE ME! recursively claling normalize topic w/ topic:', topic);
-            topic = this.normalizeTopic(this.connectorTopicName);
+            if (this.connectorTopicName) { 
+              topic = this.normalizeTopic(this.connectorTopicName);
+            } else {
+              throw new Error('normalize Topic requires connectorTopicName to be set - call serviceQuery?');
+            
+            }
           }
           l('TRACE') && console.log(this+'.getTopic returing topic: '+topic);
           return topic;
@@ -473,9 +482,22 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
         /**
          * Service Query for supported services by endpointConnection
+         * requires a userid to be set.
          */
         serviceQuery: function(cbSuccess, cbFailure) {
           var self = this;
+          console.log('REMOVE: self in serviceQuery', this);
+          cbSuccess = cbSuccess || function(message) {
+            console.log(this+'.serviceQuery() Default Success message, use callback to process:', message);
+          };
+          cbFailure = cbFailure || function(error) {
+            console.log(this+'.serviceQuery() Default Failure message, use callback to process:', error);
+          };
+
+          if (!this.id) {
+            cbFailure('servicQuery requires a userid to be set');
+            return;
+          }
           util.whenTrue(
             /*true */ function() {
               return this.connected;
@@ -487,6 +509,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
                        function(services) {
                           parseServices(services,self);
                           self.ready = true;
+                          self.emit('servicesupdate', services);
                           cbSuccess(services);
                         },
                         cbFailure);
@@ -495,6 +518,102 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
                }
               }.bind(this),
           1500);  
+        },
+
+        /**
+         *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
+         *  rtcomm service so it can receive inbound requests.
+         *
+         *  @param {string} [userid] 
+         *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid
+         *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
+         */
+        register : function(userid, cbSuccess, cbFailure) {
+          var endpointConnection = this;
+
+          // Initialize the input
+          if (typeof userid === 'function') { 
+            cbFailure = cbSuccess;
+            cbSuccess = userid;
+            userid = null;
+          }
+          cbSuccess = cbSuccess || function(message) {
+            console.log(this+'.register() Default Success message, use callback to process:', message);
+          };
+          cbFailure = cbFailure || function(error) {
+            console.log(this+'.register() Default Failure message, use callback to process:', error);
+          };
+          var minimumReregister = 30;  // 30 seconds;
+          var onSuccess = function(register_message) {
+            l('DEBUG') && console.log(this+'register() REGISTER RESPONSE: ', register_message);
+            if (register_message.orig === 'REGISTER' && register_message.expires) {
+              var expires = register_message.expires;
+              l('DEBUG') && console.log(this+'.register() Message Expires in: '+ expires);
+              /* We will reregister every expires/2 unless that is less than minimumReregister */
+              var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
+              // we have a expire in seconds, register a timer...
+              l('DEBUG') && console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
+              registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
+            }
+            this.registered = true;
+            // Call our passed in w/ no info...
+            if (cbSuccess && typeof cbSuccess === 'function') {
+              cbSuccess(register_message);
+            } else {
+              l('DEBUG') && console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", register_message);
+            }
+          };
+          // {'failureReason': 'some reason' }
+          var onFailure = function(errorObject) {
+            if (cbFailure && typeof cbFailure === 'function') {
+              cbFailure(errorObject.failureReason);
+            } else {
+              console.error('Registration failed : '+errorObject.failureReason);
+            }
+          };
+
+          var doRegister =  function() {
+            var message = endpointConnection.createMessage('REGISTER');
+            message.appContext = endpointConnection.appContext;
+            message.regTopic = message.fromTopic;
+            var t = endpointConnection.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
+            t.start();
+          }.bind(this);
+
+          /*
+           * It is possible to register with an id, if one is not already set. 
+           */
+
+          if (userid) {
+            this.setUserID(userid);
+          }
+
+          if (this.userid) {
+            if (this.ready) {
+              doRegister(true);
+            } else {
+              this.serviceQuery(doRegister, cbFailure);
+            }
+          } else {
+            cbFailure('No userid to register');
+          }
+        },
+        /**
+         *  Unregister the userid associated with the EndpointConnection
+         */
+        unregister : function() {
+          if (registerTimer) {
+            clearTimeout(registerTimer);
+            registerTimer=null;
+            var message = this.createMessage('REGISTER');
+            message.regTopic = message.fromTopic;
+            message.appContext = this.appContext;
+            message.expires = "0";
+            this.send({'message':message});
+            this.registered = false;
+          } else {
+            l('DEBUG') && console.log(this+' No registration found, cannot unregister');
+          }
         },
         /**
          * Subscribe to an MQTT topic.
@@ -549,9 +668,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         setUserID : function(id) {
           id = id || createGuestUserID();
           l('DEBUG') && console.log(this+'.setUserID id is '+id);
-          if (this.id === 'unset') {
+          if (this.id === null) {
             // Set the id to what was passed.
-            this.id = this.config.userid = id;
+            this.id = this.userid = this.config.userid = id;
             return id;
           } else {
             console.error(this+'.setUserID() ID already set, cannot be changed: '+ this.id);

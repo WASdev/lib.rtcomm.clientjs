@@ -140,10 +140,10 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
             console.log('ll1: '+ll1+ ' ll2: '+ll2);
             var def = new doh.Deferred();
             setTimeout(def.getTestCallback(function(){
-              console.log('conn1 ready? ', self.conn1.ready);
-              console.log('conn2 ready? ', self.conn2.ready);
-              doh.t(self.conn1.ready);
-              doh.t(self.conn2.ready);
+              console.log('conn1 connected? ', self.conn1.connected);
+              console.log('conn2 connected? ', self.conn2.connected);
+              doh.t(self.conn1.connected);
+              doh.t(self.conn2.connected);
             }), T2);
             return def;
           },
@@ -160,10 +160,10 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
               console.log('1'+test.conn1.transactions.list());
               console.log('2'+ test.conn2.transactions.list());
               test.conn2.setLogLevel('DEBUG');
-              console.log('conn1 ready? ', test.conn1.ready);
-              console.log('conn2 ready? ', test.conn2.ready);
-              doh.t(test.conn1.ready);
-              doh.t(test.conn2.ready);
+              console.log('conn1 connected? ', test.conn1.connected);
+              console.log('conn2 connected? ', test.conn2.connected);
+              doh.t(test.conn1.connected);
+              doh.t(test.conn2.connected);
             }), T2);
             return def;
           },
@@ -259,11 +259,10 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
           function() {
         console.log('******* Running Test ***********');
         var test = this;
-        
-        
         var sess1 = null;
         var sess2 = null;
-        
+        this.conn1.serviceQuery();
+        this.conn2.serviceQuery();
         this.conn2.on('newsession', function(session) {
           // A new inbound session was created!  send a pranswer!
          console.log('P2P TEST: Inbound Session created -->', session);

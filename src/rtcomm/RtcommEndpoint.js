@@ -90,70 +90,6 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
   } else {
     console.log("Browser does not appear to be WebRTC-capable");
   }
-
-
-  var Queues = function Queues(availableQueues) {
-    var Queue = function Queue(queue) {
-      var self = this;
-      Object.keys(queue).forEach(function(key){
-        queue.hasOwnProperty(key) && (self[key] = queue[key]);
-      });
-      // fix the topic, make sure it has a #
-      if (/#$/.test(queue.topic)) {
-        this.topic = queue.topic;
-      } else if (/\/$/.test(queue.topic)) {
-        this.topic = queue.topic + "#";
-      } else { 
-        this.topic = queue.topic + "/#";
-      }
-      // Augment the passed in queue.
-      this.active= false;
-      this.callback= null;
-      this.paused= false;
-      this.regex= null;
-      this.autoPause = false;
-    };
-    var queues  = {};
-
-    this.add = function(availableQueues) {
-      availableQueues.forEach( function(queue) {
-        // Only overwrite a queue if it doesn't exist 
-        if(!queues.hasOwnProperty[queue.endpointID]) {
-          queues[queue.endpointID] = new Queue(queue);
-        }
-      });
-    };
-
-    this.get = function(queueid) {
-      return queues[queueid] || null;
-    };
-    this.findByTopic = function(topic) {
-      // Typically used on an inbound topic, will iterate through queue and return it.
-      var matches = [];
-      console.log(Object.keys(queues));
-      Object.keys(queues).forEach(function(queue) {
-        l('DEBUG') && console.log('Queues.findByTopic testing '+topic+' against regex: '+queues[queue].regex);
-        queues[queue].regex && queues[queue].regex.test(topic) && matches.push(queues[queue]);
-        });
-     if (matches.length === 1 ) {
-       return matches[0];
-     } else {
-       throw new Error('Multiple Queue matches for topic('+topic+')- should not be possible');
-     }
-    };
-    this.all = function() {
-      return queues;
-    };
-    this.list = function(){
-      return Object.keys(queues);
-    };
-  };
-
-  Queues.prototype.toString = function() {
-    this.list();
-  };
-
-
   /** @lends module:rtcomm.RtcommEndpoint.prototype */
   return {
 
@@ -175,12 +111,14 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
           attachMedia: false
       };
 
+      this.id = this._private.uuid;
+      this.userid = null;
+
       /** @typedef {object} module:rtcomm#RtcommEvent
        *  @property {string} name - name of event
        *  @property {object} object - an object passed with the event
        *  @property {message} message - a message associated with the event
        */
-
 
       this.events = {
           /**
@@ -231,23 +169,14 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         this.update = (config.update)?config.update: this.update;
         delete config.update;
         applyConfig(config, this._private);
+        this.userid = this._private.userid;
       }
 
       // Expose the appcontext/userid on the object
       this.endpointConnection = this._private.parent.endpointConnection;
       this.appContext = this._private.appContext;
-      this.userid = this._private.anonymous ? this.endpointConnection.setUserID():this.endpointConnection.setUserID(this._private.userid);
 
-      // Get the availabe queues... 
-      this.queues = new Queues();
-      this.endpointConnection.serviceQuery(function() {
-        this.queues.add((this.endpointConnection && 
-                                this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE && 
-                                this.endpointConnection.RTCOMM_CALL_QUEUE_SERVICE.queues)
-                                || []);
-        console.log('QUEUES: ',this.queues.list());
-        this._initialized = true;
-      }.bind(this));
+      this._initialized = true;
       /* inbound and outbound Media Element DOM Endpoints */
       this.media = {
           In: null,
@@ -260,84 +189,10 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       // return  a reference to ourselves for chaining
       return this;
     },
-    /**
-     *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
-     *  rtcomm service so it can receive inbound requests.
-     *
-     *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid
-     *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
-     */
-    register : function(cbSuccess, cbFailure) {
-      var minimumReregister = 30;  // 30 seconds;
-      var onSuccess = function(register_message) {
-        l('DEBUG') && console.log(this+'register() REGISTER RESPONSE: ', register_message);
-        if (register_message.orig === 'REGISTER' && register_message.expires) {
-          var expires = register_message.expires;
-          l('DEBUG') && console.log(this+'.register() Message Expires in: '+ expires);
-          /* We will reregister every expires/2 unless that is less than minimumReregister */
-          var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
-          // we have a expire in seconds, register a timer...
-          l('DEBUG') && console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
-          registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
-        }
-        this.registered = true;
-        // Call our passed in w/ no info...
-        if (cbSuccess && typeof cbSuccess === 'function') {
-          cbSuccess(register_message);
-        } else {
-          l('DEBUG') && console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", register_message);
-        }
-      };
-
-      // {'failureReason': 'some reason' }
-      var onFailure = function(errorObject) {
-        if (cbFailure && typeof cbFailure === 'function') {
-          cbFailure(errorObject.failureReason);
-        } else {
-          console.error('Registration failed : '+errorObject.failureReason);
-        }
-      };
-      // Call register!
-      //
-      //
-      util.whenTrue( 
-        /* test */ function() {
-          return this._initialized;
-        }.bind(this),
-        /* action */ function(success) {
-        if (success) {
-          var message = this.endpointConnection.createMessage('REGISTER');
-          message.appContext = this.appContext || "none";
-          message.regTopic = message.fromTopic;
-          var t = this.endpointConnection.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
-          t.start();
-
-        } else {
-          if (cbFailure&& typeof cbFailure === 'function') {
-            cbFailure('Not Ready, unable to register.');
-          } else {
-            console.error('Not Ready, unable to register.');
-          }
-        }
-      }.bind(this), 1500);
+    setUserID : function(userid) {
+      this.userid = userid;
     },
-    /**
-     *  Unregister the userid associated with the EndpointConnection
-     */
-    unregister : function() {
-      if (registerTimer) {
-        clearTimeout(registerTimer);
-        registerTimer=null;
-        var message = this.endpointConnection.createMessage('REGISTER');
-        message.regTopic = message.fromTopic;
-        message.appContext = this.appContext;
-        message.expires = "0";
-        this.endpointConnection.send({'message':message});
-        this.registered = false;
-      } else {
-        l('DEBUG') && console.log(this+' No registration found, cannot unregister');
-      }
-    },
+
 
     send: function(message) {
       if (this.conn.getState() === 'STARTED')  {
@@ -351,6 +206,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     update: function() { console.log('Default function, should have been overridden');},
 
     reset: function() {
+      this.available = true;
       this.disconnect();
       this.localStream && this.localStream.stop();
       detachMediaStream && detachMediaStream(this.getMediaIn());
@@ -389,26 +245,6 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       //
       //
       var event = null;
-      var q=null;
-      if (session.source) {
-        var msg = null;
-        // We have a session.source, so this is received on a queue.
-        try {
-          q = this.queues.findByTopic(session.source);
-        } catch(e){
-          msg = 'This Endpoint does not support inbound calls from this source: ('+session.source+')';
-        }
-        if (q && !q.active) {
-          msg = 'This Endpoint is not subscribed to this source: ('+session.source+')';
-        }
-        if (msg) {
-          l('DEBUG') && console.log(this+'.newSession() '+msg);
-          session.fail(msg);
-          return false;
-        }
-        l('DEBUG') && console.log(this+'.newSession() found a SessionQueue for this session:',q);
-      }
-
       if ((session.appContext === this.appContext) || this.ignoreAppContext) {
         // We match appContexts (or don't care)
         if (this.available) {
@@ -419,11 +255,8 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
             event = 'refer';
           }
           this.conn = this.createConnection();
-          if (q) {
-            this.conn.setSessionQueue(q);
-            q.autoPause && this.pauseSessQueue(q.endpointID);
-          }
           this.conn.init({session:session});
+          this.available = false;
           this.emit(event, this.conn);
         } else {
           var msg = 'Busy';
@@ -531,6 +364,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       // When call is invoked, we must have a RemoteID and we must have mediaIn & Out set.
       // We need to confirm the stream is attached
       var rtcommEndpoint = this;
+      this.available = false;
       l('DEBUG') && console.log(this + ".addEndpoint() Calling "+remoteId);
       if ( remoteId === null ) { throw new Error(".addEndpoint() requires an ID to be passed"); }
 
@@ -557,6 +391,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      *  @throws Error Could not find connection to answer
      */
     acceptEndpoint : function(id) {
+      this.available = false;
       var rtcommEndpoint = this;
       l('DEBUG') && console.log(this + ".answer() invoked ");
       rtcommEndpoint.attachLocalMedia(function(success, message) {
@@ -581,6 +416,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      */
     disconnect : function() {
       if (this.conn  && this.conn.getState() !== 'DISCONNECTED') {
+        this.available = true;
         this.conn.disconnect();
         this.conn = null;
       } else {
@@ -588,112 +424,6 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       }
 
     },
-    /**
-     * Join a Session Queue
-     *
-     * A Session Queue is a subscription to a Shared Topic.  By joining a queue, it enables
-     * the RtcommEndpoint to be 'available' to receive an inbound request from the queue topic.
-     * Generally, this could be used for an Agent scenario where many endpoints have joined the 
-     * queue, but only 1 endpoint will receive the inbound request.  Upon receipt, we immediately
-     * unsubscribe.  
-     *
-     * TODO:  Immediate unsubscribe will be an option upon adding chat support. 
-     *
-     * @param {string} queueid Id of a queue to join.
-     * @param {object} [options]  set autoPause:true to autopase queue when a message is received Options to use for queue
-     *
-     */
-    joinSessQueue: function joinSessQueue(/*String*/ queueid, /*object*/ options) {
-    // Is queue a valid queuename?
-      var rtcommEP = this;
-      var callback = function(message) {
-        //TODO: Emit only part of message or verify we should accept it?
-        console.log('Received a normal message from Queue', message);
-        rtcommEP.emit('message', message);
-      };
-      var q = this.queues.get(queueid);
-      l('DEBUG') && console.log(this+'.joinSessQueue() Looking for queueid:'+queueid);
-      if (q) {
-        // Queue Exists... Join it
-        // This callback is how inbound messages (that are NOT START_SESSION would be received)
-        q.active = true;
-        q.callback = callback;
-        q.autoPause = (options && options.autoPause) || false;
-        q.regex = this.endpointConnection.subscribe(q.topic, callback);
-        return true;
-      } else {
-        throw new Error('Unable to find queue('+queueid+') available queues: '+ this.queues.list());
-      }
-    },
-    /**
-     * Manually pause a queue (unsubscribe)
-     * @param {string} queueid Id of a queue to pause.
-     */
-    pauseSessQueue: function pauseSessQueue(queueid) {
-      l('DEBUG') && console.log(this+'.pauseSessQueue() ', queueid);
-      var q = this.queues.get(queueid);
-      if (q && q.paused) {
-        l('DEBUG') && console.log(this+'.pauseSessQueue() - ALREADY PAUSED.');
-        return true;
-      }
-      if (q) {
-        q.paused = true;
-        this.endpointConnection.unsubscribe(q.topic);
-        return true;
-      } else {
-        console.error(this+'.pauseSessQueue() Queue not found: '+queueid);
-        return false;
-      }
-    },
-    /**
-     * Manually resume a paused queue
-     * @param {string} queueid Id of a queue to resume.
-     */
-    resumeSessQueue: function resumeSessQueue(queueid) {
-      var q = this.queues.get(queueid);
-      if (q && !q.paused) {
-        l('DEBUG') && console.log(this+'.resumeSessQueue() - Not Paused, no need to resume.');
-        return true;
-      }
-      if (q ) {
-        q.paused = false;
-        this.endpointConnection.subscribe(q.topic,q.callback);
-        return true;
-      } else {
-        console.error(this+'.resumeSessQueue() Queue not found: '+queueid);
-        return false;
-      }
-    },
-    /**
-     * Leave a queue
-     * @param {string} queueid Id of a queue to leave.
-     */
-    leaveSessQueue: function leaveSessQueue(queueid) {
-      var q = this.queues.get(queueid);
-      if (q && !q.active) {
-        l('DEBUG') && console.log(this+'.leaveSessQueue() - Not Active,  cannot leave.');
-        return true;
-      }
-      if (q) {
-       q.active = false;
-       this.endpointConnection.unsubscribe(q.topic);
-       return true;
-      } else {
-        console.error(this+'.leaveSessQueue() Queue not found: '+queueid);
-        return false;
-      }
-    },
-    /**
-     * List Available Session Queues
-     *
-     * @returns {object} Object keyed on QueueID. The value is a Queue Object
-     * that can be used to determine is the queue is active or not.
-     *
-     */
-    listSessQueues: function() {
-      return  this.queues.all();
-    },
-
     // UserMedia Methods
 
     getUserMedia : getUserMedia,
@@ -706,9 +436,6 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     setEndpointConnection: function(endpointConnection) {
       if (!this.endpointConnection) {
         this.endpointConnection = endpointConnection;
-        this.queues.add((endpointConnection.RTCOMM_CALL_QUEUE_SERVICE && 
-                         endpointConnection.RTCOMM_CALL_QUEUE_SERVICE.queues) 
-                         || []);
         return true;
       } else {
         return false;

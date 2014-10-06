@@ -38,7 +38,7 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
           error = e;
           console.log(error);
         }
-        doh.assertEqual('RtcommEndpointProvider initialization requires a minimum configuration: {"server":"string","port":"number","userid":"string"}', error.message);
+        doh.assertEqual('EndpointProvider initialization requires a minimum configuration: {"server":"string","port":"number"}', error.message);
       }),
       new TestFixture(
           "valid but incorrect config throws an error",
@@ -54,7 +54,7 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
           }
       ),
       new TestFixture(
-          "createRtcommEndpoint() returns valid object",
+          "createRtcommEndpoint() [no args, no appContext set] throws error",
           function(){
             var error = null;
             try {
@@ -63,74 +63,77 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
               console.log(e);
               error = e;
             }
-            doh.f(error);
-            doh.t(Object.keys(this.endpointProvider.endpoints()).length === 1);
-            doh.t(rtc);
+            doh.t(error);
+            doh.t(Object.keys(this.endpointProvider.endpoints()).length === 0);
             console.log(this.endpointProvider.currentState());
         }
       ),    
       new TestFixture(
-          "createRtcommEndpoint() - Multiples w/ same config return same object.",
+          "createRtcommEndpoint() [no args]returns valid object",
           function(){
             var error = null;
+            var endpoint = null;
             try {
-              var rtc = this.endpointProvider.createRtcommEndpoint();
-              var rtc2 = this.endpointProvider.createRtcommEndpoint();
+              this.endpointProvider.setAppContext('test');
+              endpoint = this.endpointProvider.createRtcommEndpoint();
             }  catch(e) {
               console.log(e);
               error = e;
             }
-
-            doh.t(rtc === rtc2);
+            console.log('TEST endpoint: ', endpoint);
+            doh.t(endpoint);
+            console.log('TEST endpoint.appContext: '+ endpoint.appContext);
+            doh.t(endpoint.appContext === 'test');
+            console.log('TEST endpoint.userid: '+ endpoint.userid);
+            doh.t(typeof endpoint.userid === 'undefined');
             doh.f(error);
             doh.t(Object.keys(this.endpointProvider.endpoints()).length === 1);
             console.log(this.endpointProvider.currentState());
-          }
+        }
       ),    
       new TestFixture(
-          "createRtcommEndpoint() - create w/ same audio/video/data and different context works",
+          "createRtcommEndpoint() [args]returns valid object",
           function(){
             var error = null;
-            this.endpointProvider.setLogLevel('DEBUG');
+            var endpoint = null;
             try {
-              var rtc = this.endpointProvider.createRtcommEndpoint();
-              var rtc2 = this.endpointProvider.createRtcommEndpoint({appContext: 'test'});
+              this.endpointProvider.setAppContext('test');
+              endpoint = this.endpointProvider.createRtcommEndpoint({audio: true, video: true, data: true});
             }  catch(e) {
               console.log(e);
               error = e;
             }
-            console.log(rtc);
-            console.log(rtc2);
-            doh.t(rtc);
-            doh.t(rtc2);
-            doh.f(rtc === rtc2);
+            console.log('TEST endpoint: ', endpoint);
+            doh.t(endpoint);
+            console.log('TEST endpoint.appContext: '+ endpoint.appContext);
+            doh.t(endpoint.appContext === 'test');
+            console.log('TEST endpoint.userid: '+ endpoint.userid);
+            doh.t(typeof endpoint.userid === 'undefined');
+            doh.f(error);
+            doh.t(Object.keys(this.endpointProvider.endpoints()).length === 1);
+            console.log(this.endpointProvider.currentState());
+        }
+      ),    
+      new TestFixture(
+          "createRtcommEndpoint() - Multiples w/ same config return different objects.",
+          function(){
+            var error = null;
+            var endpoint = null;
+            var endpoint2 = null;
+            try {
+              this.endpointProvider.setAppContext('test');
+              endpoint = this.endpointProvider.createRtcommEndpoint();
+              endpoint2 = this.endpointProvider.createRtcommEndpoint();
+            }  catch(e) {
+              console.log(e);
+              error = e;
+            }
+            doh.t(endpoint !== endpoint2);
+            doh.f(error);
             doh.t(Object.keys(this.endpointProvider.endpoints()).length === 2);
-
-            doh.f(error);
-            console.log(this.endpointProvider.currentState());
-
-          }
-      ),
-      new TestFixture(
-          "createRtcommEndpoint() - create w/ different audio/video/data and same context works",
-          function(){
-            var error = null;
-            try {
-              var rtc = this.endpointProvider.createRtcommEndpoint({audio: true, video: false, data: false});
-              var rtc2 = this.endpointProvider.createRtcommEndpoint({audio: true, video: true, data: true});
-            }  catch(e) {
-              console.log(e);
-              error = e;
-            }
-
-            doh.t(rtc);
-            doh.t(rtc2);
-
-            doh.f(error);
             console.log(this.endpointProvider.currentState());
           }
       ),    
-    
       new TestFixture(
           "createRtcommEndpoint() - API Validation",
           function(){
@@ -139,9 +142,8 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
             var fakeSelfView = {src: ""};
             var fakeRemoteView = {src: ""};
             var error = null;
-            
-            var rtc = this.endpointProvider.createRtcommEndpoint({audio: true, video: true, data: true});
-            
+            this.endpointProvider.setAppContext('test');
+            var rtc = this.endpointProvider.createRtcommEndpoint({audio:true, video: true, data: true});
             console.log('MediaIn throws a TypeError without .src');
             var error = null;
             try {
@@ -190,9 +192,9 @@ define(["doh/runner", "lib/mqttws31", "tests/common/config", "ibm/rtcomm"], func
           function(){
             var error = null;
             try {
-              var rtc = this.endpointProvider.createRtcommEndpoint({audio: true, video: true, data: true});
+              this.endpointProvider.setAppContext('test');
+              var rtc = this.endpointProvider.createRtcommEndpoint({ audio: true, video: true, data: true});
               rtc.createConnection();
-
             }  catch(e) {
               error = e;
             }
