@@ -346,6 +346,88 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             return deferred;
          },
         T3+5000 
+     ),
+     new p2pFixture2("Customer A calls Queue[Toys], pass a Chat Message", /*direct*/ false,
+         function() {
+            var self = this;
+            this.endpointProvider1.setLogLevel('DEBUG');
+            this.endpointProvider2.setLogLevel('DEBUG');
+            var ep1 = this.endpointProvider1.createRtcommEndpoint({audio:false, video:false, data: false});
+            var ep2 = this.endpointProvider2.createRtcommEndpoint({audio:false, video:false, data: false, autoAnswer:true});
+
+            var message1 = null;
+            var message2 = null;
+            var queueid = null;
+
+            ep1.on('message',  function(event){
+              console.log( "******EVENT 1 *******", event);
+              message1 = event.message.message;
+            });
+
+            ep2.on('started', function(event){
+              console.log('TEST - Session STARTED, sending HELLO');
+              ep2.send("HELLO");
+            });
+
+            ep2.on('message',  function(event){
+              console.log( "******EVENT 2 *******", event);
+              message1 = event.message.message;
+            });
+
+            this.endpointProvider2.on('queueupdate',function(queues) {
+              console.log('queueupdate!', queues);
+              console.log('queueupdate!', Object.keys(queues));
+              console.log('queueupdate!', Object.keys(queues)[0]);
+              if (queues) {
+                queueid = Object.keys(queues)[0];
+                self.endpointProvider2.joinQueue(queueid);
+              } 
+            });
+            config2.userid='Agent';
+            setTimeout(function() {
+              self.endpointProvider1.init(config1,
+                  function(obj) {
+                    self.endpointProvider2.init(config2,
+                        function(obj) {
+                          console.log('init was successful');
+                        },
+                        function(error) {
+                          console.log('error in ep2 init:' + error);
+                        }
+                       );
+                  },
+                  function(error) {
+                    console.log('error in ep1 init:' + error);
+                  }
+                 );
+            }, T1);
+            
+            console.log('Sending HELLO from 2 to 1 ');
+            /* Wait 2 seconds to send   */
+            setTimeout(function() {
+              console.log('calling EP2');
+              ep1.addEndpoint(queueid);
+            },T2);
+
+            var deferred = new doh.Deferred();
+
+            setTimeout(deferred.getTestCallback(function() {
+
+               console.log("******************Asserting now...***********************");
+               console.log("State of 1: " + ep1.getConnection().getState());
+               console.log("State of 2: " + ep2.getConnection().getState());
+
+               doh.assertTrue(ep1.getConnection().getState() === 'STARTED');
+               doh.assertTrue(ep2.getConnection().getState() === 'STARTED');
+               doh.assertEqual("HELLO",message1);
+               //  console.log("State of 1: " + self.node1.getConnection().getState());
+                // console.log("State of 2: " + self.node2.getConnection().getState());
+
+            }),
+            T3);
+            return deferred;
+         },
+        T3+5000 
      )
    ]);
 });

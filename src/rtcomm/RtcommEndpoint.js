@@ -122,11 +122,17 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
 
       this.events = {
           /**
-           * A connection to a peer has been established
+           * A PeerConnection to a peer has been established
            * @event module:rtcomm.RtcommEndpoint#connected
            * @property {module:rtcomm#RtcommEvent}
            */
           "connected": [],
+          /**
+           * A signaling session to a peer has been established
+           * @event module:rtcomm.RtcommEndpoint#connected
+           * @property {module:rtcomm#RtcommEvent}
+           */
+          "started": [],
           /**
            * An inbound request to establish a call via 
            * 3PCC was initiated
@@ -163,11 +169,17 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
            */
           'message': [],
           /**
-           * A message has arrived from a peer
+           * The endpoint has destroyed itself, clean it up.
            * @event module:rtcomm.RtcommEndpoint#destroyed
            * @property {module:rtcomm#RtcommEvent}
            */
-          'destroyed': []
+          'destroyed': [],
+          /**
+           * Creating the connection to a peer failed
+           * @event module:rtcomm.RtcommEndpoint#failed
+           * @property {module:rtcomm#RtcommEvent}
+           */
+          'failed': []
       };
 
       l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
