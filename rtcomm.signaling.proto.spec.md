@@ -171,6 +171,7 @@ In response to the START_SESSION message, the callee responds may respond with a
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/2123928217 |
 | sigSessID             | unique ID associated with this session.   e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
 | peerContent           | May include SDP information or ICE candidates.  e.g. {"type":"pranswer"} |
+| holdTimeout           | May include hold timeout value (in seconds).   This tells the call originator how long to wait for the call to be established. |
 
 
 The caller and/or callee endpoint(s) may also sends out another message which specifies one or more ICE candidates:
