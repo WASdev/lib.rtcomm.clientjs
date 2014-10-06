@@ -108,8 +108,13 @@ var EndpointRegistry = function EndpointRegistry(options) {
     var key = null;
     var uuid = null;
     if (object) {
-      key = object.appContext;
-      uuid = object.id;
+      if (typeof object === 'string') {
+        uuid = object;
+        key = this.get(uuid).appContext;
+      } else {
+        key = object.appContext;
+        uuid = object.id;
+      }
       if (registry.hasOwnProperty(key) ) {
         if (registry[key].hasOwnProperty(uuid)) {
            delete registry[key][uuid];

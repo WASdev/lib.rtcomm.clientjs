@@ -161,7 +161,13 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
            * @event module:rtcomm.RtcommEndpoint#message
            * @property {module:rtcomm#RtcommEvent}
            */
-          'message': []
+          'message': [],
+          /**
+           * A message has arrived from a peer
+           * @event module:rtcomm.RtcommEndpoint#destroyed
+           * @property {module:rtcomm#RtcommEvent}
+           */
+          'destroyed': []
       };
 
       l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
@@ -218,6 +224,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      */
     destroy : function() {
       l('DEBUG') && console.log(this+'.destroy Destroying RtcommEndpoint');
+      this.emit('destroyed', this);
       this.registered && this.unregister();
       this.disconnect();
       this.localStream && this.localStream.stop();
@@ -397,7 +404,6 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       rtcommEndpoint.attachLocalMedia(function(success, message) {
         if (success) {
           var connection = rtcommEndpoint.getConnection(id);
-          console.log('REMOVE ME:  using webrtcconnection: ', connection);
           if(connection) {
             connection.connect();
           } else {

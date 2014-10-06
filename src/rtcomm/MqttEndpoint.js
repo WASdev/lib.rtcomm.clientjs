@@ -15,6 +15,7 @@ MqttEndpoint.prototype = util.RtcommBaseObject.extend({
                this.subscriptions[topic] = null;
                var mqttEP = this;
                mqttEP.dependencies.connection.subscribe(topic, function(message) {
+                 l('DEBUG') && console.log('MqttEndpoint.subscribe() Received message['+message+'] on topic: '+topic);
                  mqttEP.emit('message', message);
                });
              },

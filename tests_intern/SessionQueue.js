@@ -77,9 +77,11 @@ define([
         },
         'Init of rtcommEP creates Queues' : function() {
           assert.isDefined(ep.queues, 'queues is defined');
+//          this.skip();
         },
 
         'Join bad queue throws exception': function () {
+ //         this.skip();
           var error;
           try { 
             ep.joinQueue('/TestTopic/#');
@@ -88,24 +90,6 @@ define([
             console.log(e);
           }
           assert.isDefined(error, 'An error was thrown correctly');
-        },
-        'Receive regular message from Topic': function () {
-          var dfd = this.async(5000);
-          var error;
-          var queue = ep.queues.get(ep.queues.list()[0]);
-          console.log('Using Queue: '+queue.endpointID);
-          console.log(queue);
-          // Join the first queue:
-          ep.joinQueue(queue.endpointID);
-          var publishTopic = getPublishTopic(queue.topic);
-          console.log('publishTopic: ', publishTopic);
-
-          var finish = dfd.callback( function(obj) {
-            console.log('Finish called!');
-            assert.equal(obj.content, 'Hello', 'Received the correct message');
-          });
-          rtcommEP.on('message', finish);
-          mqtt.publish(publishTopic+'/intern', 'Hello');
         },
         'Send a start session to a queue': function () {
 

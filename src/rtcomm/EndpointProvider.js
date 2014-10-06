@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 /**
  * @class
  * @memberof module:rtcomm
@@ -109,7 +107,7 @@ var EndpointProvider =  function EndpointProvider() {
     // You can only be init'd 1 time, without destroying reconnecting.
     if (this.ready) {
       l('INFO') && console.log('EndpointProvider.init() has been called and the object is READY');
-      return true;
+      return this;
     }
 
     // Used to set up config for endoint connection;
@@ -161,11 +159,9 @@ var EndpointProvider =  function EndpointProvider() {
 
     // createEndpointConnection
     var endpointConnection = this.endpointConnection = createEndpointConnection.call(this, connectionConfig);
-    console.log(this+'.init() this.config is: ', JSON.stringify(this.config));
-    console.log('created endpointConnection: ', this.endpointConnection);
     // onSuccess callback for endpointConnection.connect();
     var onSuccess = function(message) {
-      console.log('endpointProvider success callback called');
+      l('DEBUG') && console.log('endpointProvider success callback called');
       var returnObj = {
           'ready': true,
           'registered': false,
@@ -213,6 +209,8 @@ var EndpointProvider =  function EndpointProvider() {
     // Connect!
     l('DEBUG') && console.log('calling connect');
     endpointConnection.connect( onSuccess.bind(this), onFailure.bind(this));
+    // Return ourself for chaining.
+    return this;
   };  // End of RtcommEndpointProvider.init()
 
   /*
@@ -220,7 +218,6 @@ var EndpointProvider =  function EndpointProvider() {
    * // bind endpointProvider as this when called
    */
   var createEndpointConnection = function createEndpointConnection(config) {
-    console.log('REMOVE ME: CREATING ENDPOINT CONNECTION');
     var endpointProvider = this;
     var endpointConnection = new connection.EndpointConnection(config);
 
@@ -315,6 +312,7 @@ var EndpointProvider =  function EndpointProvider() {
    *  @throws Error
    */
   var getRtcommEndpoint = function getRtcommEndpoint(endpointConfig) {
+    var endpointProvider = this;
     var endpointid = null;
     var endpoint = null;
     var defaultConfig = {
@@ -339,8 +337,12 @@ var EndpointProvider =  function EndpointProvider() {
       l('DEBUG') && console.log(this+'.getRtcommEndpoint using config: ', objConfig);
       endpoint = Object.create(RtcommEndpoint);
       endpoint.init(objConfig);
+      endpoint.on('destroyed', function(endpoint) {
+        endpointRegistry.remove(endpoint);
+      });
       // Add to registry or return the one already there
       console.log('ENDPOINT REGISTRY: ', endpointRegistry);
+
       endpoint = endpointRegistry.add(endpoint);
     }
     return endpoint;
@@ -394,7 +396,7 @@ var EndpointProvider =  function EndpointProvider() {
                        this.services.RTCOMM_CALL_QUEUE_SERVICE && 
                        this.services.RTCOMM_CALL_QUEUE_SERVICE.queues) ||
                        []);
-      this.emit('queueupdate', this.queues.list());
+      this.emit('queueupdate', this.queues.all());
       l('DEBUG') && console.log(this+'.updateQueues() QUEUES: ',this.queues.list());
     };
     /**
@@ -415,20 +417,16 @@ var EndpointProvider =  function EndpointProvider() {
     this.joinQueue= function joinQueue(/*String*/ queueid, /*object*/ options) {
     // Is queue a valid queuename?
       var endpointProvider = this;
-      var callback = function(message) {
-        //TODO: Emit only part of message or verify we should accept it?
-        console.log('Received a normal message from Queue', message);
-        rtcommEP.emit('message', message);
-      };
+      // No more callback
       var q = this.queues.get(queueid);
       l('DEBUG') && console.log(this+'.joinQueue() Looking for queueid:'+queueid);
       if (q) {
         // Queue Exists... Join it
         // This callback is how inbound messages (that are NOT START_SESSION would be received)
         q.active = true;
-        q.callback = callback;
+        q.callback = null;
         q.autoPause = (options && options.autoPause) || false;
-        q.regex = this.endpointConnection.subscribe(q.topic, callback);
+        q.regex = this.endpointConnection.subscribe(q.topic);
         return true;
       } else {
         throw new Error('Unable to find queue('+queueid+') available queues: '+ this.queues.list());

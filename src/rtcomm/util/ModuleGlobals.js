@@ -182,50 +182,6 @@ makeCopy = function(obj) {
   return returnObject;
 },
 
-Event = function() {
-  /** so, no matter what is passed, let's return a:
-  * {name:
-  *  object: }
-  */
-  var event = {};
-  // options: string --> Message
-  //          object --> (is it an Event, cast it...)
-  //  string, string (name,message)
-  //  string,string,object
-
-  var args = [].slice.call(arguments);
-  if (args.length === 0 ) {
-    event.name = "message";
-    event.object = {};
- } else if (args.length === 1 ) {
-    var arg = args[0];
-    if (typeof arg === 'string') {
-      event.name = 'message';
-      event.message = arg;
-    } else if (typeof arg === 'object') {
-      if (arg.name && arg.message) {
-        event = arg;
-
-      } else {
-        console.error("Invalid Object to create Event(must have name/message): ", arg);
-      }
-
-    } else {
-      console.error("Invalid args to create Event(must have name/message): ", arg);
-    }
-  } else if (args.length === 2) {
-    event.name = args[0];
-    event.message = args[1];
-  } else if (args.length === 3){
-    event.name = args[0];
-    event.message = args[1];
-    event.object = args[2];
-  } else {
-    console.error("Too many arguments passed: ", args);
-  }
-  return event;
-},
-
 whenTrue = function(func1, callback, timeout) {
   l('DEBUG') && console.log('whenTrue!', func1, callback, timeout);
   var max = timeout || 500;

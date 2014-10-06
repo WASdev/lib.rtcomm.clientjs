@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-var config= {server: 'svt-msd1.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommfvt/' };
+var config= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommscott/' };
 
 define([
     'intern!object',
@@ -38,7 +38,7 @@ define([
       // Wait to publish 
       setTimeout(function() {
         mq1.on('message', function(msg) {
-          console.log('Received Message: '+msg.content);
+          console.log('MQ1 Received Message: '+msg.content);
           // Should not receive message;
           dfd.resolve(false);
         });
@@ -64,17 +64,25 @@ define([
     registerSuite({
         name: 'MqttEndpoint Tests',
         setup: function() {
+          var dfd=new Deferred();
+          console.log('*************setup!**************');
           config.userid = 'scott';
           /* init the EndpointProvider */
           ep = new rtcomm.RtcommEndpointProvider();
           ep.init(config, function(obj) {
+            console.log('*** Creating MqttEndpoints ***');
             mq1 = ep.createMqttEndpoint();
             mq2 = ep.createMqttEndpoint();
             mq1.subscribe('/test1');
             mq2.subscribe('/test2/#');
+            console.log('*** mq1 ***', mq1);
+            dfd.resolve();
+          }, function(error){
+            dfd.reject(error);
           });
           ep.setLogLevel('DEBUG');
           /* Create the Mqtt Endpoints */
+          return dfd.promise;
         },
         teardown: function() {
           ep.destroy();
@@ -89,6 +97,7 @@ define([
            );
         },
         'mqtt /test3 topic':function() {
+          this.skip();
           var dfd = this.async(3000);
           mqttPublish('/test3', '2 - Hello from 1').then(
              dfd.callback(function(pass) {
@@ -97,6 +106,7 @@ define([
            );
         },
         'mqtt /test2/something topic':function() {
+          this.skip();
           var dfd = this.async(3000);
           mqttPublish('/test2/something', '3 - Hello from 1').then(
              dfd.callback(function(pass) {
@@ -105,6 +115,7 @@ define([
            );
         },
         'mqtt /test2something topic':function() {
+          this.skip();
           var dfd = this.async(3000);
           mqttPublish('/test2something', '4 - Hello from 1').then(
              dfd.callback(function(pass) {
@@ -113,6 +124,7 @@ define([
            );
         },
         'mqtt /test2something -> /test2 topic':function() {
+          this.skip();
           var dfd = this.async(3000);
           // Overwrite the mq2 stuff (clean out, start over);
           mq2 = null;
@@ -124,7 +136,9 @@ define([
               })
            );
         },
+        
         'mqtt /test2/something -> /test2 topic':function() {
+          this.skip();
           var dfd = this.async(3000);
           // Overwrite the mq2 stuff (clean out, start over);
           mq2 = null;
@@ -137,8 +151,8 @@ define([
            );
         },
         'mqtt Test 1': function () {
-          var self = this;
           this.skip();
+          var self = this;
           var dfd= this.async(5000);
           var error;
           var start = function(ms) {

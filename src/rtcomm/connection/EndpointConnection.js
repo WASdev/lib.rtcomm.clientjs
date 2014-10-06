@@ -117,6 +117,7 @@ var EndpointConnection = function EndpointConnection(config) {
    * Process a message, expects a bind(this) attached.
    */
   var processMessage = function(message) {
+    var endpointConnection = this;
     var topic = message.topic;
     var content = message.content;
     var fromEndpointID = message.fromEndpointID;
@@ -134,7 +135,7 @@ var EndpointConnection = function EndpointConnection(config) {
       if (rtcommMessage.method === 'RESPONSE') {
         // close an existing transaction we started.
         l('TRACE') && console.log(this+'.processMessage() this is a RESPONSE', rtcommMessage);
-        var transaction = this.transactions.find(rtcommMessage.transID);
+        var transaction = endpointConnection.transactions.find(rtcommMessage.transID);
         if (transaction) {
           l('TRACE') && console.log(this+'.processMessage() existing transaction: ', transaction);
           transaction.finish(rtcommMessage);
@@ -143,27 +144,33 @@ var EndpointConnection = function EndpointConnection(config) {
         }
       } else if (rtcommMessage.method === 'START_SESSION' )  {
         // Create a new session:
-        this.emit('newsession', this.createSession({message:rtcommMessage, source: topic, fromEndpointID: fromEndpointID}));
+        endpointConnection.emit('newsession', endpointConnection.createSession({message:rtcommMessage, source: topic, fromEndpointID: fromEndpointID}));
       } else {
         // We have a transID, we need to pass message to it.
         // May fail? check.
-        this.transactions.find(rtcommMessage.transID).emit('message',rtcommMessage);
+        endpointConnection.transactions.find(rtcommMessage.transID).emit('message',rtcommMessage);
       }
     } else if (rtcommMessage && rtcommMessage.sigSessID) {
       // has a session ID, fire it to that.
-      this.emit(rtcommMessage.sigSessID, rtcommMessage);
+      endpointConnection.emit(rtcommMessage.sigSessID, rtcommMessage);
     } else if (message.topic) {
       // If there is a topic, but it wasn't a START_SESSION, emit the WHOLE original message.
        // This should be a raw mqtt type message for any subscription that matches.
-      var subs  = this.subscriptions;
+      var subs  = endpointConnection.subscriptions;
+      console.log('REMOVE ME: ', subs);
       Object.keys(subs).forEach(function(key) {
          if (subs[key].regex.test(message.topic)){
            l('DEBUG') && console.log('Emitting Message to listener -> topic '+message.topic);
-           subs[key].callback(message);
+           //if (subs[key].callback) {
+             subs[key].callback(message);
+          // } else {
+             // there is a subscription, but no callback, pass up normally.
+           //  endpointConnection.emit('message', message)
+          // }
          }
       });
     } else {
-      this.emit('message', message);
+      endpointConnection.emit('message', message);
     }
   };
 
@@ -328,7 +335,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             var p2 = new RegExp(end + "$", "g");
             topic = p2.test(topic) ? topic: topic + "/" + end;
           } else {
-            console.log('REMOVE ME! recursively claling normalize topic w/ topic:', topic);
             if (this.connectorTopicName) { 
               topic = this.normalizeTopic(this.connectorTopicName);
             } else {
@@ -486,7 +492,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         serviceQuery: function(cbSuccess, cbFailure) {
           var self = this;
-          console.log('REMOVE: self in serviceQuery', this);
           cbSuccess = cbSuccess || function(message) {
             console.log(this+'.serviceQuery() Default Success message, use callback to process:', message);
           };
