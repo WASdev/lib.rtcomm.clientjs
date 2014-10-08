@@ -21,7 +21,7 @@
  * <p>
  * This programming interface lets a JavaScript client application use a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
  * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
- * RtcommEndpointProvider connects to the defined MQTT Server and subscribes to a unique topic that is used to receive inbound communication.
+ * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic that is used to receive inbound communication.
  * <p>
  * See the example in {@link module:rtcomm.EndpointProvider#init|EndpointProvider.init()}
  * <p>
@@ -30,61 +30,80 @@
  *
  */
 var EndpointProvider =  function EndpointProvider() {
-
   /** @lends module:rtcomm.EndpointProvider */
+  /*global util:false*/
+  /*global connection:false*/
 
   var MISSING_DEPENDENCY = "RtcommEndpointProvider Missing Dependency: ";
-  /*global util:false*/
   if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
-  /*global connection:false*/
   if (!connection) { throw new Error(MISSING_DEPENDENCY+"rtcomm.connection");}
 
   /* Instantiate the endpoint Registry */
+  /*global EndpointRegistry:false */
   var endpointRegistry = new EndpointRegistry();
+
+  /** Store the configuration for the object, provided during the init() */
   this.config = {};
+  /* Store the dependent objects */
+  this.dependencies= {};
+  /* Store private information */
+  this._private = {};
   // Internal objects
+  /*global Queues:false*/
+  this._private.queues = new Queues();
+  /* services supported by the EndpointConnection, populated in init()*/
+  this._private.services = null;
+
+  /**
+   * State of the EndpointProvider
+   * @type {boolean}
+   */ 
   this.ready = false;
-  this.queues = new Queues();
+
   this.events = {
       /**
        * A new RtcommEndpoint was created from an inbound
        * @event module:rtcomm.EndpointProvider#newendpoint
-       * @property {module:rtcomm#RtcommEndpoint}
+       * @property {module:rtcomm.RtcommEndpoint}
        */
       'newendpoint': [],
+      /**
+       * The Session Queue was updated from the server
+       * @event module:rtcomm.EndpointProvider#queueupdate
+       * @property {module:rtcomm.Queues}
+       */
       'queueupdate': []};
 
-  /** services supported by the EndpointConnection, populated in init()*/
-  this.services = null;
 
-  /**
-   * EndpointProvider Init config object
-   * @typedef  {Object} module:rtcomm.EndpointProvider~InitOptions
-   * @property {string} server MQTT Server
-   * @property {string} [port=1883] MQTT Server Port
-   * @property {string} userid User ID or Identity
-   * @property {string} [rtcommTopicName=endpointConnection] rtcommTopicName on rtcomm server
-   * @property {string} [topicPath=/rtcomm/] MQTT Path to prefix rtcommTopicName with and register under
-   * @property {boolean} [register=false] Automatically register
-   * @property {boolean} [createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
-   */
 
   /** init method
-   *  This method is required to be called prior to doing anything else.
-   * @param  {module:rtcomm.EndpointProvider~InitOptions} config - Configuration object for init
+   *
+   *  This method is required to be called prior to doing anything else.  If init() is called w/ a userid, the
+   *  userid is *automatically* registered.  If it is called w/out a userid, then the EndpointProvider is 
+   *  *anonymous*.  A userid will be generated for security purposes called 'GUEST-<randomnumber>'.  This is 
+   *  necessary to have a localEndpointID that can be used for MQTT security.
+   *
+   * @param {Object} config
+   * @param {string} config.server MQTT Server
+   * @param {string} [config.userid] User ID or Identity
+   * @param {string} [config.appContext=rtcomm] App Context for EndpointProvider
+   * @param {string} [config.port=1883] MQTT Server Port
+   * @param {string} [config.rtcommTopicName=management] rtcommTopicName on rtcomm server
+   * @param {string} [config.topicPath=/rtcomm/] MQTT Path to prefix rtcommTopicName with and register under
+   * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
-   * @param {function} [status]  Callback function to monitor status of init
+   *
+   * @returns {module:rtcomm.EndpointProvider}
+   *
    *
    * @example
    * var endpointProvider = new ibm.rtcomm.RtcommEndpointProvider();
    * var endpointProviderConfig = {
    *   server : 'broker.mqttdashboard.com',
    *   userid : 'ibmAgent1@mysurance.org',
-   *   rtcommTopicName : 'endpointConnector',
    *   topicPath : '/rtcomm/',
    *   port : 8000,
-   *   register: true,
    *   createEndpoint : true,
    *   credentials : null
    * };
@@ -103,7 +122,7 @@ var EndpointProvider =  function EndpointProvider() {
    * );
    *
    */
-  this.init = function init(options, cbSuccess, cbFailure) {
+  this.start = function init(options, cbSuccess, cbFailure) {
     // You can only be init'd 1 time, without destroying reconnecting.
     if (this.ready) {
       l('INFO') && console.log('EndpointProvider.init() has been called and the object is READY');
@@ -129,7 +148,6 @@ var EndpointProvider =  function EndpointProvider() {
           register: false,
           createEndpoint: false }
       };
-
     // the configuration for Endpoint Provider
     if (options) {
       /* global setConfig:false */
@@ -158,7 +176,7 @@ var EndpointProvider =  function EndpointProvider() {
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
 
     // createEndpointConnection
-    var endpointConnection = this.endpointConnection = createEndpointConnection.call(this, connectionConfig);
+    var endpointConnection = this.dependencies.endpointConnection = createEndpointConnection.call(this, connectionConfig);
     // onSuccess callback for endpointConnection.connect();
     var onSuccess = function(message) {
       l('DEBUG') && console.log('endpointProvider success callback called');
@@ -213,6 +231,9 @@ var EndpointProvider =  function EndpointProvider() {
     return this;
   };  // End of RtcommEndpointProvider.init()
 
+  this.stop = this.destroy;
+  this.init = this.start;
+
   /*
    * Create the endpoint connection to the MQTT Server
    * // bind endpointProvider as this when called
@@ -232,7 +253,7 @@ var EndpointProvider =  function EndpointProvider() {
     endpointConnection.setLogLevel(getLogLevel());
 
     endpointConnection.on('servicesupdate', function(services) {
-      endpointProvider.services = services;
+      endpointProvider._private.services = services;
       endpointProvider.updateQueues();
     });
 
@@ -277,47 +298,40 @@ var EndpointProvider =  function EndpointProvider() {
     return endpointConnection; 
   }; // End of createEndpointConnection
 
-  /**
-   * @typedef {object} module:rtcomm.EndpointProvider~EndpointConfig
-   *  @property {String} [appContext=rtcomm] Use an appContext with the Endpoint
-   *  @property {String} [userid] Specify a userid if not specified in the init()
-   *  @property {boolean} [anonymous=false] A userid will not be provided if true.
-   *  @property {boolean} [audio=true] Support audio in the PeerConnection - defaults to true
-   *  @property {boolean} [audio=true] Support audio in the PeerConnection - defaults to true
-   *  @property {boolean} [video=true] Support video in the PeerConnection - defaults to true
-   *  @property {boolean} [data=true]  Support data in the PeerConnection - defaults to true
-   */
-
-  /**
-   * createRtcommEndpoint - Factory method that returns a RtcommEndpoint object to be used
-   * by a UI component.
+  /** 
+   * getRtcommEndpoint
+   * Factory method that returns a RtcommEndpoint object to be used by a UI component.
    *
-   *  The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.
+   *  The RtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.
    *  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
    *  stream.   When an inbound stream is added to a RTCPeerConnection, then the RtcommEndpoint object also informs the
    *  RTCPeerConnection where to send that stream in the User Interface.
    *
-   * @param {module:rtcomm.EndpointProvider~EndpointConfig} endpointConfig - Configuration to initialize endpoint with.
+   *  @param {Object}  [config] 
+   *  @param {boolean} [config.audio=true] Support audio in the PeerConnection - defaults to true
+   *  @param {boolean} [config.video=true] Support video in the PeerConnection - defaults to true
+   *  @param {boolean} [config.data=true]  Support data in the PeerConnection - defaults to true
    *
-   * @returns {module:rtcomm.RtcommEndpoint|RtcommEndpoint}  A RtcommEndpoint Object
+   *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint 
+   *  @throws Error
    *
    * @example
+   *  var endpointProvider = new rtcomm.EndpointProvider();
    *  var endpointConfig = {
    *    audio: true,
    *    video: true,
    *    data: false,
+   *    autoAnswer: false
    *    };
-   *  rtcommEndpointProvider.createRtcommEndpoint(endpointConfig);
+   *  endpointProvider.getRtcommEndpoint(endpointConfig);
    *
-   *  @throws Error
    */
-  var getRtcommEndpoint = function getRtcommEndpoint(endpointConfig) {
+  this.getRtcommEndpoint = function getRtcommEndpoint(endpointConfig) {
     var endpointProvider = this;
     var endpointid = null;
     var endpoint = null;
     var defaultConfig = {
         autoAnswer: false,
-        anonymous: false,
         audio: true,
         video: true,
         data: true,
@@ -335,7 +349,7 @@ var EndpointProvider =  function EndpointProvider() {
       objConfig.appContext = this.config.appContext;
       objConfig.userid = this.config.userid;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint using config: ', objConfig);
-      endpoint = Object.create(RtcommEndpoint);
+      endpoint = new RtcommEndpoint();
       endpoint.init(objConfig);
       endpoint.on('destroyed', function(endpoint) {
         endpointRegistry.remove(endpoint);
@@ -347,20 +361,33 @@ var EndpointProvider =  function EndpointProvider() {
     }
     return endpoint;
   };
+  /* deprecated */
+  this.createRtcommEndpoint = this.getRtcommEndpoint;
 
-  this.getRtcommEndpoint = this.createRtcommEndpoint = getRtcommEndpoint;
-
-  this.createMqttEndpoint = this.getMqttEndpoint = function() {
-    return new MqttEndpoint({connection: this.endpointConnection});
+  /** Create Mqtt Endpoint 
+   * @returns {module:rtcomm.MqttEndpoint} */
+  this.getMqttEndpoint = function() {
+    return new MqttEndpoint({connection: this.dependencies.endpointConnection});
   };
-
   this.destroy = function() {
     endpointRegistry.destroy();
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointRegistry');
-    this.endpointConnection.destroy();
+    this.dependencies.endpointConnection.destroy();
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointConnection');
-
+    this.ready = false;
+    console.log('This.CurrentState --', this.currentState());
+    
   };
+
+  /**
+   * Set the AppContext. 
+   *
+   * It is necessary to call setAppContext() prior to getRtcommEndpoint() if
+   * init() has not been called
+   * 
+   * @returns {module:rtcomm.EndpointProvider} EndpointProvider object
+   * @throws {Error} Cannot change appContext once init'd
+   */
 
   this.setAppContext = function(context) {
     if (!this.ready) {
@@ -388,99 +415,117 @@ var EndpointProvider =  function EndpointProvider() {
       });
     }
   };
-    /**
-     * populate the session queues
-     */
-    this.updateQueues= function updateQueues() {
-      this.queues.add((this.services && 
-                       this.services.RTCOMM_CALL_QUEUE_SERVICE && 
-                       this.services.RTCOMM_CALL_QUEUE_SERVICE.queues) ||
-                       []);
-      this.emit('queueupdate', this.queues.all());
-      l('DEBUG') && console.log(this+'.updateQueues() QUEUES: ',this.queues.list());
-    };
-    /**
-     * Join a Session Queue
-     *
-     * A Session Queue is a subscription to a Shared Topic.  By joining a queue, it enables
-     * the RtcommEndpoint to be 'available' to receive an inbound request from the queue topic.
-     * Generally, this could be used for an Agent scenario where many endpoints have joined the 
-     * queue, but only 1 endpoint will receive the inbound request.  Upon receipt, we immediately
-     * unsubscribe.  
-     *
-     * TODO:  Immediate unsubscribe will be an option upon adding chat support. 
-     *
-     * @param {string} queueid Id of a queue to join.
-     * @param {object} [options]  set autoPause:true to autopase queue when a message is received Options to use for queue
-     *
-     */
-    this.joinQueue= function joinQueue(/*String*/ queueid, /*object*/ options) {
-    // Is queue a valid queuename?
-      var endpointProvider = this;
-      // No more callback
-      var q = this.queues.get(queueid);
-      l('DEBUG') && console.log(this+'.joinQueue() Looking for queueid:'+queueid);
-      if (q) {
-        // Queue Exists... Join it
-        // This callback is how inbound messages (that are NOT START_SESSION would be received)
-        q.active = true;
-        q.callback = null;
-        q.autoPause = (options && options.autoPause) || false;
-        q.regex = this.endpointConnection.subscribe(q.topic);
-        return true;
-      } else {
-        throw new Error('Unable to find queue('+queueid+') available queues: '+ this.queues.list());
-      }
-    };
-    /**
-     * Leave a queue
-     * @param {string} queueid Id of a queue to leave.
-     */
-    this.leaveQueue= function leaveQueue(queueid) {
-      var q = this.queues.get(queueid);
-      if (q && !q.active) {
-        l('DEBUG') && console.log(this+'.leaveQueue() - Not Active,  cannot leave.');
-        return true;
-      }
-      if (q) {
-       q.active = false;
-       this.endpointConnection.unsubscribe(q.topic);
-       return true;
-      } else {
-        console.error(this+'.leaveQueue() Queue not found: '+queueid);
-        return false;
-      }
-    };
-    /**
-     * List Available Session Queues
-     *
-     * @returns {object} Object keyed on QueueID. The value is a Queue Object
-     * that can be used to determine is the queue is active or not.
-     *
-     */
-    this.getAllQueues = function() {
-      return  this.queues.all();
-    };
+  /**
+   * populate the session queues
+   * @fires module:rtcomm.EndpointProvider#queueupdate
+   */
+  this.updateQueues= function updateQueues() {
+    this._private.queues.add((this._private.services && 
+                     this._private.services.RTCOMM_CALL_QUEUE_SERVICE && 
+                     this._private.services.RTCOMM_CALL_QUEUE_SERVICE.queues) ||
+                     []);
+    this.emit('queueupdate', this._private.queues.all());
+    l('DEBUG') && console.log(this+'.updateQueues() QUEUES: ',this._private.queues.list());
+  };
+  /**
+   * Join a Session Queue
+   *
+   * A Session Queue is a subscription to a Shared Topic.  By joining a queue, it enables
+   * the all RtcommEndpoints to be 'available' to receive an inbound request from the queue topic.
+   * Generally, this could be used for an Agent scenario where many endpoints have joined the 
+   * queue, but only 1 endpoint will receive the inbound request.  
+   *
+   * @param {string} queueid Id of a queue to join.
+   * @returns {boolean} Queue Join successful
+   *
+   * @throws {Error} Unable to find Queue specified
+   *
+   */
+  this.joinQueue= function joinQueue(/*String*/ queueid, /*object*/ options) {
+  // Is queue a valid queuename?
+    var endpointProvider = this;
+    // No more callback
+    var q = this._private.queues.get(queueid);
+    l('DEBUG') && console.log(this+'.joinQueue() Looking for queueid:'+queueid);
+    if (q) {
+      // Queue Exists... Join it
+      // This callback is how inbound messages (that are NOT START_SESSION would be received)
+      q.active = true;
+      q.callback = null;
+      q.autoPause = (options && options.autoPause) || false;
+      q.regex = this.dependencies.endpointConnection.subscribe(q.topic);
+      return true;
+    } else {
+      throw new Error('Unable to find queue('+queueid+') available queues: '+ this._private.queues.list());
+    }
+  };
+  /**
+   * Leave a queue
+   * @param {string} queueid Id of a queue to leave.
+   */
+  this.leaveQueue= function leaveQueue(queueid) {
+    var q = this._private.queues.get(queueid);
+    if (q && !q.active) {
+      l('DEBUG') && console.log(this+'.leaveQueue() - Not Active,  cannot leave.');
+      return true;
+    }
+    if (q) {
+     q.active = false;
+     this.dependencies.endpointConnection.unsubscribe(q.topic);
+     return true;
+    } else {
+      console.error(this+'.leaveQueue() Queue not found: '+queueid);
+      return false;
+    }
+  };
+  /**
+   * List Available Session Queues
+   *
+   * @returns {object} Object keyed on QueueID. The value is a Queue Object
+   * that can be used to determine is the queue is active or not.
+   *
+   */
+  this.getAllQueues = function() {
+    return  this._private.queues.all();
+  };
+
+  this.listQueues = function() {
+    return  this._private.queues.list();
+  };
+
+  /** Return the userID the EndpointProvider is using */
+  this.getUserID= function() {
+    return  this.config.userid;
+  };
+  this.getEndpointConnection = function() {
+    return this.dependencies.endpointConnection;
+  }
 
   // exposing module global functions for set/get loglevel
+  /** Set LogLevel 
+   *  @param {string} INFO, MESSAGE, DEBUG, TRACE
+   */
   this.setLogLevel = setLogLevel;
+  /** Return  LogLevel 
+   *  @returns {string} INFO, MESSAGE, DEBUG, TRACE
+   */
   this.getLogLevel = getLogLevel;
-
-  /** available endpoints */
+  /** available endpoints
+   *  @returns {Array} Array of Endpoint Objects 
+   */
   this.endpoints = function() {
     return endpointRegistry.list();
   };
-
-
   this.currentState = function() {
     return {
-      states:  this._private,
-      config : this.config,
-      endpointRegistry: endpointRegistry.list()
+      'dependencies':  this._private,
+      'private':  this._private,
+      'config' : this.config,
+      'queues': this.getAllQueues(),
+      'endpointRegistry': endpointRegistry.list()
     };
 
   };
-
 }; // end of constructor
 
 EndpointProvider.prototype = util.RtcommBaseObject.extend({});

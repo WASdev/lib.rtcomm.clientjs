@@ -138,15 +138,13 @@ var EndpointRegistry = function EndpointRegistry(options) {
    */
   function destroy() {
     // call destroy on all objects, remove them.
-    Object.keys(registry).forEach(function(appContext) {
-      Object.keys(registry[appContext]).forEach(function(obj){
+    list().forEach(function(obj){
         console.log('destroying... ', obj);
         if (typeof obj.destroy === 'function') {
           obj.destroy();
         }
         remove(obj);
      });
-   });
   }
 
   function length() {

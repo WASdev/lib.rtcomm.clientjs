@@ -80,6 +80,11 @@ function WebRTCConnection(/* object */ config ) {
   this.autoAnswer = false;
   this.sessionQueue = null;
 
+  /**
+   * 
+   *
+   * @return
+   */
   this.streamAttached = false;
   // peer connection config
   this.pranswer = false;
@@ -119,6 +124,7 @@ function WebRTCConnection(/* object */ config ) {
   this.EVENTS = {
       "ready": "Ready to connect",
       "connected":"Connected to %s",
+      "started":"Connected to %s",
       "ringing": "Waiting for an Answer",
       "trying": "Connecting to %s",
       "disconnected": "Disconnect from %s",
@@ -468,11 +474,11 @@ WebRTCConnection.prototype = function() {
     // 
     
     
-    if (this.rtcommEndpoint && this.rtcommEndpoint.localStream) {
+    if (this.rtcommEndpoint && this.rtcommEndpoint.getLocalStream()) {
       // We have a localstream - we only support 1 local stream...  We should be able to add more streams, like music, etc... not yet. 
       if (this._peerConnection && !this.streamAttached) {
-        l('DEBUG') && console.log(this+'.attachLocalStream() calling .addStream on peerConnection with: ', this.rtcommEndpoint.localStream);
-        this._peerConnection.addStream(this.rtcommEndpoint.localStream);
+        l('DEBUG') && console.log(this+'.attachLocalStream() calling .addStream on peerConnection with: ', this.rtcommEndpoint.getLocalStream());
+        this._peerConnection.addStream(this.rtcommEndpoint.getLocalStream());
         this.streamAttached = true;
         return true;
       } else {
@@ -611,7 +617,9 @@ WebRTCConnection.prototype = function() {
   update = function() {
     // Send another OFFER (presumably w/ a new SDP)
   },
-
+  getSession = function() {
+    return this._sigSession || null;
+  },
   getState = function() {
     return this.state;
   },
@@ -700,6 +708,7 @@ WebRTCConnection.prototype = function() {
     _setState: _setState,
     _gotAnswer: _gotAnswer,
     _emit:_emit,
+    getSession: getSession,
     getStatus: getStatus,
     destroy: destroy,
     send: send,

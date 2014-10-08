@@ -13,22 +13,131 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
+
+
 /**
  *  @memberof module:rtcomm
  *  @description
- *  This object can only be created with the {@link module:rtcomm.RtcommEndpointProvider#createRtcommEndpoint|createRtcommEndpoint} function.
+ *  This object can only be created with the {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint} function.
  *  <p>
- *  The rtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.
+ *  The RtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.
  *  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
  *  stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection
  *  where to send that stream in the User Interface.
  *  <p>
- *  See the example under {@link module:rtcomm.RtcommEndpointProvider#createRtcommEndpoint|createRtcommEndpoint}
+ *  See the example under {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint}
  *  @constructor
  *
  *  @extends  module:rtcomm.util.RtcommBaseObject
  */
-var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
+/*global: l:false*/
+/*global: generateUUID:false*/
+/*global: util:false*/
+var RtcommEndpoint = function RtcommEndpoint() {
+  this.config = {
+      autoAnswer: false,
+      audio: true,
+      video: true,
+      data: true,
+  };
+  this.dependencies = {
+    parent: null,
+    webrtcConnection: null,
+    endpointConnection: null
+  };
+  /* Object to store private information */
+  this._private =  {
+      uuid: generateUUID(),
+      appContext: 'rtcomm',
+      userid: null,
+      inboundMedia: null,
+      attachMedia: false,
+      available : false,
+      localStream : null,
+      media : { In : null,
+               Out: null},
+      initialized : false
+  };
+  // expose the ID
+  this.id = this._private.uuid;
+  this.userid = null;
+
+  /* inbound and outbound Media Element DOM Endpoints */
+
+  /** @typedef {object} WebRTCConnectionEvent
+   *  @property {string} name - name of event
+   *  @property {object} object - an object passed with the event
+   *  @property {message} message - a message associated with the event
+   */
+
+  this.events = {
+      /**
+       * A PeerConnection to a peer has been established
+       * @event module:rtcomm.RtcommEndpoint#connected
+       * @property {WebRTCConnectionEvent}
+       */
+      "connected": [],
+      /**
+       * A signaling session to a peer has been established
+       * @event module:rtcomm.RtcommEndpoint#connected
+       * @property {WebRTCConnectionEvent}
+       */
+      "started": [],
+      /**
+       * An inbound request to establish a call via 
+       * 3PCC was initiated
+       */
+      "refer": [],
+      /**
+       * The connection to a peer has been closed
+       * @event module:rtcomm.RtcommEndpoint#disconnected
+       * @property {WebRTCConnectionEvent}
+       */
+      "disconnected": [],
+      /**
+       * A peer has been reached, but not connected (inbound/outound)
+       * @event module:rtcomm.RtcommEndpoint#ringing
+       * @property {WebRTCConnectionEvent}
+       */
+      "ringing": [],
+      /**
+       * A connection is being attempted (outbound only)
+       * @event module:rtcomm.RtcommEndpoint#trying
+       * @property {WebRTCConnectionEvent}
+       */
+      "trying": [],
+      /**
+       * An inbound connection is being requested.
+       * @event module:rtcomm.RtcommEndpoint#incoming
+       * @property {module:rtcomm.WebRTCConnection}
+       */
+      "incoming": [],
+      /**
+       * A message has arrived from a peer
+       * @event module:rtcomm.RtcommEndpoint#message
+       * @property {WebRTCConnectionEvent}
+       */
+      'message': [],
+      /**
+       * The endpoint has destroyed itself, clean it up.
+       * @event module:rtcomm.RtcommEndpoint#destroyed
+       * @property {module:rtcomm.RtcommEndpoint}
+       */
+      'destroyed': [],
+      /**
+       * Creating the connection to a peer failed
+       * @event module:rtcomm.RtcommEndpoint#failed
+       * @property {WebRTCConnectionEvent}
+       */
+      'failed': []
+  };
+
+
+};
+
+RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
 
   // Used to store registration timer.
   var registerTimer = null;
@@ -92,141 +201,45 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
   }
   /** @lends module:rtcomm.RtcommEndpoint.prototype */
   return {
-
-    _initialized: false,
     /** initialize the object */
     init: function(config) {
-      /* Object to store private information */
-      this._private =  {
-          uuid: generateUUID(),
-          autoAnswer: false,
-          audio: true,
-          video: true,
-          data: true,
-          appContext: 'rtcomm',
-          anonymous: false,
-          userid: null,
-          parent: null,
-          inboundMedia: null,
-          attachMedia: false
-      };
-
-      this.id = this._private.uuid;
-      this.userid = null;
-
-      /** @typedef {object} module:rtcomm#RtcommEvent
-       *  @property {string} name - name of event
-       *  @property {object} object - an object passed with the event
-       *  @property {message} message - a message associated with the event
-       */
-
-      this.events = {
-          /**
-           * A PeerConnection to a peer has been established
-           * @event module:rtcomm.RtcommEndpoint#connected
-           * @property {module:rtcomm#RtcommEvent}
-           */
-          "connected": [],
-          /**
-           * A signaling session to a peer has been established
-           * @event module:rtcomm.RtcommEndpoint#connected
-           * @property {module:rtcomm#RtcommEvent}
-           */
-          "started": [],
-          /**
-           * An inbound request to establish a call via 
-           * 3PCC was initiated
-           */
-          "refer": [],
-          /**
-           * The connection to a peer has been closed
-           * @event module:rtcomm.RtcommEndpoint#disconnected
-           * @property {module:rtcomm#RtcommEvent}
-           */
-          "disconnected": [],
-          /**
-           * A peer has been reached, but not connected (inbound/outound)
-           * @event module:rtcomm.RtcommEndpoint#ringing
-           * @property {module:rtcomm#RtcommEvent}
-           */
-          "ringing": [],
-          /**
-           * A connection is being attempted (outbound only)
-           * @event module:rtcomm.RtcommEndpoint#trying
-           * @property {module:rtcomm#RtcommEvent}
-           */
-          "trying": [],
-          /**
-           * An inbound connection is being requested.
-           * @event module:rtcomm.RtcommEndpoint#incoming
-           * @property {module:rtcomm#RtcommEvent}
-           */
-          "incoming": [],
-          /**
-           * A message has arrived from a peer
-           * @event module:rtcomm.RtcommEndpoint#message
-           * @property {module:rtcomm#RtcommEvent}
-           */
-          'message': [],
-          /**
-           * The endpoint has destroyed itself, clean it up.
-           * @event module:rtcomm.RtcommEndpoint#destroyed
-           * @property {module:rtcomm#RtcommEvent}
-           */
-          'destroyed': [],
-          /**
-           * Creating the connection to a peer failed
-           * @event module:rtcomm.RtcommEndpoint#failed
-           * @property {module:rtcomm#RtcommEvent}
-           */
-          'failed': []
-      };
-
       l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
       if (config) {
-        this.update = (config.update)?config.update: this.update;
-        delete config.update;
-        applyConfig(config, this._private);
+        this._private.appContext = config.appContext || this._private.appContext;
+        delete config.appContext;
+        this.dependencies.parent = config.parent || null;
+        this.dependencies.endpointConnection = config.parent.getEndpointConnection() || null;
+        delete config.parent;
+        this._private.userid= config.userid|| null;
         this.userid = this._private.userid;
+        delete config.userid;
+        applyConfig(config, this.config);
       }
-
-      // Expose the appcontext/userid on the object
-      this.endpointConnection = this._private.parent.endpointConnection;
-      this.appContext = this._private.appContext;
-
-      this._initialized = true;
-      /* inbound and outbound Media Element DOM Endpoints */
-      this.media = {
-          In: null,
-          Out: null
-      };
-
-      this.available = true;
-      this.localStream=null;
-
+      //
+      this._private.initialized = true;
+      this._private.available = true;
       // return  a reference to ourselves for chaining
       return this;
     },
+
     setUserID : function(userid) {
-      this.userid = userid;
+      this.userid = this._private.userid = userid;
     },
 
-
     send: function(message) {
-      if (this.conn.getState() === 'STARTED')  {
-        message && this.conn.send(message);
+      if (this.myWebRTCConnection().getState() === 'STARTED')  {
+        message && this.myWebRTCConnection().send(message);
       } else {
         throw new Error ('A connection to an Endpoint should exist, call addEndpoint() first');
       }
     },
 
-
-    update: function() { console.log('Default function, should have been overridden');},
+    update: function() { console.error('Deprecated!!! Default function, should have been overridden');},
 
     reset: function() {
-      this.available = true;
+      this.available(true);
       this.disconnect();
-      this.localStream && this.localStream.stop();
+      this.getLocalStream() && this.getLocalStream().stop();
       detachMediaStream && detachMediaStream(this.getMediaIn());
       detachMediaStream && detachMediaStream(this.getMediaOut());
     },
@@ -237,9 +250,8 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     destroy : function() {
       l('DEBUG') && console.log(this+'.destroy Destroying RtcommEndpoint');
       this.emit('destroyed', this);
-      this.registered && this.unregister();
       this.disconnect();
-      this.localStream && this.localStream.stop();
+      this.getLocalStream() && this.getLocalStream().stop();
       l('DEBUG') && console.log(this+'.destroy() - detaching media streams');
       detachMediaStream && detachMediaStream(this.getMediaIn());
       detachMediaStream && detachMediaStream(this.getMediaOut());
@@ -264,26 +276,26 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       //
       //
       var event = null;
-      if ((session.appContext === this.appContext) || this.ignoreAppContext) {
+      if ((session.appContext === this.getAppContext()) || this.ignoreAppContext) {
         // We match appContexts (or don't care)
-        if (this.available) {
+        if (this.available()){
           // We are available (we can mark ourselves busy to not accept the call)
           event = 'incoming';
           if (session.type === 'refer') {
             l('DEBUG') && console.log(this + '.newSession() REFER');
             event = 'refer';
           }
-          this.conn = this.createConnection();
-          this.conn.init({session:session});
-          this.available = false;
-          this.emit(event, this.conn);
+          var conn = this.dependencies.webrtcConnection = this.createConnection();
+          conn.init({session:session});
+          this.available(false);
+          this.emit(event, conn);
         } else {
           var msg = 'Busy';
           l('DEBUG') && console.log(this+'.newSession() '+msg);
           session.fail('Busy');
         }
       } else {
-        var msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.appContext+')';
+        var msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.getAppContext()+')';
         l('DEBUG') && console.log(this+'.newSession() '+msg);
         session.fail(msg);
       }
@@ -291,7 +303,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
 
     createConnection : function(config, onSuccess, onFailure) {
 
-      if (!this._initialized) {
+      if (!this.initialized()) {
         throw new Error('Not Ready! call init() first');
       }
       // ourself is the rtcommEndpoint
@@ -299,20 +311,20 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       config = config || {};
       config.rtcommEndpoint = rtcommEndpoint;
       // Call the ClientServide createConnection with correct context set and config;
-      rtcommEndpoint.conn  = new WebRTCConnection({
+      rtcommEndpoint.dependencies.webrtcConnection  = new WebRTCConnection({
         audio: this.getAudio(),
         video: this.getVideo(),
         data: this.getData(),
         appContext: this._private.appContext,
         toEndpointID: config.toEndpointID,
         rtcommEndpoint: rtcommEndpoint,
-        endpointConnection: this.endpointConnection,
+        endpointConnection: this.dependencies.endpointConnection,
         onEvent: function(event) {
           // This type of event is event.name...
           rtcommEndpoint.emit(event.name, event);
         }
       });
-      return rtcommEndpoint.conn;
+      return rtcommEndpoint.myWebRTCConnection();
     },
 
     /**
@@ -334,18 +346,18 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       if (this.getAudio() || this.getVideo()|| this.getData()) {
         if (this.getMediaIn() && this.getMediaOut()) {
           // Must be set...
-          if (this.localStream) {
-            l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Have a localStream already, apply it.', this.localStream);
+          if (this.getLocalStream()) {
+            l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Have a localStream already, apply it.', this.getLocalStream());
             // we have a local stream, proceed to make a call.
             // TODO:  This following COMPARE is not browser agnostic
-            if (URL.createObjectURL(this.localStream) === this.getMediaOut().src) {
+            if (URL.createObjectURL(this.getLocalStream()) === this.getMediaOut().src) {
               // We are connected and everthing...
               l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Already setup, skipping');
               callback(true);
             } else {
               // Apply the stream.
               l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Applying Local Stream');
-              rtcommEndpoint.attachMediaStream(rtcommEndpoint.getMediaOut(),rtcommEndpoint.localStream);
+              rtcommEndpoint.attachMediaStream(rtcommEndpoint.getMediaOut(),rtcommEndpoint.getLocalStream());
               callback(true);
             }
           } else {
@@ -354,7 +366,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
             this.getUserMedia({audio: this.getAudio(), video: this.getVideo()} ,
                 /* onSuccess */ function(stream) {
               console.log('getUserMedia returned: ', stream);
-              rtcommEndpoint.localStream = stream;
+              rtcommEndpoint.setLocalStream(stream);
               rtcommEndpoint.attachMediaStream(rtcommEndpoint.getMediaOut(),stream);
               callback(true);
             },
@@ -383,7 +395,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
       // When call is invoked, we must have a RemoteID and we must have mediaIn & Out set.
       // We need to confirm the stream is attached
       var rtcommEndpoint = this;
-      this.available = false;
+      this.available(false); 
       l('DEBUG') && console.log(this + ".addEndpoint() Calling "+remoteId);
       if ( remoteId === null ) { throw new Error(".addEndpoint() requires an ID to be passed"); }
 
@@ -391,7 +403,7 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         if (success) {
           if (typeof rtcommEndpoint.createConnection === 'function') {
             rtcommEndpoint.createConnection({toEndpointID: remoteId, appContext: rtcommEndpoint.getAppContext()});
-            rtcommEndpoint.conn.connect();
+            rtcommEndpoint.myWebRTCConnection().connect();
           } else {
             console.error("Don't know what to do, createConnection missing...");
           }
@@ -402,20 +414,16 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     },
     /**
      *  Answers a call - [Sends an 'answer' on a connection that is inbound]
-     *  There MAY be more than one connection present, if so, uses a passed ID to answer
-     *  the right connection
-     *
-     *  @param {string} [id] Optional Id to answer.  Required if more than 1 connection
      *
      *  @throws Error Could not find connection to answer
      */
-    acceptEndpoint : function(id) {
-      this.available = false;
+    acceptEndpoint : function() {
+      this.available(false);
       var rtcommEndpoint = this;
       l('DEBUG') && console.log(this + ".answer() invoked ");
       rtcommEndpoint.attachLocalMedia(function(success, message) {
         if (success) {
-          var connection = rtcommEndpoint.getConnection(id);
+          var connection = rtcommEndpoint.myWebRTCConnection();
           if(connection) {
             connection.connect();
           } else {
@@ -426,6 +434,18 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
         }
       });
     },
+    /**
+     * reject an incoming request. 
+     */
+    rejectEndpoint : function() {
+      this.available(false);
+      var rtcommEndpoint = this;
+      l('DEBUG') && console.log(this + ".rejectEndpoint() invoked ");
+      var session = rtcommEndpoint.myWebRTCConnection().getSession();
+      session && session.fail("The user rejected the call");
+      this.disconnect();
+      return true;
+    },
 
     /**  Destroys an existing connection. If there are more than one, then requires an ID
      *
@@ -433,12 +453,12 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      *
      */
     disconnect : function() {
-      if (this.conn  && this.conn.getState() !== 'DISCONNECTED') {
-        this.available = true;
-        this.conn.disconnect();
-        this.conn = null;
+      if (this.myWebRTCConnection()  && this.myWebRTCConnection().getState() !== 'DISCONNECTED') {
+        this.available(true);
+        this.myWebRTCConnection().disconnect();
+        this.dependencies.webrtcConnection= null;
       } else {
-        this.conn = null;
+        this.dependencies.webrtcConnection= null;
       }
 
     },
@@ -448,52 +468,65 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
     attachMediaStream : attachMediaStream,
     detachMediaStream : detachMediaStream,
 
-    getConnection: function() { return this.conn ;},
+    setLocalStream: function(stream) {
+      if (stream) {
+        this._private.localStream = stream;
+        return this._private.localStream;
+      } else {
+        return null;
+      }
+    },
+    getLocalStream: function() {
+      return this._private.localStream || null;
+    },
+
+    myWebRTCConnection : function() { return this.dependencies.webrtcConnection ;},
 
     /** set the endpointConnection IFF it is null */
     setEndpointConnection: function(endpointConnection) {
-      if (!this.endpointConnection) {
-        this.endpointConnection = endpointConnection;
+      if (!this.dependencies.endpointConnection) {
+        this.dependencies.endpointConnection = endpointConnection;
         return true;
       } else {
         return false;
       }
     },
+    available: function(a) {
+      if (a) {
+        if (typeof a === 'boolean') { 
+          this._private.available = a;
+          return a;
+        } 
+      } else  {
+        return this._private.available;
+      }
+    },
+    initialized: function() {
+      return this._private.initialized;
+    },
     /** Whether audio is enabled or not in the RtcommEndpoint.
      * @type Boolean
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
-    getAudio: function() { return this._private.audio; },
+    getAudio: function() { return this.config.audio; },
     setAudio: function(/*boolean*/ value)  {
-      if(this.update({audio: value}, this._private.uuid)) {
-        this._private.audio = value;
-      } else {
-        throw new Error("Unable to set value, would create a registration that already exists");
-      }
+        this.config.audio = value;
     },
     /** Whether Video is enabled or not in the RtcommEndpoint.
      * @type Boolean
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
-    getVideo: function() { return this._private.video;},
+    getVideo: function() { return this.config.video;},
     setVideo: function(/*boolean*/ value)  {
-      if(this.update({video: value}, this._private.uuid)) {
-        this._private.video = value;
-      } else {
-        throw new Error("Unable to set value, would create a registration that already exists");
-      }
+        this.config.video = value;
     },
     /** Whether data is enabled or not in the RtcommEndpoint.
      * @type Boolean
      * @throws Error Resulting Audio/Video/Data combination already exists for the context.
      * */
-    getData: function() {return this._private.data;},
+    getData: function() {return this.config.data;},
     setData: function(/*boolean*/ value)  {
-      if(this.update({data: value}, this._private.uuid)) {
-        this._private.data = value;
-      } else {
-        throw new Error("Unable to set value, would create a registration that already exists");
-      }
+        this.config.data = value;
     },
     /** context of the endpoint instance.  This is used to match nodes on endpoints so that each endpoint
      *  should have a node with the same context in order to communicate with each other. There can
@@ -509,17 +542,17 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      */
     getAppContext:function() {return this._private.appContext;},
 
-    setAppContext:function(appcontext) {this.appContext = this._private.appContext = appcontext;},
+    setAppContext:function(appcontext) {this._private.appContext = appcontext;},
 
     /** Return userid associated with this RtcommEndpoint */
-    getUserid: function() { return this._private.userid;},
+    getUserID: function() { return this._private.userid;},
     getUuid: function() {return this._private.uuid;},
     /** RtcommEndpoint is ready to initiate a connection
      * @type Boolean */
-    isReady: function() {return this._private.parent.isReady();},
+    isReady: function() {return this.dependencies.parent.isReady();},
     /* autoAnswer - used for testing */
-    getAutoAnswer: function() { return this._private.autoAnswer;},
-    setAutoAnswer: function(value) { this._private.autoAnswer = value;},
+    getAutoAnswer: function() { return this.config.autoAnswer;},
+    setAutoAnswer: function(value) { this.config.autoAnswer = value;},
 
     setInboundMediaStream: function(stream) {
       this._private.inboundMedia=URL.createObjectURL(stream);
@@ -535,14 +568,14 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      * @throws Error Object does not have a src attribute
      */
     getMediaIn: function() {
-      return this.media.In;
+      return this._private.media.In;
     },
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
-        this.media.In = value;
+        this._private.media.In = value;
         // if we already have an inboundMedia stream attached, attach it here.
         if (this._private.inboundMedia) {
-          this.attachMediaStream(this.media.In, this._private.inboundMedia);
+          this.attachMediaStream(this._private.media.In, this._private.inboundMedia);
         }
       } else {
         throw new TypeError('Media Element object is invalid');
@@ -554,13 +587,13 @@ var RtcommEndpoint = util.RtcommBaseObject.extend((function() {
      * @param {Object} value - DOM Endpoint with 'src' attribute like a 'video' node.
      * @throws Error Object does not have a src attribute
      */
-    getMediaOut: function() { return this.media.Out; },
+    getMediaOut: function() { return this._private.media.Out; },
     setMediaOut: function(value) {
       if(validMediaElement(value) ) {
-        this.media.Out = value;
-        // if we already have an inboundMedia stream attached, attach it here.
-        if (this.localStream) {
-          this.attachMediaStream(this.media.In, this.localStream);
+        this._private.media.Out = value;
+        // if we already have an outBoundMedia stream attached, attach it here.
+        if (this.getLocalStream()) {
+          this.attachMediaStream(this._private.media.Out, this.getLocalStream());
         }
       } else {
         throw new TypeError('Media Element object is invalid');

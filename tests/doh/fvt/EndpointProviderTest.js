@@ -92,8 +92,8 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
               // should be ready, should have a GUEST userid
               console.log('TEST -> userid: ' + self.endpointProvider.config.userid);
               doh.assertTrue(/^GUEST/.test(self.endpointProvider.config.userid));
-              console.log('TEST -> services: ', self.endpointProvider.services);
-              doh.assertTrue(self.endpointProvider.services);
+              console.log('TEST -> services: ', self.endpointProvider._private.services);
+              doh.assertTrue(self.endpointProvider._private.services);
               console.log('TEST -> ready '+ self.endpointProvider.ready);
               doh.assertTrue(self.endpointProvider.ready);
               }),
@@ -191,8 +191,8 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
            var self = this;
            // Wait for 'ready'
            setTimeout(deferred.getTestCallback(function() {
-              console.log('TEST -> Queues: ' + self.endpointProvider.queues.list());
-              doh.t(self.endpointProvider.queues.list().length > 0);
+              console.log('TEST -> Queues: ' + self.endpointProvider.listQueues());
+              doh.t(self.endpointProvider.listQueues().length > 0);
               }),
             T1);
             return deferred;

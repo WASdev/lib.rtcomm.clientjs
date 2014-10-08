@@ -169,7 +169,7 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
           },
           T3
       ),
-      new p2pFixture('Start Session - Initial Timeout', true, 
+      new p2pFixture('Start Session - Initial Timeout[flakey, try again if fails]', true, 
          function() {
            console.log('************* Running Test *********');
            var test = this;
@@ -206,7 +206,7 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
          },
          T1+8000 
       ),
-      new p2pFixture('Start Session - final Timeout', true, 
+      new p2pFixture('Start Session - final Timeout[flakey, try again if fails]', true, 
          function() {
            console.log('************* Running Test *********');
            var test = this;

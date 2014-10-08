@@ -265,13 +265,15 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             setTimeout(deferred.getTestCallback(function() {
 
                console.log("******************Asserting now...***********************");
-               console.log("State of 1: " + ep1.getConnection().getState());
-               console.log("State of 2: " + ep2.getConnection().getState());
+               console.log('endpoint1: ',ep1);
+               console.log('endpoint2: ',ep2);
+               console.log("State of 1: " + ep1.myWebRTCConnection().getState());
+               console.log("State of 2: " + ep2.myWebRTCConnection().getState());
 
-               doh.assertTrue(ep1.getConnection().getState() === 'STARTED');
-               doh.assertTrue(ep2.getConnection().getState() === 'STARTED');
-               //  console.log("State of 1: " + self.node1.getConnection().getState());
-                // console.log("State of 2: " + self.node2.getConnection().getState());
+               doh.assertTrue(ep1.myWebRTCConnection().getState() === 'STARTED');
+               doh.assertTrue(ep2.myWebRTCConnection().getState() === 'STARTED');
+               //  console.log("State of 1: " + self.node1.myWebRTCConnection().getState());
+                // console.log("State of 2: " + self.node2.myWebRTCConnection().getState());
 
             }),
             T2+5000);
@@ -332,14 +334,14 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             setTimeout(deferred.getTestCallback(function() {
 
                console.log("******************Asserting now...***********************");
-               console.log("State of 1: " + ep1.getConnection().getState());
-               console.log("State of 2: " + ep2.getConnection().getState());
+               console.log("State of 1: " + ep1.myWebRTCConnection().getState());
+               console.log("State of 2: " + ep2.myWebRTCConnection().getState());
 
-               doh.assertTrue(ep1.getConnection().getState() === 'STARTED');
-               doh.assertTrue(ep2.getConnection().getState() === 'STARTED');
+               doh.assertTrue(ep1.myWebRTCConnection().getState() === 'STARTED');
+               doh.assertTrue(ep2.myWebRTCConnection().getState() === 'STARTED');
                doh.assertEqual("HELLO",message1);
-               //  console.log("State of 1: " + self.node1.getConnection().getState());
-                // console.log("State of 2: " + self.node2.getConnection().getState());
+               //  console.log("State of 1: " + self.node1.myWebRTCConnection().getState());
+                // console.log("State of 2: " + self.node2.myWebRTCConnection().getState());
 
             }),
             T3);
@@ -414,14 +416,14 @@ define(["doh/runner","dojo/require", "lib/mqttws31" , "tests/common/config","ibm
             setTimeout(deferred.getTestCallback(function() {
 
                console.log("******************Asserting now...***********************");
-               console.log("State of 1: " + ep1.getConnection().getState());
-               console.log("State of 2: " + ep2.getConnection().getState());
+               console.log("State of 1: " + ep1.myWebRTCConnection().getState());
+               console.log("State of 2: " + ep2.myWebRTCConnection().getState());
 
-               doh.assertTrue(ep1.getConnection().getState() === 'STARTED');
-               doh.assertTrue(ep2.getConnection().getState() === 'STARTED');
+               doh.assertTrue(ep1.myWebRTCConnection().getState() === 'STARTED');
+               doh.assertTrue(ep2.myWebRTCConnection().getState() === 'STARTED');
                doh.assertEqual("HELLO",message1);
-               //  console.log("State of 1: " + self.node1.getConnection().getState());
-                // console.log("State of 2: " + self.node2.getConnection().getState());
+               //  console.log("State of 1: " + self.node1.myWebRTCConnection().getState());
+                // console.log("State of 2: " + self.node2.myWebRTCConnection().getState());
 
             }),
             T3);

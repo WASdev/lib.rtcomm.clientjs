@@ -41,13 +41,13 @@ var rtcEP = null;
 //  function(message) { console.error('init failed', message)}
 //);
 
-var mqtt1 = EP.createMqttEndpoint();
+var mqtt1 = EP.getMqttEndpoint();
 mqtt1.on('message', function(msg) {
     console.log('mqtt1 --> ', msg);
     });
 
 
-var mqtt2 = EP.createMqttEndpoint();
+var mqtt2 = EP.getMqttEndpoint();
 mqtt2.on('message', function(msg) {
     console.log('mqtt2 --> ', msg);
     });

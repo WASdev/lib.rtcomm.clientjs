@@ -54,10 +54,12 @@ var EndpointConnection = function EndpointConnection(config) {
         l('DEBUG') && console.log('Timer: Clearing existing Timer: '+item.timer + 'item.timeout: '+ item.timeout);
         clearTimeout(item.timer);
       }
+
+      var timerTimeout = item.timeout || defaultTimeout;
       item.timer  = setTimeout(function() {
           if (item.id in registry ) {
             // didn't execute yet
-            var errorMsg = item.objName + ' '+item.timer+' Timed out ['+item.id+'] after  '+item.timeout+': '+Date();
+            var errorMsg = item.objName + ' '+item.timer+' Timed out ['+item.id+'] after  '+timerTimeout+': '+Date();
             if (typeof registry[item.id].onFailure === 'function' ) {
               registry[item.id].onFailure({'failureReason': errorMsg});
             } else {
@@ -66,7 +68,8 @@ var EndpointConnection = function EndpointConnection(config) {
             delete registry[item.id];
           }
         },
-        item.timeout || defaultTimeout);
+        timerTimeout);
+      l('DEBUG') && console.log('Timer: Setting Timer: '+item.timer + 'item.timeout: '+timerTimeout);
       };
 
     var add = function(item) {
@@ -82,9 +85,7 @@ var EndpointConnection = function EndpointConnection(config) {
         console.log('TIMEOUT CHANGED called: ', item);
         addTimer(item);
       }.bind(this));
-
       timer && addTimer(item);
-
       registry[item.id] = item;
     };
 
@@ -160,13 +161,14 @@ var EndpointConnection = function EndpointConnection(config) {
       console.log('REMOVE ME: ', subs);
       Object.keys(subs).forEach(function(key) {
          if (subs[key].regex.test(message.topic)){
-           l('DEBUG') && console.log('Emitting Message to listener -> topic '+message.topic);
-           //if (subs[key].callback) {
-             subs[key].callback(message);
-          // } else {
-             // there is a subscription, but no callback, pass up normally.
-           //  endpointConnection.emit('message', message)
-          // }
+           if (subs[key].callback) {
+              l('DEBUG') && console.log('Emitting Message to listener -> topic '+message.topic);
+              subs[key].callback(message);
+           } else {
+            // there is a subscription, but no callback, pass up normally.
+             // drop tye messge
+             l('DEBUG') && console.log('Nothing to do with message, dropping message', message);
+           }
          }
       });
     } else {
@@ -480,6 +482,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
         disconnect : function() {
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
+          this.unregister();
           this.mqttConnection.destroy();
           l('DEBUG') && console.log('destroyed mqttConnection');
           this.mqttConnection = null;

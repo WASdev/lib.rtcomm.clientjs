@@ -208,9 +208,8 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     // make sure this is an integer.
     npConfig.port = parseInt(npConfig.port);
     //  If the EndpointProvider is ready, it has already been init'd, we don't need to init again. Just register again.
-    if (!ibmep.ready) {
       // Call init() on the Endpoint Provider.
-      ibmep
+    ibmep
           .init(
               npConfig,
               function(object) { //onSuccess
@@ -239,18 +238,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
                 alertMessage('Initialization and registration failed!');
                 uiUnregister();
               });
-    } else {
-      // The init above only happens 1 time.  This enables us to register/unregister
-      // while staying init'd.
-      ibmep.register(
-       function(msg) {
-        uiRegister(ibmep.userid);
-      }, function(error) {
-        alertMessage('Registration failed!' + error);
-        uiUnregister(ibmep.userid);
-      });
-    }
-    return false;
+    return true;
   };
 
   function buildEndpoint(endpointObject) {
@@ -292,7 +280,6 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     });
     endpointObject.on('incoming', function(conn) {
       if (!rtcommEndpoint.autoAnswer) {
-        console.log($('#answerDialog .modal-body'));
         $('#answerDialog .modal-body').html(
             "Inbound call from " + conn.toEndpointID);
         $('#answerDialog').modal('show');
@@ -301,7 +288,6 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
       }
     });
     endpointObject.on('refer', function(conn) {
-      console.log($('#answerDialog .modal-body'));
       $('#answerDialog .modal-body').html(
           "[3PCC] Initiate call to " + conn.toEndpointID);
       $('#answerDialog').modal('show');
@@ -367,7 +353,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   $('#answerNo').on('click', function() {
     $("#answerDialog").modal("hide");
     state='disconnected';
-    rtcommEndpoint.disconnect();
+    rtcommEndpoint.rejectEndpoint();
   });
 
   $('#btnReset').on('click', function() {
@@ -382,7 +368,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
   $('#btnRegister').on('click', function() {
     if (registered) {
-      rtcommEndpoint.unregister();
+      ibmep.destroy();
       uiUnregister();
     } else {
       updateMessage('Registering');
@@ -403,6 +389,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   });
 
   $('#btnConnect').on('click', function() {
+    console.log('CONNECT BUTTON: connected: '+connected, rtcommEndpoint);
     if (connected) {
       rtcommEndpoint.disconnect();
       uiDisconnect("Disconnected");
