@@ -9,11 +9,9 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
 	  var badconfig = {
 			   server: 1,
 			   port: "a",
-			   userid: 1
 	};
     var validconfig = { server: "a",
 			   port: 1,
-			   userid: "someuser",
 			   topicPath: "/rtcomm/"};
     
     doh.register("MqttConnectionUnitTests", [
@@ -22,7 +20,7 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
             try {
                 var rtcsvc = new connection.MqttConnection();
             } catch(e) {
-                doh.assertEqual('MqttConnection instantiation requires a minimum configuration: {"server":"string","port":"number","userid":"string","topicPath":"string"}', e.message);
+                doh.assertEqual('MqttConnection instantiation requires a minimum configuration: {"server":"string","port":"number","topicPath":"string"}', e.message);
             }
         }
 
@@ -50,19 +48,6 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
               }
 
           },
-          { name: "Number in userid config",
-              runTest: function(){
-           	   // change each to be good as we go down...
-            	  badconfig.port = 1;
-                  try {
-                    var rtcsvc = new connection.MqttConnection(badconfig);
-                 
-                  } catch(e) {
-                      doh.assertEqual('Typeof userid is incorrect. number  Should be a string', e.message);
-                  }
-              }
-
-             },
          
              { name:"Pass invalid config parameter",
                  runTest: function(){
@@ -71,7 +56,7 @@ define(["doh/runner", "tests/common/config", "ibm/rtcomm/connection"], function(
                         try {
                           var rtcsvc = new connection.MqttConnection(validconfig);
                         } catch(e) {
-                            doh.assertEqual('junk is an invalid property for {"server":"a","port":1,"userid":"someuser","topicPath":"/rtcomm/","credentials":null,"myTopic":null,"defaultTopic":null}', e.message);
+                            doh.assertEqual('junk is an invalid property for {"server":"a","port":1,"topicPath":"/rtcomm/","credentials":null,"myTopic":null,"defaultTopic":null}', e.message);
                         }
                     },
                     tearDown: function() {

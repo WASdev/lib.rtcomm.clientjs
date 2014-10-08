@@ -96,7 +96,6 @@ var SigSession = function SigSession(config) {
   this.finalTimeout = 30000; 
 };
 
-
 /* global util: false */
 SigSession.prototype = util.RtcommBaseObject.extend((function() {
   /** @lends module:rtcomm.connector.SigSession.prototype */
@@ -270,7 +269,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         pranswerMessage.holdTimeout=timeout;
       }
       this.state = 'pranswer';
-      this.send(pranswerMessage);
+      this.send(pranswerMessage,timeout || this.finalTimeout);
       this.emit('pranswer');
     },
 
@@ -290,7 +289,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      * based on the content.
      * 
      */
-    send :  function(message) {
+    send :  function(message, timeout) {
       var messageToSend = null;
       if (message && message.rtcommVer && message.method) {
         // we've already been cast... just send it raw...
@@ -308,6 +307,8 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       } else {
         if (transaction){
           l('DEBUG') && console.log(this+'.send() Sending using transaction['+transaction.id+']', messageToSend);
+          // If we have a timeout update the transaction;
+          timeout && transaction.setTimeout(timeout);
           transaction.send(messageToSend);
         } else {
           l('DEBUG') && console.log(this+'.send() Sending... ['+this.state+']', messageToSend);
@@ -365,10 +366,12 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       case 'PRANSWER':
         // change our state, emit content if it is there.
         // holdTimeout is in seconds, rather than milliseconds.
-        this._startTransaction && this._startTransaction.setTimeout(message.holdTimeout*1000 || this.finalTimout);
-        if (message.holdTimeout) {
-          // This is a QUEUE Pranswer (a special pranswer type that DOES NOT Mean someone is ready at the other end
-        } else {
+        console.log('PRANSWER --> '+ message.holdTimeout+"="+ (typeof message.holdTimeout === 'undefined') + " - "+this.finalTimeout);
+
+        var timeout = (typeof message.holdTimeout === 'undefined') ? this.finalTimeout : message.holdTimeout*1000;
+        console.log('PRANSWER, resetting timeout to :',timeout);
+        this._startTransaction && this._startTransaction.setTimeout(timeout);
+        if (!message.holdTimeout) {
           this.state = 'have_pranswer';
           this.emit('have_pranswer', message.peerContent);
         }

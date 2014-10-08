@@ -84,7 +84,7 @@ var RtcommBaseObject = {
         // Event exists, call all callbacks
         self.events[event].forEach(function(callback) {
             if (typeof callback === 'function') {
-              l('EVENT', self) && console.log(this+".emit()  executing callback for event["+event+"]"+ callback);
+              l('EVENT', self) && console.log(this+".emit()  executing callback for event["+event+"]");
               callback(object);
             } else {
               l('EVENT', self) && console.log(self+' Emitting, but no callback for event['+event+']');

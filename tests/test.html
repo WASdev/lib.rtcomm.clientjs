@@ -18,7 +18,6 @@
 	// Create a service
 console.log("Starting Test");
 var myConfig = { 
-            register: false, 
             createEndpoint: false,
             server: 'svt-msd4.rtp.raleigh.ibm.com', 
             port: 1883, 
@@ -31,24 +30,24 @@ var EP = new ibm.rtcomm.RtcommEndpointProvider();
 EP.setLogLevel('DEBUG');
 var rtcEP = null;
 
-EP.init(myConfig,
-  function(message) { 
-    console.log('init was successful', message);
-    rtcEP = EP.createRtcommEndpoint({appContext: 'RtcommTest',autoAnswer: true, audio:false, video:false,data:false})
-    rtcEP.on('message', function(message){
-      console.log('receivbed a message on the rtcommEP from a QUEUE', message)
-      });
-  },
-  function(message) { console.error('init failed', message)}
-);
+//EP.init(myConfig,
+//  function(message) { 
+//    console.log('init was successful', message);
+//    rtcEP = EP.createRtcommEndpoint({appContext: 'RtcommTest',autoAnswer: true, audio:false, video:false,data:false})
+//    rtcEP.on('message', function(message){
+//      console.log('receivbed a message on the rtcommEP from a QUEUE', message)
+//      });
+//  },
+//  function(message) { console.error('init failed', message)}
+//);
 
-var mqtt1 = EP.createMqttEndpoint();
+var mqtt1 = EP.getMqttEndpoint();
 mqtt1.on('message', function(msg) {
     console.log('mqtt1 --> ', msg);
     });
 
 
-var mqtt2 = EP.createMqttEndpoint();
+var mqtt2 = EP.getMqttEndpoint();
 mqtt2.on('message', function(msg) {
     console.log('mqtt2 --> ', msg);
     });

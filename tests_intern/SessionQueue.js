@@ -14,7 +14,7 @@
  * limitations under the License.
  **/
 
-var config= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommfvt/' };
+var config= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommscott/' };
 
 define([
     'intern!object',
@@ -28,7 +28,7 @@ define([
     var mqtt = null;
 
     var START_SESSION = {
-        'rtcommVer': 'v0.0.1',
+        'rtcommVer': 'v0.1.0',
         'method': 'START_SESSION',
         'fromTopic': null,
         'sigSessID':'1111-fake-test-1111',
@@ -51,6 +51,7 @@ define([
           ep = new rtcomm.RtcommEndpointProvider();
           ep.setLogLevel('DEBUG');
           config.userid = 'intern';
+          config.appContext = 'rtcommTest';
           ep.init(config, 
                   function() {
                     console.log('***** Setup Complete *****');
@@ -65,7 +66,7 @@ define([
         beforeEach: function() {
           console.log('reset the rtcommEP');
           rtcommEP && rtcommEP.destroy();
-          rtcommEP = ep.createRtcommEndpoint({appContext: 'rtcommTest',audio:false, video:false, data:false});
+          rtcommEP = ep.createRtcommEndpoint({audio:false, video:false, data:false});
           console.log('reset the mqtt');
           mqtt && mqtt.destroy();
           mqtt = ep.createMqttEndpoint();
@@ -75,43 +76,27 @@ define([
           ep = null;
         },
         'Init of rtcommEP creates Queues' : function() {
-          assert.isDefined(rtcommEP.queues, 'queues is defined');
+          assert.isDefined(ep.queues, 'queues is defined');
+//          this.skip();
         },
 
         'Join bad queue throws exception': function () {
+ //         this.skip();
           var error;
           try { 
-            rtcommEP.joinSessQueue('/TestTopic/#');
+            ep.joinQueue('/TestTopic/#');
           } catch(e) {
             error = e;
             console.log(e);
           }
           assert.isDefined(error, 'An error was thrown correctly');
         },
-        'Receive regular message from Topic': function () {
-          var dfd = this.async(5000);
-          var error;
-          var queue = rtcommEP.queues.get(rtcommEP.queues.list()[0]);
-          console.log('Using Queue: '+queue.endpointID);
-          console.log(queue);
-          // Join the first queue:
-          rtcommEP.joinSessQueue(queue.endpointID);
-          var publishTopic = getPublishTopic(queue.topic);
-          console.log('publishTopic: ', publishTopic);
-
-          var finish = dfd.callback( function(obj) {
-            console.log('Finish called!');
-            assert.equal(obj.content, 'Hello', 'Received the correct message');
-          });
-          rtcommEP.on('message', finish);
-          mqtt.publish(publishTopic+'/intern', 'Hello');
-        },
         'Send a start session to a queue': function () {
 
           var dfd = this.async(5000);
           var error;
-          var queue = rtcommEP.queues.get(rtcommEP.queues.list()[0]);
-          rtcommEP.joinSessQueue(queue.endpointID);
+          var queue = ep.queues.get(ep.queues.list()[0]);
+          ep.joinQueue(queue.endpointID);
           var publishTopic = getPublishTopic(queue.topic);
           console.log('publishTopic: ', publishTopic);
           var finish = dfd.callback( function(obj) {
