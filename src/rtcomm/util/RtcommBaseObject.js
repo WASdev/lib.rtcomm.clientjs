@@ -63,6 +63,7 @@ var RtcommBaseObject = {
         delete this.events[event];
       }   
     },  
+
     /** Establish a listener for an event */
     on : function(event,callback) {
       //console.log('on -- this.events is: '+ JSON.stringify(this.events));
@@ -77,19 +78,21 @@ var RtcommBaseObject = {
     },  
     /** emit an event from the object */
     emit : function(event, object) {
-      if (this.events && this.events[event]) {
-        l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", object);
+      var self = this;
+      if (this.events && this.events[event] ) {
+        l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);
         // Event exists, call all callbacks
-        this.events[event].forEach(function(callback) {
-          if (typeof callback === 'function') {
-            callback(object);
-          } else {
-            l('EVENT', this) && console.log(this+' Emitting, but no callback for event['+event+']');
-          }   
-        }); 
+        self.events[event].forEach(function(callback) {
+            if (typeof callback === 'function') {
+              l('EVENT', self) && console.log(this+".emit()  executing callback for event["+event+"]");
+              callback(object);
+            } else {
+              l('EVENT', self) && console.log(self+' Emitting, but no callback for event['+event+']');
+            }   
+        });
       } else {
         throw new Error('emit() requires an events property listing the events. this.events['+event+'] = [];');
-      }   
+      }
     },
     extend: function(props) {
       var prop, obj;
@@ -100,6 +103,14 @@ var RtcommBaseObject = {
         }
       }
       return obj;
+    },
+    // Test Function
+    _l: function(level){
+      if (typeof l === 'function') {
+        return l(level,this);
+      } else {
+        return 'unknown';  
+      }
     },
     toString: function() {
       return this.objName + '['+this.id+']';

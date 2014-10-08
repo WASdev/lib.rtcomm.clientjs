@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="US-ASCII">
+<title>WebRTC rtcomm.* test</title> <script type="text/javascript" src="../lib/mqttws31.js" ></script>
+<script type="text/javascript" src="../build/js/ibm/rtcomm.js" ></script>
+</head>
+
+<body>
+
+  <h1>EndPoint Provider Testing </h1> 
+  <hr>
+  <p></p>
+
+
+<script type="text/javascript">
+
+	// Create a service
+console.log("Starting Test");
+var myConfig = { 
+            createEndpoint: false,
+            server: 'svt-msd4.rtp.raleigh.ibm.com', 
+            port: 1883, 
+            userid: 'scott', 
+            rtcommTopicName: 'management', 
+            topicPath: '/rtcommscott/'
+};
+
+var EP = new ibm.rtcomm.RtcommEndpointProvider();
+EP.setLogLevel('DEBUG');
+var rtcEP = null;
+
+//EP.init(myConfig,
+//  function(message) { 
+//    console.log('init was successful', message);
+//    rtcEP = EP.createRtcommEndpoint({appContext: 'RtcommTest',autoAnswer: true, audio:false, video:false,data:false})
+//    rtcEP.on('message', function(message){
+//      console.log('receivbed a message on the rtcommEP from a QUEUE', message)
+//      });
+//  },
+//  function(message) { console.error('init failed', message)}
+//);
+
+var mqtt1 = EP.getMqttEndpoint();
+mqtt1.on('message', function(msg) {
+    console.log('mqtt1 --> ', msg);
+    });
+
+
+var mqtt2 = EP.getMqttEndpoint();
+mqtt2.on('message', function(msg) {
+    console.log('mqtt2 --> ', msg);
+    });
+
+
+// This should create a Session Only node.
+// var endpoint =  EP.createRtcommNode({audio:false, video:false, data:false});
+
+</script>
+</body>
+
+</html>

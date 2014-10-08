@@ -20,8 +20,10 @@ var logging = new util.Log(),
     getLogLevel = logging.g,
     l = logging.l,
     generateUUID = util.generateUUID,    
+    generateRandomBytes = util.generateRandomBytes,    
     validateConfig = util.validateConfig,
     applyConfig = util.applyConfig,
+    setConfig = util.setConfig,
     /*global log: false */
     log = logging.log;
 
