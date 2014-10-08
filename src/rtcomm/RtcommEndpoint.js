@@ -13,10 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
-
-
 /**
  *  @memberof module:rtcomm
  *  @description
@@ -66,23 +62,25 @@ var RtcommEndpoint = function RtcommEndpoint() {
 
   /* inbound and outbound Media Element DOM Endpoints */
 
-  /** @typedef {object} WebRTCConnectionEvent
+  /** 
+   * RtcommEndpoint Event type 
+   *  @typedef {Object} module:rtcomm.RtcommEndpoint~Event
    *  @property {string} name - name of event
-   *  @property {object} object - an object passed with the event
    *  @property {message} message - a message associated with the event
+   *  @property {object} object - an object passed with the event
    */
 
   this.events = {
       /**
        * A PeerConnection to a peer has been established
        * @event module:rtcomm.RtcommEndpoint#connected
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "connected": [],
       /**
        * A signaling session to a peer has been established
        * @event module:rtcomm.RtcommEndpoint#connected
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "started": [],
       /**
@@ -93,19 +91,19 @@ var RtcommEndpoint = function RtcommEndpoint() {
       /**
        * The connection to a peer has been closed
        * @event module:rtcomm.RtcommEndpoint#disconnected
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "disconnected": [],
       /**
        * A peer has been reached, but not connected (inbound/outound)
        * @event module:rtcomm.RtcommEndpoint#ringing
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "ringing": [],
       /**
        * A connection is being attempted (outbound only)
        * @event module:rtcomm.RtcommEndpoint#trying
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "trying": [],
       /**
@@ -117,7 +115,7 @@ var RtcommEndpoint = function RtcommEndpoint() {
       /**
        * A message has arrived from a peer
        * @event module:rtcomm.RtcommEndpoint#message
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       'message': [],
       /**
@@ -129,7 +127,7 @@ var RtcommEndpoint = function RtcommEndpoint() {
       /**
        * Creating the connection to a peer failed
        * @event module:rtcomm.RtcommEndpoint#failed
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       'failed': []
   };

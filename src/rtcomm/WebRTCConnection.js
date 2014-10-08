@@ -1,4 +1,4 @@
- /**
+ /*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,12 +79,6 @@ function WebRTCConnection(/* object */ config ) {
   this.toEndpointID = null;
   this.autoAnswer = false;
   this.sessionQueue = null;
-
-  /**
-   * 
-   *
-   * @return
-   */
   this.streamAttached = false;
   // peer connection config
   this.pranswer = false;
