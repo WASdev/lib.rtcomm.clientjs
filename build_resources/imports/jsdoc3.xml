@@ -2,11 +2,11 @@
 
   <!-- For information on jsDoc, visit https://github.com/jannon/jsdoc3-ant-task or ui_tools/jsDoc/jsdoc-master/README.md -->
   <target name="rtcommJsdoc">
-    <property name="jsdoc.home.unconverted" location="${basedir}/build_resources/lib/jsdoc3" />
+    <property name="jsdoc.home.unconverted" location="${basedir}/build_resources/lib/jsdoc-master" />
     <pathconvert targetos="unix" property="jsdoc.home" >
       <path location="${jsdoc.home.unconverted}" />
     </pathconvert>
-    <property name="jsdoc.master" value="${jsdoc.home}/master" />
+    <property name="jsdoc.master" value="${jsdoc.home}" />
     <property name="rhino-jar" value="${jsdoc.master}/rhino/js.jar" />
     <pathconvert targetos="unix" property="basedir.converted" >
       <path location="${basedir}" />

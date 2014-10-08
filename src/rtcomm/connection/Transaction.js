@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,20 +31,26 @@
    * @private
    */
 var Transaction = function Transaction(options, cbSuccess, cbFailure) {
-  var message, timeout;
+  var message, timeout, toTopic;
+
+  this.defaultTimeout = 5000;
+  l('DEBUG') && console.log('Transaction constructor using options: ',options);
   if (options) {
     message = options.message || null;
     timeout = options.timeout || null;
+    toTopic = options.toTopic || null;
   }
   /* Instance Properties */
   this.objName = "Transaction";
   this.events = {'message': [],
+      'timeout_changed':[],
       'finished':[]};
-  this.timeout = timeout || null;
+  this.timeout = timeout || this.defaultTimeout;
   this.outbound = (message && message.transID) ? false : true;
+  /*global generateUUID:false*/
   this.id = (message && message.transID) ? message.transID : generateUUID(); 
   this.method = (message && message.method) ? message.method : 'UNKNOWN'; 
-  this.toTopic = null;
+  this.toTopic = toTopic;
   this.message = message;
   this.onSuccess = cbSuccess || function(object) {
     console.log(this+' Response for Transaction received, requires callback for more information:', object);
@@ -52,9 +58,10 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   this.onFailure = cbFailure || function(object) {
     console.log(this+' Transaction failed, requires callback for more information:', object);
   };
+
   l('DEBUG') && console.log('Are we outbound?', this.outbound);
 };
-
+/*global util:false*/
 Transaction.prototype = util.RtcommBaseObject.extend(
    /** @lends module:rtcomm.connector.Transaction.prototype */
     {
@@ -73,6 +80,10 @@ Transaction.prototype = util.RtcommBaseObject.extend(
   /*
    * Instance Methods
    */
+  setTimeout: function(timeout)  {
+    this.timeout = timeout || this.defaultTimeout;
+    this.emit('timeout_changed', this.timeout);
+  },
  
   getInbound: function() {
     return !(this.outbound);
@@ -82,6 +93,7 @@ Transaction.prototype = util.RtcommBaseObject.extend(
    * @param [timeout] can set a timeout for the transaction
    */
   start: function(timeout) {
+    /*global l:false*/
     l('TRACE') && console.log(this+'.start() Starting Transaction for ID: '+this.id);
     if (this.outbound) {
       this.message.transID = this.id;
@@ -120,7 +132,6 @@ Transaction.prototype = util.RtcommBaseObject.extend(
         this.method === rtcommMessage.orig) {
       if (this.outbound) {
         if (rtcommMessage.result  === 'SUCCESS' && this.onSuccess ) {
-          
           this.onSuccess(rtcommMessage);
         } else if (rtcommMessage.result === 'FAILURE' && this.onFailure) {
           this.onFailure(rtcommMessage);

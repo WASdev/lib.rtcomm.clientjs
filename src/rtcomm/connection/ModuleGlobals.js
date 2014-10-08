@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,7 @@ var logging = new util.Log(),
     getLogLevel = logging.g,
     l = logging.l,
     generateUUID = util.generateUUID,    
+    generateRandomBytes= util.generateRandomBytes,    
     validateConfig = util.validateConfig,
     applyConfig = util.applyConfig,
     setConfig = util.setConfig,

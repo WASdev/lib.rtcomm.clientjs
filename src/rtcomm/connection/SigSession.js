@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,6 +43,7 @@ var SigSession = function SigSession(config) {
   this.id = null;
   this.toEndpointID = null;
   this.message = null;
+  this.source = null;
   this.toTopic = null;
   this.type = 'normal'; // or refer
   this.referralDetails = null;
@@ -50,11 +51,12 @@ var SigSession = function SigSession(config) {
 
   if (config) {
     if (config.message && config.message.sigSessID) {
-
       // We are INBOUND. 
       this.message = config.message;
       this.id = config.message.sigSessID;
+      this.appContext = config.message.appContext || null;
       this.toEndpointID = config.fromEndpointID || null;
+      this.source = config.source || null;
       this.toTopic = config.toTopic || config.message.fromTopic || null;
 
       if (config.message.peerContent && config.message.peerContent.type === 'refer') {
@@ -68,7 +70,8 @@ var SigSession = function SigSession(config) {
     this.toTopic = this.toTopic || config.toTopic;
     this.appContext = this.appContext|| config.appContext;
   } 
-  
+
+  /* global generateUUID: false */
   this.id = this.id || generateUUID();
  
   this.events = {
@@ -82,16 +85,18 @@ var SigSession = function SigSession(config) {
       'pranswer':[],
       'finished':[]
   };
+
+
   // Initial State
   this.state = 'stopped';
-  // Default our timeout waiting for initial start to 30 seconds.
-  this.timeout = 30000; 
-  
-  
 
+  /** The timeout we will wait for a PRANSWER indicating someone is at other end */
+  this.initialTimeout = 5000; 
+  /** The timeout we will wait for a ANSWER (responding to session START)*/
+  this.finalTimeout = 30000; 
 };
 
-
+/* global util: false */
 SigSession.prototype = util.RtcommBaseObject.extend((function() {
   /** @lends module:rtcomm.connector.SigSession.prototype */
   return { 
@@ -135,6 +140,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      */
     start : function(config) {
       this._setupQueue();
+      /*global l:false*/
       l('DEBUG') && console.log('SigSession.start() using config: ', config);
       var toEndpointID = this.toEndpointID;
       var sdp = null;
@@ -158,7 +164,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         this.message = this.createMessage('START_SESSION');
         this.message.peerContent = sdp || null;
         if (this.appContext) {
-          this.message.appContext = this.appContext
+          this.message.appContext = this.appContext;
         }
       }
       var session_started = function(message) {
@@ -181,7 +187,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       
       this._startTransaction = this.endpointconnector.createTransaction(
           { message: this.message,
-            timeout: this.timeout
+            timeout: this.initialTimeout
           },
           session_started.bind(this), 
           session_failed.bind(this));
@@ -199,6 +205,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      * Finish the 'Start'
      */
     respond : function(/* boolean */ SUCCESS, /* String */ message) {
+
       
       /* 
        * Generally, respond is called w/ a message, but could just be a boolean indicating success.
@@ -209,10 +216,10 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         message = SUCCESS;
         SUCCESS = true;
       }
-      
-      // If it isn't set at all, make sure it is true;
-      SUCCESS = SUCCESS || true;
+      // If SUCCESS is undefined, set it to true
+      SUCCESS = (typeof SUCCESS !== 'undefined')? SUCCESS: true;
 
+      l('DEBUG') && console.log(this+'.respond() Respond called with SUCCESS', SUCCESS);
       l('DEBUG') && console.log(this+'.respond() Respond called with message', message);
       l('DEBUG') && console.log(this+'.respond() Respond called using this', this);
       var messageToSend = null;
@@ -220,30 +227,49 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         messageToSend = this.endpointconnector.createResponse('START_SESSION');
         messageToSend.transID = this._startTransaction.id;
         messageToSend.sigSessID = this.id;
-        
+
         if (SUCCESS) { 
           messageToSend.result = 'SUCCESS';
           messageToSend.peerContent = (this.type === 'refer') ? {type: 'refer'} : message; 
+          this.state = 'started';
         } else {
           messageToSend.result = 'FAILURE';
           messageToSend.reason = message || "Unknown";
+          this.state = 'failed';
         }
         // Finish the transaction
         this._startTransaction.finish(messageToSend);
-        this.state = 'started';
-        this.emit('started');
+        this.emit(this.state);
       } else {
         // No transaction to respond to.
         console.log('NO TRANSACTION TO RESPOND TO.');
       }
     },
     /**
+     * Fail the session, this is only a RESPONSE to a START_SESSION
+     */
+    fail: function(message) {
+      this.start();
+      this.respond(false,message);
+    },
+
+    /**
      *  send a pranswer
      */
-    pranswer : function(peerContent) {
-      peerContent = peerContent || {'type':'pranswer'};
+    pranswer : function(peerContent, timeout) {
+
+      if (typeof peerContent !== 'number') { 
+        peerContent = peerContent || {'type':'pranswer'};
+      } else {
+        timeout = peerContent;
+        peerContent = {'type':'pranswer'};
+      }
+      var pranswerMessage = this.createMessage(peerContent);
+      if (timeout) { 
+        pranswerMessage.holdTimeout=timeout;
+      }
       this.state = 'pranswer';
-      this.send(peerContent);
+      this.send(pranswerMessage,timeout || this.finalTimeout);
       this.emit('pranswer');
     },
 
@@ -263,7 +289,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      * based on the content.
      * 
      */
-    send :  function(message) {
+    send :  function(message, timeout) {
       var messageToSend = null;
       if (message && message.rtcommVer && message.method) {
         // we've already been cast... just send it raw...
@@ -281,6 +307,8 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       } else {
         if (transaction){
           l('DEBUG') && console.log(this+'.send() Sending using transaction['+transaction.id+']', messageToSend);
+          // If we have a timeout update the transaction;
+          timeout && transaction.setTimeout(timeout);
           transaction.send(messageToSend);
         } else {
           l('DEBUG') && console.log(this+'.send() Sending... ['+this.state+']', messageToSend);
@@ -288,7 +316,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
           if (messageToSend.hasOwnProperty('transID')) {
             delete messageToSend.transID;
           }
-          this.endpointconnector.send({message:messageToSend}); 
+          this.endpointconnector.send({message:messageToSend, toTopic: this.toTopic}); 
         }
       }
     },
@@ -337,8 +365,16 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       switch(message.method) {
       case 'PRANSWER':
         // change our state, emit content if it is there.
-        this.state = 'have_pranswer';
-        this.emit('have_pranswer', message.peerContent);
+        // holdTimeout is in seconds, rather than milliseconds.
+        console.log('PRANSWER --> '+ message.holdTimeout+"="+ (typeof message.holdTimeout === 'undefined') + " - "+this.finalTimeout);
+
+        var timeout = (typeof message.holdTimeout === 'undefined') ? this.finalTimeout : message.holdTimeout*1000;
+        console.log('PRANSWER, resetting timeout to :',timeout);
+        this._startTransaction && this._startTransaction.setTimeout(timeout);
+        if (!message.holdTimeout) {
+          this.state = 'have_pranswer';
+          this.emit('have_pranswer', message.peerContent);
+        }
         break;
       case 'ICE_CANDIDATE':
         this.emit('ice_candidate', message.peerContent);
