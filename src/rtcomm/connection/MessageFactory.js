@@ -40,6 +40,9 @@ var MessageFactory = (function (){
   // If it is a transaction, it will have a transID
   
   var _messageTemplates = {
+      'LAST_WILL' : {
+        'method': 'LAST_WILL'
+      },
       'SERVICE_QUERY' : {
         'method': 'SERVICE_QUERY',
         'transID': null,
