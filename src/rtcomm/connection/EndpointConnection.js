@@ -569,7 +569,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             // Essentially, if the SERVICE_QUERY does not return an LWT topic, we know our LWT won't
             // work.  So, we need to keep our time.
             //
-            if (this.getLwtTopic() === null) {
+            if (!this.useLwt()) {
               if (register_message.orig === 'REGISTER' && register_message.expires) {
                 var expires = register_message.expires;
                 l('DEBUG') && console.log(this+'.register() Message Expires in: '+ expires);
@@ -711,7 +711,15 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           this.private.lwtTopic =  this.private.lwtTopic || this.normalizeTopic(this.config.lwtTopicName);
           l('DEBUG') && console.log(this+'.getLwtTopic() returning topic: '+this.private.lwtTopic);
           return this.private.lwtTopic;
+        },
+        useLwt: function() {
+          if (this.RTCOMM_CONNECTOR_SERVICE.lwtTopic) {
+            return true;
+          } else {
+            return false;
+          }
         }
+        
     };
   })()
 );
