@@ -323,7 +323,10 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
                   l('MESSAGE') && console.log(this+'.send() Sent message['+toTopic+']:',message);
                   mqttClient.send(messageToSend);
                   if (typeof onSuccess === 'function' ) {
-                    try { onSuccess(null); } catch(e) { console.error('An error was thrown in the onSuccess callback chain', e);
+                    try { 
+                      onSuccess(null); 
+                    } catch(e) { 
+                      console.error('An error was thrown in the onSuccess callback chain', e);
                     }
                   }
                 } else {

@@ -92,8 +92,15 @@ var EndpointConnection = function EndpointConnection(config) {
 
     return {
       add: add,
+      clear: function() {
+        var self = this;
+        Object.keys(registry).forEach(function(item) {
+          self.remove(registry[item]);
+        });
+      },
       remove: function(item) {
         if (item.id in registry) {
+          item.timer && clearTimeout(item.timer);
           l('DEBUG') && console.log('Removing item from registry: ', item);
           delete registry[item.id];
         }
@@ -195,6 +202,7 @@ var EndpointConnection = function EndpointConnection(config) {
   // If we are connected
   this.connected = false;
   this._init = false;
+  this._registerTimer = null;
 
   var configDefinition = {
     required: { server: 'string', port: 'number'},
@@ -250,7 +258,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
       /*
        * Class Globals
        */
-      var registerTimer = null;
 
       /* optimize string for subscription */
       var optimizeTopic = function(topic) {
@@ -490,8 +497,11 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         disconnect : function() {
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
           this.unregister();
+          l('DEBUG') && console.log('RegisterTimer should be null: '+ this._registerTimer);
           l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
           this.publish(this.getLwtTopic(), this.getLwtMessage());
+          this.sessions.clear();
+          this.transactions.clear();
           this.mqttConnection.destroy();
           l('DEBUG') && console.log('destroyed mqttConnection');
           this.mqttConnection = null;
@@ -515,26 +525,20 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             cbFailure('servicQuery requires a userid to be set');
             return;
           }
-          util.whenTrue(
-            /*true */ function() {
-              return this.connected;
-            }.bind(this),
-            /*action*/ function(success) {
-              if(success) {
-                var message = this.createMessage('SERVICE_QUERY');
-                this._query(message, 'services',
-                       function(services) {
-                          parseServices(services,self);
-                          self.ready = true;
-                          self.emit('servicesupdate', services);
-                          cbSuccess(services);
-                        },
-                        cbFailure);
-               } else {
-                 console.error('Unable to execute service query, not connected');
-               }
-              }.bind(this),
-          1500);  
+
+          if (this.connected) {
+            var message = this.createMessage('SERVICE_QUERY');
+            this._query(message, 'services',
+                   function(services) {
+                      parseServices(services,self);
+                      self.ready = true;
+                      self.emit('servicesupdate', services);
+                      cbSuccess(services);
+                    },
+                    cbFailure);
+          } else {
+            console.error('Unable to execute service query, not connected');
+          }
         },
 
         /**
@@ -547,6 +551,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         register : function(userid, cbSuccess, cbFailure) {
           var endpointConnection = this;
+
+          l('DEBUG') && console.log('>>>>>>> Register Timer is set to: '+this._registerTimer);
 
           // Initialize the input
           if (typeof userid === 'function') { 
@@ -563,7 +569,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           var minimumReregister = 30;  // 30 seconds;
           var onSuccess = function(register_message) {
             l('DEBUG') && console.log(this+'register() REGISTER RESPONSE: ', register_message);
-
             //
             // TO BE removed in the future.  Configure how to disable this.
             // Essentially, if the SERVICE_QUERY does not return an LWT topic, we know our LWT won't
@@ -577,7 +582,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
                 var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
                 // we have a expire in seconds, register a timer...
                 l('DEBUG') && console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
-                registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
+                this._registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
               }
             }
             this.registered = true;
@@ -627,9 +632,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          *  Unregister the userid associated with the EndpointConnection
          */
         unregister : function() {
-          if (registerTimer) {
-            clearTimeout(registerTimer);
-            registerTimer=null;
+          if (this._registerTimer) {
+            clearTimeout(this._registerTimer);
+            this._registerTimer=null;
             var message = this.createMessage('REGISTER');
             message.regTopic = message.fromTopic;
             message.appContext = this.appContext;
@@ -665,9 +670,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
 
         destroy : function() {
-          if (this.connected) {
-            this.disconnect();
-          }
+          l('DEBUG') && console.log('Destroying the connection');
+          this.disconnect();
         },
         /**
          * Send a message
