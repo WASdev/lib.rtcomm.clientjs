@@ -323,7 +323,7 @@ WebRTCConnection.prototype = function() {
     var sessionState = this._sigSession.getState();
 
     var PRANSWER = (pcSigState === 'have-remote-offer') && (sessionState === 'starting');
-    var RESPOND = this.AutoAnswer || sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
+    var RESPOND = this.autoAnswer || sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
 
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     

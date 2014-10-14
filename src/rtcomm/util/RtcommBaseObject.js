@@ -51,6 +51,13 @@ var RtcommBaseObject = {
           
         }
     },  
+    clearEventListeners : function() {
+      for(var event in this.events) {
+          if (this.events.hasOwnProperty(event)) {
+            this.events[event] = [];
+          } 
+      }
+    },
     createEvent: function(event) {
       if (this.hasOwnProperty('events')){
         this.events[event] = []; 
