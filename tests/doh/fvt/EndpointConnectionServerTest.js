@@ -72,7 +72,9 @@ define(["doh/runner","tests/common/config","ibm/rtcomm/connection"], function(do
         runTest: runTest,
         tearDown: function() {
           this.conn1.disconnect();
+          this.conn1=null;
           this.conn2.disconnect();
+          this.conn2=null;
         },
         timeout: timeout
       };

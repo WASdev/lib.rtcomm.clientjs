@@ -370,9 +370,14 @@ var EndpointProvider =  function EndpointProvider() {
     return new MqttEndpoint({connection: this.dependencies.endpointConnection});
   };
   this.destroy = function() {
+    this.leaveAllQueues();
+    this.clearEventListeners();
+    // Clear callbacks
+    console.log('EndpointRegistry: '+endpointRegistry.list());
     endpointRegistry.destroy();
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointRegistry');
-    this.dependencies.endpointConnection.destroy();
+    this.dependencies.endpointConnection && this.dependencies.endpointConnection.destroy();
+    this.dependencies.endpointConnection = null;
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointConnection');
     this.ready = false;
     console.log('This.CurrentState --', this.currentState());
@@ -478,6 +483,14 @@ var EndpointProvider =  function EndpointProvider() {
       return false;
     }
   };
+
+  this.leaveAllQueues = function() {
+    var self = this;
+    this.listQueues().forEach(function(queue) {
+      console.log('Trying to leave: queue.endpointID: ',queue);
+      self.leaveQueue(queue);
+    });
+  };
   /**
    * List Available Session Queues
    *
@@ -499,7 +512,7 @@ var EndpointProvider =  function EndpointProvider() {
   };
   this.getEndpointConnection = function() {
     return this.dependencies.endpointConnection;
-  }
+  };
 
   // exposing module global functions for set/get loglevel
   /** Set LogLevel 
@@ -518,7 +531,9 @@ var EndpointProvider =  function EndpointProvider() {
   };
   this.currentState = function() {
     return {
-      'dependencies':  this._private,
+      'ready': this.ready,
+      'events': this.events,
+      'dependencies':  this.dependencies,
       'private':  this._private,
       'config' : this.config,
       'queues': this.getAllQueues(),
