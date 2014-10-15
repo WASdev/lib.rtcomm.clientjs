@@ -226,7 +226,7 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
     },
 
     send: function(message) {
-      if (this.myWebRTCConnection().getState() === 'STARTED')  {
+      if (this.myWebRTCConnection() && this.myWebRTCConnection().getState() === 'STARTED')  {
         message && this.myWebRTCConnection().send(message);
       } else {
         throw new Error ('A connection to an Endpoint should exist, call addEndpoint() first');
@@ -275,7 +275,10 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
       //
       //
       var event = null;
-      if ((session.appContext === this.getAppContext()) || this.ignoreAppContext) {
+      // If there is a session.appContext, it must match unless this.ignoreAppContext is set 
+      if (this.ignoreAppContext || 
+         (session.appContext && (session.appContext === this.getAppContext())) || 
+         (typeof session.appContext === 'undefined' && session.type === 'refer')) {
         // We match appContexts (or don't care)
         if (this.available()){
           // We are available (we can mark ourselves busy to not accept the call)
