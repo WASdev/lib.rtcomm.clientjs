@@ -59,6 +59,7 @@ var RtcommEndpoint = function RtcommEndpoint() {
   // expose the ID
   this.id = this._private.uuid;
   this.userid = null;
+  this.appContext = this._private.appContext;
 
   /* inbound and outbound Media Element DOM Endpoints */
 
@@ -203,7 +204,7 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
     init: function(config) {
       l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
       if (config) {
-        this._private.appContext = config.appContext || this._private.appContext;
+        this.setAppContext(config.appContext || this._private.appContext);
         delete config.appContext;
         this.dependencies.parent = config.parent || null;
         this.dependencies.endpointConnection = config.parent.getEndpointConnection() || null;
@@ -225,7 +226,7 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
     },
 
     send: function(message) {
-      if (this.myWebRTCConnection().getState() === 'STARTED')  {
+      if (this.myWebRTCConnection() && this.myWebRTCConnection().getState() === 'STARTED')  {
         message && this.myWebRTCConnection().send(message);
       } else {
         throw new Error ('A connection to an Endpoint should exist, call addEndpoint() first');
@@ -274,7 +275,10 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
       //
       //
       var event = null;
-      if ((session.appContext === this.getAppContext()) || this.ignoreAppContext) {
+      // If there is a session.appContext, it must match unless this.ignoreAppContext is set 
+      if (this.ignoreAppContext || 
+         (session.appContext && (session.appContext === this.getAppContext())) || 
+         (typeof session.appContext === 'undefined' && session.type === 'refer')) {
         // We match appContexts (or don't care)
         if (this.available()){
           // We are available (we can mark ourselves busy to not accept the call)
@@ -444,21 +448,15 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
       this.disconnect();
       return true;
     },
-
     /**  Destroys an existing connection. If there are more than one, then requires an ID
      *
      *  @throws Error Could not find connection to hangup
      *
      */
     disconnect : function() {
-      if (this.myWebRTCConnection()  && this.myWebRTCConnection().getState() !== 'DISCONNECTED') {
-        this.available(true);
-        this.myWebRTCConnection().disconnect();
-        this.dependencies.webrtcConnection= null;
-      } else {
-        this.dependencies.webrtcConnection= null;
-      }
-
+      this.myWebRTCConnection() && this.myWebRTCConnection().disconnect(); 
+      this.available(true);
+      this.dependencies.webrtcConnection= null;
     },
     // UserMedia Methods
 
@@ -540,7 +538,7 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
      */
     getAppContext:function() {return this._private.appContext;},
 
-    setAppContext:function(appcontext) {this._private.appContext = appcontext;},
+    setAppContext:function(appcontext) {this.appContext = this._private.appContext = appcontext;},
 
     /** Return userid associated with this RtcommEndpoint */
     getUserID: function() { return this._private.userid;},
