@@ -29,6 +29,7 @@ If you have node.js installed, you can quickly launch a local browser to test:
 # Install prereqs (one time only)
 npm install connect
 npm install http
+npm install serve-static
 
 # Launch the server
 node tests/doh/resources/server.js .
