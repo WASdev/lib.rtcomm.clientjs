@@ -3,8 +3,9 @@
     "allowUnknownTags": true
   },
   "source": {
-    "include": [],
-    "exclude": ["sample", "lib", "dist", "build","build_resources"],
+    "include" : [],
+    "exclude" : [],
+   
     "includePattern": ".+\\.js(doc)?$",
     "excludePattern": ".*(node_modules|[.]git)"
   },
@@ -29,3 +30,4 @@
     "private": false 
   }
 }
+

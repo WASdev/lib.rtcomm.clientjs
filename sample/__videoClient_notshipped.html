@@ -1,0 +1,396 @@
+
+<!DOCTYPE html>
+<!--
+#
+#****************************************************************
+# Licensed Materials - Property of IBM
+# 5725-F96 IBM MessageSight
+# (C) Copyright IBM Corp. 2014 All Rights Reserved.
+#
+# US Government Users Restricted Rights - Use, duplication or
+# disclosure restricted by GSA ADP Schedule Contract with
+# IBM Corp.
+#****************************************************************
+#
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>rtcomm JS Library videoClient Sample</title>
+</head>
+
+<!-- 
+This is SAMPLE is dependent on jQuery.  It loads jQuery from a CDN. Alternatively, download jquery 
+from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
+-->
+<script src="http://code.jquery.com/jquery-2.1.1.js"></script>
+
+
+
+<!-- The following paths may need to be modified depending on the location of this script. -->
+
+<script src="../js/lib/mqttws31.js"></script>
+<script src="../js/ibm/rtcomm.js"></script>
+
+<body
+	style="height: 100%; background-color: #ccc; font-family: HelveticaNeue-Light, Arial, sans-serif;">
+
+
+
+	<div id="MainContainer" style='width: 100%; height: 100%'>
+		<div style='position: absolute; float: left; width: 180px'>
+			<fieldset style="width: 180px; float: left;"">
+				<legend>Register</legend>
+				<div style='font-size: x-small'>
+					It is necessary to register before doing anything. The ID used here
+					is the ID that another registered user can use to <b>Connect</b>
+				</div>
+				<input type="checkbox" id='registerBox' name="register"
+					value="registered"> <input id='userid' type="text"><br>
+				<div id='registerMsg' class='messageBox'>Check box to
+					register</div>
+			</fieldset>
+			<fieldset style="width: 180px; float: left;">
+          <legend>Config</legend>
+        <div id='config' style="font-size:x-small">
+        
+        </div>
+      </fieldset>
+
+		</div>
+		<div id="VideoContainer"
+			style="position: absolute; left: 220px; width: 78%; min-width: 320px; height: 90%; min-height: 160px; border: 1px solid gray;">
+			<div id='alertMessage'
+				style="position: absolute; z-index: 20; top: 50%; left: 5%; width: 90%; vertical-align: middle; height: 80px; font-size: 2em; color: red; margin-left: auto; margin-right: auto; border: 5px red; display: none">
+				Ringing...</div>
+
+
+			<div id='selfViewContainer'
+				style="position: absolute; top: 3%; left: 75%; width: 20%; height: 20%; padding: 0px; z-index: 5;">
+				<video title="selfView" id="selfView" autoplay="true" muted="true"
+					style="width: 100%; height: 100%"></video>
+			</div>
+
+			<video title="remoteView" id="remoteView" autoplay="true"
+				style="position: relative; width: 98%; height: 98%; z-index: 4">
+			</video>
+			<div id='videoControls'
+				style="position: relative; top: -50px; width: 80%; height: 40px; z-index: 10; border: 1px gray; padding: 5px; margin-left: auto; margin-right: auto">
+				<div style='position: absolute; float: left; z-index: 8'>
+					<input id='remoteid' type="text">
+					<button id='btnConnect' disabled='true'>Connect</button>
+					<button id='btnAnswer' disabled='true'>Answer</button>
+					<button type="button" id="cancel" disabled='true'>Cancel</button>
+				</div>
+				<div id='statusMessage'
+					style='top: 7px; width: 98%; height: 20px; border: 1px gray; padding: 2px; background: gray; opacity: .5; text-align: right; vertical-align: middle; line-height: 20px; color: white; font-size: .75em; font-family: Arial; border-radius: 3px;'>
+					No Message</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+
+   
+    // Initialize the RtcommEndpointProvider
+    var ibmnp = new ibm.rtcomm.RtcommEndpointProvider();
+
+    // Change the loglevel - default is 'INFO', possibilities are:
+    // 'MESSAGES' --> Just log sent/received messages in console.
+    // 'DEBUG' -- > log most everything
+    // 'TRACE' --> log everything
+    ibmnp.setLogLevel('DEBUG');
+
+    // In this sample, initializing rtcommEndpoint variable as a GLOBAL
+    var rtcommEndpoint = {};
+
+    /* Define the configuration for the EndpointProvider.  THis is REQUIRED and generally must be changed.
+     *It MUST match the rtcomm configuration used on the liberty server.
+     *  This config can be passed in on the URL via params as well:
+     *
+     * Example:  videoClient.html?server=servername&port=1883&connectorTopicPath=/rtcommfvt/
+     *
+     */
+      
+     var npConfig = {
+     
+     server: 'broker.mqttdashboard.com',
+     port: 8000,
+     rtcommTopicName: "management",
+     topicPath: "/rtcomm/",
+     register: true,
+     createEndpoint: true
+     
+     };
+     
+     var urlConfig = getUrlParams();
+    /* can be passed on URL videoClient.html?regwithoutAV=true */
+    var regwithAV = !(urlConfig.regwithoutAV === 'true'); 
+    console.log('Config passed in via URL:', urlConfig);
+    
+    // This uses any params passed on URL to override config.
+    updateConfig(npConfig,urlConfig);
+    
+    // Display the configuration we are using in the UI
+    displayConfig();
+     
+    function buildEndpoint(endpointObject) {
+      // Assign the MediOut/MediaIn objects.  These are the <video> components for in/out media.
+      console.log(endpointObject);
+      endpointObject.setMediaOut(document.querySelector('#selfView'));
+      endpointObject.setMediaIn(document.querySelector('#remoteView'));
+      endpointObject.appContext = 'sample';
+      // Assign the callbacks
+     // endpointObject.onNewConnection = onNewConnection;
+      // This will ask user for access to video and attach it to MediaIn
+      // This can be done  when addEndpoint/acceptEndpoint is called but right now,
+      // the video/video is more reliable if it is attached before a call is created.
+     
+      /*
+     * onEvent -- This is the event handler callback that should be defined for the created rtcommEndpoint.  It doesn't
+     *  need to be this way, but this is an example of receiving events from the endpoint about connections.
+     */
+
+     endpointObject.on('connected', function(event_object){
+          state = "connected";
+          $('#btnAnswer').prop('disabled', true);
+          $('#cancel').prop('disabled', false);
+          updateMessage(event_object.message);
+     });
+     endpointObject.on('disconnected', function(event_object) {
+          console.log('DISCONNECTED! calling cancel()', event_object);
+           updateMessage(event_object.message);
+          try {
+            rtcommEndpoint.disconnect();
+          } catch (e) {
+            console.error(e);
+          }
+     });
+     endpointObject.on('ringing', function(event_object) {
+          if (event_object.object && event_object.object.pcSigState) {
+            if (event_object.object.pcSigState === 'have-local-offer') {
+              // we are the CALLER.
+              // This could be tracked through the UI too.
+              updateMessage('Calling '+event_object.object.remoteID);
+            } else {
+              updateMessage('Inbound call from  '+event_object.object.remoteID);
+            }
+          }
+      });
+      endpointObject.on('incoming', function(conn){
+          alertMessage('Ringing...');
+      // It is possible to set a client to automatically answer any inbound call.
+      if (!rtcommEndpoint.autoAnswer) {
+        updateMessage("Inbound call from " + conn.toEndpointID);
+         $('#btnConnect').prop('disabled', true);
+        $('#btnAnswer').prop('disabled', false);
+      } else {
+        updateMessage('Automatically Answering...');
+      }
+     });
+      
+      // update UI?
+      return endpointObject;
+    }
+
+    
+    /*
+     * onNewConnection a callback set on the rtcommEndpoint and is executed when 
+     * an INBOUND connection is created.
+     * This is a good place to handle how you want to answer.
+     * 
+     */
+    //-------------- UI Related functionality ---------------------
+
+    $('#registerBox').change(function() {
+      if ($('#registerBox').prop('checked')) {
+        $('#alertMessage').hide();
+        doRegister();
+      } else {
+        if (ibmnp) {
+          ibmnp.unregister();
+          // rtcommEndpoint.localStream.stop();
+          $('#registerMsg').html('Check box to register.')
+          $('#btnConnect').prop('disabled', true);
+        }
+      }
+    });
+
+    $('#btnConnect').on('click', function() {
+      var remoteid = $('#remoteid').val();
+      if (remoteid === "") {
+        alert("You need to enter an id to connect to");
+      } else {
+        rtcommEndpoint.addEndpoint(remoteid);
+      }
+    });
+
+    $('#btnAnswer').on('click', function() {
+      console.log('Answer clicked');
+      $('#alertMessage').hide();
+      rtcommEndpoint.acceptEndpoint();
+    });
+
+    $('#cancel').on('click', function() {
+      $('#alertMessage').hide();
+      rtcommEndpoint.disconnect();
+
+    });
+
+    function alertMessage(message) {
+      console.log('Updating statusMessge with ', message);
+      $('#alertMessage').css('color:red');
+      $('#alertMessage').html(message);
+      $('#alertMessage').show();
+    }
+
+    function updateMessage(message) {
+      console.log('Updating statusMessage with ', message);
+      $('#statusMessage').html(message);
+    }
+
+    /*
+     * This function is the meat of the sample and shows how to
+     * init the EndpointProvider using npConfig provided above.  This
+     * config is using register/getRtcommEndpoint = true so that 
+     * the init returns a rtcommEndpoint object.  
+     * 
+     *  This can be decoupled and register() and getRtcommEndpoint() can be
+     *  called individually.
+     * 
+     */
+    function doRegister() {
+      var userid = $("#userid").val();
+      // Make sure userid is set.
+      if (userid === "") {
+        alert("You must set a userid");
+        $('#registerBox').prop('checked', false);
+        return false;
+      }
+      if (document.URL.match(/^file\:/)) {
+        alert("You must launch this file from a server!");
+         $('#registerBox').prop('checked', false);
+        return false;
+      }
+   
+      console.log('Registering... ', userid);
+      $('#registerMsg').html('Registering...');
+      npConfig.userid = userid;
+      // make sure this is an integer.
+      npConfig.port = parseInt(npConfig.port);
+      //  If the EndpointProvider is ready, it has already been init'd, we don't need to init again. Just register again.
+      if (!ibmnp.ready) {
+        // Call init() on the Endpoint Provider.
+        ibmnp.init(npConfig, function(object) { //onSuccess
+          // Because register/getRtcommEndpoint is enabled, we expect an object
+          // returned in the onSuccess callback.
+          console.log('init was successful, rtcommEndpoint: ', object);
+          $('#registerMsg').html('Registered');
+          $('#btnConnect').prop('disabled', false);
+          $('#btnLookup').prop('disabled', false);
+          // Configure the rtcommEndpoint now
+          rtcommEndpoint = buildEndpoint(object.endpoint);
+          if (regwithAV) {
+            rtcommEndpoint.attachLocalMedia(  function(value,message) {
+			        if (!value) {
+			          alertMessage('Failed to get local Audio/Video - nothing to broadcast');
+			           if (ibmnp) {
+			            ibmnp.unregister();
+			            $('#registerMsg').html('Check box to register.');
+			            $('#btnConnect').prop('disabled', true);
+			            $('#registerBox').prop('checked', false);
+			          }
+			        }
+            });
+          }
+          
+
+        }, function(error) { //onFailure
+          console.error('init failed: ', error);
+          $('#registerMsg').html('Initialization and registration failed!');
+          $('#registerBox').prop('checked', false);
+        });
+      } else {
+        // The init above only happens 1 time.  This enables us to register/unregister
+        // while staying init'd.
+        ibmnp.register(function(msg) {
+          $('#registerMsg').html('Registered');
+          $('#btnConnect').prop('disabled', false);
+        }, function(error) {
+          $('#registerMsg').html('Registration failed!');
+          $('#registerBox').prop('checked', false);
+        }
+
+        );
+      }
+      return false;
+    };
+    
+    function doMedia() {
+   
+    };
+
+    function doLookup() {
+      var id = $('#lookup').val();
+      if (ibmnp) {
+        ibmnp.lookup(id,
+        /*onSuccess*/function(message) {
+          $('#lookupMsg').html(id + ' was found!');
+        },
+        /*onFailure*/function(message) {
+          $('#lookupMsg').html(message);
+        });
+      }
+     }
+    function updateConfig(obj1, obj2) {
+      // Copy anything in obj2 into obje1 if in obj1
+      for (key in obj1) {
+        if (obj1.hasOwnProperty(key)) {
+          if (obj2.hasOwnProperty(key)) {
+            obj1[key] = obj2[key];
+          }
+        }
+      }
+    }
+    
+    
+    function displayConfig() {
+     var configHTML = "";
+     for(key in npConfig) {
+      if(npConfig.hasOwnProperty(key)){
+        configHTML = configHTML + keyPairToHtml(key, npConfig[key]);
+      }
+     }
+      // console.log('trying to display '+configHTML);
+     $('#config').html(configHTML);
+    }
+     
+    function keyPairToHtml(key, value) {
+      var template = '<b>label</b>:value<br>';
+      var str = template.replace(/label/i, key);
+      return str.replace(/value/i,value);
+      
+    }
+    
+    
+    function getUrlParams()  {
+      var url = decodeURIComponent(document.URL);
+      var params = [];
+      if (url.indexOf('?')>0) {
+       params = url.slice(url.indexOf('?')+1).split('&');
+      }
+      // param to hash...
+      var paramhash = {};
+      params.forEach(function(param) {
+        var kv = param.split('=');
+        paramhash[kv[0]] = kv[1];
+      })
+      console.log(paramhash);
+      return paramhash;
+  }
+    
+    
+  </script>
+
+</body>
+</html>

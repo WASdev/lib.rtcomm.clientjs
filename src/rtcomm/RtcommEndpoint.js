@@ -13,10 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
-
-
 /**
  *  @memberof module:rtcomm
  *  @description
@@ -63,26 +59,29 @@ var RtcommEndpoint = function RtcommEndpoint() {
   // expose the ID
   this.id = this._private.uuid;
   this.userid = null;
+  this.appContext = this._private.appContext;
 
   /* inbound and outbound Media Element DOM Endpoints */
 
-  /** @typedef {object} WebRTCConnectionEvent
+  /** 
+   * RtcommEndpoint Event type 
+   *  @typedef {Object} module:rtcomm.RtcommEndpoint~Event
    *  @property {string} name - name of event
-   *  @property {object} object - an object passed with the event
    *  @property {message} message - a message associated with the event
+   *  @property {object} object - an object passed with the event
    */
 
   this.events = {
       /**
        * A PeerConnection to a peer has been established
        * @event module:rtcomm.RtcommEndpoint#connected
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "connected": [],
       /**
        * A signaling session to a peer has been established
        * @event module:rtcomm.RtcommEndpoint#connected
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "started": [],
       /**
@@ -93,19 +92,19 @@ var RtcommEndpoint = function RtcommEndpoint() {
       /**
        * The connection to a peer has been closed
        * @event module:rtcomm.RtcommEndpoint#disconnected
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "disconnected": [],
       /**
        * A peer has been reached, but not connected (inbound/outound)
        * @event module:rtcomm.RtcommEndpoint#ringing
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "ringing": [],
       /**
        * A connection is being attempted (outbound only)
        * @event module:rtcomm.RtcommEndpoint#trying
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       "trying": [],
       /**
@@ -117,7 +116,7 @@ var RtcommEndpoint = function RtcommEndpoint() {
       /**
        * A message has arrived from a peer
        * @event module:rtcomm.RtcommEndpoint#message
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       'message': [],
       /**
@@ -129,7 +128,7 @@ var RtcommEndpoint = function RtcommEndpoint() {
       /**
        * Creating the connection to a peer failed
        * @event module:rtcomm.RtcommEndpoint#failed
-       * @property {WebRTCConnectionEvent}
+       * @property {module:rtcomm.RtcommEndpoint~Event}
        */
       'failed': []
   };
@@ -205,7 +204,7 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
     init: function(config) {
       l('DEBUG') && console.log(this+'.init() Applying config to this._private ', config, this._private);
       if (config) {
-        this._private.appContext = config.appContext || this._private.appContext;
+        this.setAppContext(config.appContext || this._private.appContext);
         delete config.appContext;
         this.dependencies.parent = config.parent || null;
         this.dependencies.endpointConnection = config.parent.getEndpointConnection() || null;
@@ -227,7 +226,7 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
     },
 
     send: function(message) {
-      if (this.myWebRTCConnection().getState() === 'STARTED')  {
+      if (this.myWebRTCConnection() && this.myWebRTCConnection().getState() === 'STARTED')  {
         message && this.myWebRTCConnection().send(message);
       } else {
         throw new Error ('A connection to an Endpoint should exist, call addEndpoint() first');
@@ -276,7 +275,10 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
       //
       //
       var event = null;
-      if ((session.appContext === this.getAppContext()) || this.ignoreAppContext) {
+      // If there is a session.appContext, it must match unless this.ignoreAppContext is set 
+      if (this.ignoreAppContext || 
+         (session.appContext && (session.appContext === this.getAppContext())) || 
+         (typeof session.appContext === 'undefined' && session.type === 'refer')) {
         // We match appContexts (or don't care)
         if (this.available()){
           // We are available (we can mark ourselves busy to not accept the call)
@@ -446,21 +448,15 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
       this.disconnect();
       return true;
     },
-
     /**  Destroys an existing connection. If there are more than one, then requires an ID
      *
      *  @throws Error Could not find connection to hangup
      *
      */
     disconnect : function() {
-      if (this.myWebRTCConnection()  && this.myWebRTCConnection().getState() !== 'DISCONNECTED') {
-        this.available(true);
-        this.myWebRTCConnection().disconnect();
-        this.dependencies.webrtcConnection= null;
-      } else {
-        this.dependencies.webrtcConnection= null;
-      }
-
+      this.myWebRTCConnection() && this.myWebRTCConnection().disconnect(); 
+      this.available(true);
+      this.dependencies.webrtcConnection= null;
     },
     // UserMedia Methods
 
@@ -542,7 +538,7 @@ RtcommEndpoint.prototype  = util.RtcommBaseObject.extend((function() {
      */
     getAppContext:function() {return this._private.appContext;},
 
-    setAppContext:function(appcontext) {this._private.appContext = appcontext;},
+    setAppContext:function(appcontext) {this.appContext = this._private.appContext = appcontext;},
 
     /** Return userid associated with this RtcommEndpoint */
     getUserID: function() { return this._private.userid;},

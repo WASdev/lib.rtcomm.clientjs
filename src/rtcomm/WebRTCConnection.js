@@ -1,4 +1,4 @@
- /**
+ /*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,12 +79,6 @@ function WebRTCConnection(/* object */ config ) {
   this.toEndpointID = null;
   this.autoAnswer = false;
   this.sessionQueue = null;
-
-  /**
-   * 
-   *
-   * @return
-   */
   this.streamAttached = false;
   // peer connection config
   this.pranswer = false;
@@ -329,7 +323,7 @@ WebRTCConnection.prototype = function() {
     var sessionState = this._sigSession.getState();
 
     var PRANSWER = (pcSigState === 'have-remote-offer') && (sessionState === 'starting');
-    var RESPOND = this.AutoAnswer || sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
+    var RESPOND = this.autoAnswer || sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
 
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     

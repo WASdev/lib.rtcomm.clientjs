@@ -4,12 +4,12 @@ As of 08/26/2014, these tests run using the Dojo Objective Harness.  They will b
 
 ** Configure the tests
 
-Access the file 'tests/common/testConfig.json':
+Access the file 'tests/doh/common/testConfig.json':
 ```
 {
-   "mqttServers" : ["broker.mqttdashboard.com:8000"],
-   "connectorTopicName" : "nodeConnector",
-   "connectorTopicPath" : "/rtcomm/"
+   "mqttServers" : ["messagesight.demos.ibm.com:1883"],
+   "rtcommTopicName" : "management",
+   "topicPath" : "/rtcomm/"
 
 }
 ```
@@ -20,7 +20,7 @@ Change the contents of this file to match the configuration of your liberty serv
 
 These tests can be run in two ways:
 
-1.  Via a Browser:  With an http server pointing at the project directory, access the file /tests/localRunTests.html via a Browser.  This will run the tests and display the results in the browser.
+1.  Via a Browser:  With an http server pointing at the project directory, access the file /tests/doh/localRunTests.html via a Browser.  This will run the tests and display the results in the browser.
 
 If you have node.js installed, you can quickly launch a local browser to test:
 ``` 
@@ -29,11 +29,12 @@ If you have node.js installed, you can quickly launch a local browser to test:
 # Install prereqs (one time only)
 npm install connect
 npm install http
+npm install serve-static
 
 # Launch the server
-node tests/resources/server.js .
+node tests/doh/resources/server.js .
 ```
-Now you should be able to access http://localhost:3000/tests/localRunTests.html
+Now you should be able to access http://localhost:3000/tests/doh/localRunTests.html
 
 2.  Via node.js -- If node.js is installed, then install the following packages:
 
@@ -48,6 +49,6 @@ Then launch the tests:
 # Change to your project directory
 cd lib.rtcomm.clientjs 
 # run the tests [ run them all]
-tests/bin/doh.sh
+tests/doh/bin/doh.sh
 ```
 

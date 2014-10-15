@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,6 +51,13 @@ var RtcommBaseObject = {
           
         }
     },  
+    clearEventListeners : function() {
+      for(var event in this.events) {
+          if (this.events.hasOwnProperty(event)) {
+            this.events[event] = [];
+          } 
+      }
+    },
     createEvent: function(event) {
       if (this.hasOwnProperty('events')){
         this.events[event] = []; 

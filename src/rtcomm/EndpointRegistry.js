@@ -107,7 +107,7 @@ var EndpointRegistry = function EndpointRegistry(options) {
   function remove(object) {
     var key = null;
     var uuid = null;
-    if (object) {
+    if (object && list().length > 0 ) {
       key = object.appContext;
       uuid = object.id;
       l('DEBUG') && console.log('EndpointRegistry.remove() Trying to remove object', object);
@@ -120,11 +120,11 @@ var EndpointRegistry = function EndpointRegistry(options) {
            }
            return true;
         } else {
-          l('DEBUG') && console.log('EndpointRegistry.remove() object not found');
+          l('DEBUG') && console.log('EndpointRegistry.remove() object not found', list());
           return false;
         }
       } else {
-        l('DEBUG') && console.log('EndpointRegistry.remove() object not found');
+        l('DEBUG') && console.log('EndpointRegistry.remove() object not found', list());
         return false;
       }
     } else {
@@ -139,7 +139,7 @@ var EndpointRegistry = function EndpointRegistry(options) {
   function destroy() {
     // call destroy on all objects, remove them.
     list().forEach(function(obj){
-        console.log('destroying... ', obj);
+        console.log('>>>>>>>>> Destroying... '+ obj.id);
         if (typeof obj.destroy === 'function') {
           obj.destroy();
         }
