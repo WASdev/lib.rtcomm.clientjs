@@ -207,7 +207,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     // make sure this is an integer.
     npConfig.port = parseInt(npConfig.port);
     //  If the EndpointProvider is ready, it has already been init'd, we don't need to init again. Just register again.
-      // Call init() on the Endpoint Provider.
+    // Call init() on the Endpoint Provider.
     ibmep
           .init(
               npConfig,
@@ -221,6 +221,11 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
                 rtcommEndpoint = buildEndpoint(object.endpoint);
                 if (regwithAV) {
                   // Enable Audio Video here.
+                  console.log('>>>>>>>>>>>>>>>>>>>Enabling Webrtc...');
+                  rtcommEndpoint.webrtc.enable(function() {
+                    console.log('>>>>>>>>>>>>>>SUCCESS ENABLED CALLBACK????k');
+                  });
+                  /******* OLD WAY
                   rtcommEndpoint
                       .attachLocalMedia(function(value, message) {
                         if (!value) {
@@ -231,6 +236,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
                           }
                         }
                       });
+                   ****/
                 }
               }, function(error) { //onFailure
                 console.error('init failed: ', error);
@@ -242,8 +248,18 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
   function buildEndpoint(endpointObject) {
     // Assign the MediOut/MediaIn objects.  These are the <video> components for in/out media.
+
+    /*
     endpointObject.setMediaOut(document.querySelector('#selfView'));
     endpointObject.setMediaIn(document.querySelector('#remoteView'));
+    */
+    
+    endpointObject.webrtc.setLocalMedia(
+        { mediaOut: document.querySelector('#selfView'),
+          mediaIn: document.querySelector('#remoteView'),
+          broadcast: {audio: true, video: true}
+        });
+
     // Assign the callbacks
     // endpointObject.onNewConnection = onNewConnection;
     // This will ask user for access to video and attach it to MediaIn
@@ -254,19 +270,18 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
      * onEvent -- This is the event handler callback that should be defined for the created rtcommEndpoint.  It doesn't
      *  need to be this way, but this is an example of receiving events from the endpoint about connections.
      */
-    endpointObject.on('connected', function(event_object) {
-      uiConnect(event_object.message);
+    endpointObject.on('webrtc:connected', function(event_object) {
+      uiConnect("Connected to "+event_object.remoteEndpointID);
     });
-    endpointObject.on('disconnected', function(event_object) {
-      uiDisconnect(event_object.message);
+    endpointObject.on('webrtc:disconnected', function(event_object) {
+      uiDisconnect("Disconnected from "+ event_object.remoteEndpointID);
       try {
-        rtcommEndpoint.disconnect();
+        endpointObject.disconnect();
       } catch (e) {
         console.error(e);
       }
     });
-
-    endpointObject.on('ringing', function(event_object) {
+    endpointObject.on('webrtc:ringing', function(event_object) {
       if (event_object.object && event_object.object.pcSigState) {
         if (event_object.object.pcSigState === 'have-local-offer') {
           // we are the CALLER.
@@ -277,16 +292,20 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
         }
       }
     });
-    endpointObject.on('incoming', function(conn) {
+    endpointObject.on('webrtc:alerting', function(event_object) {
+        console.log('>>>> event_object! ', event_object);
       if (!rtcommEndpoint.autoAnswer) {
         $('#answerDialog .modal-body').html(
-            "Inbound call from " + conn.toEndpointID);
+            "Inbound call from " + event_object.remoteEndpointID);
         $('#answerDialog').modal('show');
       } else {
         status = 'Automatically Answering...';
       }
     });
-    endpointObject.on('refer', function(conn) {
+    endpointObject.on('session:failed', function(event_object) {
+      updateMessage(event_object.message);
+    });
+    endpointObject.on('session:refer', function(conn) {
       $('#answerDialog .modal-body').html(
           "[3PCC] Initiate call to " + conn.toEndpointID);
       $('#answerDialog').modal('show');
@@ -346,13 +365,13 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
   $('#answerYes').on('click', function() {
     $("#answerDialog").modal("hide");
-    rtcommEndpoint.acceptEndpoint();
+    rtcommEndpoint.webrtc.accept();
   });
 
   $('#answerNo').on('click', function() {
     $("#answerDialog").modal("hide");
     state='disconnected';
-    rtcommEndpoint.rejectEndpoint();
+    rtcommEndpoint.reject();
   });
 
   $('#btnReset').on('click', function() {
@@ -410,7 +429,15 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
       lobby.connect();
       initRecorder(); */
       updateMessage('Connecting to '+remoteid);
-      rtcommEndpoint.addEndpoint(remoteid);
+      // This is only necessary if you want to enable/connect in same motion. 
+      rtcommEndpoint.webrtc.enable(function(success, message) {
+        console.log('Enable Completed: '+ success);
+        if (success) {
+          rtcommEndpoint.connect(remoteid);
+        } else {
+          console.error('enable failed: '+ message)
+          }
+        });
       $("#connectModal").modal("hide");
       $('#connAlert').hide();
     }

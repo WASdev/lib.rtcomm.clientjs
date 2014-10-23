@@ -49,7 +49,11 @@ define({
 	// can be used here
 	loader: {
 		// Packages that should be registered with the loader in each testing environment
-		packages: [ { name: 'ibm', location: 'build/js/umd/ibm' } ]
+		packages: [ { name: 'ibm', location: 'build/js/umd/ibm'}],
+    shim: { 'lib/mqttws31': {
+              exports: 'Paho'
+          }
+    }
 	},
 
 	// Non-functional test suite(s) to run in each browser

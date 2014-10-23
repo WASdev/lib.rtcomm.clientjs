@@ -86,7 +86,12 @@ var RtcommBaseObject = {
     /** emit an event from the object */
     emit : function(event, object) {
       var self = this;
+      // We have an event format specified, normalize the event before emitting.
+      if (this._Event && typeof this._Event === 'function') { 
+        object = this._Event(event, object);
+      }
       if (this.events && this.events[event] ) {
+        console.log('>>>>>>>> Firing event '+event);
         l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);
         // Event exists, call all callbacks
         self.events[event].forEach(function(callback) {
@@ -120,7 +125,8 @@ var RtcommBaseObject = {
       }
     },
     toString: function() {
-      return this.objName + '['+this.id+']';
+      var name =  (this._ && this._.objName)? this._.objname : this.objName || this.name || 'Unknown';
+      return name + '['+this.id+']';
     }
 };
 

@@ -41,7 +41,7 @@ var SigSession = function SigSession(config) {
   this.objName = 'SigSession';
   this.endpointconnector = null;
   this.id = null;
-  this.toEndpointID = null;
+  this.remoteEndpointID = null;
   this.message = null;
   this.source = null;
   this.toTopic = null;
@@ -55,21 +55,23 @@ var SigSession = function SigSession(config) {
       this.message = config.message;
       this.id = config.message.sigSessID;
       this.appContext = config.message.appContext || null;
-      this.toEndpointID = config.fromEndpointID || null;
+      this.remoteEndpointID = config.fromEndpointID || null;
       this.source = config.source || null;
       this.toTopic = config.toTopic || config.message.fromTopic || null;
-
       if (config.message.peerContent && config.message.peerContent.type === 'refer') {
         this.type = 'refer';
         this.referralDetails = config.message.peerContent.details;
       }
-   
+    } else {
+      this.remoteEndpointID = config.remoteEndpointID || null;
+      this.id = this.id || config.id;
+      this.toTopic = this.toTopic || config.toTopic;
+      this.appContext = this.appContext|| config.appContext;
     }
-   
-    this.id = this.id || config.id;
-    this.toTopic = this.toTopic || config.toTopic;
-    this.appContext = this.appContext|| config.appContext;
   } 
+
+  l('DEBUG') && console.log(this+'.constructor creating session from config: ', config);
+  l('DEBUG') && console.log(this+'.constructor created session from config: ', this);
 
   /* global generateUUID: false */
   this.id = this.id || generateUUID();
@@ -85,8 +87,6 @@ var SigSession = function SigSession(config) {
       'pranswer':[],
       'finished':[]
   };
-
-
   // Initial State
   this.state = 'stopped';
 
@@ -102,7 +102,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
   return { 
     /** 
      * Init method
-     * @param config  -- message:message, fromEndpointID: endpointid, toTopic: toTopic
+     * @param config  -- message:message, localEndpointID: endpointid, toTopic: toTopic
      */
     
     _setupQueue: function _setupQueue() {
@@ -123,7 +123,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
           return;
         } else {
           processingQueue = true;
-          l('DEBUG') && console.log(this+'.processQueue processing queue... ', q);
+          l('DEBUG') && console.log(this+'._processQueue processing queue... ', q);
           q.forEach(function(message){
             this.send(message);
           }.bind(this));
@@ -136,33 +136,33 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      * start must be called to send the first message.
      * options are:
      * 
-     *  config = {toEndpointID: something, sdp:  }
+     *  config = {remoteEndpointID: something, message:  }
      */
     start : function(config) {
       this._setupQueue();
       /*global l:false*/
       l('DEBUG') && console.log('SigSession.start() using config: ', config);
-      var toEndpointID = this.toEndpointID;
-      var sdp = null;
+      var remoteEndpointID = this.remoteEndpointID;
+      var message = null;
       if (config) {
-        this.toEndpointID = toEndpointID = config.toEndpointID || toEndpointID;
-        sdp = config.sdp || null;
+        this.remoteEndpointID = remoteEndpointID = config.remoteEndpointID || remoteEndpointID;
+        message = config.message|| null;
       }
       this.state = 'starting';
-      console.log('toEnpdointID is:'+toEndpointID);
-      if (!toEndpointID) {
-        throw new Error('toEndpointID is required in start() or SigSession() instantiation');
+      console.log('remoteEndpointID is:'+remoteEndpointID);
+      if (!remoteEndpointID) {
+        throw new Error('remoteEndpointID is required in start() or SigSession() instantiation');
       }  
 
       /*
-       * If we are new, (no message...) then we shoudl create START and 
+       * If we are new, (no message...) then we should create START and 
        *  a Transaction and send it....
        *  and establish an on('message');
        *    
        */
       if (!this.message) {
         this.message = this.createMessage('START_SESSION');
-        this.message.peerContent = sdp || null;
+        this.message.peerContent = message || null;
         if (this.appContext) {
           this.message.appContext = this.appContext;
         }
@@ -180,9 +180,10 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
 
       var session_failed = function(message) {
         this._startTransaction = null;
+        var reason = (message && message.reason) ? message.reason : 'Session Start failed for unknown reason';
         this.state = 'stopped';
-        console.error('Session Start Failed: ', message);
-        this.emit('failed', message);
+        console.error('Session Start Failed: ', reason);
+        this.emit('failed', reason);
       };
       
       this._startTransaction = this.endpointconnector.createTransaction(
@@ -325,7 +326,6 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       // We create messages for a sigSession... 
       // generally, this is what we should send, peerContent.
       var peerContent = null;
-      
       // object could be a RAW Message... 
       // Object could be a peerContent type of message {type:offer|answer/icecandidate/user sdp/candidate/userdata: }
       //   where could infer our message type.
@@ -333,25 +333,21 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       if (object && object.type ) { 
         peerContent = object;
       }
-     
       var type = 'MESSAGE';
       if (peerContent) {
         type = peerContent.type === 'pranswer' ? 'PRANSWER' : 'MESSAGE';
       } else {
         type = object;
       }
-      
       var message = this.endpointconnector.createMessage(type);
-      message.toEndpointID = this.toEndpointID;
+      message.toEndpointID = this.remoteEndpointID;
       message.sigSessID = this.id;
       message.peerContent = peerContent ? object : null;
       return message;
-      
     },
     getState : function(){
       return this.state;
     },
-
     processMessage : function(message) {
       // Process inbound messages. Should not accept these if we ar not in STARTED or HAVE_PRANSWER 
       // HAVE_PRANSWER could mean we sent or received the PRANSWER 
@@ -385,10 +381,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         this.emit('finished');
         break;
       case 'MESSAGE':
-       /* l('DEBUG') && console.log('Emitting event [message]', message.peerContent);
-        if (typeof this.emit === 'function') {
-          console.log('emit is a function!');
-        } */
+        l('DEBUG') && console.log('Emitting event [message]', message.peerContent);
         this.emit('message', message.peerContent);
         break;
       default:

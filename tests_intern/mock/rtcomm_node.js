@@ -17,9 +17,7 @@ global.WebSocket = function(wsurl,protocol) {
         },
         get readyState() { return ws.readyState; }
     };
-    
     ws.binaryType = 'arraybuffer';
-    
     ws.on("connect", function(conn) {
         connection = conn;
         conn.on("error", function (error) {
@@ -28,11 +26,9 @@ global.WebSocket = function(wsurl,protocol) {
                 obj.onerror();
             }
         });
-        
         conn.on("close", function(reasonCode, description) {
             console.log("socket closed ",description);
         })
-        
         conn.on("message", function (message) {
             if (message.type === "binary") {
                 if (obj.onmessage) {
@@ -53,9 +49,7 @@ global.WebSocket = function(wsurl,protocol) {
     ws.connect(wsurl, protocol);
     return obj;
 }
-
 var LocalStorage = require('node-localstorage').LocalStorage;
 global.localStorage = new LocalStorage('./persistence');
-
 require('../../lib/mqttws31');
 

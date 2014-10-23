@@ -154,8 +154,10 @@ var EndpointProvider =  function EndpointProvider() {
       // Set any defaults
       // appContext may already be set, ahve to save it.
       var appContext = (this.config && this.config.appContext) ? this.config.appContext : null;
+      var userid = (this.config && this.config.userid) ? this.config.userid : null;
       config = this.config = setConfig(options,configDefinition);
       this.config.appContext = appContext || this.config.appContext;
+      this.config.userid= userid || this.config.userid;
     } else {
       throw new Error("EndpointProvider initialization requires a minimum configuration: "+ JSON.stringify(configDefinition.required));
     }
@@ -192,6 +194,7 @@ var EndpointProvider =  function EndpointProvider() {
        * if there is a userid, we register.
        */
       if (config.userid) {
+
         l('DEBUG') && 
           console.log(endpointProvider+'.init() Registering with rtcomm server as: '+ config.userid+'|'+config.appContext);
         endpointConnection.register(function(message){
@@ -199,7 +202,7 @@ var EndpointProvider =  function EndpointProvider() {
             if (config.createEndpoint) {
               returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
             }
-            setUserID.call(endpointProvider, config.userid);
+            endpointProvider.setUserID(config.userid);
             cbSuccess(returnObj);
           },
           function(error) {
@@ -209,7 +212,7 @@ var EndpointProvider =  function EndpointProvider() {
         // We are anonymous
         l('DEBUG') && 
           console.log(endpointProvider+'.init() anonymous provider, outbound support only');
-        setUserID.call(endpointProvider, endpointConnection.setUserID());
+        endpointProvider.setUserID(endpointConnection.setUserID());
         endpointConnection.serviceQuery();
         if (config.createEndpoint) {
           returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
@@ -331,10 +334,8 @@ var EndpointProvider =  function EndpointProvider() {
     var endpointid = null;
     var endpoint = null;
     var defaultConfig = {
-        autoAnswer: false,
-        audio: true,
-        video: true,
-        data: true,
+        chat: true,
+        webrtc: true,
         parent:this,
     };
     var objConfig = defaultConfig;
@@ -349,8 +350,9 @@ var EndpointProvider =  function EndpointProvider() {
       objConfig.appContext = this.config.appContext;
       objConfig.userid = this.config.userid;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint using config: ', objConfig);
-      endpoint = new RtcommEndpoint();
-      endpoint.init(objConfig);
+      endpoint = new RtcommEndpoint(objConfig);
+      endpoint.setEndpointConnection(this.dependencies.endpointConnection);
+//      endpoint.init(objConfig);
       endpoint.on('destroyed', function(endpoint) {
         endpointRegistry.remove(endpoint);
       });
@@ -369,6 +371,16 @@ var EndpointProvider =  function EndpointProvider() {
   this.getMqttEndpoint = function() {
     return new MqttEndpoint({connection: this.dependencies.endpointConnection});
   };
+
+  /** Create Session Only Endpoint 
+   * @returns {module:rtcomm.MqttEndpoint} */
+  this.getSessionEndpoint = function() {
+    var sess =  new BaseSessionEndpoint();
+    sess.dependencies.endpointConnection = this.dependencies.endpointConnection;
+    sess._.appContext = this.config.appContext;
+    return endpointRegistry.add(sess);
+  };
+
   this.destroy = function() {
     this.leaveAllQueues();
     this.clearEventListeners();
@@ -408,7 +420,7 @@ var EndpointProvider =  function EndpointProvider() {
    * set the userId -- generally used prior to init.
    * cannot overwrite an existing ID, but will propogate to endpoints.
    */
-  var setUserID = function(userid) {
+  this.setUserID = function(userid) {
     l('DEBUG') && console.log(this+'.setUserID() Setting userid to: '+userid);
     if (this.config.userid && (userid !== this.config.userid)) {
       throw new Error('Cannot change UserID once it is set');

@@ -152,7 +152,11 @@ var EndpointConnection = function EndpointConnection(config) {
         }
       } else if (rtcommMessage.method === 'START_SESSION' )  {
         // Create a new session:
-        endpointConnection.emit('newsession', endpointConnection.createSession({message:rtcommMessage, source: topic, fromEndpointID: fromEndpointID}));
+        endpointConnection.emit('newsession', 
+                                endpointConnection.createSession(
+                                  {message:rtcommMessage, 
+                                    source: topic, 
+                                    fromEndpointID: fromEndpointID}));
       } else {
         // We have a transID, we need to pass message to it.
         // May fail? check.

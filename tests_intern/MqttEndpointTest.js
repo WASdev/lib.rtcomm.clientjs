@@ -15,14 +15,24 @@
  **/
 
 var config= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommscott/' };
-
 define([
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
-    'intern/dojo/node!./mock/rtcomm_node',
+//    'intern/order!mock/mqttws31_shim',
+//    'lib/mqttws31',
     'ibm/rtcomm'
-], function (registerSuite, assert, Deferred, globals, rtcomm) {
+], function (registerSuite, assert, Deferred, rtcomm) {
+    if (typeof window === 'undefined' && global) {
+      require(['intern/dojo/node!./tests_intern/mock/mqttws31_shim'], function(globals) {
+        console.log('********** Paho should now be defined **********');
+     });
+    } else {
+      require(['lib/mqttws31'], function(globals) {
+
+       console.log('********** Paho should now be defined **********');
+     });
+    }
     var ep = null;
     var mq1 = null;
     var mq2 = null;
@@ -71,8 +81,8 @@ define([
           ep = new rtcomm.RtcommEndpointProvider();
           ep.init(config, function(obj) {
             console.log('*** Creating MqttEndpoints ***');
-            mq1 = ep.createMqttEndpoint();
-            mq2 = ep.createMqttEndpoint();
+            mq1 = ep.getMqttEndpoint();
+            mq2 = ep.getMqttEndpoint();
             mq1.subscribe('/test1');
             mq2.subscribe('/test2/#');
             console.log('*** mq1 ***', mq1);
@@ -128,7 +138,7 @@ define([
           var dfd = this.async(3000);
           // Overwrite the mq2 stuff (clean out, start over);
           mq2 = null;
-          mq2 = ep.createMqttEndpoint();
+          mq2 = ep.getMqttEndpoint();
           mq2.subscribe('/test2');
           mqttPublish('/test2something', '5 - Hello from 1').then(
              dfd.callback(function(pass) {
@@ -142,7 +152,7 @@ define([
           var dfd = this.async(3000);
           // Overwrite the mq2 stuff (clean out, start over);
           mq2 = null;
-          mq2 = ep.createMqttEndpoint();
+          mq2 = ep.getMqttEndpoint();
           mq2.subscribe('/test2');
           mqttPublish('/test2/something', '6 - Hello from 1').then(
              dfd.callback(function(pass) {
