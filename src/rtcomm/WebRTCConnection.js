@@ -27,6 +27,7 @@ var WebRTCConnection = (function invocation() {
    */
   var WebRTCConnection = function WebRTCConnection(parent) {
     this.config = {
+      autoAnswer: false,
       RTCConfiguration : null,
       RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
       mediaIn: null,
@@ -220,8 +221,10 @@ var WebRTCConnection = (function invocation() {
         this.pc.setLocalDescription(this.onEnabledMessage, function(){
           console.log('************setLocalDescription Success!!! ');
         });
+        return true;
       } else {
         console.log('!!!!! not enabled, skipping...');
+        return false;
       }
     },
     setBroadcast : function setBroadcast(broadcast) {
@@ -263,6 +266,7 @@ var WebRTCConnection = (function invocation() {
       }
       return this;
     },
+    getAutoAnswer: function() { return this.config.autoAnswer },
 
   /*
    * This is executed by createAnswer.  Typically, the intent is to just send the answer
@@ -293,7 +297,7 @@ var WebRTCConnection = (function invocation() {
     var session = this.dependencies.parent._.activeSession;
     var sessionState = session.getState();
     var PRANSWER = (pcSigState === 'have-remote-offer') && (sessionState === 'starting');
-    var RESPOND = this.autoAnswer || sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
+    var RESPOND = this.config.autoAnswer || sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
     var SKIP = false;
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     if (RESPOND) {

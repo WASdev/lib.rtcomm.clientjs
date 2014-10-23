@@ -72,17 +72,20 @@ var RtcommEndpoint = (function invocation(){
       return null;
     };
     this.send = function(message) {
+      message = (message && message.message) ? message.message : message;
       message = (message && message.type === 'user') ? message : createChatMessage(message);
       if (parent._.activeSession) {
         parent._.activeSession.send(message);
       }
     };
     this._connect = function(sendMethod) {
-      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send;
+      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
       if (this.onEnabledMessage) {
-        sendMethod(this.onEnabledMessage);
+        sendMethod({message: this.onEnabledMessage});
+        return true;
       } else {
         console.log('!!!!! not enabled, skipping...'); 
+        return false;
       }
     };
   };
@@ -125,8 +128,10 @@ var RtcommEndpoint = (function invocation(){
     this.userid = this.config.userid || null;
     this.appContext = this.config.appContext || null;
 
-    this.webrtc = new WebRTCConnection(this);
-    this.chat = new Chat(this);
+    this.webrtc = (this.config.webrtc)?new WebRTCConnection(this): null;
+    this.chat = (this.config.chat) ? new Chat(this) : null;
+    // Enable chat by default if it is set up that way.
+    this.chat && this.chat.enable();
 
     /** 
      * RtcommEndpoint Event type 
@@ -368,12 +373,10 @@ return  {
     this._.activeSession = createSignalingSession(endpointid, this);
     addSessionCallbacks(this, this._.activeSession);
 
-    if (this.config.webrtc) { 
-      l('DEBUG') && console.log(this+'.connect() calling webrtc._connect');
-      this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession));
-    } else if (this.config.chat) {
-      l('DEBUG') && console.log(this+'.connect() calling chat._connect');
-      this.chat._connect(this._.activeSession.start.bind(this._.activeSession));
+    if (this.config.webrtc && this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
+      l('DEBUG') && console.log(this+'.connect() initiating with webrtc._connect');
+    } else if (this.config.chat && this.chat._connect(this._.activeSession.start.bind(this._.activeSession))){
+      l('DEBUG') && console.log(this+'.connect() initiating with chat._connect');
     } else {
       l('DEBUG') && console.log(this+'.connect() sending startMessage w/ no content');
       this._.activeSession.start();
