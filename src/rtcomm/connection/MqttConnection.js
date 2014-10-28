@@ -198,7 +198,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
 
         var mqttConnectOptions = {};
 
-        l('DEBUG') && console.log(this+'.connect() options: ',mqttConnectOptions);
         if (this.config.credentials && this.config.credentials.userName) {
           mqttConnectOptions.userName = this.config.credentials.userName;
           if (this.config.credentials.password) {
@@ -208,7 +207,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         if (lwtTopic ) {
           mqttConnectOptions.willMessage = createMqttMessage(willMessage);
           mqttConnectOptions.willMessage.destinationName= lwtTopic;
-          l('DEBUG') && console.log(this+'.connect() willMessage: ',mqttConnectOptions.willMessage);
         }
         var onSuccess = cbOnsuccess || function() {
           l('DEBUG')&& console.log(this+'.connect() was successful, override for more information');
@@ -259,10 +257,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
             console.error(response);
           }
         }.bind(this);
-
-        l('DEBUG') && console.log(this+'.connect() options: ',mqttConnectOptions.willMessage);
-        l('DEBUG') && console.log(this+'.connect() options: ',mqttConnectOptions);
-
         mqttClient.connect(mqttConnectOptions);
       },
 

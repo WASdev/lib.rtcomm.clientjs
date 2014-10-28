@@ -26,6 +26,7 @@ If you have node.js installed, you can quickly launch a local browser to test:
 # from the project directory lib.rtcomm.clientjs
 
 # Install prereqs (one time only)
+npm install intern
 npm install connect
 npm install http
 npm install serve-static

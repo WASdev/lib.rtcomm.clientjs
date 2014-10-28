@@ -51,20 +51,21 @@ define([
          client2 = new connection.MqttConnection(config2);
          client1.setLogLevel('DEBUG');
          client2.setLogLevel('DEBUG');
-
-         client1.connect(
-           function(){
-             client2.connect(
-               function() {
+         client1.connect({
+          onSuccess:   function(){
+             client2.connect({ 
+             onSuccess:  function() {
                  dfd.resolve();
                },
-               function(error) {
+             onFailure:  function(error) {
                  dfd.failed(error);
-              });
+              }
+             });
            },
-           function(error) {
+           onFailure:  function(error) {
              dfd.failed(error);
-           });
+           }
+         });
          return dfd.promise;
       },
        teardown: function() {

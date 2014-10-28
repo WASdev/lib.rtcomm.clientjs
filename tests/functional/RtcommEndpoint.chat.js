@@ -25,6 +25,7 @@ define([
     'support/config',
     'ibm/rtcomm'
 ], function (registerSuite, assert, Deferred, globals,config, rtcomm) {
+
     var createProvider = function createProvider(userid,appContext) {
       var dfd = new Deferred();
       var EP = new rtcomm.EndpointProvider();
@@ -45,6 +46,7 @@ define([
     var EP2 = null;
 
     var cfg= config.clientConfig1();
+    delete cfg.userid;
     var uid1 = 'client1';
     var uid2 = 'client2';
     var appContext = 'internChatTest';

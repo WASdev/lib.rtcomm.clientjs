@@ -147,8 +147,8 @@ define([
      "Customer A calls Queue[Toys], pass a Chat Message": function() {
            var endpointProvider2 = new rtcomm.EndpointProvider();
            endpointProvider2.setAppContext('test');
-           var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
-           var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false, autoAnswer:true});
+           var customer = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
+           var agent = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false, autoAnswer:true});
 
            var message1 = null;
            var message2 = null;
@@ -158,13 +158,13 @@ define([
 
            var finish = dfd.callback(function() {
                console.log("******************Asserting now...***********************");
-               assert.ok(ep1.sessionStarted());
-               assert.ok(ep2.sessionStarted());
+               assert.ok(customer.sessionStarted());
+               assert.ok(agent.sessionStarted());
                endpointProvider2.destroy();
             });
 
             // Here is what we are waiting for.
-            ep1.on('session:started', finish);
+            customer.on('session:started', finish);
 
             endpointProvider2.on('queueupdate',function(queues) {
               console.log('queueupdate!', queues);
@@ -174,7 +174,6 @@ define([
                 queueid = Object.keys(queues)[0];
                 endpointProvider2.joinQueue(queueid);
                 // Connect to the queue now.
-                ep1.connect(queueid);
               } 
             });
 
@@ -184,14 +183,15 @@ define([
                     endpointProvider2.init(config2,
                         function(obj) {
                           console.log('init was successful');
+                          customer.connect(queueid);
                         },
                         function(error) {
-                          console.log('error in ep2 init:' + error);
+                          console.log('error in agent init:' + error);
                         }
                      );
                   },
                   function(error) {
-                    console.log('error in ep1 init:' + error);
+                    console.log('error in customer init:' + error);
                   }
                  );
          }
