@@ -108,9 +108,7 @@ var MessageFactory = (function (){
   
   function getMessageTemplate(type) {
     var template = {};
-    
     objMerge(template,_baseHeaders);
-   
     if (_messageTemplates.hasOwnProperty(type)) {
       objMerge(template,_messageTemplates[type]);
       return template;

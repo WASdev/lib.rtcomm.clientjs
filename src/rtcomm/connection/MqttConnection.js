@@ -125,6 +125,7 @@ var MqttConnection = function MqttConnection(config) {
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();
   this.config.myTopic = this.config.myTopic || this.config.rtcommTopicPath + this.config.clientID;
+  this.config.lwtTopic = this.config.lwtTopic || this.config.rtcommTopicPath+"lwt/";
   this.config.destinationTopic = this.config.defaultTopic ? this.config.rtcommTopicPath + this.config.defaultTopic : '';
   // Save an 'ID' for this service.
   this.id = this.config.clientID;
@@ -149,9 +150,25 @@ var MqttConnection = function MqttConnection(config) {
 };
 
 /* global util: false */
-MqttConnection.prototype  = util.RtcommBaseObject.extend(
+MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
+
+  var createMqttMessage = function(message) {
+    var messageToSend = null;
+    if (message && typeof message === 'object') {
+      // Convert message for mqtt send
+      messageToSend = new Paho.MQTT.Message(JSON.stringify(message.toJSON()));
+    } else if (typeof message === 'string' ) {
+      // If its just a string, we support sending it still, though no practical purpose for htis.
+      messageToSend = new Paho.MQTT.Message(message);
+    } else {
+      // Return an empty message
+      messageToSend = new Paho.MQTT.Message('');
+    }
+    return messageToSend;
+  };
+
     /** @lends module:rtcomm.connector.MqttConnection.prototype */
-    {
+    return {
       /* global setLogLevel:false */
       setLogLevel: setLogLevel,
       /* global getLogLevel:false */
@@ -159,14 +176,36 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
       /**
        * connect()
        */
-      connect: function connect(cbOnsuccess, cbOnfailure) {
+      connect: function connect(options) {
         if (!this._init) {
           throw new Error('init() must be called before calling connect()');
         }
-
         var mqttClient = this.dependencies.mqttClient;
+        var cbOnsuccess = null;
+        var cbOnfailure = null;
+        var willMessage = null;
+        var lwtTopic = null;
+        
+        if (options) {
+          cbOnsuccess = options.onSuccess || null;
+          cbOnfailure = options.onFailure || null;
+          willMessage = options.willMessage || null;
+          lwtTopic = options.lwtTopic || null;
+        }
+
         var mqttConnectOptions = {};
 
+        if (this.config.credentials && this.config.credentials.userName) {
+          mqttConnectOptions.userName = this.config.credentials.userName;
+          if (this.config.credentials.password) {
+            mqttConnectOptions.password = this.config.credentials.password;
+          }
+        }
+        if (willMessage && lwtTopic ) {
+          mqttConnectOptions.willMessage = createMqttMessage(willMessage);
+          // TODO:  This topic needs some work
+          mqttConnectOptions.willMessage.destinationName= lwtTopic;
+        }
         var onSuccess = cbOnsuccess || function() {
           l('DEBUG')&& console.log(this+'.connect() was successful, override for more information');
         }.bind(this);
@@ -237,17 +276,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
        }
       },
       publish: function publish(/* string */ topic, message) {
-        var messageToSend = null;
-        if (message && typeof message === 'object') {
-          // Convert message for mqtt send
-          messageToSend = new Paho.MQTT.Message(JSON.stringify(message.toJSON()));
-        } else if (typeof message === 'string' ) {
-          // If its just a string, we support sending it still, though no practical purpose for htis.
-          messageToSend = new Paho.MQTT.Message(message);
-        } else {
-          console.error(this+'.publish(): invalid message', message);
-        }
-
+        var messageToSend = createMqttMessage(message);
         if (messageToSend) {
           messageToSend.destinationName = topic;
           this.dependencies.mqttClient.send(messageToSend);
@@ -280,19 +309,8 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
         onFailure = config.onFailure|| function(error) {
           l('DEBUG')&& console.log(this+'.send failed, override for more information', error);
         }.bind(this),
-        messageToSend = "",
+        messageToSend = createMqttMessage(message),
         mqttClient = this.dependencies.mqttClient;
-
-        if (message && typeof message === 'object') {
-          // Convert message for mqtt send
-          messageToSend = new Paho.MQTT.Message(JSON.stringify(message.toJSON()));
-        } else if (typeof message === 'string' ) {
-          // If its just a string, we support sending it still, though no practical purpose for htis.
-          messageToSend = new Paho.MQTT.Message(message);
-        } else {
-          console.error('MqttConnection.send: invalid message', message);
-        }
-
         l('TRACE') && console.log(this+'.send using toTopic: '+toTopic);
         if (messageToSend) {
           messageToSend.destinationName = toTopic;
@@ -336,6 +354,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
           this.config.destinationTopic = this.config.rtcommTopicPath+this.config.defaultTopic;
         }
       }
-    }); // end of Return
-
+    }; // end of Return
+})());
 

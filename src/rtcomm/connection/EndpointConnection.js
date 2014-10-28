@@ -26,6 +26,7 @@
  * @param {string}  [config.userid] -  Unique user id representing user
  * @param {string}  [config.managementTopicName] - Default topic to register with ibmrtc Server
  * @param {string}  [config.rtcommTopicPath]
+ * @param {string}  [config.sphereTopicName] - Default topic to register with ibmrtc Server
  * @param {object}  [config.credentials] - Optional Credentials for mqtt server.
  *
  *
@@ -198,6 +199,7 @@ var EndpointConnection = function EndpointConnection(config) {
       'message': [],
       'newsession': []};
 
+  this.private = {};
   // If we have services and are configured
   // We are fully functional at this point.
   this.ready = false;
@@ -208,8 +210,8 @@ var EndpointConnection = function EndpointConnection(config) {
 
   var configDefinition = {
     required: { server: 'string', port: 'number'},
-    optional: { credentials : 'object', myTopic: 'string', rtcommTopicPath: 'string', managementTopicName: 'string', userid: 'string', appContext: 'string', secure: 'boolean'},
-    defaults: { rtcommTopicPath: '/rtcomm/', managementTopicName: 'management'}
+    optional: { credentials : 'object', myTopic: 'string', rtcommTopicPath: 'string', managementTopicName: 'string', userid: 'string', appContext: 'string', secure: 'boolean', sphereTopicName: 'string'},
+    defaults: { rtcommTopicPath: '/rtcomm/', managementTopicName: 'management', sphereTopicName: 'sphere'}
   };
 
   // the configuration for Endpoint
@@ -247,6 +249,8 @@ var EndpointConnection = function EndpointConnection(config) {
   this.RTCOMM_CALL_CONTROL_SERVICE = {};
   this.RTCOMM_CALL_QUEUE_SERVICE = {};
 
+  // LWT config 
+  this.private.willMessage = null;
   //create our Mqtt Layer
   this.mqttConnection = createMqttConnection(mqttConfig);
   this.mqttConnection.on('message', processMessage.bind(this));
@@ -468,7 +472,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         connect : function(cbSuccess, cbFailure) {
           var epConn = this;
-
+          l('DEBUG') && console.log(this+'.connect() LWT topic: '+ this.getSphereTopic()+ ' message', this.getLwtMessage());
           cbSuccess = (typeof cbSuccess === 'function') ? cbSuccess :
             function(service) {
               l('DEBUG') && console.log('Success - specify a callback for more information', service);
@@ -493,12 +497,17 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             this.connected = false;
             cbFailure(error);
           };
-          this.mqttConnection.connect(onSuccess.bind(this),onFailure.bind(this));
+          this.mqttConnection.connect({'willMessage': this.getLwtMessage(),
+                                       'lwtTopic' : this.getSphereTopic(),
+                                      'onSuccess': onSuccess.bind(this),
+                                       'onFailure': onFailure.bind(this)});
         },
         disconnect : function() {
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
           this.unregister();
           l('DEBUG') && console.log('RegisterTimer should be null: '+ this._registerTimer);
+          l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
+          this.publish(this.getSphereTopic(), this.getLwtMessage());
           this.sessions.clear();
           this.transactions.clear();
           this.clearEventListeners();
@@ -567,14 +576,21 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           var minimumReregister = 30;  // 30 seconds;
           var onSuccess = function(register_message) {
             l('DEBUG') && console.log(endpointConnection+'register() REGISTER RESPONSE: ', register_message);
-            if (register_message.orig === 'REGISTER' && register_message.expires) {
-              var expires = register_message.expires;
-              l('DEBUG') && console.log(endpointConnection+'.register() Message Expires in: '+ expires);
-              /* We will reregister every expires/2 unless that is less than minimumReregister */
-              var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
-              // we have a expire in seconds, register a timer...
-              l('DEBUG') && console.log(endpointConnection+'.register() Setting Timeout to:  '+regAgain*1000);
-              endpointConnection._registerTimer = setTimeout(endpointConnection.register.bind(endpointConnection), regAgain*1000);
+            //
+            // TO BE removed in the future.  Configure how to disable this.
+            // Essentially, if the SERVICE_QUERY does not return an LWT topic, we know our LWT won't
+            // work.  So, we need to keep our time.
+            //
+            if (!this.useLwt()) {
+              if (register_message.orig === 'REGISTER' && register_message.expires) {
+                var expires = register_message.expires;
+                l('DEBUG') && console.log(endpointConnection+'.register() Message Expires in: '+ expires);
+                /* We will reregister every expires/2 unless that is less than minimumReregister */
+                var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
+                // we have a expire in seconds, register a timer...
+                l('DEBUG') && console.log(endpointConnection+'.register() Setting Timeout to:  '+regAgain*1000);
+                endpointConnection._registerTimer = setTimeout(endpointConnection.register.bind(endpointConnection), regAgain*1000);
+              }
             }
             endpointConnection.registered = true;
             // Call our passed in w/ no info...
@@ -699,7 +715,26 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             console.error(this+'.setUserID() ID already set, cannot be changed: '+ this.id);
             return id;
            }
+        },
+        getLwtMessage: function() {
+          // should be an empty message
+          this.private.willMessage =  this.private.willMessage || ''; 
+          this.private.willMessage.appContext = this.appContext;
+          return this.private.willMessage;
+        },
+        getSphereTopic: function() {
+          this.private.sphereTopic =  this.private.sphereTopic || this.normalizeTopic(this.config.sphereTopicName);
+          l('DEBUG') && console.log(this+'.getSphereTopic() returning topic: '+this.private.sphereTopic);
+          return this.private.sphereTopic;
+        },
+        useLwt: function() {
+          if (this.RTCOMM_CONNECTOR_SERVICE.sphereTopic) {
+            return true;
+          } else {
+            return false;
+          }
         }
+        
     };
   })()
 );
