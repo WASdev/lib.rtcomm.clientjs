@@ -719,7 +719,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         getLwtMessage: function() {
           // should be an empty message
           this.private.willMessage =  this.private.willMessage || ''; 
-          this.private.willMessage.appContext = this.appContext;
           return this.private.willMessage;
         },
         getSphereTopic: function() {

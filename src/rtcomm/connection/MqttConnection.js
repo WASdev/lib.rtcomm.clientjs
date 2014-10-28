@@ -153,6 +153,7 @@ var MqttConnection = function MqttConnection(config) {
 MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
 
   var createMqttMessage = function(message) {
+    console.log('>>>>>>>>>>>> Creating message > '+message);
     var messageToSend = null;
     if (message && typeof message === 'object') {
       // Convert message for mqtt send
@@ -164,6 +165,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
       // Return an empty message
       messageToSend = new Paho.MQTT.Message('');
     }
+    console.log('>>>>>>>>>>>> Created message > ',messageToSend);
     return messageToSend;
   };
 
@@ -186,6 +188,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         var willMessage = null;
         var lwtTopic = null;
         
+        l('DEBUG')&& console.log(this+'.connect() called with options: ', options);
         if (options) {
           cbOnsuccess = options.onSuccess || null;
           cbOnfailure = options.onFailure || null;
@@ -195,16 +198,17 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
 
         var mqttConnectOptions = {};
 
+        l('DEBUG') && console.log(this+'.connect() options: ',mqttConnectOptions);
         if (this.config.credentials && this.config.credentials.userName) {
           mqttConnectOptions.userName = this.config.credentials.userName;
           if (this.config.credentials.password) {
             mqttConnectOptions.password = this.config.credentials.password;
           }
         }
-        if (willMessage && lwtTopic ) {
+        if (lwtTopic ) {
           mqttConnectOptions.willMessage = createMqttMessage(willMessage);
-          // TODO:  This topic needs some work
           mqttConnectOptions.willMessage.destinationName= lwtTopic;
+          l('DEBUG') && console.log(this+'.connect() willMessage: ',mqttConnectOptions.willMessage);
         }
         var onSuccess = cbOnsuccess || function() {
           l('DEBUG')&& console.log(this+'.connect() was successful, override for more information');
@@ -255,6 +259,9 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
             console.error(response);
           }
         }.bind(this);
+
+        l('DEBUG') && console.log(this+'.connect() options: ',mqttConnectOptions.willMessage);
+        l('DEBUG') && console.log(this+'.connect() options: ',mqttConnectOptions);
 
         mqttClient.connect(mqttConnectOptions);
       },

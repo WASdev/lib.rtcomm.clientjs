@@ -22,7 +22,7 @@
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.1.0',
+      'rtcommVer': 'v0.2.0',
        'method' : null,
        'fromTopic': null
   };
