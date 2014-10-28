@@ -97,6 +97,7 @@ var RtcommEndpoint = (function invocation(){
     this.config = {
       appContext : null,
       userid: null,
+      autoAnswer: false,
       chat: true,
       webrtc: true
     };
@@ -245,7 +246,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
       remoteEndpointID: remoteEndpointID,
       appContext: context.config.appContext
     });
-    console.log('session: ', session);
     return session;
   }
   // Protocol Specific handling of the session content. 
@@ -297,10 +297,11 @@ return  {
         // We match appContexts (or don't care)
         if (this.available()){
           // We are available (we can mark ourselves busy to not accept the call)
-          event = 'incoming';
+          // TODO:  Fix the inbound session to always alert.
+          event = 'session:alerting';
           if (session.type === 'refer') {
             l('DEBUG') && console.log(this + '.newSession() REFER');
-            event = 'refer';
+            event = 'session:refer';
           }
          // Save the session and start it.
          this._.activeSession = session;
@@ -385,8 +386,8 @@ return  {
   },
 
   disconnect: function() {
-    this.webrtc.disable();
-    this.chat.disable();
+    this.webrtc && this.webrtc.disable();
+    this.chat && this.chat.disable();
     if (this.sessionStarted()) {
       this._.activeSession.stop();
       this._.activeSession = null;
@@ -413,6 +414,9 @@ return  {
     }
   },
   getInboundMediaStream: function() { return this._.inboundMedia;},
+  getUserID : function(userid) {
+      return this.config.userid; 
+  },
   setUserID : function(userid) {
       this.userid = this.config.userid = userid;
   },
@@ -442,10 +446,12 @@ return  {
         message: "",
         object: null
       };
+
       RtcommEvent.remoteEndpointID = this._.activeSession ? this._.activeSession.remoteEndpointID : 'none';
       if (typeof object === 'object') {
         RtcommEvent.object = object;
-        RtcommEvent.message = event;
+        // Special Case, if the event is a 'message' then place it in 'message' as well.
+        RtcommEvent.message = (/message/.test(event)) ? object : event; 
       } else { 
         RtcommEvent.object = this;
         RtcommEvent.message = object;

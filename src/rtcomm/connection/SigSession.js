@@ -256,8 +256,13 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
 
     /**
      *  send a pranswer
+     *  
+     *  peerContent -- Message to send
+     *  timeout -- in SECONDS -- timeout to wait.
      */
     pranswer : function(peerContent, timeout) {
+      console.log('REMOVE ME: >>>>>>>>>> CALLED PRANSWER peerContent'+peerContent);
+      console.log('REMOVE ME: >>>>>>>>>> CALLED PRANSWER TIMEOUT '+timeout);
 
       if (typeof peerContent !== 'number') { 
         peerContent = peerContent || {'type':'pranswer'};
@@ -265,12 +270,14 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         timeout = peerContent;
         peerContent = {'type':'pranswer'};
       }
+      console.log('REMOVE ME: >>>>>>>>>> PRANSWER TIMEOUT '+timeout);
+      console.log('REMOVE ME: >>>>>>>>>> PRANSWER peerContent'+peerContent);
       var pranswerMessage = this.createMessage(peerContent);
       if (timeout) { 
         pranswerMessage.holdTimeout=timeout;
       }
       this.state = 'pranswer';
-      this.send(pranswerMessage,timeout || this.finalTimeout);
+      this.send(pranswerMessage,timeout*1000 || this.finalTimeout);
       this.emit('pranswer');
     },
 
@@ -321,7 +328,6 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         }
       }
     },
-    
     createMessage : function(object) {
       // We create messages for a sigSession... 
       // generally, this is what we should send, peerContent.

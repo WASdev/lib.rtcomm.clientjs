@@ -49,7 +49,10 @@ define({
 	// can be used here
 	loader: {
 		// Packages that should be registered with the loader in each testing environment
-		packages: [ { name: 'ibm', location: 'build/js/umd/ibm'}],
+		packages: [ { name: 'ibm', location: 'build/js/umd/ibm'},
+                { name: 'unit', location: 'tests/unit'},
+                { name: 'functional', location: 'tests/functional'},
+                { name: 'support', location: 'tests/support'}],
     shim: { 'lib/mqttws31': {
               exports: 'Paho'
           }
@@ -57,12 +60,22 @@ define({
 	},
 
 	// Non-functional test suite(s) to run in each browser
-	suites: [ 'tests_intern/MqttEndpointTest.js', 'tests_intern/SessionQueue.js'],
+	suites: [ 'unit/connection/connection.js',
+            'unit/util/util.js',
+            'unit/EndpointProvider.js',
+            'functional/connection/MqttConnection.js',
+            'functional/connection/EndpointConnection.js',
+            'functional/EndpointProvider.js',
+            'functional/RtcommEndpoint.js',
+            'functional/RtcommEndpoint.chat.js',
+            'functional/MqttEndpoint.js',
+            'functional/SessionQueue.js'
+  ],
 	//suites: [ ],
 
 	// Functional test suite(s) to run in each browser once non-functional tests are completed
 	functionalSuites: [ /* 'myPackage/tests/functional' */ ],
 
 	// A regular expression matching URLs to files that should not be included in code coverage analysis
-	excludeInstrumentation: /^(?:tests|tests_intern|node_modules)\//
+	excludeInstrumentation: /^(?:tests|tests|node_modules)\//
 });

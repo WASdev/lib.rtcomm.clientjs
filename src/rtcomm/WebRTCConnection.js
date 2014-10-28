@@ -94,7 +94,7 @@ var WebRTCConnection = (function invocation() {
       var parent = self.dependencies.parent;
 
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
-      var RTCConfiguration = (config && config.RTCConfiguration) ? config.RTCConfiguration : this.config.RTCConfiguration;
+      var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
       var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
       var RTCOfferOptions= (config && config.RTCOfferOptions) ? config.RTCOfferOptions: this.config.RTCOfferOptions;
       var connect = (config && typeof config.connect === 'boolean') ? config.connect : true;
@@ -129,14 +129,19 @@ var WebRTCConnection = (function invocation() {
         callback(true);
         return this;
       } else {
-        this.pc = createPeerConnection(RTCConfiguration, RTCConstraints, this);
+        try {
+          this.pc = createPeerConnection(RTCConfiguration, RTCConstraints, this);
+        } catch (error) {
+          // No PeerConnection support, cannot enable.
+          throw new Error(error);
+        }
         l('DEBUG') && console.log(self+'.enable() connect if possible? '+connect);
         if (this.config.broadcast.audio || this.config.broadcast.video) {
           l('DEBUG') && console.log(self+'.enable() calling .setLocalMedia()');
           this.setLocalMedia({enable:true},function(success, message) {
             l('DEBUG') && console.log(self+'.enable() setLocalMedia Callback(success='+success+',message='+message);
             if (success) {
-              console.log('LocalStream should be set here:  self._.localStream', self._.localStream);
+              l('DEBUG') && console.log('LocalStream should be set here:  self._.localStream', self._.localStream);
               self._.localStream && self.pc.addStream(self._.localStream);
             }
             createOffer();
@@ -219,11 +224,11 @@ var WebRTCConnection = (function invocation() {
         sendMethod({message: this.onEnabledMessage});
         this._setState('trying');
         this.pc.setLocalDescription(this.onEnabledMessage, function(){
-          console.log('************setLocalDescription Success!!! ');
+          l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
         });
         return true;
       } else {
-        console.log('!!!!! not enabled, skipping...');
+         l('DEBUG') && console.log('!!!!! not enabled, skipping...');
         return false;
       }
     },
@@ -342,7 +347,6 @@ var WebRTCConnection = (function invocation() {
     if (!message) {
       return;
     }
-    console.log('REMOVE ME >>>>>>>> this', this);
     l('DEBUG') && console.log(this+"._processMessage Processing Message...", message);
     if (message.type) {
       switch(message.type) {
@@ -388,7 +392,6 @@ var WebRTCConnection = (function invocation() {
             this.enable({connect: false});
             // reset this if we had to enable...
             isPC = this.pc ? true : false;
-            console.log('>>>>>>>>>>>>>>>>> isPC???? '+isPC);
           }
           isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message),
               /*onSuccess*/ function() {
@@ -495,7 +498,7 @@ var WebRTCConnection = (function invocation() {
     attachLocalMedia : function(/*callback*/ cbFunction) {
       var callback = cbFunction || function(value,message) {
         message = message || "No Message";
-        console.log(this+"attachLocalMedia.callback should be overridden:("+value+","+message+")");
+        console.log(this+".attachLocalMedia.callback should be overridden:("+value+","+message+")");
       };
       var rtcommEndpoint = this;
       l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): Setting up the rtcommEndpoint:', this);
@@ -521,7 +524,6 @@ var WebRTCConnection = (function invocation() {
             l('DEBUG') && console.log('rtcommEndpoint.attachLocalMedia(): No Stream, getting one! audio:'+ this.getAudio()+' video: '+ this.getVideo());
             getUserMedia({audio: this.getAudio(), video: this.getVideo()} ,
                 /* onSuccess */ function(stream) {
-              console.log('getUserMedia returned: ', stream);
               rtcommEndpoint.setLocalStream(stream);
               attachMediaStream(rtcommEndpoint.getMediaOut(),stream);
               callback(true);
@@ -620,8 +622,6 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
         // Only if we are stable, renegotiate!
         this.pc.createOffer(
             /*onSuccess*/ function(offer){
-              console.log(this+'connect Created Offer ', offer);
-
               this.pc.setLocalDescription(offer,
                   /*onSuccess*/ function() {
                   this.send(offer);
@@ -752,9 +752,7 @@ var getBrowser = function() {
     detachMediaStream = function(element) {
       l('DEBUG') && console.log("FIREFOX --> Detaching media stream");
       if (element) {
-
         element.mozSrcObject = null;
-        console.log('Element is: ', element);
       }
     };
 
@@ -768,7 +766,7 @@ var getBrowser = function() {
       } else if (typeof element.src !== 'undefined') {
         element.src = URL.createObjectURL(stream);
       } else {
-        console.log('Error attaching stream to element.');
+        console.error('Error attaching stream to element.');
       }
     };
     detachMediaStream = function(element) {
@@ -780,12 +778,12 @@ var getBrowser = function() {
         } else if (typeof element.src !== 'undefined') {
           element.src = null;
         } else {
-          console.log('Error attaching stream to element.');
+          console.error('Error attaching stream to element.');
         }
       }
     };
   } else {
-    console.log("Browser does not appear to be WebRTC-capable");
+    console.error("Browser does not appear to be WebRTC-capable");
   }
 
   var getIceServers = function(object) {

@@ -19,9 +19,12 @@
  * @classdesc
  * Provides Services to register a user and create RtcommEndpoints
  * <p>
- * This programming interface lets a JavaScript client application use a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
- * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
- * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic that is used to receive inbound communication.
+ * This programming interface lets a JavaScript client application use 
+ * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
+ * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
+ * & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
+ * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
+ * that is used to receive inbound communication.
  * <p>
  * See the example in {@link module:rtcomm.EndpointProvider#init|EndpointProvider.init()}
  * <p>
@@ -38,21 +41,21 @@ var EndpointProvider =  function EndpointProvider() {
   if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
   if (!connection) { throw new Error(MISSING_DEPENDENCY+"rtcomm.connection");}
 
-  /* Instantiate the endpoint Registry */
-  /*global EndpointRegistry:false */
-  var endpointRegistry = new EndpointRegistry();
-
   /** Store the configuration for the object, provided during the init() */
   this.config = {};
   /* Store the dependent objects */
   this.dependencies= {};
   /* Store private information */
-  this._private = {};
+  this._ = {};
   // Internal objects
   /*global Queues:false*/
-  this._private.queues = new Queues();
+  this._.queues = new Queues();
   /* services supported by the EndpointConnection, populated in init()*/
-  this._private.services = null;
+  this._.services = null;
+  /* Instantiate the endpoint Registry */
+  /*global EndpointRegistry:false */
+  this._.endpointRegistry = new EndpointRegistry();
+  this._.objName = "EndpointProvider";
 
   /**
    * State of the EndpointProvider
@@ -88,8 +91,8 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.userid] User ID or Identity
    * @param {string} [config.appContext=rtcomm] App Context for EndpointProvider
    * @param {string} [config.port=1883] MQTT Server Port
-   * @param {string} [config.rtcommTopicName=management] rtcommTopicName on rtcomm server
-   * @param {string} [config.topicPath=/rtcomm/] MQTT Path to prefix rtcommTopicName with and register under
+   * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
+   * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
@@ -102,7 +105,7 @@ var EndpointProvider =  function EndpointProvider() {
    * var endpointProviderConfig = {
    *   server : 'broker.mqttdashboard.com',
    *   userid : 'ibmAgent1@mysurance.org',
-   *   topicPath : '/rtcomm/',
+   *   rtcommTopicPath : '/rtcomm/',
    *   port : 8000,
    *   createEndpoint : true,
    *   credentials : null
@@ -135,14 +138,14 @@ var EndpointProvider =  function EndpointProvider() {
         required: { server: 'string', port: 'number'},
         optional: {
           credentials : 'object',
-          topicPath: 'string',
-          rtcommTopicName: 'string',
+          rtcommTopicPath: 'string',
+          managementTopicName: 'string',
           userid: 'string',
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
-          topicPath: '/rtcomm/',
-          rtcommTopicName: 'management',
+          rtcommTopicPath: '/rtcomm/',
+          managementTopicName: 'management',
           appContext: 'rtcomm',
           port: 1883,
           register: false,
@@ -157,12 +160,11 @@ var EndpointProvider =  function EndpointProvider() {
       var userid = (this.config && this.config.userid) ? this.config.userid : null;
       config = this.config = setConfig(options,configDefinition);
       this.config.appContext = appContext || this.config.appContext;
-      this.config.userid= userid || this.config.userid;
+      this.setUserID(userid || this.config.userid);
     } else {
       throw new Error("EndpointProvider initialization requires a minimum configuration: "+ JSON.stringify(configDefinition.required));
     }
     var endpointProvider = this;
-
     cbSuccess = cbSuccess || function(message) {
       console.log(endpointProvider+'.init() Default Success message, use callback to process:', message);
     };
@@ -176,12 +178,11 @@ var EndpointProvider =  function EndpointProvider() {
     // everything else is the same config.
     connectionConfig.hasOwnProperty('register') && delete connectionConfig.register;
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
-
     // createEndpointConnection
     var endpointConnection = this.dependencies.endpointConnection = createEndpointConnection.call(this, connectionConfig);
     // onSuccess callback for endpointConnection.connect();
     var onSuccess = function(message) {
-      l('DEBUG') && console.log('endpointProvider success callback called');
+      l('DEBUG') && console.log(endpointProvider+'.onSuccess() called ');
       var returnObj = {
           'ready': true,
           'registered': false,
@@ -228,7 +229,6 @@ var EndpointProvider =  function EndpointProvider() {
       cbFailure(error);
     };
     // Connect!
-    l('DEBUG') && console.log('calling connect');
     endpointConnection.connect( onSuccess.bind(this), onFailure.bind(this));
     // Return ourself for chaining.
     return this;
@@ -245,9 +245,9 @@ var EndpointProvider =  function EndpointProvider() {
     var endpointProvider = this;
     var endpointConnection = new connection.EndpointConnection(config);
 
-    // If we already have some enpdoints, their connection will be null, fix it
-    if (endpointRegistry.length() > 0 ) {
-      endpointRegistry.list().forEach(function(endpoint) {
+    // If we already h some enpdoints, their connection will be null, fix it
+    if (this._.endpointRegistry.length() > 0 ) {
+      this._.endpointRegistry.list().forEach(function(endpoint) {
         endpoint.setEndpointConnection(endpointConnection);
       });
     }
@@ -256,7 +256,7 @@ var EndpointProvider =  function EndpointProvider() {
     endpointConnection.setLogLevel(getLogLevel());
 
     endpointConnection.on('servicesupdate', function(services) {
-      endpointProvider._private.services = services;
+      endpointProvider._.services = services;
       endpointProvider.updateQueues();
     });
 
@@ -273,8 +273,8 @@ var EndpointProvider =  function EndpointProvider() {
       if(session) {
         l('DEBUG') && console.log("Handle a new incoming session: ", session);
         // Send it to the same id/appContext;
-        l('DEBUG') && console.log("endpointRegistry: ", endpointRegistry.list());
-        var endpoint = endpointRegistry.get() || null;
+        l('DEBUG') && console.log("endpointRegistry: ", endpointProvider._.endpointRegistry.list());
+        var endpoint = endpointProvider._.endpointRegistry.get() || null;
         //TODO:  For the Queue thing, we need to lookup based on the session.source
         l('DEBUG') && console.log("giving session to Endpoint: ", endpoint);
         if (endpoint && endpoint.available) {
@@ -305,15 +305,15 @@ var EndpointProvider =  function EndpointProvider() {
    * getRtcommEndpoint
    * Factory method that returns a RtcommEndpoint object to be used by a UI component.
    *
-   *  The RtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.
-   *  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
-   *  stream.   When an inbound stream is added to a RTCPeerConnection, then the RtcommEndpoint object also informs the
+   *  The RtcommEndpoint object provides an interface for the UI Developer to attach 
+   *  Video and Audio input/output. Essentially mapping a broadcast stream(a MediaStream 
+   *  that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound 
+   *  stream is added to a RTCPeerConnection, then the RtcommEndpoint object also informs the
    *  RTCPeerConnection where to send that stream in the User Interface.
    *
    *  @param {Object}  [config] 
-   *  @param {boolean} [config.audio=true] Support audio in the PeerConnection - defaults to true
-   *  @param {boolean} [config.video=true] Support video in the PeerConnection - defaults to true
-   *  @param {boolean} [config.data=true]  Support data in the PeerConnection - defaults to true
+   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
+   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
    *
    *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint 
    *  @throws Error
@@ -321,9 +321,8 @@ var EndpointProvider =  function EndpointProvider() {
    * @example
    *  var endpointProvider = new rtcomm.EndpointProvider();
    *  var endpointConfig = {
-   *    audio: true,
-   *    video: true,
-   *    data: false,
+   *    chat: true,
+   *    webrtc: true,
    *    autoAnswer: false
    *    };
    *  endpointProvider.getRtcommEndpoint(endpointConfig);
@@ -336,7 +335,8 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         chat: true,
         webrtc: true,
-        parent:this,
+        autoAnswer:false,
+        parent:this
     };
     var objConfig = defaultConfig;
     if (typeof this.config.appContext === 'undefined') {
@@ -344,7 +344,7 @@ var EndpointProvider =  function EndpointProvider() {
     }
     if(endpointConfig && typeof endpointConfig !== 'object') {
       endpointid = endpointConfig;
-      endpoint = endpointRegistry.get(endpointid);
+      endpoint = this._.endpointRegistry.get(endpointid);
     } else {
       applyConfig(endpointConfig, objConfig);
       objConfig.appContext = this.config.appContext;
@@ -353,13 +353,12 @@ var EndpointProvider =  function EndpointProvider() {
       endpoint = new RtcommEndpoint(objConfig);
       endpoint.setEndpointConnection(this.dependencies.endpointConnection);
 //      endpoint.init(objConfig);
-      endpoint.on('destroyed', function(endpoint) {
-        endpointRegistry.remove(endpoint);
+      endpoint.on('destroyed', function(event_object) {
+        endpointProvider._.endpointRegistry.remove(event_object.object);
       });
       // Add to registry or return the one already there
-      console.log('ENDPOINT REGISTRY: ', endpointRegistry);
-
-      endpoint = endpointRegistry.add(endpoint);
+      l('DEBUG') && console.log('ENDPOINT REGISTRY: ', this._.endpointRegistry.list());
+      endpoint = this._.endpointRegistry.add(endpoint);
     }
     return endpoint;
   };
@@ -378,21 +377,19 @@ var EndpointProvider =  function EndpointProvider() {
     var sess =  new BaseSessionEndpoint();
     sess.dependencies.endpointConnection = this.dependencies.endpointConnection;
     sess._.appContext = this.config.appContext;
-    return endpointRegistry.add(sess);
+    return this._.endpointRegistry.add(sess);
   };
 
   this.destroy = function() {
     this.leaveAllQueues();
     this.clearEventListeners();
     // Clear callbacks
-    console.log('EndpointRegistry: '+endpointRegistry.list());
-    endpointRegistry.destroy();
+    this._.endpointRegistry.destroy();
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointRegistry');
     this.dependencies.endpointConnection && this.dependencies.endpointConnection.destroy();
     this.dependencies.endpointConnection = null;
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointConnection');
     this.ready = false;
-    console.log('This.CurrentState --', this.currentState());
     
   };
 
@@ -426,8 +423,9 @@ var EndpointProvider =  function EndpointProvider() {
       throw new Error('Cannot change UserID once it is set');
     } else {
       this.config.userid = userid;
+      this._.id = userid;
       // update the endpoints
-      endpointRegistry.list().forEach(function(endpoint){
+      this._.endpointRegistry.list().forEach(function(endpoint){
         endpoint.setUserID(userid);
       });
     }
@@ -437,12 +435,12 @@ var EndpointProvider =  function EndpointProvider() {
    * @fires module:rtcomm.EndpointProvider#queueupdate
    */
   this.updateQueues= function updateQueues() {
-    this._private.queues.add((this._private.services && 
-                     this._private.services.RTCOMM_CALL_QUEUE_SERVICE && 
-                     this._private.services.RTCOMM_CALL_QUEUE_SERVICE.queues) ||
+    this._.queues.add((this._.services && 
+                     this._.services.RTCOMM_CALL_QUEUE_SERVICE && 
+                     this._.services.RTCOMM_CALL_QUEUE_SERVICE.queues) ||
                      []);
-    this.emit('queueupdate', this._private.queues.all());
-    l('DEBUG') && console.log(this+'.updateQueues() QUEUES: ',this._private.queues.list());
+    this.emit('queueupdate', this._.queues.all());
+    l('DEBUG') && console.log(this+'.updateQueues() QUEUES: ',this._.queues.list());
   };
   /**
    * Join a Session Queue
@@ -462,7 +460,7 @@ var EndpointProvider =  function EndpointProvider() {
   // Is queue a valid queuename?
     var endpointProvider = this;
     // No more callback
-    var q = this._private.queues.get(queueid);
+    var q = this._.queues.get(queueid);
     l('DEBUG') && console.log(this+'.joinQueue() Looking for queueid:'+queueid);
     if (q) {
       // Queue Exists... Join it
@@ -473,7 +471,7 @@ var EndpointProvider =  function EndpointProvider() {
       q.regex = this.dependencies.endpointConnection.subscribe(q.topic);
       return true;
     } else {
-      throw new Error('Unable to find queue('+queueid+') available queues: '+ this._private.queues.list());
+      throw new Error('Unable to find queue('+queueid+') available queues: '+ this._.queues.list());
     }
   };
   /**
@@ -481,7 +479,7 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} queueid Id of a queue to leave.
    */
   this.leaveQueue= function leaveQueue(queueid) {
-    var q = this._private.queues.get(queueid);
+    var q = this._.queues.get(queueid);
     if (q && !q.active) {
       l('DEBUG') && console.log(this+'.leaveQueue() - Not Active,  cannot leave.');
       return true;
@@ -499,7 +497,7 @@ var EndpointProvider =  function EndpointProvider() {
   this.leaveAllQueues = function() {
     var self = this;
     this.listQueues().forEach(function(queue) {
-      console.log('Trying to leave: queue.endpointID: ',queue);
+      l('DEBUG') && console.log('Trying to leave: queue.endpointID: ',queue);
       self.leaveQueue(queue);
     });
   };
@@ -511,11 +509,11 @@ var EndpointProvider =  function EndpointProvider() {
    *
    */
   this.getAllQueues = function() {
-    return  this._private.queues.all();
+    return  this._.queues.all();
   };
 
   this.listQueues = function() {
-    return  this._private.queues.list();
+    return  this._.queues.list();
   };
 
   /** Return the userID the EndpointProvider is using */
@@ -539,17 +537,17 @@ var EndpointProvider =  function EndpointProvider() {
    *  @returns {Array} Array of Endpoint Objects 
    */
   this.endpoints = function() {
-    return endpointRegistry.list();
+    return this._.endpointRegistry.list();
   };
   this.currentState = function() {
     return {
       'ready': this.ready,
       'events': this.events,
       'dependencies':  this.dependencies,
-      'private':  this._private,
+      'private':  this._,
       'config' : this.config,
       'queues': this.getAllQueues(),
-      'endpointRegistry': endpointRegistry.list()
+      'endpointRegistry': this._.endpointRegistry.list()
     };
 
   };

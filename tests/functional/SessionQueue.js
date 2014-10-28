@@ -14,18 +14,23 @@
  * limitations under the License.
  **/
 
-var config= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommscott/' };
+var cfg= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommscott/' };
 
 define([
     'intern!object',
     'intern/chai!assert',
-    'intern/dojo/node!./mock/rtcomm_node',
     'intern/dojo/Deferred',
+    (typeof window === 'undefined' && global)
+      ?'intern/dojo/node!../support/mqttws31_shim':
+        'lib/mqttws31',
+    'support/config',
     'ibm/rtcomm'
-], function (registerSuite, assert, globals, Deferred, rtcomm) {
+], function (registerSuite, assert, Deferred, globals,config, rtcomm) {
+
     var ep = null;
     var rtcommEP = null;
     var mqtt = null;
+    var cfg = config.clientConfig1();
 
     var START_SESSION = {
         'rtcommVer': 'v0.1.0',
@@ -37,7 +42,6 @@ define([
         'peerContent': { type: 'offer' },
         'appContext': 'rtcommTest' 
     };
-
     function getPublishTopic(sharedTopic) {
       console.log('**********'+sharedTopic);
       var match = /\$SharedSubscription\/.+\/(\/.+)\/#/.exec(sharedTopic);
@@ -45,14 +49,14 @@ define([
     }
     
     registerSuite({
-        name: 'EndpointProvider Tests',
+        name: 'FVT - EndpointProvider SessionQueue', 
         setup: function() {
           var dfd = new Deferred();
-          ep = new rtcomm.RtcommEndpointProvider();
+          ep = new rtcomm.EndpointProvider();
           ep.setLogLevel('DEBUG');
-          config.userid = 'intern';
-          config.appContext = 'rtcommTest';
-          ep.init(config, 
+          cfg.userid = 'intern';
+          cfg.appContext = 'rtcommTest';
+          ep.init(cfg, 
                   function() {
                     console.log('***** Setup Complete *****');
                     dfd.resolve();
@@ -66,17 +70,18 @@ define([
         beforeEach: function() {
           console.log('reset the rtcommEP');
           rtcommEP && rtcommEP.destroy();
-          rtcommEP = ep.createRtcommEndpoint({audio:false, video:false, data:false});
+          rtcommEP = ep.createRtcommEndpoint({chat:false, webrtc: false});
           console.log('reset the mqtt');
           mqtt && mqtt.destroy();
-          mqtt = ep.createMqttEndpoint();
+          mqtt = ep.getMqttEndpoint();
         },
         teardown: function() {
           ep.destroy();
           ep = null;
         },
         'Init of rtcommEP creates Queues' : function() {
-          assert.isDefined(ep.queues, 'queues is defined');
+          console.log(ep.listQueues());
+          assert.ok(ep.listQueues().length > 0 , 'queues is defined');
 //          this.skip();
         },
 
@@ -95,7 +100,8 @@ define([
 
           var dfd = this.async(5000);
           var error;
-          var queue = ep.queues.get(ep.queues.list()[0]);
+          var queue = ep.getAllQueues()[ep.listQueues()[0]];
+          console.log('>>>>>>> queue', queue.endpointID);
           ep.joinQueue(queue.endpointID);
           var publishTopic = getPublishTopic(queue.topic);
           console.log('publishTopic: ', publishTopic);
@@ -107,7 +113,7 @@ define([
             assert.equal(obj._sigSession.source, publishTopic+'/intern', 'source topic is right');
           });   
 
-          rtcommEP.on('incoming', finish);
+          rtcommEP.on('session:alerting', finish);
           // Create a Message
           START_SESSION.fromTopic = '/scott';
           var msg = rtcommEP.endpointConnection.createMessage('START_SESSION');

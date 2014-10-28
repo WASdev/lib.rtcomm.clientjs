@@ -34,7 +34,6 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   var message, timeout, toTopic;
 
   this.defaultTimeout = 5000;
-  l('DEBUG') && console.log('Transaction constructor using options: ',options);
   if (options) {
     message = options.message || null;
     timeout = options.timeout || null;
@@ -143,7 +142,6 @@ Transaction.prototype = util.RtcommBaseObject.extend(
         this.send(rtcommMessage);
       }
       this.emit('finished');
-
     } else {
       console.error('Message not for this transaction: ', rtcommMessage);
     }

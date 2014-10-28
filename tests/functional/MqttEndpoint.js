@@ -13,26 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/
-
-var config= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommscott/' };
 define([
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
-//    'intern/order!mock/mqttws31_shim',
-//    'lib/mqttws31',
+    (typeof window === 'undefined' && global)
+      ?'intern/dojo/node!../support/mqttws31_shim':
+        'lib/mqttws31',
+    'support/config',
     'ibm/rtcomm'
-], function (registerSuite, assert, Deferred, rtcomm) {
-    if (typeof window === 'undefined' && global) {
+], function (registerSuite, assert, Deferred,globals,config, rtcomm) {
+ /*   if (typeof window === 'undefined' && global) {
       require(['intern/dojo/node!./tests_intern/mock/mqttws31_shim'], function(globals) {
         console.log('********** Paho should now be defined **********');
      });
     } else {
       require(['lib/mqttws31'], function(globals) {
-
+       console.log('Paho? ', Paho);
        console.log('********** Paho should now be defined **********');
      });
-    }
+    } */
+    var cfg = config.clientConfig1();
     var ep = null;
     var mq1 = null;
     var mq2 = null;
@@ -46,6 +47,7 @@ define([
       var msgrecv1 = null;
       var msgrecv2 = null;
       // Wait to publish 
+      mq1.clearEventListeners();
       setTimeout(function() {
         mq1.on('message', function(msg) {
           console.log('MQ1 Received Message: '+msg.content);
@@ -64,7 +66,6 @@ define([
         });
         mq1.publish(topic, message);
       }, ms);
-
       setTimeout(function() {
         dfd.resolve(false);
       },ms+1000);
@@ -72,14 +73,15 @@ define([
     };
 
     registerSuite({
-        name: 'MqttEndpoint Tests',
+        name: 'FVT - MqttEndpoint',
         setup: function() {
           var dfd=new Deferred();
           console.log('*************setup!**************');
-          config.userid = 'scott';
+          cfg.userid = 'scott';
           /* init the EndpointProvider */
           ep = new rtcomm.RtcommEndpointProvider();
-          ep.init(config, function(obj) {
+          ep.setLogLevel('DEBUG');
+          ep.init(cfg, function(obj) {
             console.log('*** Creating MqttEndpoints ***');
             mq1 = ep.getMqttEndpoint();
             mq2 = ep.getMqttEndpoint();
@@ -90,7 +92,6 @@ define([
           }, function(error){
             dfd.reject(error);
           });
-          ep.setLogLevel('DEBUG');
           /* Create the Mqtt Endpoints */
           return dfd.promise;
         },
@@ -107,7 +108,6 @@ define([
            );
         },
         'mqtt /test3 topic':function() {
-          this.skip();
           var dfd = this.async(3000);
           mqttPublish('/test3', '2 - Hello from 1').then(
              dfd.callback(function(pass) {
@@ -116,7 +116,6 @@ define([
            );
         },
         'mqtt /test2/something topic':function() {
-          this.skip();
           var dfd = this.async(3000);
           mqttPublish('/test2/something', '3 - Hello from 1').then(
              dfd.callback(function(pass) {
@@ -125,7 +124,6 @@ define([
            );
         },
         'mqtt /test2something topic':function() {
-          this.skip();
           var dfd = this.async(3000);
           mqttPublish('/test2something', '4 - Hello from 1').then(
              dfd.callback(function(pass) {
@@ -134,7 +132,6 @@ define([
            );
         },
         'mqtt /test2something -> /test2 topic':function() {
-          this.skip();
           var dfd = this.async(3000);
           // Overwrite the mq2 stuff (clean out, start over);
           mq2 = null;
@@ -148,7 +145,6 @@ define([
         },
         
         'mqtt /test2/something -> /test2 topic':function() {
-          this.skip();
           var dfd = this.async(3000);
           // Overwrite the mq2 stuff (clean out, start over);
           mq2 = null;
@@ -159,28 +155,6 @@ define([
                 assert.isFalse(pass,'Message should not be received');
               })
            );
-        },
-        'mqtt Test 1': function () {
-          this.skip();
-          var self = this;
-          var dfd= this.async(5000);
-          var error;
-          var start = function(ms) {
-            console.log('Starting!');
-            var startDfd = self.async();
-            setTimeout(function() {
-              mq1.publish('/test3', msgtosend1);
-              startDfd.resolve();
-            }, ms || 1000);
-            return startDfd.promise;
-          };
-
-          // call when complete.
-          var finish = dfd.callback(function(obj){
-                console.log('Asserting...');
-                assert.equal(msgrecv2.content, msgtosend1, '/test2 received correctly');
-          });
-          start(2000).then(finish);
         }
     });
 });

@@ -112,7 +112,7 @@ var MqttConnection = function MqttConnection(config) {
 
   //config items that are required and must be the correct type or an error will be thrown
   var configDefinition = { 
-    required: { server: 'string',port: 'number',  topicPath: 'string'},
+    required: { server: 'string',port: 'number',  rtcommTopicPath: 'string'},
     optional: { credentials : 'object', myTopic: 'string', defaultTopic: 'string'},
   };
   // the configuration for MqttConnection
@@ -124,8 +124,8 @@ var MqttConnection = function MqttConnection(config) {
   }
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();
-  this.config.myTopic = this.config.myTopic || this.config.topicPath + this.config.clientID;
-  this.config.destinationTopic = this.config.defaultTopic ? this.config.topicPath + this.config.defaultTopic : '';
+  this.config.myTopic = this.config.myTopic || this.config.rtcommTopicPath + this.config.clientID;
+  this.config.destinationTopic = this.config.defaultTopic ? this.config.rtcommTopicPath + this.config.defaultTopic : '';
   // Save an 'ID' for this service.
   this.id = this.config.clientID;
   this.ready = false;
@@ -329,11 +329,11 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend(
       },
       setDefaultTopic: function(topic) {
         this.config.defaultTopic = topic;
-        var r = new RegExp('^'+this.config.topicPath);
+        var r = new RegExp('^'+this.config.rtcommTopicPath);
         if (r.test(topic)) {
           this.config.destinationTopic = this.config.defaultTopic;
         } else {
-          this.config.destinationTopic = this.config.topicPath+this.config.defaultTopic;
+          this.config.destinationTopic = this.config.rtcommTopicPath+this.config.defaultTopic;
         }
       }
     }); // end of Return

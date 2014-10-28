@@ -24,8 +24,8 @@
  * @param {string}  config.server -  MQ Server for mqtt.
  * @param {integer} [config.port=1883] -  Server Port
  * @param {string}  [config.userid] -  Unique user id representing user
- * @param {string}  [config.rtcommTopicName] - Default topic to register with ibmrtc Server
- * @param {string}  [config.topicPath]
+ * @param {string}  [config.managementTopicName] - Default topic to register with ibmrtc Server
+ * @param {string}  [config.rtcommTopicPath]
  * @param {object}  [config.credentials] - Optional Credentials for mqtt server.
  *
  *
@@ -51,7 +51,7 @@ var EndpointConnection = function EndpointConnection(config) {
 
     var addTimer = function addTimer(item){
       if(item.timer) {
-        l('DEBUG') && console.log('Timer: Clearing existing Timer: '+item.timer + 'item.timeout: '+ item.timeout);
+        l('DEBUG') && console.log(item+' Timer: Clearing existing Timer: '+item.timer + 'item.timeout: '+ item.timeout);
         clearTimeout(item.timer);
       }
 
@@ -69,7 +69,7 @@ var EndpointConnection = function EndpointConnection(config) {
           }
         },
         timerTimeout);
-      l('DEBUG') && console.log('Timer: Setting Timer: '+item.timer + 'item.timeout: '+timerTimeout);
+      l('DEBUG') && console.log(item+' Timer: Setting Timer: '+item.timer + 'item.timeout: '+timerTimeout);
       };
 
     var add = function(item) {
@@ -208,8 +208,8 @@ var EndpointConnection = function EndpointConnection(config) {
 
   var configDefinition = {
     required: { server: 'string', port: 'number'},
-    optional: { credentials : 'object', myTopic: 'string', topicPath: 'string', rtcommTopicName: 'string', userid: 'string', appContext: 'string', secure: 'boolean'},
-    defaults: { topicPath: '/rtcomm/', rtcommTopicName: 'management'}
+    optional: { credentials : 'object', myTopic: 'string', rtcommTopicPath: 'string', managementTopicName: 'string', userid: 'string', appContext: 'string', secure: 'boolean'},
+    defaults: { rtcommTopicPath: '/rtcomm/', managementTopicName: 'management'}
   };
 
   // the configuration for Endpoint
@@ -226,7 +226,7 @@ var EndpointConnection = function EndpointConnection(config) {
 
   var mqttConfig = { server: this.config.server,
                      port: this.config.port,
-                     topicPath: this.config.topicPath ,
+                     rtcommTopicPath: this.config.rtcommTopicPath ,
                      credentials: this.config.credentials || null,
                      myTopic: this.config.myTopic || null };
 
@@ -239,8 +239,11 @@ var EndpointConnection = function EndpointConnection(config) {
   this.appContext = this.config.appContext || 'rtcomm';
 
   // Services Config.
+
+  // Should be overwritten by the service_query
+  this.connectorTopicName = "nodeConnector";
+
   this.RTCOMM_CONNECTOR_SERVICE = {};
-  this.connectorTopicName = "";
   this.RTCOMM_CALL_CONTROL_SERVICE = {};
   this.RTCOMM_CALL_QUEUE_SERVICE = {};
 
@@ -275,13 +278,14 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         // /^\$.+\/\//, ''
         var regex = topic.replace(/^\$SharedSubscription.+\/\//, '\\/')
                     .replace(/\/\+/g,'\\/.+')
-                    .replace(/\/#$/g,'\\/.+')
+                    .replace(/\/#$/g,'($|\\/.+$)')
                     .replace(/(\\)?\//g, function($0, $1){
                       return $1 ? $0 : '\\/';
                     });
+
         console.log('regex string: '+regex);
         // The ^ at the beginning in the return ensures that it STARTS w/ the topic passed.
-        return new RegExp('^'+regex);
+        return new RegExp('^'+regex+'$');
       };
       /*
        * Parse the results of the serviceQuery and apply them to the connection object
@@ -337,11 +341,11 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          *
          */
 
-        // our topic should contain the topicPath -- we MUST stay in the topic Path... and we MUST append our ID after it, so...
+        // our topic should contain the rtcommTopicPath -- we MUST stay in the topic Path... and we MUST append our ID after it, so...
 
           if (topic) {
             l('TRACE') && console.log(this+'.send toTopic is: '+topic);
-            var begin = this.config.topicPath;
+            var begin = this.config.rtcommTopicPath;
             var end = this.config.userid;
             var p = new RegExp("^" + begin,"g");
             topic = p.test(topic)? topic : begin + topic;
@@ -450,7 +454,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             }
           };
           if (this.connected) {
-            var t = this.createTransaction({message: message, toTopic: this.config.rtcommTopicName }, onSuccess,onFailure);
+            var t = this.createTransaction({message: message, toTopic: this.config.managementTopicName }, onSuccess,onFailure);
             t.start();
           } else {
             console.error(this+'._query(): not Ready!');
@@ -497,6 +501,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           l('DEBUG') && console.log('RegisterTimer should be null: '+ this._registerTimer);
           this.sessions.clear();
           this.transactions.clear();
+          this.clearEventListeners();
           this.mqttConnection.destroy();
           l('DEBUG') && console.log('destroyed mqttConnection');
           this.mqttConnection = null;
@@ -546,9 +551,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         register : function(userid, cbSuccess, cbFailure) {
           var endpointConnection = this;
-
-          l('DEBUG') && console.log('>>>>>>> Register Timer is set to: '+this._registerTimer);
-
+          l('DEBUG') && console.log(endpointConnection+'.register() Register Timer is set to: '+this._registerTimer);
           // Initialize the input
           if (typeof userid === 'function') { 
             cbFailure = cbSuccess;
@@ -556,29 +559,29 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             userid = null;
           }
           cbSuccess = cbSuccess || function(message) {
-            console.log(this+'.register() Default Success message, use callback to process:', message);
+            console.log(endpointConnection+'.register() Default Success message, use callback to process:', message);
           };
           cbFailure = cbFailure || function(error) {
-            console.log(this+'.register() Default Failure message, use callback to process:', error);
+            console.log(endpointConnection+'.register() Default Failure message, use callback to process:', error);
           };
           var minimumReregister = 30;  // 30 seconds;
           var onSuccess = function(register_message) {
-            l('DEBUG') && console.log(this+'register() REGISTER RESPONSE: ', register_message);
+            l('DEBUG') && console.log(endpointConnection+'register() REGISTER RESPONSE: ', register_message);
             if (register_message.orig === 'REGISTER' && register_message.expires) {
               var expires = register_message.expires;
-              l('DEBUG') && console.log(this+'.register() Message Expires in: '+ expires);
+              l('DEBUG') && console.log(endpointConnection+'.register() Message Expires in: '+ expires);
               /* We will reregister every expires/2 unless that is less than minimumReregister */
               var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
               // we have a expire in seconds, register a timer...
-              l('DEBUG') && console.log(this+'.register() Setting Timeout to:  '+regAgain*1000);
-              this._registerTimer = setTimeout(this.register.bind(this), regAgain*1000);
+              l('DEBUG') && console.log(endpointConnection+'.register() Setting Timeout to:  '+regAgain*1000);
+              endpointConnection._registerTimer = setTimeout(endpointConnection.register.bind(endpointConnection), regAgain*1000);
             }
-            this.registered = true;
+            endpointConnection.registered = true;
             // Call our passed in w/ no info...
             if (cbSuccess && typeof cbSuccess === 'function') {
               cbSuccess(register_message);
             } else {
-              l('DEBUG') && console.log(this + ".register() Register Succeeded (use onSuccess Callback to get the message)", register_message);
+              l('DEBUG') && console.log(endpointConnection + ".register() Register Succeeded (use onSuccess Callback to get the message)", register_message);
             }
           };
           // {'failureReason': 'some reason' }
@@ -678,6 +681,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           } else {
             console.error('EndpointConnection.send() Nothing to send');
           }
+        },
+        getMyTopic: function() {
+          return this.config.myTopic; 
         },
         /**
          * set the userid
