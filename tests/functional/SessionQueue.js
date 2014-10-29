@@ -63,7 +63,7 @@ define([
                   },
                   function(error){
                     console.log('**** Setup Failed *****', error);
-                    dfd.failed();
+                    dfd.reject(error);
                   });
           return dfd.promise;
         },

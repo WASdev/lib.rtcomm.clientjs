@@ -58,12 +58,12 @@ define([
                  dfd.resolve();
                },
              onFailure:  function(error) {
-                 dfd.failed(error);
+                 dfd.reject(error);
               }
              });
            },
            onFailure:  function(error) {
-             dfd.failed(error);
+             dfd.reject(error);
            }
          });
          return dfd.promise;

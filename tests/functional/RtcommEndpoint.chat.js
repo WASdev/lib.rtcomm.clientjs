@@ -37,7 +37,7 @@ define([
           console.log('************init was successful*****************', message);
           dfd.resolve(EP);
         },
-        function(message) { console.error('init failed', message); dfd.failed(message);}
+        function(message) { console.error('init failed', message); dfd.reject(message);}
       );
       return dfd.promise;
     };

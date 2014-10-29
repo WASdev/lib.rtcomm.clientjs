@@ -171,7 +171,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
    *
    * Example:  videoClient.html?server=servername&port=1883&topicPath=/rtcommcompany/
    */
-  var npConfig = {
+  var epConfig = {
     server : 'messagesight.demos.ibm.com',
     port : 1883,
     managementTopicName : "management",
@@ -184,7 +184,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   var regwithAV = !(urlConfig.regwithoutAV === 'true');
   console.log('Config passed in via URL:', urlConfig);
   // This uses any params passed on URL to override config.
-  updateConfig(npConfig, urlConfig);
+  updateConfig(epConfig, urlConfig);
 
   /********************************************************************
    *  Rtcomm Functions
@@ -193,7 +193,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
    /* doRegister()
    *
    * This function is the meat of the sample and shows how to
-   * init the EndpointProvider using npConfig provided above.  This
+   * init the EndpointProvider using epConfig provided above.  This
    * config is using register/getRtcommEndpoint = true so that 
    * the init returns a rtcommEndpoint object.  
    * 
@@ -203,14 +203,14 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
    */
   function doRegister(userid) {
     updateMessage('Registering... '+ userid);
-    npConfig.userid = userid;
+    epConfig.userid = userid;
     // make sure this is an integer.
-    npConfig.port = parseInt(npConfig.port);
+    epConfig.port = parseInt(epConfig.port);
     //  If the EndpointProvider is ready, it has already been init'd, we don't need to init again. Just register again.
     // Call init() on the Endpoint Provider.
     ibmep
           .init(
-              npConfig,
+              epConfig,
               function(object) { //onSuccess
                 // Because register/getRtcommEndpoint is enabled, we expect an object
                 // returned in the onSuccess callback.
@@ -466,9 +466,9 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
   function displayConfig() {
     var configHTML = "";
-    for (key in npConfig) {
-      if (npConfig.hasOwnProperty(key)) {
-        configHTML = configHTML + keyPairToHtml(key, npConfig[key]);
+    for (key in epConfig) {
+      if (epConfig.hasOwnProperty(key)) {
+        configHTML = configHTML + keyPairToHtml(key, epConfig[key]);
       }
     }
     // console.log('trying to display '+configHTML);

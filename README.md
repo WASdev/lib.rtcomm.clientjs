@@ -42,14 +42,14 @@ Move the contents of the rtcomm-<release>/ directory into the WebContent directo
       /docs
       index.html
 ``` 
-Edit the file 'WebContent/sample/videoClient.html' or 'WebContent/sample/videoClientBS.html'.  Find the creation of the npConfig object:
+Edit the file 'WebContent/sample/videoClient.html'.  Find the creation of the epConfig object:
 ```
-     var npConfig = {
+     var epConfig = {
        server: 'messagesight.demos.ibm.com',
        port: 1883,
        userid : null,
-       rtcommTopicName: "management",
-       topicPath: "/rtcomm/",
+       managementTopicName: "management",
+       rtcommTopicPath: "/rtcomm/",
        createEndpoint: false
      };
 ```
@@ -61,7 +61,8 @@ Access your server url and the 'index.html' page should be displayed with links 
 
 ## Library Overview
 
-The library exposes a single object called a 'EndpointProvider'.  The EndpointProvider utilizes MQTT over WebSockets to communicate with the rtcomm-1.0 feature via the 'nodeConnector'.  The EndpointProvider object represents an Endpoint in the rtcomm infrastructure. The primary purpose of the EndpointProvider is to create RtcommEndpoints.  Each RtcommEndpoint object provides the functionality to create a WebRTCConnection between RtcommEndpoint Objects and link these WebRTCConnection objects to UI components via events and media streams.   A WebRTCConnection is a combination of a Signaling Session and a RTCPeerConnection, enabling end-to-end communication between two Endpoints.
+The library exposes a single object called an 'EndpointProvider'.  The EndpointProvider utilizes MQTT over WebSockets to communicate with the rtcomm-1.0 feature on the Liberty Server.  The EndpointProvider object represents a single EndpointConnection(one instance of the MQTT Client) in the rtcomm infrastructure. The primary purpose of the EndpointProvider is to create Endpoints(RtcommEndpoint & MqttEndpoints).  Each RtcommEndpoint object provides the functionality to create Signaling Session between RtcommEndpoint Objects and enables that session to support chat and/or a RTCPeerConnection.  It also provides the necessary hooks to attach the UI components via events and media streams.  MqttEndpoints allow the user to attach a new subscriptions and add callbacks to receive messages.    
+
 <p>
 **NOTE:**  This library does not include any UI related components.  A simple html file demonstrating the use of the rtcomm.js library is included in the rtcomm.zip file.  It is discussed in the Sample section.
 
@@ -103,8 +104,8 @@ The following shows how to configure and instantiate the EndpointProvider. You n
      var endpointProviderConfig = {
             server : "messagesight.demos.ibm.com", // mqtt server 
             userid : 'ibmAgent1@mysurance.org', // userid
-            rtcommTopicName : 'management', // RTCOMM connector Topic name
-            topicPath: '/rtcommMyCompany/', // RTCOMM connector Topic path
+            managementTopicName : 'management', // RTCOMM Management Topic name
+            rtcommTopicPath: '/rtcommMyCompany/', // RTCOMM connector Topic path
             port : 1883, // mqtt port
             createEndpoint : true,  // generate RtcommEndpoint instance, pass in onSuccess
             credentials : null // no security for this example (sso token, etc)
@@ -113,17 +114,18 @@ The following shows how to configure and instantiate the EndpointProvider. You n
      // Initialize the Service. [Using onSuccess/onFailure callbacks]
      // This initializes the MQTT layer and enables inbound Communication.
      var rtcommEndpoint = null;  
-     ibmEndpointProvider.init(endpointProviderConfig, 
+     endpointProvider.init(endpointProviderConfig, 
         /* onSuccess */ function(object) {
+             // object is {'registered': <boolean>, 'ready': <boolean>, 'object': <endpoint if createEndpoint>}
              console.log('init was successful, rtcommEndpoint: ', object);
-              rtcommEndpoint = object.endpoint;
+             rtcommEndpoint = object.endpoint;
         },
        /* onFailure */ function(error) {
              console.error('init failed: ', error);
        }
      );
 
-The instantiation example above automatically registers with the 'rtcomm server' and creates a RtcommEndpoint which is assigned to the 'rtcommEndpoint' variable. However, the developer can choose to decouple this behavior and specifically init and createRtcommEndpoint.   The 'rtcommEndpoint' can now be used to create connections(calls) to other Endpoints.
+The instantiation example above automatically registers with the 'rtcomm server' and creates a RtcommEndpoint which is assigned to the 'rtcommEndpoint' variable. However, the developer can choose to decouple this behavior and specifically init and getRtcommEndpoint.   The 'rtcommEndpoint' can now be used to create connections(calls) to other Endpoints.
 
 Further information on the RtcommEndpoint API is located [here](https://github.com/WASdev/lib.rtcomm.clientjs/wiki/module-rtcomm.EndpointProvider.API) 
 
@@ -133,16 +135,16 @@ The rtcommEndpoint object provides an interface for the UI Developer to attach V
 
 Once the object has been created, in order to enable audio/video between Endpoints, mediaIn & mediaOut must be attached to DOM Nodes [The inbound `<video>` and outbound `<video>` elements for your application]. 
 
-    // Configure & attach the rtcommEndpoint to UI Video Endpoint
-    rtcommEndpoint.setMediaOut(OutboundVideoEndpoint);
-    rtcommEndpoint.setMediaIn(InboundVideoEndpoint);
-    rtcommEndpoint.setAudio(true); // Support audio
-    rtcommEndpoint.setVideo(true); // Support Video
+    endpointObject.webrtc.setLocalMedia(
+       { mediaOut: document.querySelector('#selfView'),
+         mediaIn: document.querySelector('#remoteView'),
+         broadcast: {audio: true, video: true}
+       });
 
-To create an outbound real-time connection with a specific user, the developer would attach the action of a UI component (like a Button) to the addEndpoint method of the rtcommEndpoint and call it when clicked:
+To create an outbound real-time connection with a specific user, the developer would attach the action of a UI component (like a Button) to the connect method of the rtcommEndpoint and call it when clicked:
 
     // Setup a real-time connection with specified user.
-    rtcommEndpoint.addEndpoint('userid');
+    rtcommEndpoint.connect('userid');
 
 To disconnect a real-time connection, the developer should call disconnect().
 
@@ -187,7 +189,7 @@ The above scenario is the simplest way to connect two endpoints using the rtcomm
 2.  Change the configuration to match that used in the server.xml for the rtcomm-1.0 feature as described [here](http://www-01.ibm.com/support/knowledgecenter/was_beta_liberty/com.ibm.websphere.wlp.nd.multiplatform.doc/ae/twlp_config_rtcomm.html):
 
 ```
-    var npConfig = {
+    var epConfig = {
       server: 'messagesight.demos.ibm.com',
       port: 1883,
       userid : null,
