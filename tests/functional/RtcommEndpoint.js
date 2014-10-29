@@ -24,6 +24,20 @@ define([
     'ibm/rtcomm'
 ], function (registerSuite, assert, Deferred,globals, config, rtcomm) {
 
+
+
+    
+
+    // anything in here will get destroyed (but not recreated) in beforeEach;
+    var g ={};
+    var destroy = function() {
+      Object.keys(g).forEach(function(key) {
+        if (typeof g[key].destroy === 'function' ) {
+          g[key].destroy();
+        }
+      });
+    };
+
     var endpointProvider = null;
     var config1 = config.clientConfig1();
     // Save and remove the userid from the config.
@@ -50,6 +64,7 @@ define([
         },
         beforeEach: function() {
           console.log("***************************** NEW TEST ***************************");
+          destroy();
           if (endpointProvider) {
             endpointProvider.destroy();
             endpointProvider = null;
@@ -65,7 +80,6 @@ define([
           console.log('TEST endpoint: ', ep);
           var initObj = null;
           var success = false;
-
           var finish = dfd.callback(function(object) {
              console.log('************ Finish called w/ OBJECT: ',object);
               // should be ready, should have a GUEST userid
@@ -110,6 +124,8 @@ define([
      "in Browser A calls B": function() {
          var endpointProvider2 = new rtcomm.EndpointProvider();
          endpointProvider2.setAppContext('test');
+         // mark for destroy;
+         g.endpointProvider2 = endpointProvider2;
          var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
          var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false, autoAnswer:true});
          config1.userid='testuser1';
@@ -147,6 +163,8 @@ define([
      "Customer A calls Queue[Toys], pass a Chat Message": function() {
            var endpointProvider2 = new rtcomm.EndpointProvider();
            endpointProvider2.setAppContext('test');
+           // mark for destroy;
+           g.endpointProvider2 = endpointProvider2;
            var customer = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
            var agent = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false, autoAnswer:true});
 

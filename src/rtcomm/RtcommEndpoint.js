@@ -520,6 +520,12 @@ return  {
     var state = (this._.activeSession) ? (this._.activeSession.getState() === 'stopped'): true;
     return state;
   },
+  getRemoteEndpointID: function() {
+    return this._.activeSession ? this._.activeSession.remoteEndpointID : 'none';
+  },
+  getLocalEndpointID: function() {
+    return this.userid;
+  },
   /**
    *  Destroy this endpoint.  Cleans up everything and disconnects any and all connections
    *
@@ -537,20 +543,15 @@ return  {
 
   _Event : function Event(event, object) {
       var RtcommEvent =  {
-        localEndpointID: this.userid,
-        remoteEndpointID: null,
-        message: "",
+        eventName: '',
         object: null
       };
-
-      RtcommEvent.remoteEndpointID = this._.activeSession ? this._.activeSession.remoteEndpointID : 'none';
       if (typeof object === 'object') {
-        RtcommEvent.object = object;
-        // Special Case, if the event is a 'message' then place it in 'message' as well.
-        RtcommEvent.message = (/message/.test(event)) ? object : event; 
-      } else { 
+        Object.keys(object).forEach(function(key) { 
+          RtcommEvent[key] = object[key];
+        });
         RtcommEvent.object = this;
-        RtcommEvent.message = object;
+        RtcommEvent.eventName= event;
       }
       return RtcommEvent;
   }
