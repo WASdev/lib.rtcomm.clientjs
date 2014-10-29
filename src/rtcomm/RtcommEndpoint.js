@@ -532,7 +532,7 @@ return  {
    */
   destroy : function() {
     l('DEBUG') && console.log(this+'.destroy Destroying RtcommEndpoint');
-    this.emit('destroyed', this);
+    this.emit('destroyed');
     this.disconnect();
     // this.getLocalStream() && this.getLocalStream().stop();
     l('DEBUG') && console.log(this+'.destroy() - detaching media streams');
@@ -544,14 +544,15 @@ return  {
   _Event : function Event(event, object) {
       var RtcommEvent =  {
         eventName: '',
-        object: null
+        endpoint: null
       };
+
+      RtcommEvent.eventName= event;
+      RtcommEvent.endpoint= this;
       if (typeof object === 'object') {
         Object.keys(object).forEach(function(key) { 
           RtcommEvent[key] = object[key];
         });
-        RtcommEvent.object = this;
-        RtcommEvent.eventName= event;
       }
       return RtcommEvent;
   }

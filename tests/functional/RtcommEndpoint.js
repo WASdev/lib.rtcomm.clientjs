@@ -34,6 +34,7 @@ define([
       Object.keys(g).forEach(function(key) {
         if (typeof g[key].destroy === 'function' ) {
           g[key].destroy();
+          delete g[key];
         }
       });
     };
@@ -59,16 +60,17 @@ define([
           console.log('*************setup!**************');
         },
         teardown: function() {
+          destroy();
           endpointProvider.destroy();
           endpointProvider = null;
         },
         beforeEach: function() {
-          console.log("***************************** NEW TEST ***************************");
           destroy();
           if (endpointProvider) {
             endpointProvider.destroy();
             endpointProvider = null;
           }
+          console.log("***************************** NEW TEST ***************************");
           endpointProvider = new rtcomm.EndpointProvider();
           endpointProvider.setAppContext('test');
           endpointProvider.setLogLevel('DEBUG');
@@ -127,7 +129,7 @@ define([
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
          var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false, autoAnswer:true});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
          config1.userid='testuser1';
          config2.userid='testuser2';
          var dfd = this.async(T1);
@@ -142,7 +144,10 @@ define([
          });
 
          ep1.on('session:started', finish);
-
+         ep2.on('session:alerting', function(obj) {
+           console.log('>>>>TEST  accepting call');
+           ep2.accept();
+         });
          endpointProvider.init(config1,
                   function(obj) {
                     endpointProvider2.init(config2,
@@ -160,13 +165,13 @@ define([
                   }
                  );
          },
-     "Customer A calls Queue[Toys], pass a Chat Message": function() {
+     "Customer A calls Queue[Toys], establish session": function() {
            var endpointProvider2 = new rtcomm.EndpointProvider();
            endpointProvider2.setAppContext('test');
            // mark for destroy;
            g.endpointProvider2 = endpointProvider2;
            var customer = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
-           var agent = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false, autoAnswer:true});
+           var agent = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
 
            var message1 = null;
            var message2 = null;
@@ -183,6 +188,11 @@ define([
 
             // Here is what we are waiting for.
             customer.on('session:started', finish);
+
+            agent.on('session:alerting', function(obj) {
+             console.log('>>>>TEST  accepting call');
+             agent.accept();
+            });
 
             endpointProvider2.on('queueupdate',function(queues) {
               console.log('queueupdate!', queues);

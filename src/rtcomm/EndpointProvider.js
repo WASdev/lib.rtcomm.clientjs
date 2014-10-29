@@ -354,7 +354,9 @@ var EndpointProvider =  function EndpointProvider() {
       endpoint.setEndpointConnection(this.dependencies.endpointConnection);
 //      endpoint.init(objConfig);
       endpoint.on('destroyed', function(event_object) {
-        endpointProvider._.endpointRegistry.remove(event_object.object);
+        console.log('>>>>>>>>>>>>>>>> REMOVE ME:  destroye called w/ ', event_object);
+        endpointProvider._.endpointRegistry.remove(event_object.endpointObject);
+
       });
       // Add to registry or return the one already there
       l('DEBUG') && console.log('ENDPOINT REGISTRY: ', this._.endpointRegistry.list());

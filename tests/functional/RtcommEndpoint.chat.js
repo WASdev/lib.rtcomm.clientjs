@@ -29,7 +29,7 @@ define([
     var createProvider = function createProvider(userid,appContext) {
       var dfd = new Deferred();
       var EP = new rtcomm.EndpointProvider();
-      EP.setLogLevel('INFO');
+      EP.setLogLevel('DEBUG');
       EP.setUserID(userid);
       EP.setAppContext(appContext);
       EP.init(cfg,
@@ -91,10 +91,15 @@ define([
 
         'connect 2 sessions':function() {
           var dfd = this.async(3000);
+          console.log(EP1.currentState());
+          console.log(EP1.currentState());
           EP1.setLogLevel('DEBUG');
           EP2.setLogLevel('DEBUG');
           chat1.on('chat:message', function(message){
             console.log('****************************MESSAGE ***', message)
+          });
+          chat2.on('session:alerting', function(){
+            chat2.accept();
           });
           var finish = dfd.callback( function(obj) {
             //obj should be a WebRTCConnection
