@@ -169,7 +169,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
    * It MUST match the rtcomm configuration used on the liberty server.
    *  This config can be passed in on the URL via params as well:
    *
-   * Example:  videoClient.html?server=servername&port=1883&topicPath=/rtcommcompany/
+   * Example:  videoClient.html?server=servername&port=1883&rtcommTopicPath=/rtcommcompany/
    */
   var epConfig = {
     server : 'messagesight.demos.ibm.com',
@@ -281,7 +281,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
         console.error(e);
       }
     });
-    endpointObject.on('webrtc:ringing', function(event_object) {
+    endpointObject.on('session:ringing', function(event_object) {
       if (event_object.object && event_object.object.pcSigState) {
         if (event_object.object.pcSigState === 'have-local-offer') {
           // we are the CALLER.
@@ -292,7 +292,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
         }
       }
     });
-    endpointObject.on('webrtc:alerting', function(event_object) {
+    endpointObject.on('session:alerting', function(event_object) {
         console.log('>>>> event_object! ', event_object);
       if (!rtcommEndpoint.autoAnswer) {
         $('#answerDialog .modal-body').html(

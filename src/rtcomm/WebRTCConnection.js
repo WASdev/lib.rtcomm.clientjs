@@ -51,11 +51,11 @@ var WebRTCConnection = (function invocation() {
     // Defaults for peerConnection -- must be set on instantiation
     // Required to emit.
     this.events = {
-      'webrtc:alerting': [],
-      'webrtc:trying': [],
-      'webrtc:ringing': [],
-      'webrtc:connected': [],
-      'webrtc:disconnected': []
+      'alerting': [],
+      'ringing': [],
+      'trying': [],
+      'connected': [],
+      'disconnected': []
     };
     this.pc = null;
     this.onEnabledMessage = null;
@@ -207,9 +207,9 @@ var WebRTCConnection = (function invocation() {
     _setState: function(state) {
       l('DEBUG') && console.log(this+'._setState to '+state);
       this._.state = state;
-      var event = 'webrtc:'+state;
+      var event = state;
       l('DEBUG') && console.log(this+'._setState emitting event '+event);
-      this.dependencies.parent.emit(event, this);
+      this.emit(event);
     },
     /*
      * Called to 'connect' (Send message, change state)
