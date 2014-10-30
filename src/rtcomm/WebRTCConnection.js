@@ -74,15 +74,21 @@ var WebRTCConnection = (function invocation() {
     /**
      * @param {object} [config]
      *
-     * @param {object} config.RTCOfferOptions
-     * @param {object} config.RTCConfiguration
-     * @param {object} config.RTCConfiguration.iceServers
-     * @param {object} config.RTCConfiguration.iceTranports
-     * @param {object} config.RTCConfiguration.peerIdentity
-     * --- Probably do this ---
-     * @param {object} config.mediaIn
-     * @param {object} config.mediaOut
-     * @param {boolean} config.attachMedia
+     * @param {object} [config.mediaIn]
+     * @param {object} [config.mediaOut]
+     * @param {object} [config.broadcast]
+     * @param {boolean} config.broadcast.audio
+     * @param {boolean} config.broadcast.video
+     *
+     * Generally, these will not be messed with unless specific control of the 
+     * peerConnection is required.
+     *
+     * @param {object} [config.RTCOfferOptions]
+     * @param {object} [config.RTCConfiguration]
+     * @param {object} [config.RTCConfiguration.iceServers]
+     * @param {object} [config.RTCConfiguration.iceTranports]
+     * @param {object} [config.RTCConfiguration.peerIdentity]
+     *
      * @param {boolean} [config.connect=true]
      *
      * mediaIn/MediaOut?
@@ -251,7 +257,16 @@ var WebRTCConnection = (function invocation() {
     },
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
-        this.config.mediaIn = value;
+        if (value === this.config.mediaIn) {
+          // do nothing
+        } else if (this._.remoteStream) {
+          // We have a stream already, just move the attachment.
+          //
+          attachMediaStream(value, this._.remoteStream);
+          this.config.mediaIn = value;
+        } else {
+          this.config.mediaIn = value;
+        }
       } else {
         throw new TypeError('Media Element object is invalid');
       }
@@ -265,7 +280,16 @@ var WebRTCConnection = (function invocation() {
     getMediaOut: function() { return this.config.mediaOut; },
     setMediaOut: function(value) {
       if(validMediaElement(value) ) {
-        this.config.mediaOut = value;
+        if (value === this.config.mediaIn) {
+          // do nothing
+        } else if (this._.localStream) {
+          // We have a stream already, just move the attachment.
+          //
+          attachMediaStream(value, this._.localStream);
+          this.config.mediaOut = value;
+        } else {
+          this.config.mediaOut = value;
+        }
       } else {
         throw new TypeError('Media Element object is invalid');
       }
@@ -614,6 +638,8 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
        * we find and confirm they are the same...
        *
        */
+      // Save the stream
+      context._.remoteStream = evt.stream;
       if (context.getMediaIn()) {
         attachMediaStream(context.getMediaIn(), evt.stream);
       }
