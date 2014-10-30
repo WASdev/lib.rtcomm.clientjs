@@ -106,17 +106,17 @@ define([
           var publishTopic = getPublishTopic(queue.topic);
           console.log('publishTopic: ', publishTopic);
           var finish = dfd.callback( function(obj) {
+            var endpoint = obj.endpoint;
             //obj should be a WebRTCConnection
             // and Source should match our topic we know...
             console.log('FINISH Called!', obj);
-            assert.equal(obj.appContext, 'rtcommTest', 'appContext is right');
-            assert.equal(obj._sigSession.source, publishTopic+'/intern', 'source topic is right');
+            assert.equal(endpoint._.activeSession.source, publishTopic+'/intern', 'source topic is right');
           });   
 
           rtcommEP.on('session:alerting', finish);
           // Create a Message
           START_SESSION.fromTopic = '/scott';
-          var msg = rtcommEP.endpointConnection.createMessage('START_SESSION');
+          var msg = ep.dependencies.endpointConnection.createMessage('START_SESSION');
           msg.fromTopic = '/scott';
           msg.sigSessID = '1111-fake-test-1111';
           msg.transID = '2222-fake-test-2222';
@@ -125,7 +125,5 @@ define([
           msg.appContext='rtcommTest' ;
           mqtt.publish(publishTopic+'/intern', msg);
         },
-
-
     });
 });
