@@ -587,8 +587,11 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
         return;
       }
       l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE '+ this.pc.iceConnectionState);
+      // When this is connected, set our state to connected in webrtc.
       if (this.pc.iceConnectionState === 'disconnected') {
         this.disable();
+      } else if (this.pc.iceConnectionState === 'connected') {
+        this._setState('connected');
       }
     }.bind(context);  // End of oniceconnectionstatechange
 

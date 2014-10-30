@@ -284,7 +284,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
     stop : function() {
       var message = this.createMessage('STOP_SESSION');
       l('DEBUG') && console.log(this+'.stop() stopping...', message);
-      this.endpointconnector.send({message:message});
+      this.endpointconnector.send({message:message, toTopic: this.toTopic});
       // Let's concerned persons know we are stopped
       this.state = 'stopped';
       this.emit('stopped');
@@ -355,9 +355,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       return this.state;
     },
     processMessage : function(message) {
-      // Process inbound messages. Should not accept these if we ar not in STARTED or HAVE_PRANSWER 
-      // HAVE_PRANSWER could mean we sent or received the PRANSWER 
-      // 
+
       l('DEBUG') && console.log(this + '.processMessage() received message: ', message);
       // We care about the type of message here, so we will need to strip some stuff, and may just fire other events.
       // If our fromTopic is dfferent than our toTopic, then update it.

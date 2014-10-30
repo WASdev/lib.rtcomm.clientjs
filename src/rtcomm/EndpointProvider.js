@@ -355,7 +355,7 @@ var EndpointProvider =  function EndpointProvider() {
 //      endpoint.init(objConfig);
       endpoint.on('destroyed', function(event_object) {
         console.log('>>>>>>>>>>>>>>>> REMOVE ME:  destroye called w/ ', event_object);
-        endpointProvider._.endpointRegistry.remove(event_object.endpointObject);
+        endpointProvider._.endpointRegistry.remove(event_object.endpoint);
 
       });
       // Add to registry or return the one already there

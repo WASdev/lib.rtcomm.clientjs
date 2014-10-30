@@ -271,10 +271,10 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
      *  need to be this way, but this is an example of receiving events from the endpoint about connections.
      */
     endpointObject.on('webrtc:connected', function(event_object) {
-      uiConnect("Connected to "+event_object.remoteEndpointID);
+      uiConnect("Connected to "+event_object.endpoint.getRemoteEndpointID());
     });
     endpointObject.on('webrtc:disconnected', function(event_object) {
-      uiDisconnect("Disconnected from "+ event_object.remoteEndpointID);
+      uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
       try {
         endpointObject.disconnect();
       } catch (e) {
@@ -288,7 +288,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
           // This could be tracked through the UI too.
           updateMessage('Calling ' + event_object.object.remoteID);
         } else {
-          updateMessage('Inbound call from  ' + event_object.object.remoteID);
+          updateMessage('Inbound call from  ' + event_object.endpoint.getRemoteEndpointID());
         }
       }
     });
@@ -296,7 +296,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
         console.log('>>>> event_object! ', event_object);
       if (!rtcommEndpoint.autoAnswer) {
         $('#answerDialog .modal-body').html(
-            "Inbound call from " + event_object.remoteEndpointID);
+            "Inbound call from " + event_object.endpoint.getRemoteEndpointID());
         $('#answerDialog').modal('show');
       } else {
         status = 'Automatically Answering...';

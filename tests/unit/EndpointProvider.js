@@ -118,6 +118,43 @@ define([
             assert.ok(Object.keys(endpointProvider.endpoints()).length === 1);
             console.log(endpointProvider.currentState());
         },
+        "EndpointRegistry - add/remove endpoints works": function(){
+            var error = null;
+            var endpoint = null;
+            var endpoint2 = null;
+            var endpoint3 = null;
+            var endpoint4 = null;
+            var endpointProvider2 = new rtcomm.RtcommEndpointProvider();
+            try {
+              endpointProvider.setAppContext('test');
+              endpointProvider2.setAppContext('test');
+
+              endpoint = endpointProvider.getRtcommEndpoint();
+              endpoint2 = endpointProvider.getRtcommEndpoint();
+              endpoint3 = endpointProvider2.getRtcommEndpoint();
+              endpoint4 = endpointProvider2.getRtcommEndpoint();
+            }  catch(e) {
+              console.log(e);
+              error = e;
+            }
+            assert.ok(endpoint !== endpoint2);
+            assert.equal(2, Object.keys(endpointProvider.endpoints()).length, 'Endpoints in Registry');
+            assert.equal(2, Object.keys(endpointProvider2.endpoints()).length, 'ep2 Endpoints in Registry ');
+            assert.notOk(error);
+            endpoint.destroy();
+            // Should just be 1 now... 
+            assert.equal(Object.keys(endpointProvider.endpoints()).length,1, 'After destroy');
+            endpoint2.destroy();
+            // Should just be 0 now... 
+            assert.equal(Object.keys(endpointProvider.endpoints()).length,0, 'After destroy');
+            endpoint3.destroy();
+            // Should just be 1 now... 
+            assert.equal(Object.keys(endpointProvider2.endpoints()).length,1, 'After Destroy');
+            endpoint4.destroy();
+            // Should just be 0 now... 
+            assert.equal(Object.keys(endpointProvider2.endpoints()).length,0, 'After Destroy');
+            console.log(endpointProvider.currentState());
+          },
         "getRtcommEndpoint() - Multiples w/ same config return different objects.": function(){
             var error = null;
             var endpoint = null;

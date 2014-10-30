@@ -112,10 +112,25 @@ define([
           chat1.connect(uid2);
         },
         'Initial Chat message on connect (if enabled)': function() {
+          console.log('************** START OF TEST ********************');
+          /*
+           * Enable chat prior to connect.  We should get a message
+           * then connect.
+           */
           var dfd = this.async(8000);
-          chat1.chat.enable();
-          chat1.on('session:started', function(){
+          var bad_alert = false;
 
+          chat1.chat.enable();
+          chat1.on('session:alerting', function(event) {
+            // Should not get here.
+            bad_alert = true;
+          });
+          chat1.on('session:started', function(){
+            // Send messages here?
+          });
+          chat2.on('session:alerting', function(event) {
+            assert.equal(event.protocols, 'chat', 'Correct protocol');
+            chat2.chat.accept();
           });
           chat2.on('chat:message', dfd.callback(function(event_object){
             // message is event_object.message.message

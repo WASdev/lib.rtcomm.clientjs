@@ -107,6 +107,8 @@ var EndpointRegistry = function EndpointRegistry(options) {
   function remove(object) {
     var key = null;
     var uuid = null;
+    console.log('REMOVE called --> ', object);
+    console.log('REMOVE called --> length:'+ list().length);
     if (object && list().length > 0 ) {
       key = object.appContext;
       uuid = object.id;
