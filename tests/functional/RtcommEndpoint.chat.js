@@ -90,6 +90,7 @@ define([
         },
 
         'connect 2 sessions':function() {
+          this.skip();
           var dfd = this.async(3000);
           console.log(EP1.currentState());
           console.log(EP1.currentState());
@@ -119,24 +120,46 @@ define([
            */
           var dfd = this.async(8000);
           var bad_alert = false;
+          var c1_started = false;
+          var c2_started = false;
+          var c2_messages = false;
+          var alert_message = false;
+
 
           chat1.chat.enable();
           chat1.on('session:alerting', function(event) {
             // Should not get here.
             bad_alert = true;
           });
-          chat1.on('session:started', function(){
+          chat1.on('session:started', dfd.callback(function(event){
+            /*
+             * This is where we assert the test passed
+             */
+            c1_started = true;
+            console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
+            assert.notOk(bad_alert, 'Chat1 alert should not be called');
+            assert.ok(c1_started, 'Chat1 should be started');
+            assert.ok(c2_started, 'Chat2 should be started');
+            assert.notOk(c2_messages, 'Chat2 should not receive any messages on chat:message');
+            assert.equal(alert_message,'client1 has initiated a Chat with you', "Received chat from startup");
+            // Send messages here?
+          }));
+          chat2.on('session:started', function(event){
+            c2_started = true;
+            console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
             // Send messages here?
           });
           chat2.on('session:alerting', function(event) {
             assert.equal(event.protocols, 'chat', 'Correct protocol');
             chat2.chat.accept();
+            console.log('Received a Chat message...', event);
+            alert_message = event.message.message;
           });
-          chat2.on('chat:message', dfd.callback(function(event_object){
+          chat2.on('chat:message', function(event){
+            console.log('Received a Chat message...', event);
+            c2_messages = true;
             // message is event_object.message.message
-            console.log('Received a Chat message...', event_object);
-            assert.equal(event_object.message.message,'client1 has initiated a Chat with you', "Received chat from startup");
-          }));
+          });
           chat1.connect(uid2);
         }
     });

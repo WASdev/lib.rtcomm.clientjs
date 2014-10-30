@@ -122,7 +122,8 @@ var RtcommEndpoint = (function invocation(){
         this.emit(state, object);
         this.state = state;
       } catch(error) {
-        console.error(this+'._setState() unsupported state');
+        console.error(error);
+        console.error(this+'._setState() unsupported state: '+state );
       }
     };
 
@@ -134,8 +135,10 @@ var RtcommEndpoint = (function invocation(){
     chat.on('message', function(message) {
       parent.emit('chat:message', {'message': message});
     });
-    chat.on('alerting', function(message) {
-      parent.emit('session:alerting', {'protocols': 'chat', 'message': message});
+    chat.on('alerting', function(obj) {
+      obj = obj || {};
+      obj.protocols = 'chat';
+      parent.emit('session:alerting', obj );
     });
     chat.on('connected', function() {
       parent.emit('chat:connected');
@@ -546,7 +549,7 @@ return  {
         eventName: '',
         endpoint: null
       };
-
+      l('DEBUG') && console.log(this+'_Event -> creating event['+event+'], augmenting with', object);
       RtcommEvent.eventName= event;
       RtcommEvent.endpoint= this;
       if (typeof object === 'object') {
@@ -554,6 +557,7 @@ return  {
           RtcommEvent[key] = object[key];
         });
       }
+      l('DEBUG') && console.log(this+'_Event -> created event: ',RtcommEvent);
       return RtcommEvent;
   }
 
