@@ -348,6 +348,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     session.on('stopped', function(message) {
       // In this case, we should disconnect();
       console.log('Session Stopped');
+      context.emit('session:stopped');
       context.disconnect();
     });
     session.on('starting', function() {
