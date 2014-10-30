@@ -70,11 +70,11 @@ var SigSession = function SigSession(config) {
     }
   } 
 
-  l('DEBUG') && console.log(this+'.constructor creating session from config: ', config);
-  l('DEBUG') && console.log(this+'.constructor created session from config: ', this);
-
   /* global generateUUID: false */
   this.id = this.id || generateUUID();
+
+  l('DEBUG') && console.log(this+'.constructor creating session from config: ', config);
+  l('DEBUG') && console.log(this+'.constructor created session from config: ', this);
  
   this.events = {
       'starting':[],
@@ -149,7 +149,6 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         message = config.message|| null;
       }
       this.state = 'starting';
-      console.log('remoteEndpointID is:'+remoteEndpointID);
       if (!remoteEndpointID) {
         throw new Error('remoteEndpointID is required in start() or SigSession() instantiation');
       }  
@@ -261,17 +260,12 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      *  timeout -- in SECONDS -- timeout to wait.
      */
     pranswer : function(peerContent, timeout) {
-      console.log('REMOVE ME: >>>>>>>>>> CALLED PRANSWER peerContent'+peerContent);
-      console.log('REMOVE ME: >>>>>>>>>> CALLED PRANSWER TIMEOUT '+timeout);
-
       if (typeof peerContent !== 'number') { 
         peerContent = peerContent || {'type':'pranswer'};
       } else {
         timeout = peerContent;
         peerContent = {'type':'pranswer'};
       }
-      console.log('REMOVE ME: >>>>>>>>>> PRANSWER TIMEOUT '+timeout);
-      console.log('REMOVE ME: >>>>>>>>>> PRANSWER peerContent'+peerContent);
       var pranswerMessage = this.createMessage(peerContent);
       if (timeout) { 
         pranswerMessage.holdTimeout=timeout;
@@ -366,10 +360,10 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       case 'PRANSWER':
         // change our state, emit content if it is there.
         // holdTimeout is in seconds, rather than milliseconds.
-        console.log('PRANSWER --> '+ message.holdTimeout+"="+ (typeof message.holdTimeout === 'undefined') + " - "+this.finalTimeout);
+        l('TRACE') && console.log('PRANSWER --> '+ message.holdTimeout+"="+ (typeof message.holdTimeout === 'undefined') + " - "+this.finalTimeout);
 
         var timeout = (typeof message.holdTimeout === 'undefined') ? this.finalTimeout : message.holdTimeout*1000;
-        console.log('PRANSWER, resetting timeout to :',timeout);
+        l('TRACE') && console.log('PRANSWER, resetting timeout to :',timeout);
         this._startTransaction && this._startTransaction.setTimeout(timeout);
         if (!message.holdTimeout) {
           this.state = 'have_pranswer';

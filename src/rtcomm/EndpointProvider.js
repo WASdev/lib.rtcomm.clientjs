@@ -271,17 +271,17 @@ var EndpointProvider =  function EndpointProvider() {
        *
        */
       if(session) {
-        l('DEBUG') && console.log("Handle a new incoming session: ", session);
+        l('DEBUG') && console.log(endpointProvider+'-on.newsession Handle a new incoming session: ', session);
         // Send it to the same id/appContext;
-        l('DEBUG') && console.log("endpointRegistry: ", endpointProvider._.endpointRegistry.list());
+        l('DEBUG') && console.log(endpointProvider+'-on.newsession endpointRegistry: ', endpointProvider._.endpointRegistry.list());
         var endpoint = endpointProvider._.endpointRegistry.get() || null;
         //TODO:  For the Queue thing, we need to lookup based on the session.source
-        l('DEBUG') && console.log("giving session to Endpoint: ", endpoint);
+        l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Endpoint: ', endpoint);
         if (endpoint && endpoint.available) {
           endpoint.newSession(session);
         } else {
           endpoint = endpointProvider.getRtcommEndpoint();
-          l('DEBUG') && console.log("Creating a new endpoint for  session: ", endpoint);
+          l('DEBUG') && console.log(endpointProvider+'-on.newsession Creating a new endpoint for  session: ', endpoint);
           endpoint.newSession(session);
           endpointProvider.emit('newendpoint', endpoint);
           // Deny the session.
@@ -289,7 +289,7 @@ var EndpointProvider =  function EndpointProvider() {
           // Should I delete the session?
         }
       } else {
-        console.error('newsession - expected a session object to be passed.');
+        console.error(endpointProvider+'-on.newsession - expected a session object to be passed.');
       }
     });
 
@@ -354,7 +354,6 @@ var EndpointProvider =  function EndpointProvider() {
       endpoint.setEndpointConnection(this.dependencies.endpointConnection);
 //      endpoint.init(objConfig);
       endpoint.on('destroyed', function(event_object) {
-        console.log('>>>>>>>>>>>>>>>> REMOVE ME:  destroye called w/ ', event_object);
         endpointProvider._.endpointRegistry.remove(event_object.endpoint);
 
       });
@@ -420,7 +419,6 @@ var EndpointProvider =  function EndpointProvider() {
    * cannot overwrite an existing ID, but will propogate to endpoints.
    */
   this.setUserID = function(userid) {
-    l('DEBUG') && console.log(this+'.setUserID() Setting userid to: '+userid);
     if (this.config.userid && (userid !== this.config.userid)) {
       throw new Error('Cannot change UserID once it is set');
     } else {
@@ -430,6 +428,7 @@ var EndpointProvider =  function EndpointProvider() {
       this._.endpointRegistry.list().forEach(function(endpoint){
         endpoint.setUserID(userid);
       });
+      l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
     }
   };
   /**
@@ -489,6 +488,7 @@ var EndpointProvider =  function EndpointProvider() {
     if (q) {
      q.active = false;
      this.dependencies.endpointConnection.unsubscribe(q.topic);
+     l('DEBUG') && console.log(this+ '.leaveQueue() left queue: '+queueid);
      return true;
     } else {
       console.error(this+'.leaveQueue() Queue not found: '+queueid);
@@ -499,7 +499,6 @@ var EndpointProvider =  function EndpointProvider() {
   this.leaveAllQueues = function() {
     var self = this;
     this.listQueues().forEach(function(queue) {
-      l('DEBUG') && console.log('Trying to leave: queue.endpointID: ',queue);
       self.leaveQueue(queue);
     });
   };

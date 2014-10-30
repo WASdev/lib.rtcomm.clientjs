@@ -180,7 +180,6 @@ var RtcommEndpoint = (function invocation(){
       chat: true,
       webrtc: true
     };
-
     this.dependencies = {
       endpointConnection: null,
     };
@@ -306,7 +305,7 @@ var RtcommEndpoint = (function invocation(){
 /*globals l:false*/
 RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
   function createSignalingSession(remoteEndpointID, context) {
-    l('DEBUG') && console.log("createSignalingSession context: ", context);
+    l('DEBUG') && console.log(context+" createSignalingSession context: ", context);
     var sessid = null;
     var toTopic = null;
     if (context._.referralSession) {
@@ -347,7 +346,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     });
     session.on('stopped', function(message) {
       // In this case, we should disconnect();
-      console.log('Session Stopped');
       context.emit('session:stopped');
       context.disconnect();
     });
@@ -358,7 +356,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
       context.disconnect();
       context.emit('session:failed',{reason: message});
     });
-    l('DEBUG') && console.log('createSignalingSession created!', session);
+    l('DEBUG') && console.log(context+' createSignalingSession created!', session);
    // session.listEvents();
     return true;
   }
@@ -448,17 +446,20 @@ return  {
     },
 
   connect: function(endpointid) {
+    if (this.ready()) {
+      this._.activeSession = createSignalingSession(endpointid, this);
+      addSessionCallbacks(this, this._.activeSession);
 
-    this._.activeSession = createSignalingSession(endpointid, this);
-    addSessionCallbacks(this, this._.activeSession);
-
-    if (this.config.webrtc && this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
-      l('DEBUG') && console.log(this+'.connect() initiating with webrtc._connect');
-    } else if (this.config.chat && this.chat._connect(this._.activeSession.start.bind(this._.activeSession))){
-      l('DEBUG') && console.log(this+'.connect() initiating with chat._connect');
+      if (this.config.webrtc && this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
+        l('DEBUG') && console.log(this+'.connect() initiating with webrtc._connect');
+      } else if (this.config.chat && this.chat._connect(this._.activeSession.start.bind(this._.activeSession))){
+        l('DEBUG') && console.log(this+'.connect() initiating with chat._connect');
+      } else {
+        l('DEBUG') && console.log(this+'.connect() sending startMessage w/ no content');
+        this._.activeSession.start();
+      }
     } else {
-      l('DEBUG') && console.log(this+'.connect() sending startMessage w/ no content');
-      this._.activeSession.start();
+      throw new Error('Unable to connect endpoint until EndpointProvider is initialized');
     }
     return this;
   },
@@ -498,28 +499,25 @@ return  {
   setEndpointConnection: function(connection) {
     this.dependencies.endpointConnection = connection;
   },
-  setInboundMediaStream: function(stream) {
-    this._.inboundMedia=URL.createObjectURL(stream);
-    if (this.getMediaIn()) {
-      this.attachMediaStream(this.getMediaIn(), stream);
-    }
-  },
-  getInboundMediaStream: function() { return this._.inboundMedia;},
+
   getUserID : function(userid) {
       return this.config.userid; 
   },
   setUserID : function(userid) {
       this.userid = this.config.userid = userid;
   },
+  ready : function() {
+    var ready = (this.dependencies.endpointConnection) ? true : false;
+    return ready;
+  },
 
   sessionStarted: function() {
-    return (this._.activeSession && this._.activeSession.getState() === 'started') 
+    return (this._.activeSession && this._.activeSession.getState() === 'started');
   },
 
   /**
    * session doesn't exist or is stopped
    */
-
   sessionStopped: function() {
     var state = (this._.activeSession) ? (this._.activeSession.getState() === 'stopped'): true;
     return state;

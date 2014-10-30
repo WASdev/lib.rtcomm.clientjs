@@ -153,7 +153,7 @@ var MqttConnection = function MqttConnection(config) {
 MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
 
   var createMqttMessage = function(message) {
-    console.log('>>>>>>>>>>>> Creating message > '+message);
+    l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Creating message > '+message);
     var messageToSend = null;
     if (message && typeof message === 'object') {
       // Convert message for mqtt send
@@ -165,7 +165,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
       // Return an empty message
       messageToSend = new Paho.MQTT.Message('');
     }
-    console.log('>>>>>>>>>>>> Created message > ',messageToSend);
+    l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Created message > ',messageToSend);
     return messageToSend;
   };
 

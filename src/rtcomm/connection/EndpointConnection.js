@@ -82,8 +82,6 @@ var EndpointConnection = function EndpointConnection(config) {
         this.remove(item);
       }.bind(this));
       timer && item.on('timeout_changed', function(newtimeout) {
-        console.log('TIMEOUT CHANGED called: ', newtimeout);
-        console.log('TIMEOUT CHANGED called: ', item);
         addTimer(item);
       }.bind(this));
       timer && addTimer(item);
@@ -101,7 +99,7 @@ var EndpointConnection = function EndpointConnection(config) {
       remove: function(item) {
         if (item.id in registry) {
           item.timer && clearTimeout(item.timer);
-          l('DEBUG') && console.log('Removing item from registry: ', item);
+          l('DEBUG') && console.log('EndpointConnection  Removing item from registry: ', item);
           delete registry[item.id];
         }
       },
@@ -170,7 +168,6 @@ var EndpointConnection = function EndpointConnection(config) {
       // If there is a topic, but it wasn't a START_SESSION, emit the WHOLE original message.
        // This should be a raw mqtt type message for any subscription that matches.
       var subs  = endpointConnection.subscriptions;
-      console.log('REMOVE ME: ', subs);
       Object.keys(subs).forEach(function(key) {
          if (subs[key].regex.test(message.topic)){
            if (subs[key].callback) {
@@ -287,7 +284,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
                       return $1 ? $0 : '\\/';
                     });
 
-        console.log('regex string: '+regex);
         // The ^ at the beginning in the return ensures that it STARTS w/ the topic passed.
         return new RegExp('^'+regex+'$');
       };
@@ -505,14 +501,13 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         disconnect : function() {
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
           this.unregister();
-          l('DEBUG') && console.log('RegisterTimer should be null: '+ this._registerTimer);
+          l('DEBUG') && console.log(this+'.disconnect() RegisterTimer should be null: '+ this._registerTimer);
           l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
           this.publish(this.getSphereTopic(), this.getLwtMessage());
           this.sessions.clear();
           this.transactions.clear();
           this.clearEventListeners();
           this.mqttConnection.destroy();
-          l('DEBUG') && console.log('destroyed mqttConnection');
           this.mqttConnection = null;
           this.connected = false;
           this.ready = false;
@@ -677,7 +672,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
 
         destroy : function() {
-          l('DEBUG') && console.log('Destroying the connection');
+          l('DEBUG') && console.log(this+'.destroy() Destroying the connection');
           this.disconnect();
         },
         /**
