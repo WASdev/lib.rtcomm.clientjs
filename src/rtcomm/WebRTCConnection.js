@@ -265,6 +265,7 @@ var WebRTCConnection = (function invocation() {
           attachMediaStream(value, this._.remoteStream);
           this.config.mediaIn = value;
         } else {
+          detachMediaStream(value);
           this.config.mediaIn = value;
         }
       } else {
@@ -288,6 +289,8 @@ var WebRTCConnection = (function invocation() {
           attachMediaStream(value, this._.localStream);
           this.config.mediaOut = value;
         } else {
+          // detach streams...
+          detachMediaStream(value);
           this.config.mediaOut = value;
         }
       } else {
