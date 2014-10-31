@@ -257,12 +257,7 @@ var WebRTCConnection = (function invocation() {
     },
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
-        if (value === this.config.mediaIn) {
-          detachMediaStream(value);
-          // do nothing
-        } else if (this._.remoteStream) {
-          // We have a stream already, just move the attachment.
-          // 
+        if (this._.remoteStream) {
           attachMediaStream(value, this._.remoteStream);
           this.config.mediaIn = value;
         } else {
@@ -282,12 +277,8 @@ var WebRTCConnection = (function invocation() {
     getMediaOut: function() { return this.config.mediaOut; },
     setMediaOut: function(value) {
       if(validMediaElement(value) ) {
-        if (value === this.config.mediaIn) {
-          detachMediaStream(value);
-          // do nothing
-        } else if (this._.localStream) {
+        if (this._.localStream) {
           // We have a stream already, just move the attachment.
-          //
           attachMediaStream(value, this._.localStream);
           this.config.mediaOut = value;
         } else {
@@ -726,13 +717,14 @@ var getBrowser = function() {
       }
     };
     detachMediaStream = function(element) {
+      var nullStream = '';
       if (element) {
         if (typeof element.srcObject !== 'undefined') {
-          element.srcObject = null;
+          element.srcObject = nullStream;
         } else if (typeof element.mozSrcObject !== 'undefined') {
-          element.mozSrcObject = null;
+          element.mozSrcObject = nullStream;
         } else if (typeof element.src !== 'undefined') {
-          element.src = null;
+          element.src = nullStream;
         } else {
           console.error('Error attaching stream to element.');
         }

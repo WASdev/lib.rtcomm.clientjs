@@ -33,10 +33,10 @@
       </div>
   <div id="videoContainer">
     <div id='selfViewContainer'>
-      <video title="selfView" id="selfView" class="selfView" autoplay="true" muted="true" ></video>
+      <video title="selfView" poster='resources/WebRTCLogo.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
     </div>
     
-    <video title="remoteView" id="remoteView" class="remoteView" autoplay="true" >
+    <video title="remoteView" poster='resources/WebRTCLogo.png' id="remoteView" class="remoteView" autoplay="true" >
     </video>
      </div>
      <div class="video-controls">
@@ -264,6 +264,8 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
       },
 
       'webrtc:disconnected': function(event_object) {
+          
+          document.querySelector('#remoteView').src = undefined;
           uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
         try {
           event_object.endpoint.disconnect();
