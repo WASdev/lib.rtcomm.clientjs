@@ -258,10 +258,11 @@ var WebRTCConnection = (function invocation() {
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
         if (value === this.config.mediaIn) {
+          detachMediaStream(value);
           // do nothing
         } else if (this._.remoteStream) {
           // We have a stream already, just move the attachment.
-          //
+          // 
           attachMediaStream(value, this._.remoteStream);
           this.config.mediaIn = value;
         } else {
@@ -282,6 +283,7 @@ var WebRTCConnection = (function invocation() {
     setMediaOut: function(value) {
       if(validMediaElement(value) ) {
         if (value === this.config.mediaIn) {
+          detachMediaStream(value);
           // do nothing
         } else if (this._.localStream) {
           // We have a stream already, just move the attachment.
