@@ -412,7 +412,7 @@ return  {
            // If we need to pranswer, processMessage can handle it.
            this._processMessage(session.message.peerContent);
          } else {
-           this.emit('session:alerting', {protocols:''})
+           this.emit('session:alerting', {protocols:''});
            //session.respond();
          }
          this.available(false);
@@ -448,18 +448,19 @@ return  {
     }
   },
     available: function(a) {
-      if (a) {
-        if (typeof a === 'boolean') { 
-          this._.available = a;
-          return a;
-        } 
-      } else  {
-        return this._.available;
-      }
+     // if a is a boolean then set it, otherwise return it.
+     if (typeof a === 'boolean') { 
+       this._.available = a;
+       l('DEBUG') && console.log(this+'.available() setting available to '+a);
+       return a;
+     } else  {
+       return this._.available;
+     }
     },
 
   connect: function(endpointid) {
     if (this.ready()) {
+      this.available(false);
       this._.activeSession = createSignalingSession(endpointid, this);
       addSessionCallbacks(this, this._.activeSession);
 
@@ -485,6 +486,7 @@ return  {
       this._.activeSession = null;
       this.emit('session:stopped');
     }
+    this.available(true);
     return this;
   },
 
