@@ -277,12 +277,12 @@ var EndpointProvider =  function EndpointProvider() {
         l('DEBUG') && console.log(endpointProvider+'-on.newsession endpointRegistry: ', endpointProvider._.endpointRegistry.list());
         var endpoint = endpointProvider._.endpointRegistry.get() || null;
         //TODO:  For the Queue thing, we need to lookup based on the session.source
-        l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Endpoint: ', endpoint);
-        if (endpoint && endpoint.available) {
+        if (endpoint && endpoint.available()) {
+          l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Endpoint: ', endpoint);
           endpoint.newSession(session);
         } else {
           endpoint = endpointProvider.getRtcommEndpoint();
-          l('DEBUG') && console.log(endpointProvider+'-on.newsession Creating a new endpoint for  session: ', endpoint);
+          l('DEBUG') && console.log(endpointProvider+'-on.newsession Created a new endpoint for  session: ', endpoint);
           endpoint.newSession(session);
           endpointProvider.emit('newendpoint', endpoint);
           // Deny the session.

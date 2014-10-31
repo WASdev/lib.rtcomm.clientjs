@@ -217,71 +217,74 @@ var RtcommEndpoint = (function invocation(){
      *  @typedef {Object} module:rtcomm.RtcommEndpoint~Event
      *  @property {name} eventName 
      *  @property {object} endpointObject - an object passed with the event
-     *
+     *  @property {string} [reason] - Used for failure messages
+     *  @property {string} [protocols] - Used for alerting messages
+     *  @property {object} [message] - Used for chat:message and session:alerting
      */
 
     this.events = {
         /**
          * A signaling session to a peer has been established
-         * @event module:rtcomm.RtcommEndpoint#connected
+         * @event module:rtcomm.RtcommEndpoint#session:started
          * @property {module:rtcomm.RtcommEndpoint~Event}
-         * 
          */
         "session:started": [],
         /**
          * An inbound request to establish a call via 
          * 3PCC was initiated
          *
-         * Who asked to connect to?
-         * TODO: Extra details...
+         * @event module:rtcomm.RtcommEndpoint#session:refer
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         *
          */
         "session:refer": [],
         /**
          * A peer has been reached, but not connected (inbound/outound)
-         * @event module:rtcomm.RtcommEndpoint#ringing
+         * @event module:rtcomm.RtcommEndpoint#session:ringing
          * @property {module:rtcomm.RtcommEndpoint~Event}
          */
         "session:ringing": [],
         /**
          * An inbound connection is being requested.
-         * @event module:rtcomm.RtcommEndpoint#incoming
-         * @property {module:rtcomm.WebRTCConnection}
-         *
-         * TODO:  Protocols 
-         * protocols: [webrtc, chat, etc...]
+         * @event module:rtcomm.RtcommEndpoint#session:alerting
+         * @property {module:rtcomm.RtcommEndpoint~Event}
          */
         "session:alerting": [],
         /**
-         *  reason added
-         *  TODO: Extra details...
+         * A failure occurred establishing the session (check reason)
+         * @event module:rtcomm.RtcommEndpoint#session:failed
+         * @property {module:rtcomm.RtcommEndpoint~Event}
          */
         "session:failed": [],
         /**
-         *  reason added
-         *  TODO: Extra details...
+         * The remote party rejected establishing the session
+         * @event module:rtcomm.RtcommEndpoint#session:rejected
+         * @property {module:rtcomm.RtcommEndpoint~Event}
          */
         "session:rejected": [],
         /**
-         * propogate through chat/webrtc.  
+         * The session has stopped
+         * @event module:rtcomm.RtcommEndpoint#session:stopped
+         * @property {module:rtcomm.RtcommEndpoint~Event}
          *
          */
         "session:stopped": [],
         /**
          * A PeerConnection to a peer has been established
-         * @event module:rtcomm.RtcommEndpoint#connected
+         * @event module:rtcomm.RtcommEndpoint#webrtc:connected
          * @property {module:rtcomm.RtcommEndpoint~Event}
          */
         "webrtc:connected": [],
         /**
          * The connection to a peer has been closed
-         * @event module:rtcomm.RtcommEndpoint#disconnected
+         * @event module:rtcomm.RtcommEndpoint#webrtc:disconnected
          * @property {module:rtcomm.RtcommEndpoint~Event}
          *
          */
         "webrtc:disconnected": [],
         /**
          * Creating the connection to a peer failed
-         * @event module:rtcomm.RtcommEndpoint#failed
+         * @event module:rtcomm.RtcommEndpoint#webrtc:failed
          * @property {module:rtcomm.RtcommEndpoint~Event}
          */
         'webrtc:failed': [],
@@ -291,7 +294,17 @@ var RtcommEndpoint = (function invocation(){
          * @property {module:rtcomm.RtcommEndpoint~Event}
          */
         'chat:message': [],
+        /**
+         * A chat session to a  peer has been established
+         * @event module:rtcomm.RtcommEndpoint#chat:connected
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
         'chat:connected': [],
+        /**
+         * The connection to a peer has been closed
+         * @event module:rtcomm.RtcommEndpoint#chat:disconnected
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
         'chat:disconnected':[],
         /**
          * The endpoint has destroyed itself, clean it up.
