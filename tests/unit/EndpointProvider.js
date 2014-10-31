@@ -63,6 +63,28 @@ define([
             }
             assert.ok(error);
        },
+      "setRtcommEndpointConfig - set, change, compare": function(){
+            var error = null;
+            var cb = function(event) {
+              console.log(event);
+            };
+            var configobj = {
+              broadcast: {audio: true, video: false},
+              'session:started':cb,
+              'session:stopped':cb
+            };
+            endpointProvider.setRtcommEndpointConfig(configobj);
+            console.log('>>>>> after set ', endpointProvider._.rtcommEndpointConfig);
+            console.log('>>>>>> config ', configobj);
+            assert.deepEqual(endpointProvider._.rtcommEndpointConfig,configobj, 'After setting config');
+            endpointProvider.setRtcommEndpointConfig({broadcast: {audio:false, video:true}});
+            assert.ok(endpointProvider._.rtcommEndpointConfig.broadcast.video, 'Video changed correctly');
+            assert.notOk(endpointProvider._.rtcommEndpointConfig.broadcast.audio, 'Audio Changed correctly');
+            console.log(endpointProvider._.rtcommEndpointConfig);
+            assert.equal(endpointProvider._.rtcommEndpointConfig['session:started'],cb,'Callbacks stayed the same');
+            assert.equal(endpointProvider._.rtcommEndpointConfig['session:stopped'],cb, 'callbacks stayed the same');
+
+       },
        "getRtcommEndpoint() [no args, no appContext set] throws error": function(){
             var error = null;
             try {

@@ -332,7 +332,7 @@ var EndpointProvider =  function EndpointProvider() {
    *   });
    */
   this.setRtcommEndpointConfig = function setRtcommEndpointCallbacks(options) {
-    this._.rtcommEndpointConfig = options;
+    this._.rtcommEndpointConfig = util.combineObjects(options, this._.rtcommEndpointConfig);
   };
   /** 
    * getRtcommEndpoint
