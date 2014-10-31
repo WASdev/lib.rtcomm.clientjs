@@ -56,6 +56,7 @@ var EndpointProvider =  function EndpointProvider() {
   /*global EndpointRegistry:false */
   this._.endpointRegistry = new EndpointRegistry();
   this._.objName = "EndpointProvider";
+  this._.rtcommEndpointConfig = {};
 
   /**
    * State of the EndpointProvider
@@ -301,6 +302,38 @@ var EndpointProvider =  function EndpointProvider() {
     return endpointConnection; 
   }; // End of createEndpointConnection
 
+  /**
+   * preset callbacks and config for rtcommEndpoints that are created
+   * matches the getRtcommEndpoint Config
+   *
+   *  @param {Object}  [config] 
+   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
+   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
+   *  @param {object}  [config.broadcast] 
+   *  @param {boolean}  [config.broadcast.audio] 
+   *  @param {boolean}  [config.broadcast.video] 
+   *
+   * // Now you can set event handlers if you want.
+   *
+   * @param {function}  config.<eventname>
+   *
+   * @example
+   *
+   * endpointProvider.setRtcommEndpointConfig({
+   *   webrtc: true,
+   *   chat: true,
+   *   broadcast: { audio: true, video: true},
+   *   'session:started': function(event) {
+   *
+   *   }, 
+   *   'session:alerting': function(event) {
+   *
+   *   }
+   *   });
+   */
+  this.setRtcommEndpointConfig = function setRtcommEndpointCallbacks(options) {
+    this._.rtcommEndpointConfig = options;
+  };
   /** 
    * getRtcommEndpoint
    * Factory method that returns a RtcommEndpoint object to be used by a UI component.
@@ -339,6 +372,15 @@ var EndpointProvider =  function EndpointProvider() {
         parent:this
     };
     var objConfig = defaultConfig;
+
+    // if there is a config defined...
+    if (this._.rtcommEndpointConfig) {
+      objConfig.chat = (typeof this._.rtcommEndpointConfig.chat === 'boolean') ? 
+        this._.rtcommEndpointConfig.chat : objConfig.chat;
+      objConfig.webrtc = (typeof this._.rtcommEndpointConfig.webrtc === 'boolean') ? 
+        this._.rtcommEndpointConfig.webrtc : objConfig.webrtc;
+    }
+
     if (typeof this.config.appContext === 'undefined') {
       throw new Error('Unable to create an Endpoint without appContext set on EndpointProvider');
     }
@@ -355,8 +397,25 @@ var EndpointProvider =  function EndpointProvider() {
 //      endpoint.init(objConfig);
       endpoint.on('destroyed', function(event_object) {
         endpointProvider._.endpointRegistry.remove(event_object.endpoint);
-
       });
+      // If we have any callbacks defined:
+      //
+      if (this._.rtcommEndpointConfig) {
+        Object.keys(this._.rtcommEndpointConfig).forEach(function(key){
+          try {
+            if (typeof endpointProvider._.rtcommEndpointConfig[key] === 'function') {
+              endpoint.on(key, endpointProvider._.rtcommEndpointConfig[key]);
+            } 
+          } catch (e) {
+            console.error(e);
+            console.error('Invalid event in rtcommEndpointConfig: '+key);
+          }
+        });
+      }
+      // If broadcast needs to be set
+      if(this._.rtcommEndpointConfig.broadcast) {
+        endpoint.webrtc && endpoint.webrtc.setBroadcast(this._.rtcommEndpointConfig.broadcast);
+      }
       // Add to registry or return the one already there
       l('DEBUG') && console.log('ENDPOINT REGISTRY: ', this._.endpointRegistry.list());
       endpoint = this._.endpointRegistry.add(endpoint);
