@@ -100,15 +100,21 @@ var WebRTCConnection = (function invocation() {
       var parent = self.dependencies.parent;
 
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
+      l('DEBUG') && console.log(self+'.enable()  config: ', config);
+      l('DEBUG') && console.log(self+'.enable()  callback: ', callback);
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
       var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
       var RTCOfferOptions= (config && config.RTCOfferOptions) ? config.RTCOfferOptions: this.config.RTCOfferOptions;
       var connect = (config && typeof config.connect === 'boolean') ? config.connect : true;
 
-      callback = callback || (typeof config === 'function') ? config :  function(success, message) {
-        l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
-      };
 
+      l('DEBUG') && console.log(self+'.enable() config created, defining callback');
+
+      callback = callback || ((typeof config === 'function') ? config :  function(success, message) {
+        l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
+      });
+
+      l('DEBUG') && console.log(self+'.enable() config created, callback is:', callback);
       /*
        * create an offer during the enable process
        */
@@ -135,13 +141,13 @@ var WebRTCConnection = (function invocation() {
         callback(true);
         return this;
       } else {
+        l('DEBUG') && console.log(self+'.enable() connect if possible? '+connect);
         try {
           this.pc = createPeerConnection(RTCConfiguration, RTCConstraints, this);
         } catch (error) {
           // No PeerConnection support, cannot enable.
           throw new Error(error);
         }
-        l('DEBUG') && console.log(self+'.enable() connect if possible? '+connect);
         if (this.config.broadcast.audio || this.config.broadcast.video) {
           l('DEBUG') && console.log(self+'.enable() calling .setLocalMedia()');
           this.setLocalMedia({enable:true},function(success, message) {
@@ -246,6 +252,19 @@ var WebRTCConnection = (function invocation() {
         broadcast.video:
         this.config.broadcast.video;
       return this;
+    },
+
+    pauseBroadcast: function() {
+      if (this._.localStream) {
+        this._.localStream.getVideoTracks()[0].enabled = false;
+        this._.localStream.getAudioTracks()[0].enabled = false;
+      }
+    },
+    resumeBroadcast: function() {
+      if (this._.localStream) {
+        this._.localStream.getVideoTracks()[0].enabled = true;
+        this._.localStream.getAudioTracks()[0].enabled = true;
+      }
     },
     /**
      * DOM node to link the RtcommEndpoint inbound media stream to.
@@ -363,6 +382,7 @@ var WebRTCConnection = (function invocation() {
    *  Offer/Answer/ICE Candidate, etc...
    */
   _processMessage : function(message) {
+    var self = this;
     var isPC = this.pc ? true : false;
     if (!message) {
       return;
@@ -405,14 +425,26 @@ var WebRTCConnection = (function invocation() {
          * be a renegotiation depending on our 'state' so we may or may not want
          * to inform the UI.
          */
-        if (this.getState() === 'disconnected' || this.getState() === 'connected') {
-          l('DEBUG') && console.log(this+'_processMessage received an offer ');
-          if (!this._.enabled) { 
-            // enable us, but don't connect, we'll have to answer here and accept at some point
-            this.enable({connect: false});
-            // reset this if we had to enable...
-            isPC = this.pc ? true : false;
-          }
+        var offer = message;
+        l('DEBUG') && console.log(this+'_processMessage received an offer ');
+        if (this.getState() === 'disconnected') {
+           // enable, call createAnswer/_gotAnswer. 
+           this.enable({connect: false}, function(success, message) {
+             if (success) { 
+               self.pc.setRemoteDescription(new MyRTCSessionDescription(offer),
+               /*onSuccess*/ function() {
+                 self.pc.createAnswer(self._gotAnswer.bind(self), function(error){
+                   console.error('Failed to create Answer:'+error);
+                 });
+               }.bind(self),
+               /*onFailure*/ function(error){
+                 console.error('setRemoteDescription has an Error', error);
+               });
+             } else {
+               console.error('failure: ' + message);
+             }
+          });
+        } else if (this.getState() === 'connected') {
           isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message),
               /*onSuccess*/ function() {
                 this.pc.createAnswer(this._gotAnswer.bind(this), function(error){

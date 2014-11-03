@@ -47,6 +47,9 @@
       <button id='btnConnect' class='btn btn-default' disabled='disabled'>
          Connect  
       </button>
+      <button id='btnToggleBroadcast' class='btn btn-default' disabled='disabled'>
+         Connect  
+      </button>
     </div>
      <div id='statusMessage' class="pull-right logo" style="font-size: 24px; padding-right: 30px">
           Please Register
@@ -183,6 +186,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   /* can be passed on URL videoClient.html?regwithoutAV=true */
   var regwithAV = !(urlConfig.regwithoutAV === 'true');
   console.log('Config passed in via URL:', urlConfig);
+  console.log('regwithAV is: ', regwithAV);
   // This uses any params passed on URL to override config.
   updateConfig(epConfig, urlConfig);
 
@@ -220,7 +224,8 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
                 // Configure the rtcommEndpoint now
                 rtcommEndpoint = object.endpoint;
                 rtcommEndpoint.webrtc.setLocalMedia(
-                  { mediaOut: document.querySelector('#selfView'),
+                  { enable: false, 
+                    mediaOut: document.querySelector('#selfView'),
                     mediaIn: document.querySelector('#remoteView'),
                   });
                 if (regwithAV) {
@@ -405,6 +410,12 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     } else {
       $('#connectModal').modal('show');
     }
+  });
+
+  $('#btnToggleBroadcast').on('click', function() {
+    if (connected) {
+      rtcommEndpoint.webrtc.pauseBroadcast();
+    } 
   });
 
   $("#connectGo").on('click', function(event) {
