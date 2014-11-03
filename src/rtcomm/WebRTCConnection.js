@@ -185,6 +185,8 @@ var WebRTCConnection = (function invocation() {
       if (this.pc && this.pc.signalingState !== 'closed') {
        this.pc.close();
       }
+      detachMediaStream(this.getMediaIn());
+      detachMediaStream(this.getMediaOut());
       if (this.getState() !== 'disconnected') {
         this._setState('disconnected');
       }
@@ -528,6 +530,7 @@ var WebRTCConnection = (function invocation() {
                 callback(false, "getUserMedia failed");
               });
           } else {
+            attachMediaStream(self.getMediaOut(),self._.localStream);
             callback(true);
           }
         }
