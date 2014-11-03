@@ -90,6 +90,7 @@ var WebRTCConnection = (function invocation() {
      * @param {object} [config.RTCConfiguration.peerIdentity]
      *
      * @param {boolean} [config.connect=true]
+     * @param {boolean} [config.lazyAV=true]
      *
      * mediaIn/MediaOut?
      **/
@@ -98,15 +99,12 @@ var WebRTCConnection = (function invocation() {
       //
       var self = this;
       var parent = self.dependencies.parent;
-
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
-      l('DEBUG') && console.log(self+'.enable()  config: ', config);
-      l('DEBUG') && console.log(self+'.enable()  callback: ', callback);
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
       var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
       var RTCOfferOptions= (config && config.RTCOfferOptions) ? config.RTCOfferOptions: this.config.RTCOfferOptions;
       var connect = (config && typeof config.connect === 'boolean') ? config.connect : true;
-
+      var lazyAV = (config && typeof config.lazyAV === 'boolean') ? config.lazyAV : true;
 
       l('DEBUG') && console.log(self+'.enable() config created, defining callback');
 
@@ -115,27 +113,16 @@ var WebRTCConnection = (function invocation() {
       });
 
       l('DEBUG') && console.log(self+'.enable() config created, callback is:', callback);
+
+
+      // When Enable is called we have a couple of options:
+      // 1.  If parent is connected, enable will createofffer and send it.
+      // 2.  if parent is NOT CONNECTED. enable will create offer and STORE it for sending by _connect.
+      //
+      // 3.  
       /*
        * create an offer during the enable process
        */
-      var createOffer = function createOffer() {
-        l('DEBUG') && console.log(self+'.enable() calling createOffer()');
-        // Did addstream work?
-        //
-         self.pc.createOffer(
-          function(offersdp) {
-            self.onEnabledMessage = offersdp;
-            l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
-            if (parent.sessionStarted() && connect) {
-              self._connect();
-            }
-            callback(true);
-          },
-          function(error) {
-            callback(false, error);
-          });
-         // RTCOfferOptions);
-      };
       // If we are enabled already, just return ourselves;
       if (this._.enabled) {
         callback(true);
@@ -148,26 +135,22 @@ var WebRTCConnection = (function invocation() {
           // No PeerConnection support, cannot enable.
           throw new Error(error);
         }
-        if (this.config.broadcast.audio || this.config.broadcast.video) {
-          l('DEBUG') && console.log(self+'.enable() calling .setLocalMedia()');
+        this._.enabled = true;
+        // If we don't have lazy set and we aren't immediately connecting, enable AV.
+        if (!lazyAV && !connect) {
+          // enable now.
           this.setLocalMedia({enable:true},function(success, message) {
             l('DEBUG') && console.log(self+'.enable() setLocalMedia Callback(success='+success+',message='+message);
-            if (success) {
-              l('DEBUG') && console.log('LocalStream should be set here:  self._.localStream', self._.localStream);
-              self._.localStream && self.pc.addStream(self._.localStream);
-            }
-            createOffer();
+            callback(true);
           });
         } else {
-          // set ReceiveOnly
-          createOffer();
+          if (connect) {
+            this._connect(null, callback(true));
+          } else {
+            callback(true);
+          }
         }
-        // Don't need much, just set enabled to true.
-        // Default message
-        //
-        // Our enable should be an OFFER - ready to go.
-          this._.enabled = true;
-          return this;
+        return this;
       }
     },
 
@@ -179,6 +162,55 @@ var WebRTCConnection = (function invocation() {
         this.pc = null;
       }
       return this;
+    },
+
+    /*
+     * Called to 'connect' (Send message, change state)
+     * Only works if enabled.
+     *
+     */
+    _connect: function(sendMethod,callback) {
+      var self = this;
+
+      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
+      callback = callback ||function(success, message) {
+        l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
+      };
+
+      var doOffer =  function doOffer(success, msg) {
+        if (success) { 
+          self.pc.createOffer(
+            function(offersdp) {
+              l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
+                sendMethod({message: offersdp});
+                self._setState('trying');
+                self.pc.setLocalDescription(offersdp, function(){
+                  l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
+                  callback(true);
+                }, function(error) { callback(false, error);});
+            },
+            function(error) {
+              console.error('webrtc._connect failed: ', error);
+              callback(false);
+            },
+            self.config.RTCOfferOptions);
+        } else {
+          callback(false);
+          console.error('_connect failed, '+msg);
+        }
+      };
+
+      if (this._.enabled && this.pc) {
+        if (this.broadcastReady()) {
+          doOffer(true);
+        } else {
+          this.setLocalMedia({enable:true}, doOffer);
+        }
+        return true;
+      } else {
+        l('DEBUG') && console.log('!!!!! not enabled, skipping...');
+        return false;
+      }
     },
 
     _disconnect: function() {
@@ -205,12 +237,21 @@ var WebRTCConnection = (function invocation() {
      * options should be override w/ RTCOfferOptions I guess..
      */
     accept: function(options) {
-      if (this.getState() === 'alerting') {
-      this.pc && this.pc.createAnswer(this._gotAnswer.bind(this), function(error) {
+      var self = this;
+      var doAnswer = function doAnswer() {
+        self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
           console.error('failed to create answer', error);
         },
-        this.config.RTCOfferOptions);
+        self.config.RTCOfferOptions);
       }
+      if (this.getState() === 'alerting') {
+        if (this.broadcastReady()) {
+          doAnswer(true);
+        } else {
+          this.setLocalMedia({enable:true}, doAnswer);
+        }
+      return true;
+     };
     },
     reject: function() {
       this._disconnect();
@@ -225,26 +266,16 @@ var WebRTCConnection = (function invocation() {
       l('DEBUG') && console.log(this+'._setState emitting event '+event);
       this.emit(event);
     },
-    /*
-     * Called to 'connect' (Send message, change state)
-     * Only works if enabled.
-     *
-     */
-    _connect: function(sendMethod) {
-      // Changes state, returns message that hsould be sent?
-      //
-      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
-      if (this._.enabled && this.onEnabledMessage) {
-        sendMethod({message: this.onEnabledMessage});
-        this._setState('trying');
-        this.pc.setLocalDescription(this.onEnabledMessage, function(){
-          l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
-        });
+
+    broadcastReady: function broadcastReady() {
+      if (( this.config.audio || this.config.video) && (typeof this._.localStream === 'object')) {
+        return true;
+        // if we have neither, we are still 'ready'
+      } else if (this.config.audio === false  && this.config.video === false) {
         return true;
       } else {
-         l('DEBUG') && console.log('!!!!! not enabled, skipping...');
         return false;
-      }
+      };
     },
     setBroadcast : function setBroadcast(broadcast) {
       this.config.broadcast.audio = (broadcast.hasOwnProperty('audio') && typeof broadcast.audio === 'boolean') ?
@@ -423,7 +454,11 @@ var WebRTCConnection = (function invocation() {
         break;
       case 'offer':
         /*
-         * When an Offer is Received , we need to send an Answer, this may
+         * When an Offer is Received 
+         * 
+         * 1.  Set the RemoteDescription -- depending on that result, create an answer and all...
+         *
+         * , we need to send an Answer, this may
          * be a renegotiation depending on our 'state' so we may or may not want
          * to inform the UI.
          */
@@ -431,7 +466,7 @@ var WebRTCConnection = (function invocation() {
         l('DEBUG') && console.log(this+'_processMessage received an offer ');
         if (this.getState() === 'disconnected') {
            // enable, call createAnswer/_gotAnswer. 
-           this.enable({connect: false}, function(success, message) {
+           this.enable({lazyAV:true, connect: false}, function(success, message) {
              if (success) { 
                self.pc.setRemoteDescription(new MyRTCSessionDescription(offer),
                /*onSuccess*/ function() {
@@ -524,6 +559,7 @@ var WebRTCConnection = (function invocation() {
                   // save the localstream
                   self._.localStream = stream;
                   attachMediaStream(self.getMediaOut(),stream);
+                  self.pc && self.pc.addStream(stream);
                   callback(true);
                 },
               /* onFailure */ function(error) {
@@ -618,13 +654,13 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
               console.error(error);
             });
       } else {
-        l('DEBUG') && console.log('ONNEGOTIATIONNEEDED Skipping renegotiate - not stable. State: '+ this.pc.signalingState);
+        l('DEBUG') && console.log('ONNEGOTIATIONNEEDED Skipping renegotiate - not stable && connected. State: '+ this.pc.signalingState);
       }
     }.bind(context);
 
     peerConnection.onsignalingstatechange = function(evt) {
         l('DEBUG') && console.log('peerConnection onsignalingstatechange fired: ', evt);
-       // l('DEBUG') && console.log('State: '+ this.pc.signalingState);
+        l('DEBUG') && console.log('pc signaling State: '+ this.pc.signalingState);
     }.bind(context);
 
     peerConnection.onremovestream = function (evt) {
