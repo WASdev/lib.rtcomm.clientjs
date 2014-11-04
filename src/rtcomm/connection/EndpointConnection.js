@@ -133,6 +133,8 @@ var EndpointConnection = function EndpointConnection(config) {
     try {
       rtcommMessage = MessageFactory.cast(content);
       l('DEBUG') && console.log(this+'.processMessage() processing Message', rtcommMessage);
+      // Need to propogate this, just in case...
+      rtcommMessage.fromEndpointID = fromEndpointID;
     } catch (e) {
       l('INFO') && console.log(this+'.processMessage() Unable to cast message, emitting original message');
     }

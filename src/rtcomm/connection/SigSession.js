@@ -171,6 +171,12 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         // recieved a Response, if it has an Answer, we need to pass it up.
         l('DEBUG') && console.log(this+'.sessionStarted!  ', message);
         this.state = 'started';
+
+        if (message.fromEndpointID !== this.remoteEndpointID) {
+          l('DEBUG') && console.log(this+'.sessionStarted! updating remoteEndpointID to: '+ message.fromEndpointID);
+          this.remoteEndpointID = message.fromEndpointID;
+        }
+
         this._startTransaction = null;
         //  this.processMessage(message);
         // if Inbound it means we SENT an answer. and have 'FINISHED' the transaction.

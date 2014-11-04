@@ -103,7 +103,8 @@ var WebRTCConnection = (function invocation() {
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
       var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
       var RTCOfferOptions= (config && config.RTCOfferOptions) ? config.RTCOfferOptions: this.config.RTCOfferOptions;
-      var connect = (config && typeof config.connect === 'boolean') ? config.connect : true;
+
+      var connect = (config && typeof config.connect === 'boolean') ? config.connect : parent.sessionStarted();
       var lazyAV = (config && typeof config.lazyAV === 'boolean') ? config.lazyAV : true;
 
       l('DEBUG') && console.log(self+'.enable() config created, defining callback');
@@ -199,7 +200,6 @@ var WebRTCConnection = (function invocation() {
           console.error('_connect failed, '+msg);
         }
       };
-
       if (this._.enabled && this.pc) {
         if (this.broadcastReady()) {
           doOffer(true);
@@ -660,7 +660,6 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
 
     peerConnection.onsignalingstatechange = function(evt) {
         l('DEBUG') && console.log('peerConnection onsignalingstatechange fired: ', evt);
-        l('DEBUG') && console.log('pc signaling State: '+ this.pc.signalingState);
     }.bind(context);
 
     peerConnection.onremovestream = function (evt) {
