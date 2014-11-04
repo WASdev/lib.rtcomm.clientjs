@@ -356,7 +356,6 @@ var EndpointProvider =  function EndpointProvider() {
    *  var endpointConfig = {
    *    chat: true,
    *    webrtc: true,
-   *    autoAnswer: false
    *    };
    *  endpointProvider.getRtcommEndpoint(endpointConfig);
    *
@@ -368,11 +367,9 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         chat: true,
         webrtc: true,
-        autoAnswer:false,
         parent:this
     };
     var objConfig = defaultConfig;
-
     // if there is a config defined...
     if (this._.rtcommEndpointConfig) {
       objConfig.chat = (typeof this._.rtcommEndpointConfig.chat === 'boolean') ? 

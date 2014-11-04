@@ -26,15 +26,20 @@ var WebRTCConnection = (function invocation() {
    * @private
    */
   var WebRTCConnection = function WebRTCConnection(parent) {
+    var OfferConstraints = {'mandatory': {
+      OfferToReceiveAudio: true, 
+      OfferToReceiveVideo: true}
+    };
+
     this.config = {
-      autoAnswer: false,
       RTCConfiguration : null,
+      RTCOfferConstraints: null,
       RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
       mediaIn: null,
       mediaOut: null,
       broadcast: {
-        audio: false,
-        video: false
+        audio: true,
+        video: true 
       }
     };
     // TODO:  Throw error if no parent.
@@ -83,7 +88,7 @@ var WebRTCConnection = (function invocation() {
      * Generally, these will not be messed with unless specific control of the 
      * peerConnection is required.
      *
-     * @param {object} [config.RTCOfferOptions]
+     * @param {object} [config.RTCOfferConstraints]
      * @param {object} [config.RTCConfiguration]
      * @param {object} [config.RTCConfiguration.iceServers]
      * @param {object} [config.RTCConfiguration.iceTranports]
@@ -102,7 +107,7 @@ var WebRTCConnection = (function invocation() {
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
       var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
-      var RTCOfferOptions= (config && config.RTCOfferOptions) ? config.RTCOfferOptions: this.config.RTCOfferOptions;
+      this.config.RTCOfferConstraints= (config && config.RTCOfferConstraints) ? config.RTCOfferConstraints: this.config.RTCOfferConstraints;
 
       var connect = (config && typeof config.connect === 'boolean') ? config.connect : parent.sessionStarted();
       var lazyAV = (config && typeof config.lazyAV === 'boolean') ? config.lazyAV : true;
@@ -112,9 +117,6 @@ var WebRTCConnection = (function invocation() {
       callback = callback || ((typeof config === 'function') ? config :  function(success, message) {
         l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
       });
-
-      l('DEBUG') && console.log(self+'.enable() config created, callback is:', callback);
-
 
       // When Enable is called we have a couple of options:
       // 1.  If parent is connected, enable will createofffer and send it.
@@ -138,6 +140,7 @@ var WebRTCConnection = (function invocation() {
         }
         this._.enabled = true;
         // If we don't have lazy set and we aren't immediately connecting, enable AV.
+        l('DEBUG') && console.log(self+'.enable() (lazyAV='+lazyAV+',connect='+connect);
         if (!lazyAV && !connect) {
           // enable now.
           this.setLocalMedia({enable:true},function(success, message) {
@@ -149,9 +152,7 @@ var WebRTCConnection = (function invocation() {
             this._connect(null, callback(true));
           } else {
             callback(true);
-          }
-        }
-        return this;
+          } } return this;
       }
     },
 
@@ -194,7 +195,7 @@ var WebRTCConnection = (function invocation() {
               console.error('webrtc._connect failed: ', error);
               callback(false);
             },
-            self.config.RTCOfferOptions);
+            self.config.RTCOfferConstraints);
         } else {
           callback(false);
           console.error('_connect failed, '+msg);
@@ -234,20 +235,24 @@ var WebRTCConnection = (function invocation() {
       }
     },
     /*
-     * options should be override w/ RTCOfferOptions I guess..
+     * options should be override w/ RTCOfferConstraints I guess..
      */
     accept: function(options) {
       var self = this;
       var doAnswer = function doAnswer() {
+        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
         self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
           console.error('failed to create answer', error);
         },
-        self.config.RTCOfferOptions);
+        self.config.RTCOfferConstraints);
       }
+      l('DEBUG') && console.log(this+'.accept() -- accepting --');
       if (this.getState() === 'alerting') {
         if (this.broadcastReady()) {
+          l('DEBUG') && console.log(this+'.accept() A/V ready, answering...');
           doAnswer(true);
         } else {
+          l('DEBUG') && console.log(this+'.accept() getting AV before answering...');
           this.setLocalMedia({enable:true}, doAnswer);
         }
       return true;
@@ -268,10 +273,10 @@ var WebRTCConnection = (function invocation() {
     },
 
     broadcastReady: function broadcastReady() {
-      if (( this.config.audio || this.config.video) && (typeof this._.localStream === 'object')) {
+      if (( this.config.broadcast.audio || this.config.broadcast.video) && (typeof this._.localStream === 'object')) {
         return true;
         // if we have neither, we are still 'ready'
-      } else if (this.config.audio === false  && this.config.video === false) {
+      } else if (this.config.broadcast.audio === false  && this.config.broadcast.video === false) {
         return true;
       } else {
         return false;
@@ -284,6 +289,11 @@ var WebRTCConnection = (function invocation() {
       this.config.broadcast.video= (broadcast.hasOwnProperty('video') && typeof broadcast.video=== 'boolean') ?
         broadcast.video:
         this.config.broadcast.video;
+      if (!broadcast.audio && !broadcast.video) { 
+        this.config.RTCOfferConstraints= {'mandatory': {OfferToReceiveAudio: true, OfferToReceiveVideo: true}};
+      } else {
+        this.config.RTCOfferConstraints = null;
+      }
       return this;
     },
 
@@ -343,7 +353,6 @@ var WebRTCConnection = (function invocation() {
       }
       return this;
     },
-    getAutoAnswer: function() { return this.config.autoAnswer },
 
   /*
    * This is executed by createAnswer.  Typically, the intent is to just send the answer
@@ -367,6 +376,7 @@ var WebRTCConnection = (function invocation() {
    */
   _gotAnswer :  function(desc) {
 
+    console.log(this+'.createAnswer answer called:  ', desc);
     l('DEBUG') && console.log(this+'.createAnswer answer created:  ', desc);
 
     var answer = null;
@@ -374,13 +384,14 @@ var WebRTCConnection = (function invocation() {
     var session = this.dependencies.parent._.activeSession;
     var sessionState = session.getState();
     var PRANSWER = (pcSigState === 'have-remote-offer') && (sessionState === 'starting');
-    var RESPOND = this.config.autoAnswer || sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
+    var RESPOND = sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
     var SKIP = false;
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     if (RESPOND) {
       l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
-      this._setState('connected');
+      console.log(this+'.createAnswer sending answer as a RESPONSE', desc);
       session.respond(true, desc);
+      this._setState('connected');
     } else if (PRANSWER){
       l('DEBUG') && console.log(this+'.createAnswer sending PRANSWER');
       this._setState('alerting');
@@ -470,6 +481,7 @@ var WebRTCConnection = (function invocation() {
              if (success) { 
                self.pc.setRemoteDescription(new MyRTCSessionDescription(offer),
                /*onSuccess*/ function() {
+                 l('DEBUG') && console.log(this+' Creating answer in processMessage for offer()');
                  self.pc.createAnswer(self._gotAnswer.bind(self), function(error){
                    console.error('Failed to create Answer:'+error);
                  });
@@ -573,6 +585,8 @@ var WebRTCConnection = (function invocation() {
       } else {
         console.error("No MediaOut set... !Nothing to broadcast");
       }
+    } else {
+      callback(true);
     }
     return this;
   },
@@ -616,10 +630,10 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
       l('TRACE') && console.log("TRACE onaddstream Video", evt.stream.getVideoTracks());
       // This isn't really used, may remove
       if (evt.stream.getAudioTracks().length > 0) {
-        this.audio = true;
+       // this.audio = true;
       }
       if (evt.stream.getVideoTracks().length > 0) {
-        this.video = true;
+       // this.video = true;
       }
       /*
        * At this point, we now know what streams are requested
@@ -630,6 +644,7 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
       // Save the stream
       context._.remoteStream = evt.stream;
       if (context.getMediaIn()) {
+        l('DEBUG') && console.log(this+' onaddstream Attaching inbound stream to: ',context.getMediaIn());
         attachMediaStream(context.getMediaIn(), evt.stream);
       }
     }.bind(context);

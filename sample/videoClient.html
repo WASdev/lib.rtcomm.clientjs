@@ -167,6 +167,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   // UI State
   var registered = false;
   var connected = false;
+  var autoAnswer = false;
 
   /* Define the configuration for the EndpointProvider.  THis is REQUIRED and generally must be changed.
    * It MUST match the rtcomm configuration used on the liberty server.
@@ -185,6 +186,9 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   var urlConfig = getUrlParams();
   /* can be passed on URL videoClient.html?regwithoutAV=true */
   var regwithAV = !(urlConfig.regwithoutAV === 'true');
+  var regOnload = (urlConfig.regOnload === true)? true : false;
+  var userid = urlConfig.userid || null;
+  autoAnswer = (urlConfig.autoAnswer === true)? true : false;
   console.log('Config passed in via URL:', urlConfig);
   console.log('regwithAV is: ', regwithAV);
   // This uses any params passed on URL to override config.
@@ -231,7 +235,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
                 if (regwithAV) {
                   // Enable Audio Video here.
                   console.log('>>>>>>>>>>>>>>>>>>>Enabling Webrtc...');
-                  rtcommEndpoint.webrtc.enable(function() {
+                  rtcommEndpoint.webrtc.enable({lazyAV: false}, function() {
                     console.log('>>>>>>>>>>>>>>SUCCESS ENABLED WEBRTC CALLBACK');
                   });
                   /******* OLD WAY
@@ -291,12 +295,14 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
       },
       'session:alerting': function(event_object) {
         console.log('>>>> event_object! ', event_object);
-        if (!rtcommEndpoint.autoAnswer) {
+        // Use this as a global
+        if (!autoAnswer) {
           $('#answerDialog .modal-body').html(
               "Inbound call from " + event_object.endpoint.getRemoteEndpointID());
           $('#answerDialog').modal('show');
         } else {
           status = 'Automatically Answering...';
+          event_object.endpoint.accept();
         }
       },
       'session:failed': function(event_object) {

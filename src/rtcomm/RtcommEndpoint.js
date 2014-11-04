@@ -173,10 +173,11 @@ var RtcommEndpoint = (function invocation(){
     // Presuming you creat an object based on this one, 
     // you must override the ession event handler and
     // then augment newSession object.
+    //
     this.config = {
+      ignoreAppContext: true,
       appContext : null,
       userid: null,
-      autoAnswer: false,
       chat: true,
       webrtc: true
     };
@@ -324,7 +325,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     if (context._.referralSession) {
       var details = context._.referralSession.referralDetails;
       sessid =  (details && details.sessionID) ? details.sessionID : null;
-      remoteEndpointID =  (details && details.remoteEndpointID) ? details.remoteEndpointID : null;
+      remoteEndpointID =  (details && details.toEndpointID) ? details.toEndpointID : null;
       toTopic =  (details && details.toTopic) ? details.toTopic : null;
     }
     if (!remoteEndpointID) {
@@ -380,7 +381,7 @@ return  {
       var event = null;
       var msg = null;
       // If there is a session.appContext, it must match unless this.ignoreAppContext is set 
-      if (this.ignoreAppContext || 
+      if (this.config.ignoreAppContext || 
          (session.appContext && (session.appContext === this.getAppContext())) || 
          (typeof session.appContext === 'undefined' && session.type === 'refer')) {
         // We match appContexts (or don't care)
@@ -389,11 +390,12 @@ return  {
           // TODO:  Fix the inbound session to always alert.
           if (session.type === 'refer') {
             l('DEBUG') && console.log(this + '.newSession() REFER');
-            event = 'session:refer';
+            this._.referralSession = session;
+          } else {
+           this._.activeSession = session;
+           addSessionCallbacks(this,session);
           }
          // Save the session and start it.
-         this._.activeSession = session;
-         addSessionCallbacks(this,session);
          session.start();
          // Now, depending on the session.message (i.e its peerContent or future content) then do something. 
          //  For an inbound session, we have several scenarios:
@@ -438,6 +440,9 @@ return  {
         } else {
           console.error('Received chat message, but chat not supported!');
         }
+      } else if (content.type === 'refer') {
+        this._.referralSession && this._.referralSession.pranswer();
+        this.emit('session:refer');
       } else {
         if (this.config.webrtc) { 
           this.webrtc._processMessage(content);
@@ -490,14 +495,16 @@ return  {
     return this;
   },
 
-
   accept: function(options) {
-    this.webrtc && this.webrtc.accept(options);
-    this.chat && this.chat.accept(options);
-
-    // If the above 2 don't start the session, go ahead and respond.
-    if (!this.sessionStarted()) {
-      this._.activeSession.respond();
+    if (this._.referralSession) {
+      this.connect(null);
+    } else if (this.webrtc || this.chat ) {
+      this.webrtc && this.webrtc.accept(options);
+      this.chat && this.chat.accept(options);
+    } else {
+      if (!this.sessionStarted()) {
+        this._.activeSession.respond();
+      }
     }
     return this;
   },
