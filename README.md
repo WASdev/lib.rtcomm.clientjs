@@ -176,10 +176,10 @@ The available events are:
 <tr><td>session:refer </td><td>A third party call has been initiated (similar to incoming)</td></tr>
 <tr><td>webrtc:connected </td><td>A connection to a peer has been established</td></tr>
 <tr><td>webrtc:disconnected</td><td> The connection to a peer has been closed</td></tr>
-<tr><td>ringing </td><td>A peer has been reached, but not connected (inbound/outound)</td></tr>
-<tr><td>trying</td><td> A connection is being attempted (outbound only) </td></tr>
-<tr><td> incoming </td><td> An inbound connection is being requested. </td></tr>
-<tr><td>message</td><td> A message has arrived from a peer </td></tr>
+<tr><td>webrtc:failed</td><td> The connection to a peer has failed for a reason</td></tr>
+<tr><td>chat:message</td><td> A message has arrived from a peer </td></tr>
+<tr><td>chat:connected </td><td>A chat connection has been established</td></tr>
+<tr><td>chat:disconnected</td><td>A chat connection has been closed</td></tr>
 </table>
 
 Further information on the RtcommEndpoint API is located [here](https://github.com/WASdev/lib.rtcomm.clientjs/wiki/module-rtcomm.RtcommEndpoint.API) 
