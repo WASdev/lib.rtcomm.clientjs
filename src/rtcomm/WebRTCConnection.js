@@ -128,7 +128,7 @@ var WebRTCConnection = (function invocation() {
        */
       // If we are enabled already, just return ourselves;
       if (this._.enabled) {
-        callback(true);
+        this.setLocalMedia(null, callback);
         return this;
       } else {
         l('DEBUG') && console.log(self+'.enable() connect if possible? '+connect);
@@ -203,7 +203,7 @@ var WebRTCConnection = (function invocation() {
       };
       if (this._.enabled && this.pc) {
         if (this.broadcastReady()) {
-          doOffer(true);
+          this.setLocalMedia(null, doOffer);
         } else {
           this.setLocalMedia({enable:true}, doOffer);
         }
@@ -250,7 +250,7 @@ var WebRTCConnection = (function invocation() {
       if (this.getState() === 'alerting') {
         if (this.broadcastReady()) {
           l('DEBUG') && console.log(this+'.accept() A/V ready, answering...');
-          doAnswer(true);
+          this.setLocalMedia(null, doAnswer);
         } else {
           l('DEBUG') && console.log(this+'.accept() getting AV before answering...');
           this.setLocalMedia({enable:true}, doAnswer);
@@ -562,10 +562,12 @@ var WebRTCConnection = (function invocation() {
     l('DEBUG') && console.log(self+'.setLocalMedia() audio['+audio+'] & video['+video+'], enable['+enable+']');
     if(audio || video) {
       // a mediaOut is required
+      //
+      // TODO:  This logic needs to be reworked to attachMedia if its not attached here as well.
       if (this.getMediaOut()) {
-        if (enable) {
           //TODO:  Check and see if we are adding audio or video?
-          if (!self._.localStream) {
+          if (enable && !self._.localStream) {
+            l('DEBUG') && console.log(self+'.setLocalMedia() getting userMedia');
             getUserMedia({'audio': audio, 'video': video},
                 /* onSuccess */ function(stream) {
                   // save the localstream
@@ -578,10 +580,11 @@ var WebRTCConnection = (function invocation() {
                 callback(false, "getUserMedia failed");
               });
           } else {
+            l('DEBUG') && console.log(self+'.setLocalMedia() already setup, reattching stream');
             attachMediaStream(self.getMediaOut(),self._.localStream);
+            self.pc && self.pc.addStream(self._.localStream);
             callback(true);
           }
-        }
       } else {
         console.error("No MediaOut set... !Nothing to broadcast");
       }
