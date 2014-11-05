@@ -793,9 +793,9 @@ var getUserMedia, attachMediaStream,detachMediaStream;
     getUserMedia = null;
     attachMediaStream = null;
     detachMediaStream = null;
-
   // Creating methods for Firefox
   } else if (navigator && navigator.mozGetUserMedia) {
+
     getUserMedia = navigator.mozGetUserMedia.bind(navigator);
     // Attach a media stream to an element.
     attachMediaStream = function(element, stream) {
@@ -843,6 +843,12 @@ var getUserMedia, attachMediaStream,detachMediaStream;
   };
 } else {
   console.error("Browser does not appear to be WebRTC-capable");
+  var skip = function skip() {
+    console.error("Function not supported in browser");
+  };
+  getUserMedia = skip;
+  attachMediaStream = skip;
+  detachMediaStream = skip;
 }
 
   var getIceServers = function(object) {
