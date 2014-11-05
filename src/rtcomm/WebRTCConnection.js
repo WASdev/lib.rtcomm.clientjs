@@ -218,8 +218,11 @@ var WebRTCConnection = (function invocation() {
       if (this.pc && this.pc.signalingState !== 'closed') {
        this.pc.close();
       }
+
       detachMediaStream(this.getMediaIn());
+      this._.remoteStream = null;
       detachMediaStream(this.getMediaOut());
+
       if (this.getState() !== 'disconnected') {
         this._setState('disconnected');
       }
@@ -239,8 +242,14 @@ var WebRTCConnection = (function invocation() {
      */
     accept: function(options) {
       var self = this;
+
       var doAnswer = function doAnswer() {
         l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
+        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
+        console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
+        console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
+        console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
+
         self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
           console.error('failed to create answer', error);
         },
@@ -376,7 +385,6 @@ var WebRTCConnection = (function invocation() {
    */
   _gotAnswer :  function(desc) {
 
-    console.log(this+'.createAnswer answer called:  ', desc);
     l('DEBUG') && console.log(this+'.createAnswer answer created:  ', desc);
 
     var answer = null;
@@ -541,11 +549,12 @@ var WebRTCConnection = (function invocation() {
   */
   setLocalMedia: function setLocalMedia(config,callback) {
     var enable = false;
+    l('DEBUG') && console.log(this+'setLocalMedia() using config:', config);
     if (config && typeof config === 'object') {
       config.mediaIn && this.setMediaIn(config.mediaIn);
       config.mediaOut && this.setMediaOut(config.mediaOut);
       config.broadcast && this.setBroadcast(config.broadcast);
-      enable = config.enable || enable;
+      enable = (typeof config.enable === 'boolean')? config.enable : enable;
     } else if (config && typeof config === 'function') {
       callback = config;
     } else {
@@ -581,9 +590,15 @@ var WebRTCConnection = (function invocation() {
               });
           } else {
             l('DEBUG') && console.log(self+'.setLocalMedia() already setup, reattching stream');
-            attachMediaStream(self.getMediaOut(),self._.localStream);
-            self.pc && self.pc.addStream(self._.localStream);
-            callback(true);
+              attachMediaStream(self.getMediaOut(),self._.localStream);
+              if (self.pc && self.pc.getLocalStreams().length ===  0 ) {
+                l('DEBUG') && console.log(self+'.setLocalMedia() Adding Stream to peerConnection, only have stream: '+self.pc.getLocalStreams().length);
+                console.log('LocalStream is: ', self._.localStream);
+                self.pc.addStream(self._.localStream);
+              } else {
+                l('DEBUG') && console.log(self+'.setLocalMedia() Adding Stream to peerConnection ',self.pc);
+              }
+              callback(true);
           }
       } else {
         console.error("No MediaOut set... !Nothing to broadcast");
@@ -696,6 +711,7 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
   }
   return peerConnection;
 }  // end of createPeerConnection
+
 /*
  *  Following are used to handle different browser implementations of WebRTC
  */
@@ -713,114 +729,121 @@ var getBrowser = function() {
     }
   };
 
-  var MyRTCPeerConnection = (function() {
-    /*global mozRTCPeerConnection:false */
-    /*global webkitRTCPeerConnection:false */
-    if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-      return null;
-    } else if (navigator && navigator.mozGetUserMedia) {
-      return mozRTCPeerConnection;
-    } else if (navigator && navigator.webkitGetUserMedia) {
-      return webkitRTCPeerConnection;
-    } else {
-      return null;
-    //  throw new Error("Unsupported Browser: ", getBrowser());
-    }
-  })();
+var MyRTCPeerConnection = (function() {
+  /*global mozRTCPeerConnection:false */
+  /*global webkitRTCPeerConnection:false */
+  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
+    return null;
+  } else if (navigator && navigator.mozGetUserMedia) {
+    return mozRTCPeerConnection;
+  } else if (navigator && navigator.webkitGetUserMedia) {
+    return webkitRTCPeerConnection;
+  } else {
+    return null;
+  //  throw new Error("Unsupported Browser: ", getBrowser());
+  }
+})();
 
-  var MyRTCSessionDescription = (function() {
-    /*global mozRTCSessionDescription:false */
-    if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-      return null;
-    }  else if (navigator && navigator.mozGetUserMedia) {
-      return mozRTCSessionDescription;
-    } else if (typeof RTCSessionDescription !== 'undefined' ) {
-      return RTCSessionDescription;
-    } else {
-    	return null;
-    //  throw new Error("Unsupported Browser: ", getBrowser());
-    }
-  })();
+var MyRTCSessionDescription = (function() {
+  /*global mozRTCSessionDescription:false */
+  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
+    return null;
+  }  else if (navigator && navigator.mozGetUserMedia) {
+    return mozRTCSessionDescription;
+  } else if (typeof RTCSessionDescription !== 'undefined' ) {
+    return RTCSessionDescription;
+  } else {
+    return null;
+  //  throw new Error("Unsupported Browser: ", getBrowser());
+  }
+})();
 
-  l('DEBUG') && console.log("Setting RTCSessionDescription", MyRTCSessionDescription);
+l('DEBUG') && console.log("Setting RTCSessionDescription", MyRTCSessionDescription);
 
-  var MyRTCIceCandidate = (function() {
-    /*global mozRTCIceCandidate:false */
-    /*global RTCIceCandidate:false */
-    if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-      return null;
-    } else if (navigator && navigator.mozGetUserMedia) {
-      return mozRTCIceCandidate;
-    } else if (typeof RTCIceCandidate !== 'undefined') {
-      return RTCIceCandidate;
-    } else {
-      return null;
-    //  throw new Error("Unsupported Browser: ", getBrowser());
-    }
-  })();
-  l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
 
-  var validMediaElement = function(element) {
-    return( (typeof element.srcObject !== 'undefined') ||
-        (typeof element.mozSrcObject !== 'undefined') ||
-        (typeof element.src !== 'undefined'));
-  };
+var MyRTCIceCandidate = (function() {
+  /*global mozRTCIceCandidate:false */
+  /*global RTCIceCandidate:false */
+  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
+    return null;
+  } else if (navigator && navigator.mozGetUserMedia) {
+    return mozRTCIceCandidate;
+  } else if (typeof RTCIceCandidate !== 'undefined') {
+    return RTCIceCandidate;
+  } else {
+    return null;
+  //  throw new Error("Unsupported Browser: ", getBrowser());
+  }
+})();
+l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
 
-  /*
-   * Assign getUserMedia, attachMediaStream as private class functions
-   */
-  var getUserMedia, attachMediaStream,detachMediaStream;
-  /* globals URL:false */
+var validMediaElement = function(element) {
+  return( (typeof element.srcObject !== 'undefined') ||
+      (typeof element.mozSrcObject !== 'undefined') ||
+      (typeof element.src !== 'undefined'));
+};
 
-    if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-      getUserMedia = null;
-      attachMediaStream = null;
-      detachMediaStream = null;
-    } else if (navigator && navigator.mozGetUserMedia) {
+/*
+ * Assign getUserMedia, attachMediaStream as private class functions
+ */
+var getUserMedia, attachMediaStream,detachMediaStream;
+/* globals URL:false */
+
+  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
+    getUserMedia = null;
+    attachMediaStream = null;
+    detachMediaStream = null;
+
+  // Creating methods for Firefox
+  } else if (navigator && navigator.mozGetUserMedia) {
     getUserMedia = navigator.mozGetUserMedia.bind(navigator);
     // Attach a media stream to an element.
     attachMediaStream = function(element, stream) {
       l('DEBUG') && console.log("FIREFOX --> Attaching media stream");
-      element.mozSrcObject = stream;
-      element.play();
-    };
-    detachMediaStream = function(element) {
-      l('DEBUG') && console.log("FIREFOX --> Detaching media stream");
-      if (element) {
-        element.mozSrcObject = null;
+      try { 
+        element.mozSrcObject = stream;
+    //    element.play();
+      } catch (e) {
+        console.error('Attach Media Stream failed in FIREFOX:  ', e);
       }
     };
+    detachMediaStream = function(element) {
+    l('DEBUG') && console.log("FIREFOX --> Detaching media stream");
+    if (element) {
+      element.mozSrcObject = null;
+    }
+  };
 
-  } else if (navigator && navigator.webkitGetUserMedia) {
-    getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
-    attachMediaStream = function(element, stream) {
+} else if (navigator && navigator.webkitGetUserMedia) {
+  getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
+  attachMediaStream = function(element, stream) {
+    if (typeof element.srcObject !== 'undefined') {
+      element.srcObject = stream;
+    } else if (typeof element.mozSrcObject !== 'undefined') {
+      element.mozSrcObject = stream;
+    } else if (typeof element.src !== 'undefined') {
+      element.src = URL.createObjectURL(stream);
+    } else {
+      console.error('Error attaching stream to element.');
+    }
+  };
+  detachMediaStream = function(element) {
+    var nullStream = '';
+    if (element) {
       if (typeof element.srcObject !== 'undefined') {
-        element.srcObject = stream;
+        element.srcObject = nullStream;
       } else if (typeof element.mozSrcObject !== 'undefined') {
-        element.mozSrcObject = stream;
+        element.mozSrcObject = nullStream;
       } else if (typeof element.src !== 'undefined') {
-        element.src = URL.createObjectURL(stream);
+        element.src = nullStream;
       } else {
         console.error('Error attaching stream to element.');
       }
-    };
-    detachMediaStream = function(element) {
-      var nullStream = '';
-      if (element) {
-        if (typeof element.srcObject !== 'undefined') {
-          element.srcObject = nullStream;
-        } else if (typeof element.mozSrcObject !== 'undefined') {
-          element.mozSrcObject = nullStream;
-        } else if (typeof element.src !== 'undefined') {
-          element.src = nullStream;
-        } else {
-          console.error('Error attaching stream to element.');
-        }
-      }
-    };
-  } else {
-    console.error("Browser does not appear to be WebRTC-capable");
-  }
+    }
+  };
+} else {
+  console.error("Browser does not appear to be WebRTC-capable");
+}
 
   var getIceServers = function(object) {
     // Expect object to look something like:

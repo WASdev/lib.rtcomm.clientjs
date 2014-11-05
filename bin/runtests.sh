@@ -10,12 +10,12 @@ if [ "$1" == "" ]
 then
   SUITES=''
 else
-  SUITES='suites='+$1
+  SUITES="suites=$1"
 fi
-echo "Using Suites: ${suites}"
+echo "Using Suites: ${SUITES}"
 
 echo "Intern Client is: ${INTERN_CLIENT}"
 
-$INTERN_CLIENT config=tests/intern ${suites} 
+$INTERN_CLIENT config=tests/intern ${SUITES} 
 
 cd $WD
