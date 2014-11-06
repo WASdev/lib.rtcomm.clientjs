@@ -208,13 +208,16 @@ var WebRTCConnection = (function invocation() {
         }
       };
       if (this._.enabled && this.pc) {
-          this.enableLocalAV(doOffer);
-      }
-      return this;
+        this.enableLocalAV(doOffer);
+        return true;
+      } else {
+        return false;
+      } 
     },
 
     _disconnect: function() {
       if (this.pc && this.pc.signalingState !== 'closed') {
+        l('DEBUG') && console.debug(this+'._disconnect() Closing peer connection');
        this.pc.close();
       }
 
@@ -481,7 +484,9 @@ var WebRTCConnection = (function invocation() {
            self.pc.setRemoteDescription(new MyRTCSessionDescription(offer),
              /*onSuccess*/ function() {
                l('DEBUG') && console.log(this+' PRANSWER in processMessage for offer()');
-                self.dependencies.parent._.activeSession.pranswer({'type': 'pranswer', 'sdp':''});
+                if (!self.dependencies.parent.sessionStarted()) { 
+                  self.dependencies.parent._.activeSession.pranswer({'type': 'pranswer', 'sdp':''});
+                }
                 this._setState('alerting');
                }.bind(self),
                /*onFailure*/ function(error){
@@ -642,6 +647,7 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
     peerConnection.oniceconnectionstatechange = function (evt) {
       if (this.pc === null) {
         // If we are null, do nothing... Weird cases where we get here I don't understand yet.
+        l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE fired but this.pc is null');
         return;
       }
       l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE '+ this.pc.iceConnectionState);
@@ -708,7 +714,15 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
         l('DEBUG') && console.log('peerConnection onsignalingstatechange fired: ', evt);
     }.bind(context);
 
+    peerConnection.onclosedconnection = function(evt) {
+      l('DEBUG') && console.log('FIREFOX peerConnection onclosedconnection fired: ', evt);
+    }.bind(context);
+    peerConnection.onconnection = function(evt) {
+      l('DEBUG') && console.log('FIREFOX peerConnection onconnection fired: ', evt);
+    }.bind(context);
+
     peerConnection.onremovestream = function (evt) {
+      l('DEBUG') && console.log('peerConnection onremovestream fired: ', evt);
       // Stream Removed...
       if (this.pc === null) {
         // If we are null, do nothing... Weird cases where we get here I don't understand yet.

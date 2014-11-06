@@ -450,7 +450,8 @@ return  {
           if (this.webrtc.enabled()) {
             self.webrtc._processMessage(content);
           } else {
-            this.webrtc.enable(function(success){
+            // This should only occur on inbound. don't connect, that is for outbound.
+            this.webrtc.enable({connect: false}, function(success){
               if (success) {
                 self.webrtc._processMessage(content);
               }
@@ -478,7 +479,6 @@ return  {
       this.available(false);
       this._.activeSession = createSignalingSession(endpointid, this);
       addSessionCallbacks(this, this._.activeSession);
-
       if (this.config.webrtc && this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
         l('DEBUG') && console.log(this+'.connect() initiating with webrtc._connect');
       } else if (this.config.chat && this.chat._connect(this._.activeSession.start.bind(this._.activeSession))){
