@@ -267,27 +267,23 @@ var EndpointProvider =  function EndpointProvider() {
        * Options:
        *  Do we have a default endpoint?  if so, just give the session to it.
        *  if that endpoint is busy, create a new endpoint and emit it.
-       *
        *  If there isn't a endpoint, create a Endpoint and EMIT it.
        *
        */
       if(session) {
         l('DEBUG') && console.log(endpointProvider+'-on.newsession Handle a new incoming session: ', session);
         // Send it to the same id/appContext;
+        //
         l('DEBUG') && console.log(endpointProvider+'-on.newsession endpointRegistry: ', endpointProvider._.endpointRegistry.list());
-        var endpoint = endpointProvider._.endpointRegistry.get() || null;
-        //TODO:  For the Queue thing, we need to lookup based on the session.source
-        if (endpoint && endpoint.available()) {
-          l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Endpoint: ', endpoint);
+        var endpoint = endpointProvider._.endpointRegistry.getOneAvailable(); 
+        if (endpoint) {
+          l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Existing Endpoint: ', endpoint);
           endpoint.newSession(session);
         } else {
           endpoint = endpointProvider.getRtcommEndpoint();
-          l('DEBUG') && console.log(endpointProvider+'-on.newsession Created a new endpoint for  session: ', endpoint);
+          l('DEBUG') && console.log(endpointProvider+'-on.newsession Created a NEW endpoint for session: ', endpoint);
           endpoint.newSession(session);
           endpointProvider.emit('newendpoint', endpoint);
-          // Deny the session.
-          // session.respond(false, 'No endpoint for appContext:  '+ session.appContext);
-          // Should I delete the session?
         }
       } else {
         console.error(endpointProvider+'-on.newsession - expected a session object to be passed.');
@@ -383,7 +379,10 @@ var EndpointProvider =  function EndpointProvider() {
     }
     if(endpointConfig && typeof endpointConfig !== 'object') {
       endpointid = endpointConfig;
-      endpoint = this._.endpointRegistry.get(endpointid);
+      l('DEBUG') && console.log(this+'.getRtcommEndpoint() Looking for endpoint: '+endpointid);
+      // Returns an array of 1 endpoint. 
+      endpoint = this._.endpointRegistry.get(endpointid)[0];
+      l('DEBUG') && console.log(this+'.getRtcommEndpoint() found endpoint: ',endpoint);
     } else {
       applyConfig(endpointConfig, objConfig);
       objConfig.appContext = this.config.appContext;
@@ -414,8 +413,8 @@ var EndpointProvider =  function EndpointProvider() {
         endpoint.webrtc && endpoint.webrtc.setBroadcast(this._.rtcommEndpointConfig.broadcast);
       }
       // Add to registry or return the one already there
-      l('DEBUG') && console.log('ENDPOINT REGISTRY: ', this._.endpointRegistry.list());
       endpoint = this._.endpointRegistry.add(endpoint);
+      l('DEBUG') && console.log('ENDPOINT REGISTRY: ', this._.endpointRegistry.list());
     }
     return endpoint;
   };
