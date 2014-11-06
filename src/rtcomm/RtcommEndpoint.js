@@ -431,10 +431,11 @@ return  {
   },
   _processMessage: function(content) {
     // basically a protocol router...
+    var self = this;
     if (content) {
       if (content.type === 'user') { 
       // It is a chat this will change to something different later on...
-      if (this.config.chat) { 
+        if (this.config.chat) { 
           this.chat._processMessage(content);
           //this.emit('chat:message', content.userdata);
         } else {
@@ -444,8 +445,17 @@ return  {
         this._.referralSession && this._.referralSession.pranswer();
         this.emit('session:refer');
       } else {
-        if (this.config.webrtc) { 
-          this.webrtc._processMessage(content);
+        if (this.config.webrtc && this.webrtc) { 
+          // calling enable will enable if not already enabled... 
+          if (this.webrtc.enabled()) {
+            self.webrtc._processMessage(content);
+          } else {
+            this.webrtc.enable(function(success){
+              if (success) {
+                self.webrtc._processMessage(content);
+              }
+          });
+          }
         } else {
           console.error('Received webrtc message, but webrtc not supported!');
         }

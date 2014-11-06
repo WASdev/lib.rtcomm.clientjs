@@ -183,7 +183,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   var urlConfig = getUrlParams();
   /* can be passed on URL videoClient.html?regwithoutAV=true */
   var regwithAV = !(urlConfig.regwithoutAV === 'true');
-  var regOnload = (urlConfig.regOnload === true)? true : false;
+  var regOnload = (urlConfig.regOnload === 'true')? true : false;
   var userid = urlConfig.userid || null;
   autoAnswer = (urlConfig.autoAnswer === true)? true : false;
   console.log('Config passed in via URL:', urlConfig);
@@ -502,6 +502,14 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     console.log(paramhash);
     return paramhash;
   }
+
+window.onload = function() {
+  console.log('ONLOAD! '+regOnload+' userid: '+userid);
+  if (regOnload && userid) {
+    console.log('Calling doRegister!');
+    doRegister(userid);
+  }
+}
 </script>
 
 

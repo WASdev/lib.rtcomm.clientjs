@@ -117,7 +117,6 @@ var WebRTCConnection = (function invocation() {
       callback = callback || ((typeof config === 'function') ? config :  function(success, message) {
         l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
       });
-
       // When Enable is called we have a couple of options:
       // 1.  If parent is connected, enable will createofffer and send it.
       // 2.  if parent is NOT CONNECTED. enable will create offer and STORE it for sending by _connect.
@@ -126,9 +125,12 @@ var WebRTCConnection = (function invocation() {
       /*
        * create an offer during the enable process
        */
+
       // If we are enabled already, just return ourselves;
+      //
+
       if (this._.enabled) {
-        this.setLocalMedia(null, callback);
+        this.enableLocalAV(callback);
         return this;
       } else {
         l('DEBUG') && console.log(self+'.enable() connect if possible? '+connect);
@@ -143,8 +145,8 @@ var WebRTCConnection = (function invocation() {
         l('DEBUG') && console.log(self+'.enable() (lazyAV='+lazyAV+',connect='+connect);
         if (!lazyAV && !connect) {
           // enable now.
-          this.setLocalMedia({enable:true},function(success, message) {
-            l('DEBUG') && console.log(self+'.enable() setLocalMedia Callback(success='+success+',message='+message);
+          this.enableLocalAV(function(success, message) {
+            l('DEBUG') && console.log(self+'.enable() enableLocalAV Callback(success='+success+',message='+message);
             callback(true);
           });
         } else {
@@ -152,10 +154,11 @@ var WebRTCConnection = (function invocation() {
             this._connect(null, callback(true));
           } else {
             callback(true);
-          } } return this;
+          } 
+        } 
+        return this;
       }
     },
-
     disable: function() {
       this.onEnabledMessage = null;
       this._.enabled = false;
@@ -164,6 +167,9 @@ var WebRTCConnection = (function invocation() {
         this.pc = null;
       }
       return this;
+    },
+    enabled: function() {
+      return this._.enabled;
     },
 
     /*
@@ -202,16 +208,9 @@ var WebRTCConnection = (function invocation() {
         }
       };
       if (this._.enabled && this.pc) {
-        if (this.broadcastReady()) {
-          this.setLocalMedia(null, doOffer);
-        } else {
-          this.setLocalMedia({enable:true}, doOffer);
-        }
-        return true;
-      } else {
-        l('DEBUG') && console.log('!!!!! not enabled, skipping...');
-        return false;
+          this.enableLocalAV(doOffer);
       }
+      return this;
     },
 
     _disconnect: function() {
@@ -249,23 +248,17 @@ var WebRTCConnection = (function invocation() {
         console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
         console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
         console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
-
         self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
           console.error('failed to create answer', error);
-        },
-        self.config.RTCOfferConstraints);
-      }
+        }
+        //self.config.RTCOfferConstraints);
+        );
+      };
       l('DEBUG') && console.log(this+'.accept() -- accepting --');
       if (this.getState() === 'alerting') {
-        if (this.broadcastReady()) {
-          l('DEBUG') && console.log(this+'.accept() A/V ready, answering...');
-          this.setLocalMedia(null, doAnswer);
-        } else {
-          l('DEBUG') && console.log(this+'.accept() getting AV before answering...');
-          this.setLocalMedia({enable:true}, doAnswer);
-        }
-      return true;
-     };
+        this.enableLocalAV(doAnswer);
+      }
+      return this;
     },
     reject: function() {
       this._disconnect();
@@ -475,7 +468,8 @@ var WebRTCConnection = (function invocation() {
         /*
          * When an Offer is Received 
          * 
-         * 1.  Set the RemoteDescription -- depending on that result, create an answer and all...
+         * 1.  Set the RemoteDescription -- depending on that result, emit alerting.  whoever catches alerting needs to accept() in order
+         * to answer;
          *
          * , we need to send an Answer, this may
          * be a renegotiation depending on our 'state' so we may or may not want
@@ -484,24 +478,17 @@ var WebRTCConnection = (function invocation() {
         var offer = message;
         l('DEBUG') && console.log(this+'_processMessage received an offer ');
         if (this.getState() === 'disconnected') {
-           // enable, call createAnswer/_gotAnswer. 
-           this.enable({lazyAV:true, connect: false}, function(success, message) {
-             if (success) { 
-               self.pc.setRemoteDescription(new MyRTCSessionDescription(offer),
-               /*onSuccess*/ function() {
-                 l('DEBUG') && console.log(this+' Creating answer in processMessage for offer()');
-                 self.pc.createAnswer(self._gotAnswer.bind(self), function(error){
-                   console.error('Failed to create Answer:'+error);
-                 });
+           self.pc.setRemoteDescription(new MyRTCSessionDescription(offer),
+             /*onSuccess*/ function() {
+               l('DEBUG') && console.log(this+' PRANSWER in processMessage for offer()');
+                self.dependencies.parent._.activeSession.pranswer({'type': 'pranswer', 'sdp':''});
+                this._setState('alerting');
                }.bind(self),
                /*onFailure*/ function(error){
                  console.error('setRemoteDescription has an Error', error);
                });
-             } else {
-               console.error('failure: ' + message);
-             }
-          });
         } else if (this.getState() === 'connected') {
+          // THis should be a renegotiation.
           isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message),
               /*onSuccess*/ function() {
                 this.pc.createAnswer(this._gotAnswer.bind(this), function(error){
@@ -534,7 +521,10 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
-  /**
+ /**
+  * Apply or update the Media configuration for the webrtc object
+  *
+  *
   * @param {object} [config]
   *
   * @param {boolean} config.enable
@@ -569,45 +559,68 @@ var WebRTCConnection = (function invocation() {
       l('DEBUG') && console.log(self+'.setLocalMedia() default callback(success='+success+',message='+message);
     };
     l('DEBUG') && console.log(self+'.setLocalMedia() audio['+audio+'] & video['+video+'], enable['+enable+']');
-    if(audio || video) {
-      // a mediaOut is required
-      //
-      // TODO:  This logic needs to be reworked to attachMedia if its not attached here as well.
-      if (this.getMediaOut()) {
-          //TODO:  Check and see if we are adding audio or video?
-          if (enable && !self._.localStream) {
-            l('DEBUG') && console.log(self+'.setLocalMedia() getting userMedia');
-            getUserMedia({'audio': audio, 'video': video},
-                /* onSuccess */ function(stream) {
-                  // save the localstream
-                  self._.localStream = stream;
-                  attachMediaStream(self.getMediaOut(),stream);
-                  self.pc && self.pc.addStream(stream);
-                  callback(true);
-                },
-              /* onFailure */ function(error) {
-                callback(false, "getUserMedia failed");
-              });
-          } else {
-            l('DEBUG') && console.log(self+'.setLocalMedia() already setup, reattching stream');
-              attachMediaStream(self.getMediaOut(),self._.localStream);
-              if (self.pc && self.pc.getLocalStreams().length ===  0 ) {
-                l('DEBUG') && console.log(self+'.setLocalMedia() Adding Stream to peerConnection, only have stream: '+self.pc.getLocalStreams().length);
-                console.log('LocalStream is: ', self._.localStream);
-                self.pc.addStream(self._.localStream);
-              } else {
-                l('DEBUG') && console.log(self+'.setLocalMedia() Adding Stream to peerConnection ',self.pc);
-              }
-              callback(true);
-          }
-      } else {
-        console.error("No MediaOut set... !Nothing to broadcast");
-      }
-    } else {
-      callback(true);
+
+    // Enable AV or if enabled, attach it. 
+    if (enable) {
+      this.enableLocalAV(callback);
     }
     return this;
   },
+
+  /**
+   * {'audio': true/false, 'video':true/false}  
+   */
+  enableLocalAV: function(options, callback) {
+    var self = this;
+    var audio,video;
+    if (options && typeof options === 'object') {
+      audio = options.audio;
+      video = options.video;
+      // Update settings.
+      this.setBroadcast({audio: audio, video: video});
+    } else {
+      callback = (typeof options === 'function') ? options : function(success, message) {
+       l('DEBUG') && console.debug(self+'.enableLocalAV() default callback(success='+success+',message='+message);
+      };
+      // using current settings.
+      audio = this.config.broadcast.audio;
+      video= this.config.broadcast.video;
+    }
+
+    var attachLocalStream = function attachLocalStream(stream){
+      self.getMediaOut() && attachMediaStream(self.getMediaOut(),stream);
+      if (self.pc) {
+        if (self.pc.getLocalStreams()[0] === stream) {
+          // Do nothing, already attached
+          return true;
+        } else {
+          self._.localStream = stream;
+          self.pc.addStream(stream);
+          return true;
+        }
+      } else {
+        l('DEBUG') && console.log(self+'.enableLocalAV() -- No peerConnection available');
+        return false;
+      }
+    };
+    
+    if (audio || video ) { 
+      if (this._.localStream) {
+        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattching stream');
+        callback(attachLocalStream(this._.localStream));
+      } else {
+        getUserMedia({'audio': audio, 'video': video},
+          /* onSuccess */ function(stream) {
+            callback(attachLocalStream(stream));
+          },
+        /* onFailure */ function(error) {
+          callback(false, "getUserMedia failed");
+        });
+      }
+    } else {
+      l('DEBUG') && console.debug(self+'.enableLocalAV() - nothing to do; both audio & video are false');
+    }
+  }
   });  // End of Prototype
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
