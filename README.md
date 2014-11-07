@@ -47,10 +47,10 @@ Edit the file 'WebContent/sample/videoClient.html'.  Find the creation of the ep
      var epConfig = {
        server: 'messagesight.demos.ibm.com',
        port: 1883,
-       userid : null,
        managementTopicName: "management",
+       appContext: "videosample",
        rtcommTopicPath: "/rtcomm/",
-       createEndpoint: false
+       createEndpoint: true 
      };
 ```
 The above are the defaults and need to be changed to match the rtcomm-1.0 feature configuration in the server.xml for the liberty profile server you are using.  This is documented [here](http://www-01.ibm.com/support/knowledgecenter/was_beta_liberty/com.ibm.websphere.wlp.nd.multiplatform.doc/ae/twlp_config_rtcomm.html)
