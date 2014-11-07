@@ -17,7 +17,7 @@
  * @class
  * @memberof module:rtcomm
  * @classdesc
- * Provides Services to register a user and create RtcommEndpoints
+ * Provides Services to register a user and create Endpoints (RtcommEndpoints & MqttEndpoints)
  * <p>
  * This programming interface lets a JavaScript client application use 
  * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
@@ -41,7 +41,7 @@ var EndpointProvider =  function EndpointProvider() {
   if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
   if (!connection) { throw new Error(MISSING_DEPENDENCY+"rtcomm.connection");}
 
-  /** Store the configuration for the object, provided during the init() */
+  /* Store the configuration for the object, provided during the init() */
   this.config = {};
   /* Store the dependent objects */
   this.dependencies= {};
@@ -75,6 +75,7 @@ var EndpointProvider =  function EndpointProvider() {
        * The Session Queue was updated from the server
        * @event module:rtcomm.EndpointProvider#queueupdate
        * @property {module:rtcomm.Queues}
+       *
        */
       'queueupdate': []};
 
@@ -104,10 +105,10 @@ var EndpointProvider =  function EndpointProvider() {
    * @example
    * var endpointProvider = new ibm.rtcomm.RtcommEndpointProvider();
    * var endpointProviderConfig = {
-   *   server : 'broker.mqttdashboard.com',
+   *   server : 'messagesight.demos.ibm.com',
    *   userid : 'ibmAgent1@mysurance.org',
    *   rtcommTopicPath : '/rtcomm/',
-   *   port : 8000,
+   *   port : 1883,
    *   createEndpoint : true,
    *   credentials : null
    * };
@@ -234,7 +235,6 @@ var EndpointProvider =  function EndpointProvider() {
     // Return ourself for chaining.
     return this;
   };  // End of RtcommEndpointProvider.init()
-
   this.stop = this.destroy;
   this.init = this.start;
 
@@ -299,19 +299,18 @@ var EndpointProvider =  function EndpointProvider() {
   }; // End of createEndpointConnection
 
   /**
-   * preset callbacks and config for rtcommEndpoints that are created
-   * matches the getRtcommEndpoint Config
+   * Pre-define RtcommEndpoint configuration.  This provides the means to create a common
+   * configuration all RtcommEndpoints will use, including the same event handlers.  
+   *
+   * *NOTE* This should be set PRIOR to calling getRtcommEndpoint()
    *
    *  @param {Object}  [config] 
    *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
    *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
-   *  @param {object}  [config.broadcast] 
-   *  @param {boolean}  [config.broadcast.audio] 
-   *  @param {boolean}  [config.broadcast.video] 
-   *
-   * // Now you can set event handlers if you want.
-   *
-   * @param {function}  config.<eventname>
+   *  @param {object}  [config.broadcast]   
+   *  @param {boolean}  [config.broadcast.audio]  Endpoint should broadcast Audio
+   *  @param {boolean}  [config.broadcast.video]  Endpoint should broadcast Video
+   *  @param {function} [config.event] Events are defined in {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    *
    * @example
    *
@@ -331,14 +330,14 @@ var EndpointProvider =  function EndpointProvider() {
     this._.rtcommEndpointConfig = util.combineObjects(options, this._.rtcommEndpointConfig);
   };
   /** 
-   * getRtcommEndpoint
-   * Factory method that returns a RtcommEndpoint object to be used by a UI component.
-   *
+   *  Factory method that returns a RtcommEndpoint object to be used by a UI component.
+   *  <p>
    *  The RtcommEndpoint object provides an interface for the UI Developer to attach 
    *  Video and Audio input/output. Essentially mapping a broadcast stream(a MediaStream 
    *  that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound 
    *  stream is added to a RTCPeerConnection, then the RtcommEndpoint object also informs the
    *  RTCPeerConnection where to send that stream in the User Interface.
+   *  </p>
    *
    *  @param {Object}  [config] 
    *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
@@ -582,15 +581,20 @@ var EndpointProvider =  function EndpointProvider() {
 
   // exposing module global functions for set/get loglevel
   /** Set LogLevel 
+   *  @method
    *  @param {string} INFO, MESSAGE, DEBUG, TRACE
    */
   this.setLogLevel = setLogLevel;
+
   /** Return  LogLevel 
+   * @method
    *  @returns {string} INFO, MESSAGE, DEBUG, TRACE
    */
   this.getLogLevel = getLogLevel;
-  /** available endpoints
-   *  @returns {Array} Array of Endpoint Objects 
+
+  /** Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} objects that 
+   * are associated with this  EndpointProvider
+   *  @returns {Array} Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} 
    */
   this.endpoints = function() {
     return this._.endpointRegistry.list();
