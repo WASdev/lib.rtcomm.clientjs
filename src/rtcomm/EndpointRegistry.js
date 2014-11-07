@@ -16,24 +16,30 @@ var EndpointRegistry = function EndpointRegistry(options) {
   // used to search for endpoints by these values.
   var properties = [];
   /* get an endpoint based on a key
-   *  If key is NULL and there is only 1 object in the registry, return it
+   *  if it is ambiguous, return them all in an Array.
    */
   function get(key) {
-    var a = null;
+    var a = [];
+    // Key should be an ID
     if (key) {
-      a = findByProperty('appContext', key);
-      if (a.length === 0) {
-        a = findByProperty('id', key);
-      } 
+      a = findByProperty('id', key);
     } else {
+      // create a list of all endpoints.
       a = this.list();
     }
-    if (a.length === 1) {
-      return a[0];
-    } else if(a.length === 0) {
-      return null;
+    return a;
+  }
+
+  function getOneAvailable() {
+    var a = [];
+    this.list().forEach(function(item){
+      item.available() && a.push(item);
+    });
+    // Return the last one found
+    if(a.length > 0 ) { 
+      return a[a.length-1];
     } else {
-      throw new Error("Ambiguous get, multiple endpoints found: "+ a);
+      return null;
     }
   }
 
@@ -139,7 +145,6 @@ var EndpointRegistry = function EndpointRegistry(options) {
   function destroy() {
     // call destroy on all objects, remove them.
     list().forEach(function(obj){
-        console.log('>>>>>>>>> Destroying... '+ obj.id);
         if (typeof obj.destroy === 'function') {
           obj.destroy();
         }
@@ -167,6 +172,7 @@ var EndpointRegistry = function EndpointRegistry(options) {
   return {
     add: add,
     get: get,
+    getOneAvailable: getOneAvailable,
     findByProperty: findByProperty,
     remove: remove,
     destroy: destroy,
