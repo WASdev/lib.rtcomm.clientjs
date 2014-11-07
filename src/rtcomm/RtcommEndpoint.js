@@ -13,27 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- *  @memberof module:rtcomm
- *  @description
- *  This object can only be created with the {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint} function.
- *  <p>
- *  The RtcommEndpoint object provides an interface for the UI Developer to attach Video and Audio input/output.
- *  Essentially mapping a broadcast stream(a MediaStream that is intended to be sent) to a RTCPeerConnection output
- *  stream.   When an inbound stream is added to a RTCPeerConnection, then this also informs the RTCPeerConnection
- *  where to send that stream in the User Interface.
- *  <p>
- *  See the example under {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint}
- *  @constructor
- *
- *  @extends  module:rtcomm.util.RtcommBaseObject
- */
 /*global: l:false*/
 /*global: generateUUID:false*/
 /*global: util:false*/
 
 var RtcommEndpoint = (function invocation(){
 
+  /**
+   * @memberof module:rtcomm.RtcommEndpoint
+   *
+   * @description 
+   * A Chat is a connection from one peer to another to pass text back and forth
+   *
+   *  @constructor
+   *  @extends  module:rtcomm.util.RtcommBaseObject
+   */
   var Chat = function Chat(parent) {
     // Does this matter?
     var createChatMessage = function(message) {
@@ -54,10 +48,10 @@ var RtcommEndpoint = (function invocation(){
       'alerting': [],
       'disconnected': []
     };
-    /*
-     * When you call enable() if we are connected we will send a message.
-     * otherwise, you should call enable() prior to connect and when connect occurs
-     * it will do what is enabled... 
+    /**
+     * Send a message if connected, otherwise, 
+     * enables chat for subsequent RtcommEndpoint.connect();
+     * @param {string} message  Message to send when enabled.
      */  
     this.enable =  function(message) {
       this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
@@ -69,14 +63,23 @@ var RtcommEndpoint = (function invocation(){
       }
       return this;
     };
+    /**
+     * Accept an inbound connection  
+     */
     this.accept = function(message) {
       if (this.state === 'alerting') {
         this.enable(message || 'Accepting chat connection');
       }
     };
+    /**
+     * Reject an inbound session
+     */
     this.reject = function() {
       // Does nothing.
     };
+    /**
+     * disable chat
+     */
     this.disable = function(message) {
       if (this._.enabled) { 
         this._.enabled = false;
@@ -86,6 +89,10 @@ var RtcommEndpoint = (function invocation(){
       }
       return null;
     };
+    /**
+     * send a chat message
+     * @param {string} message  Message to send
+     */
     this.send = function(message) {
       message = (message && message.message) ? message.message : message;
       message = (message && message.type === 'user') ? message : createChatMessage(message);
@@ -169,6 +176,22 @@ var RtcommEndpoint = (function invocation(){
     return webrtc;
   };
 
+/**
+ *  @memberof module:rtcomm
+ *  @description
+ *  This object can only be created with the {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint} function.
+ *  <p>
+ *  The RtcommEndpoint object provides an interface for the UI Developer to attach 
+ *  Video and Audio input/output.  Essentially mapping a broadcast stream(a MediaStream that
+ *  is intended to be sent) to a RTCPeerConnection output stream.   When an inbound stream
+ *  is added to a RTCPeerConnection, then this also informs the RTCPeerConnection
+ *  where to send that stream in the User Interface.
+ *  <p>
+ *  See the example under {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint}
+ *  @constructor
+ *
+ *  @extends  module:rtcomm.util.RtcommBaseObject
+ */
   var RtcommEndpoint = function RtcommEndpoint(config) {
     // Presuming you creat an object based on this one, 
     // you must override the ession event handler and
@@ -207,7 +230,22 @@ var RtcommEndpoint = (function invocation(){
     this.id = this._.uuid;
     this.userid = this.config.userid || null;
     this.appContext = this.config.appContext || null;
+
+    /**
+     * The attached {@link module:rtcomm.RtcommEndpoint.WebRTCConnection} object 
+     * if enabled null if not enabled
+     *
+     * @type {module:rtcomm.RtcommEndpoint.WebRTCConnection}
+     * @readonly
+     */
     this.webrtc = (this.config.webrtc)?createWebRTCConnection(this): null;
+    /**
+     * The attached {@link module:rtcomm.RtcommEndpoint.Chat} object 
+     * if enabled null if not enabled
+     *
+     * @type {module:rtcomm.RtcommEndpoint.Chat}
+     * @readonly
+     */
     this.chat = (this.config.chat) ? createChat(this): null;
     // Enable chat by default if it is set up that way.
     //this.chat && this.chat.enable();
@@ -291,7 +329,7 @@ var RtcommEndpoint = (function invocation(){
         'webrtc:failed': [],
         /**
          * A message has arrived from a peer
-         * @event module:rtcomm.RtcommEndpoint#message
+         * @event module:rtcomm.RtcommEndpoint#chat:message
          * @property {module:rtcomm.RtcommEndpoint~Event}
          */
         'chat:message': [],
@@ -318,6 +356,7 @@ var RtcommEndpoint = (function invocation(){
 /*globals util:false*/
 /*globals l:false*/
 RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
+
   function createSignalingSession(remoteEndpointID, context) {
     l('DEBUG') && console.log(context+" createSignalingSession context: ", context);
     var sessid = null;
@@ -374,7 +413,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
    // session.listEvents();
     return true;
   }
-
+/** @lends module:rtcomm.RtcommEndpoint.prototype */
 return  {
   getAppContext:function() {return this.config.appContext;},
   newSession: function(session) {
@@ -463,6 +502,11 @@ return  {
       }
     }
   },
+  /** Endpoint is available to accept an incoming call
+   *
+   * @returns {boolean}
+   */
+
     available: function(a) {
      // if a is a boolean then set it, otherwise return it.
      if (typeof a === 'boolean') { 
@@ -473,6 +517,18 @@ return  {
        return this._.available;
      }
     },
+
+  /**
+   *  @memberof module:rtcomm.RtcommEndpoint
+   * Connect to another endpoint.  Depending on what is enabled, it may also start
+   * a chat connection or a webrtc connection.
+   * <p>
+   * If webrtc is enabled by calling webrtc.enable() then the initial connect will 
+   * also generate an Offer to the remote endpoint. <br>
+   * If chat is enabled, an initial message will be sent in the session as well.
+   * </p>
+   * @param {string} endpointid Remote ID of endpoint to connect.
+   */
 
   connect: function(endpointid) {
     if (this.ready()) {
@@ -493,6 +549,9 @@ return  {
     return this;
   },
 
+  /**
+   * Disconnect the endpoint from a remote endpoint.
+   */
   disconnect: function() {
     this.webrtc && this.webrtc.disable();
     this.chat && this.chat.disable();
@@ -504,7 +563,11 @@ return  {
     this.available(true);
     return this;
   },
-
+  /**
+   * Accept an inbound request.  This is typically called after a 
+   * {@link module:rtcomm.RtcommEndpoint#session:alerting|session:alerting} event
+   *
+   */
   accept: function(options) {
     if (this._.referralSession) {
       this.connect(null);
@@ -519,6 +582,11 @@ return  {
     return this;
   },
 
+  /**
+   * Reject an inbound request.  This is typically called after a 
+   * {@link module:rtcomm.RtcommEndpoint#session:alerting|session:alerting} event
+   *
+   */
   reject: function() {
       l('DEBUG') && console.log(this + ".reject() invoked ");
       this.webrtc.reject();
@@ -528,41 +596,62 @@ return  {
       this.available(true);
       return this;
   },
+
+  /* used by the parent to assign the endpoint connection */
   setEndpointConnection: function(connection) {
     this.dependencies.endpointConnection = connection;
   },
 
+  /** Return user id 
+   * @returns {string} Local UserID that endpoint is using
+   */
   getUserID : function(userid) {
       return this.config.userid; 
   },
   setUserID : function(userid) {
       this.userid = this.config.userid = userid;
   },
+
+  /**
+   * Endpoint is ready to connect
+   * @returns {boolean}
+   */
   ready : function() {
     var ready = (this.dependencies.endpointConnection) ? true : false;
     return ready;
   },
-
+  /**
+   * The Signaling Session is started 
+   * @returns {boolean}
+   */
   sessionStarted: function() {
     return (this._.activeSession && this._.activeSession.getState() === 'started');
   },
-
   /**
-   * session doesn't exist or is stopped
+   * The Signaling Session does not exist or is stopped
+   * @returns {boolean}
    */
   sessionStopped: function() {
     var state = (this._.activeSession) ? (this._.activeSession.getState() === 'stopped'): true;
     return state;
   },
+  /**
+   * Remote EndpointID this endpoint is connected to.
+   * @returns {string}
+   */
   getRemoteEndpointID: function() {
     return this._.activeSession ? this._.activeSession.remoteEndpointID : 'none';
   },
+  /**
+   * Local EndpointID this endpoint is using.
+   * @returns {string}
+   */
   getLocalEndpointID: function() {
     return this.userid;
   },
+
   /**
    *  Destroy this endpoint.  Cleans up everything and disconnects any and all connections
-   *
    */
   destroy : function() {
     l('DEBUG') && console.log(this+'.destroy Destroying RtcommEndpoint');
@@ -575,6 +664,9 @@ return  {
     l('DEBUG') && console.log(this+'.destroy() - Finished');
   },
 
+  /* This is an event formatter that is called by the prototype emit() to format an event if 
+   * it exists
+   */
   _Event : function Event(event, object) {
       var RtcommEvent =  {
         eventName: '',

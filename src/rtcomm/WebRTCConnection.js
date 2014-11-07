@@ -14,16 +14,16 @@
  * limitations under the License.
  **/
 var WebRTCConnection = (function invocation() {
+
   /**
-   * @class
-   * @memberof module:rtcomm.webrtc
+   * @memberof module:rtcomm.RtcommEndpoint
    *
-   * @classdesc
+   * @description 
    * A WebRTCConnection is a connection from one peer to another encapsulating
    * an RTCPeerConnection and a SigSession
-   *
-   *
-   * @private
+ *  @constructor
+ *
+ *  @extends  module:rtcomm.util.RtcommBaseObject
    */
   var WebRTCConnection = function WebRTCConnection(parent) {
     var OfferConstraints = {'mandatory': {
@@ -68,36 +68,34 @@ var WebRTCConnection = (function invocation() {
 
   };
 
-  WebRTCConnection.prototype = util.RtcommBaseObject.extend({
+  WebRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
+    /** @lends module:rtcomm.RtcommEndpoint.WebRTCConnection.prototype */
+    return {
     /*
-     * When you call enable() if we are connected we will send a message.
-     * otherwise, you should call enable() prior to connect and when connect occurs
-     * it will do what is enabled...
      */
     // Same as options for creating a PeerConnection(and offer/answer)
     // include UI elements here.
     /**
+     * enable webrtc
+     * <p>
+     * When enable() is called, if we are connected we will initiate a webrtc connection (generate offer)
+     * Otherwise, call enable() prior to connect and when connect occurs it will do what is enabled...
+     * </p>
+     *
      * @param {object} [config]
      *
-     * @param {object} [config.mediaIn]
-     * @param {object} [config.mediaOut]
-     * @param {object} [config.broadcast]
-     * @param {boolean} config.broadcast.audio
-     * @param {boolean} config.broadcast.video
+     * @param {object} [config.mediaIn]  UI component to attach inbound media stream
+     * @param {object} [config.mediaOut] UI Component to attach outbound media stream
+     * @param {object} [config.broadcast] 
+     * @param {boolean} [config.broadcast.audio] Broadcast Audio
+     * @param {boolean} [config.broadcast.video] Broadcast Video
+     * @param {object} [config.RTCOfferConstraints] RTCPeerConnection specific config {@link http://w3c.github.io/webrtc-pc/} 
+     * @param {object} [config.RTCConfiguration] RTCPeerConnection specific {@link http://w3c.github.io/webrtc-pc/} 
+     * @param {object} [config.RTCConfiguration.peerIdentity] 
+     * @param {boolean} [config.lazyAV=true]  Enable AV lazily [upon connect/accept] rather than during
+     * right away
+     * @param {boolean} [config.connect=true] Internal, do not use.
      *
-     * Generally, these will not be messed with unless specific control of the 
-     * peerConnection is required.
-     *
-     * @param {object} [config.RTCOfferConstraints]
-     * @param {object} [config.RTCConfiguration]
-     * @param {object} [config.RTCConfiguration.iceServers]
-     * @param {object} [config.RTCConfiguration.iceTranports]
-     * @param {object} [config.RTCConfiguration.peerIdentity]
-     *
-     * @param {boolean} [config.connect=true]
-     * @param {boolean} [config.lazyAV=true]
-     *
-     * mediaIn/MediaOut?
      **/
     enable: function(config,callback) {
       // If you call enable, no matter what we can update the config.
@@ -159,6 +157,9 @@ var WebRTCConnection = (function invocation() {
         return this;
       }
     },
+    /** disable webrtc 
+     * Disconnect and reset
+     */
     disable: function() {
       this.onEnabledMessage = null;
       this._.enabled = false;
@@ -168,6 +169,10 @@ var WebRTCConnection = (function invocation() {
       }
       return this;
     },
+    /**
+     * WebRTCConnection is enabled
+     * @returns {boolean}
+     */
     enabled: function() {
       return this._.enabled;
     },
@@ -239,8 +244,9 @@ var WebRTCConnection = (function invocation() {
         parent._.activeSession.send(message);
       }
     },
-    /*
-     * options should be override w/ RTCOfferConstraints I guess..
+
+    /**
+     * Accept an inbound connection
      */
     accept: function(options) {
       var self = this;
@@ -263,9 +269,11 @@ var WebRTCConnection = (function invocation() {
       }
       return this;
     },
+    /** reject an inbound connection */
     reject: function() {
       this._disconnect();
     },
+    /** State of the WebRTC, matches an event */
     getState: function() {
       return this._.state;
     },
@@ -287,6 +295,11 @@ var WebRTCConnection = (function invocation() {
         return false;
       };
     },
+    /** configure broadcast 
+     *  @param {object} broadcast 
+     *  @param {boolean} broadcast.audio
+     *  @param {boolean} broadcast.video
+     */
     setBroadcast : function setBroadcast(broadcast) {
       this.config.broadcast.audio = (broadcast.hasOwnProperty('audio') && typeof broadcast.audio === 'boolean') ?
         broadcast.audio :
@@ -301,7 +314,6 @@ var WebRTCConnection = (function invocation() {
       }
       return this;
     },
-
     pauseBroadcast: function() {
       if (this._.localStream) {
         this._.localStream.getVideoTracks()[0].enabled = false;
@@ -314,14 +326,14 @@ var WebRTCConnection = (function invocation() {
         this._.localStream.getAudioTracks()[0].enabled = true;
       }
     },
+    getMediaIn: function() {
+      return this.config.mediaIn;
+    },
     /**
      * DOM node to link the RtcommEndpoint inbound media stream to.
      * @param {Object} value - DOM Endpoint with 'src' attribute like a 'video' node.
      * @throws Error Object does not have a src attribute
      */
-    getMediaIn: function() {
-      return this.config.mediaIn;
-    },
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
         if (this._.remoteStream) {
@@ -336,12 +348,12 @@ var WebRTCConnection = (function invocation() {
       }
       return this;
     },
+    getMediaOut: function() { return this.config.mediaOut; },
     /**
      * DOM Endpoint to link outbound media stream to.
      * @param {Object} value - DOM Endpoint with 'src' attribute like a 'video' node.
      * @throws Error Object does not have a src attribute
      */
-    getMediaOut: function() { return this.config.mediaOut; },
     setMediaOut: function(value) {
       if(validMediaElement(value) ) {
         if (this._.localStream) {
@@ -358,7 +370,6 @@ var WebRTCConnection = (function invocation() {
       }
       return this;
     },
-
   /*
    * This is executed by createAnswer.  Typically, the intent is to just send the answer
    * and call setLocalDescription w/ it.  There are a couple of variations though.
@@ -424,7 +435,7 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
-  /** Process inbound messages
+  /* Process inbound messages
    *
    *  These are 'PeerConnection' messages
    *  Offer/Answer/ICE Candidate, etc...
@@ -528,8 +539,6 @@ var WebRTCConnection = (function invocation() {
 
  /**
   * Apply or update the Media configuration for the webrtc object
-  *
-  *
   * @param {object} [config]
   *
   * @param {boolean} config.enable
@@ -573,7 +582,15 @@ var WebRTCConnection = (function invocation() {
   },
 
   /**
-   * {'audio': true/false, 'video':true/false}  
+   * Enable Local Audio/Video and attach it to the connection
+   *
+   * Generally called through setLocalMedia({enable:true})
+   *
+   * @param {object} options
+   * @param {boolean} options.audio
+   * @param {boolean} options.video
+   * @callback 
+   *
    */
   enableLocalAV: function(options, callback) {
     var self = this;
@@ -626,7 +643,9 @@ var WebRTCConnection = (function invocation() {
       l('DEBUG') && console.debug(self+'.enableLocalAV() - nothing to do; both audio & video are false');
     }
   }
-  });  // End of Prototype
+ };
+
+})()); // End of Prototype
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;

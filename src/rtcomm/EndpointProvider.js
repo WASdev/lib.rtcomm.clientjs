@@ -426,15 +426,9 @@ var EndpointProvider =  function EndpointProvider() {
     return new MqttEndpoint({connection: this.dependencies.endpointConnection});
   };
 
-  /** Create Session Only Endpoint 
-   * @returns {module:rtcomm.MqttEndpoint} */
-  this.getSessionEndpoint = function() {
-    var sess =  new BaseSessionEndpoint();
-    sess.dependencies.endpointConnection = this.dependencies.endpointConnection;
-    sess._.appContext = this.config.appContext;
-    return this._.endpointRegistry.add(sess);
-  };
-
+  /** 
+   * Destroy all endpoints and cleanup the endpointProvider.
+   */
   this.destroy = function() {
     this.leaveAllQueues();
     this.clearEventListeners();
@@ -469,7 +463,7 @@ var EndpointProvider =  function EndpointProvider() {
   };
 
   /*
-   * set the userId -- generally used prior to init.
+   * Set the userId -- generally used prior to init.
    * cannot overwrite an existing ID, but will propogate to endpoints.
    */
   this.setUserID = function(userid) {
@@ -486,7 +480,7 @@ var EndpointProvider =  function EndpointProvider() {
     }
   };
   /**
-   * populate the session queues
+   * Update queues from server
    * @fires module:rtcomm.EndpointProvider#queueupdate
    */
   this.updateQueues= function updateQueues() {
@@ -499,11 +493,12 @@ var EndpointProvider =  function EndpointProvider() {
   };
   /**
    * Join a Session Queue
-   *
+   * <p>
    * A Session Queue is a subscription to a Shared Topic.  By joining a queue, it enables
    * the all RtcommEndpoints to be 'available' to receive an inbound request from the queue topic.
    * Generally, this could be used for an Agent scenario where many endpoints have joined the 
    * queue, but only 1 endpoint will receive the inbound request.  
+   * </p>
    *
    * @param {string} queueid Id of a queue to join.
    * @returns {boolean} Queue Join successful
@@ -550,6 +545,9 @@ var EndpointProvider =  function EndpointProvider() {
     }
   };
 
+  /**
+   * Leave all queues currently joined
+   */
   this.leaveAllQueues = function() {
     var self = this;
     this.listQueues().forEach(function(queue) {
@@ -575,11 +573,11 @@ var EndpointProvider =  function EndpointProvider() {
   this.getUserID= function() {
     return  this.config.userid;
   };
+  /** Return the endpointConnection the EndpointProvider is using */
   this.getEndpointConnection = function() {
     return this.dependencies.endpointConnection;
   };
 
-  // exposing module global functions for set/get loglevel
   /** Set LogLevel 
    *  @method
    *  @param {string} INFO, MESSAGE, DEBUG, TRACE
@@ -599,6 +597,9 @@ var EndpointProvider =  function EndpointProvider() {
   this.endpoints = function() {
     return this._.endpointRegistry.list();
   };
+  /** Return object indicating state of EndpointProvider 
+   *  *NOTE* Generally used for debugging purposes 
+  */
   this.currentState = function() {
     return {
       'ready': this.ready,
