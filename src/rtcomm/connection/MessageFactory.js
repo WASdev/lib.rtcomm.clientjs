@@ -22,7 +22,7 @@
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.1.0',
+      'rtcommVer': 'v0.2.0',
        'method' : null,
        'fromTopic': null
   };
@@ -108,9 +108,7 @@ var MessageFactory = (function (){
   
   function getMessageTemplate(type) {
     var template = {};
-    
     objMerge(template,_baseHeaders);
-   
     if (_messageTemplates.hasOwnProperty(type)) {
       objMerge(template,_messageTemplates[type]);
       return template;

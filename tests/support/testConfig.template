@@ -1,0 +1,5 @@
+{
+   "mqttServers" : ["@MQTT1@", "@MQTT2@"],
+   "managementTopicName" : "@TOPICNAME@",
+   "rtcommTopicPath" : "/rtcomm/"
+}

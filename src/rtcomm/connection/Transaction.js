@@ -34,7 +34,6 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   var message, timeout, toTopic;
 
   this.defaultTimeout = 5000;
-  l('DEBUG') && console.log('Transaction constructor using options: ',options);
   if (options) {
     message = options.message || null;
     timeout = options.timeout || null;
@@ -59,7 +58,7 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
     console.log(this+' Transaction failed, requires callback for more information:', object);
   };
 
-  l('DEBUG') && console.log('Are we outbound?', this.outbound);
+  l('DEBUG') && console.log(this+ '.constructor Are we outbound?', this.outbound);
 };
 /*global util:false*/
 Transaction.prototype = util.RtcommBaseObject.extend(
@@ -99,7 +98,7 @@ Transaction.prototype = util.RtcommBaseObject.extend(
       this.message.transID = this.id;
       this.send(this.message);  
     } else {
-      l('DEBUG') && console.log('inbound Transaction -- nothing to send in start()');
+      l('TRACE') && console.log(this+'.start() Inbound Transaction ');
     }
   },
   /**
@@ -143,7 +142,6 @@ Transaction.prototype = util.RtcommBaseObject.extend(
         this.send(rtcommMessage);
       }
       this.emit('finished');
-
     } else {
       console.error('Message not for this transaction: ', rtcommMessage);
     }

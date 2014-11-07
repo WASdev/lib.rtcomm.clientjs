@@ -86,13 +86,23 @@ var RtcommBaseObject = {
     /** emit an event from the object */
     emit : function(event, object) {
       var self = this;
+      // We have an event format specified, normalize the event before emitting.
+      if (this._Event && typeof this._Event === 'function') { 
+        object = this._Event(event, object);
+      }
       if (this.events && this.events[event] ) {
+     //   console.log('>>>>>>>> Firing event '+event);
         l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);
-        // Event exists, call all callbacks
+         // Event exists, call all callbacks
         self.events[event].forEach(function(callback) {
             if (typeof callback === 'function') {
-              l('EVENT', self) && console.log(this+".emit()  executing callback for event["+event+"]");
-              callback(object);
+              l('EVENT', self) && console.log(self+".emit()  executing callback for event["+event+"]");
+              try {
+                callback(object);
+              } catch(e) {
+                var m = 'Event['+event+'] callback failed with message: '+e.message;
+                throw new Error(m);
+              }
             } else {
               l('EVENT', self) && console.log(self+' Emitting, but no callback for event['+event+']');
             }   
@@ -120,7 +130,9 @@ var RtcommBaseObject = {
       }
     },
     toString: function() {
-      return this.objName + '['+this.id+']';
+      var name =  (this._ && this._.objName)? this._.objName : this.objName || this.name || 'Unknown';
+      var id =  (this._ && this._.id)? this._.id: this.id || 'Unknown';
+      return name + '['+id+']';
     }
 };
 
