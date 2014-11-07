@@ -5,7 +5,7 @@ The rtcomm.js library is a JavaScript Universal Module Description(UMD) formatte
 
 ##Requirements
 
-1.  An MQTT Server such as IBM MessageSite. For prototyping and development, it is possible to use `broker.mqttdashboard.com`.
+1.  An MQTT Server such as IBM MessageSite. For prototyping and development, it is possible to use `messagesight.demos.ibm.com`.
 2.  Chrome or Firefox web browsers that support WebRTC.
 3.  A Liberty Profile server that runs with the  `rtcomm-1.0` feature enabled. 
 
