@@ -41,6 +41,11 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
         rtcommTopicPath:rtcommTopicPath 
       };
     },
+    clientConfig: function() {
+         return new this._ServerConfig(
+           randomID()
+           );
+    },
     
     clientConfig1 : function() {
          return new this._ServerConfig(

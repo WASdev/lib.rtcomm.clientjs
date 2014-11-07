@@ -222,6 +222,81 @@ define([
                     console.log('error in customer init:' + error);
                   }
                  );
-         }
+         },
+     "Create many endpoints" : function() {
+       this.skip();
+         // mark for destroy;
+         var config1 = config.clientConfig();
+         var endpointProvider2 = g.endpointProvider2 = new rtcomm.EndpointProvider();
+         var config2 = config.clientConfig();
+         var endpointProvider3 = g.endpointProvider3 = new rtcomm.EndpointProvider();
+         var config3 = config.clientConfig();
+         var endpointProvider4 = g.endpointProvider4 = new rtcomm.EndpointProvider();
+         var config4 = config.clientConfig();
+
+         endpointProvider2.setAppContext('test');
+         endpointProvider3.setAppContext('test');
+         endpointProvider4.setAppContext('test');
+
+         // All enpdointProvider1 should be INBOUND... 
+          
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
+         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:false});
+         var ep4 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:false});
+
+         var onNewEndpoint = function(event) {
+           // you don't know the provider here.
+
+         };
+
+         var initAllEps = function() {
+           var dfd = new Deferred();
+           endpointProvider.init(config1);
+           endpointProvider2.init(config2);
+           endpointProvider3.init(config3);
+           endpointProvider4.init(config4);
+           setTimeout(function(){
+            dfd.resolve();
+           },3000);
+
+           return dfd.promise;
+         };
+
+         var dfd = this.async(T1);
+
+         initAllEps.then(
+
+         );
+         var finish = dfd.callback(function(object){
+            console.log("******************Asserting now...***********************");
+            console.log('endpoint1: ',ep1);
+            console.log('endpoint2: ',ep2);
+            assert.ok(ep1.sessionStarted());
+            assert.ok(ep2.sessionStarted());
+            endpointProvider2.destroy();
+         });
+
+         ep1.on('session:started', finish);
+         ep2.on('session:alerting', function(obj) {
+           console.log('>>>>TEST  accepting call');
+           ep2.accept();
+         });
+         endpointProvider.init(config1,
+                  function(obj) {
+                    endpointProvider2.init(config2,
+                        function(obj) {
+                          console.log('calling EP2');
+                          ep1.connect(config2.userid);
+                        },
+                        function(error) {
+                          console.log('error in ep2 init:' + error);
+                        }
+                       );
+                  },
+                  function(error) {
+                    console.log('error in ep1 init:' + error);
+                  }
+                 );
+         },
     });
 });
