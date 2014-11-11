@@ -62,7 +62,7 @@ var EndpointConnection = function EndpointConnection(config) {
             // didn't execute yet
             var errorMsg = item.objName + ' '+item.timer+' Timed out ['+item.id+'] after  '+timerTimeout+': '+Date();
             if (typeof registry[item.id].onFailure === 'function' ) {
-              registry[item.id].onFailure({'failureReason': errorMsg});
+              registry[item.id].onFailure({'reason': errorMsg});
             } else {
               l('DEBUG') && console.log(errorMsg);
             }
@@ -136,7 +136,8 @@ var EndpointConnection = function EndpointConnection(config) {
       // Need to propogate this, just in case...
       rtcommMessage.fromEndpointID = fromEndpointID;
     } catch (e) {
-      l('INFO') && console.log(this+'.processMessage() Unable to cast message, emitting original message');
+      l('DEBUG') && console.log(this+'.processMessage() Unable to cast message, emitting original message',e);
+      l('DEBUG') && console.log(this+'.processMessage() Unable to cast message, emitting original message',message);
     }
 
     if (rtcommMessage && rtcommMessage.transID) {
@@ -521,10 +522,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         serviceQuery: function(cbSuccess, cbFailure) {
           var self = this;
           cbSuccess = cbSuccess || function(message) {
-            console.log(this+'.serviceQuery() Default Success message, use callback to process:', message);
+            l('DEBUG') && console.log(this+'.serviceQuery() Default Success message, use callback to process:', message);
           };
           cbFailure = cbFailure || function(error) {
-            console.log(this+'.serviceQuery() Default Failure message, use callback to process:', error);
+            l('DEBUG') && console.log(this+'.serviceQuery() Default Failure message, use callback to process:', error);
           };
 
           if (!this.id) {

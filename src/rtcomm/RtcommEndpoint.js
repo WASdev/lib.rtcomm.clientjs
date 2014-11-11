@@ -119,6 +119,7 @@ var RtcommEndpoint = (function invocation(){
         } 
       } else {
         if (!parent.sessionStopped()) {
+          parent._.activeSession && parent._.activeSession.pranswer();
           this._setState('alerting', {'message': message.userdata});
         }
       }
@@ -447,9 +448,10 @@ return  {
          //
          if (session.message && session.message.peerContent) {
            // If it is chat. be consistent and pass to 
-           if (session.message.peerContent.type === 'user') {
-             session.respond();
-           } 
+           // TEST:  Do not respond automatically on CHAT.
+           //if (session.message.peerContent.type === 'user') {
+           //  session.respond();
+           //} 
            // If we need to pranswer, processMessage can handle it.
            this._processMessage(session.message.peerContent);
          } else {

@@ -139,6 +139,16 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      *  config = {remoteEndpointID: something, message:  }
      */
     start : function(config) {
+
+      if (this._startTransaction) {
+        // already Started
+        //
+        l('DEBUG') && console.log('SigSession.start() already started/starting');
+        return;
+      }
+
+
+
       this._setupQueue();
       /*global l:false*/
       l('DEBUG') && console.log('SigSession.start() using config: ', config);
@@ -190,7 +200,6 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         console.error('Session Start Failed: ', reason);
         this.emit('failed', reason);
       };
-      
       this._startTransaction = this.endpointconnector.createTransaction(
           { message: this.message,
             timeout: this.initialTimeout
