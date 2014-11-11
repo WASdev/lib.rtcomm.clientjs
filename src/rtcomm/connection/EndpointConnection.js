@@ -127,11 +127,7 @@ var EndpointConnection = function EndpointConnection(config) {
     var endpointConnection = this;
     var topic = message.topic;
     var content = message.content;
-    /* 
-     * If the topic is null, then fromEndpointID was set by the mqttConnection asserting identity
-     * Otherwise, if its on topic, then the message has the fromEndpointID
-     */
-    var fromEndpointID = (topic && content.fromEndpointID) ? (content.fromEndpointID) : message.fromEndpointID;
+    var fromEndpointID = message.fromEndpointID;
     var rtcommMessage = null;
     /*global MessageFactory:false*/
     try {
@@ -140,7 +136,8 @@ var EndpointConnection = function EndpointConnection(config) {
       // Need to propogate this, just in case...
       rtcommMessage.fromEndpointID = fromEndpointID;
     } catch (e) {
-      l('INFO') && console.log(this+'.processMessage() Unable to cast message, emitting original message');
+      l('DEBUG') && console.log(this+'.processMessage() Unable to cast message, emitting original message',e);
+      l('DEBUG') && console.log(this+'.processMessage() Unable to cast message, emitting original message',message);
     }
 
     if (rtcommMessage && rtcommMessage.transID) {
@@ -525,10 +522,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         serviceQuery: function(cbSuccess, cbFailure) {
           var self = this;
           cbSuccess = cbSuccess || function(message) {
-            console.log(this+'.serviceQuery() Default Success message, use callback to process:', message);
+            l('DEBUG') && console.log(this+'.serviceQuery() Default Success message, use callback to process:', message);
           };
           cbFailure = cbFailure || function(error) {
-            console.log(this+'.serviceQuery() Default Failure message, use callback to process:', error);
+            l('DEBUG') && console.log(this+'.serviceQuery() Default Failure message, use callback to process:', error);
           };
 
           if (!this.id) {
