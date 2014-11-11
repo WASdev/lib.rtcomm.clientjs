@@ -58,7 +58,11 @@ var RtcommEndpoint = (function invocation(){
       // Don't need much, just set enabled to true.
       // Default message
       this._.enabled = true;
+      
       if (parent.sessionStarted()) {
+        this._connect();
+      } else { 
+        parent._.activeSession && parent._.activeSession.respond();
         this._connect();
       }
       return this;
@@ -67,6 +71,7 @@ var RtcommEndpoint = (function invocation(){
      * Accept an inbound connection  
      */
     this.accept = function(message) {
+      l('DEBUG') && console.log(this+'.accept() -- accepting --'+ this.state);
       if (this.state === 'alerting') {
         this.enable(message || 'Accepting chat connection');
       }
