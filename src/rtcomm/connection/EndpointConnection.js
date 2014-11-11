@@ -62,7 +62,7 @@ var EndpointConnection = function EndpointConnection(config) {
             // didn't execute yet
             var errorMsg = item.objName + ' '+item.timer+' Timed out ['+item.id+'] after  '+timerTimeout+': '+Date();
             if (typeof registry[item.id].onFailure === 'function' ) {
-              registry[item.id].onFailure({'failureReason': errorMsg});
+              registry[item.id].onFailure({'reason': errorMsg});
             } else {
               l('DEBUG') && console.log(errorMsg);
             }
@@ -127,7 +127,11 @@ var EndpointConnection = function EndpointConnection(config) {
     var endpointConnection = this;
     var topic = message.topic;
     var content = message.content;
-    var fromEndpointID = message.fromEndpointID;
+    /* 
+     * If the topic is null, then fromEndpointID was set by the mqttConnection asserting identity
+     * Otherwise, if its on topic, then the message has the fromEndpointID
+     */
+    var fromEndpointID = (topic && content.fromEndpointID) ? (content.fromEndpointID) : message.fromEndpointID;
     var rtcommMessage = null;
     /*global MessageFactory:false*/
     try {
