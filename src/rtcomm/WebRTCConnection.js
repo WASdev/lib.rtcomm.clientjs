@@ -32,10 +32,10 @@ var WebRTCConnection = (function invocation() {
     };
 
     this.config = {
-      RTCConfiguration : null,
+      RTCConfiguration : {iceTransports : "all"},
       RTCOfferConstraints: null,
       RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
-      iceServers: null,
+      iceServers: [],
       mediaIn: null,
       mediaOut: null,
       broadcast: {
@@ -104,8 +104,9 @@ var WebRTCConnection = (function invocation() {
       var self = this;
       var parent = self.dependencies.parent;
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
+
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
-      RTCConfiguration.iceServers = RTCConfiguration.iceServers || this.config.iceServers.iceServers;
+      RTCConfiguration.iceServers = RTCConfiguration.iceServers || this.getIceServers();
       var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
       this.config.RTCOfferConstraints= (config && config.RTCOfferConstraints) ? config.RTCOfferConstraints: this.config.RTCOfferConstraints;
 
@@ -649,17 +650,13 @@ var WebRTCConnection = (function invocation() {
  setIceServers: function(service) {
     // Returned object expected to look something like:
     // {"iceServers":[{"url": "stun:host:port"}, {"url","turn:host:port"}] 
-    var iceServers = null ;
+    var urls = [];
     if (service && service.iceURL)  {
-        var urls = [];
         service.iceURL.split(',').forEach(function(url){
           urls.push({'url': url});
         });
-        iceServers = {'iceServers':urls};
-    } else {
-     iceServers = {'iceServers':[]};
-    }
-    this.config.iceServers = iceServers;
+    } 
+    this.config.iceServers = urls;
    },
   getIceServers: function() {
     return this.config.iceServers;
