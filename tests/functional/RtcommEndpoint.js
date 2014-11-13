@@ -201,16 +201,19 @@ define([
               if (queues) {
                 queueid = Object.keys(queues)[0];
                 endpointProvider2.joinQueue(queueid);
+                console.log('TEST>>>> Agent Available? '+agent.available());
                 // Connect to the queue now.
               } 
             });
 
+            config1.userid='Customer';
             config2.userid='Agent';
             endpointProvider.init(config1,
                   function(obj) {
                     endpointProvider2.init(config2,
                         function(obj) {
                           console.log('init was successful');
+                          console.log('TEST>>>> Agent Available? '+agent.available());
                           customer.connect(queueid);
                         },
                         function(error) {

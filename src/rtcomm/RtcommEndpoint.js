@@ -36,6 +36,7 @@ var RtcommEndpoint = (function invocation(){
     var chat = this;
     this._ = {};
     this._.objName = 'Chat';
+    this.id = parent.id;
     this._.parentConnected = false;
     this._.enabled = false;
     this.onEnabledMessage = null;
@@ -54,14 +55,18 @@ var RtcommEndpoint = (function invocation(){
      * @param {string} message  Message to send when enabled.
      */  
     this.enable =  function(message) {
+      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
+
       this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
       // Don't need much, just set enabled to true.
       // Default message
       this._.enabled = true;
       
       if (parent.sessionStarted()) {
+        l('DEBUG') && console.log(this+'.enable() - Session Started, connecting chat');
         this._connect();
       } else { 
+        l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
         parent._.activeSession && parent._.activeSession.respond();
         this._connect();
       }
@@ -71,7 +76,7 @@ var RtcommEndpoint = (function invocation(){
      * Accept an inbound connection  
      */
     this.accept = function(message) {
-      l('DEBUG') && console.log(this+'.accept() -- accepting --'+ this.state);
+      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
       if (this.state === 'alerting') {
         this.enable(message || 'Accepting chat connection');
       }
@@ -131,12 +136,15 @@ var RtcommEndpoint = (function invocation(){
       return this;
     };
     this._setState = function(state, object) {
+     l('DEBUG') && console.log(this+'._setState() setting state to: '+ state); 
+      var currentState = this.state;
       try {
-        this.emit(state, object);
         this.state = state;
+        this.emit(state, object);
       } catch(error) {
         console.error(error);
         console.error(this+'._setState() unsupported state: '+state );
+        this.state = currentState;
       }
     };
 

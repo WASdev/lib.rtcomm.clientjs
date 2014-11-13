@@ -142,7 +142,7 @@ define([
             assert.ok(c2_started, 'Chat2 should be started');
             assert.notOk(c2_messages, 'Chat2 should not receive any messages on chat:message');
             assert.equal(alert_message,'client1 has initiated a Chat with you', "Received chat from startup");
-            // Send messages here?
+            console.log('TEST >>>>> Finished asserting');
           }));
           chat2.on('session:started', function(event){
             c2_started = true;
@@ -151,7 +151,7 @@ define([
           });
           chat2.on('session:alerting', function(event) {
             assert.equal(event.protocols, 'chat', 'Correct protocol');
-            chat2.chat.accept();
+            chat2.accept();
             console.log('Received a Chat message...', event);
             alert_message = event.message.message;
           });
