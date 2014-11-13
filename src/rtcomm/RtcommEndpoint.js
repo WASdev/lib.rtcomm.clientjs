@@ -175,6 +175,7 @@ var RtcommEndpoint = (function invocation(){
   var createWebRTCConnection = function createWebRTCConnection(parent) {
     /* globals WebRTCConnection:false */
     var webrtc = new WebRTCConnection(parent);
+    webrtc.setIceServers(parent.dependencies.endpointConnection.RTCOMM_CONNECTOR_SERVICE);
     webrtc.on('ringing', function(event_obj) {
       parent.emit('session:ringing');
     });
