@@ -258,6 +258,7 @@ var EndpointProvider =  function EndpointProvider() {
 
     endpointConnection.on('servicesupdate', function(services) {
       endpointProvider._.services = services;
+
       endpointProvider.updateQueues();
     });
 

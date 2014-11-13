@@ -614,6 +614,7 @@ return  {
 
   /* used by the parent to assign the endpoint connection */
   setEndpointConnection: function(connection) {
+    this.webrtc && this.webrtc.setIceServers(connection.RTCOMM_CONNECTOR_SERVICE);
     this.dependencies.endpointConnection = connection;
   },
 

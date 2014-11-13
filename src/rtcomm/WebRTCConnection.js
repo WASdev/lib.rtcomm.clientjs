@@ -32,9 +32,10 @@ var WebRTCConnection = (function invocation() {
     };
 
     this.config = {
-      RTCConfiguration : null,
+      RTCConfiguration : {iceTransports : "all"},
       RTCOfferConstraints: null,
       RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
+      iceServers: [],
       mediaIn: null,
       mediaOut: null,
       broadcast: {
@@ -103,7 +104,9 @@ var WebRTCConnection = (function invocation() {
       var self = this;
       var parent = self.dependencies.parent;
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
+
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
+      RTCConfiguration.iceServers = RTCConfiguration.iceServers || this.getIceServers();
       var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
       this.config.RTCOfferConstraints= (config && config.RTCOfferConstraints) ? config.RTCOfferConstraints: this.config.RTCOfferConstraints;
 
@@ -642,8 +645,27 @@ var WebRTCConnection = (function invocation() {
     } else {
       l('DEBUG') && console.debug(self+'.enableLocalAV() - nothing to do; both audio & video are false');
     }
+  },
+
+ setIceServers: function(service) {
+    // Returned object expected to look something like:
+    // {"iceServers":[{"url": "stun:host:port"}, {"url","turn:host:port"}] 
+    var urls = [];
+    if (service && service.iceURL)  {
+        service.iceURL.split(',').forEach(function(url){
+          urls.push({'url': url});
+        });
+    } 
+    this.config.iceServers = urls;
+   },
+  getIceServers: function() {
+    return this.config.iceServers;
   }
- };
+  };
+
+
+
+
 
 })()); // End of Prototype
 
@@ -897,26 +919,6 @@ var getUserMedia, attachMediaStream,detachMediaStream;
   detachMediaStream = skip;
 }
 
-  var getIceServers = function(object) {
-    // Expect object to look something like:
-    // {"iceservers":{"urls": "stun:host:port", "urls","turn:host:port"} }
-    var iceServers = [];
-    var services = null;
-    var servers = null;
-    if (object && object.services && object.services.iceservers) {
-      servers  = object.services.iceservers;
-      if (servers && servers.iceURL) {
-        var urls = [];
-        servers.iceURL.split(',').forEach(function(url){
-          urls.push({'url': url});
-        });
-        iceServers = {'iceServers':urls};
-        return iceServers;
-      }
-    } else {
-      return  {'iceServers':[]};
-    }
-  };
 return WebRTCConnection;
 
 })()
