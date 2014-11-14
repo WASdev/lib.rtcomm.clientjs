@@ -109,11 +109,13 @@ define([
             console.log('************ Finish called w/ OBJECT: ',object);
             var e = false;
             try{
-              endpointProvider.joinQueue('Toys');
+              if (endpointProvider.listQueues().length > 0) {
+                endpointProvider.joinQueue(endpointProvider.listQueues()[0]);
+              }
             } catch(error) {
               e= true;
             }
-            endpointProvider.leaveQueue('Toys');
+            endpointProvider.leaveQueue(endpointProvider.listQueues()[0]);
             console.log('TEST -> userid: ' + ep.userid);
             assert.ok(/^Agent/.test(ep.userid));
             console.log("TEST => ready: "+ ep);

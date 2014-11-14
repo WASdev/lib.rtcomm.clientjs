@@ -705,7 +705,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         setUserID : function(id) {
           id = id || createGuestUserID();
           l('DEBUG') && console.log(this+'.setUserID id is '+id);
-          if (this.id === null) {
+          if (this.id === null || /^GUEST/.test(this.id)) {
             // Set the id to what was passed.
             this.id = this.userid = this.config.userid = id;
             return id;
@@ -714,6 +714,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             return id;
            }
         },
+        getUserID : function() {
+          return this.config.userid;
+        }, 
         getLwtMessage: function() {
           // should be an empty message
           this.private.willMessage =  this.private.willMessage || ''; 

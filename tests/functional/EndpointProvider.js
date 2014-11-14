@@ -96,6 +96,38 @@ define([
            });
            endpointProvider.init(config1,finish, finish);
      },
+      /**
+       *  This test creates a EndpointProvider and calls init() on it.
+       *
+       */
+     'init() no userid, change after init.': function() {
+           console.log('********** Run Test ************');
+           var dfd = this.async(T1);
+           var initObj = null;
+           var failure = false;
+           endpointProvider.setLogLevel('DEBUG');
+           var finish = dfd.callback(function(object) {
+             console.log('************ Finish called w/ OBJECT: ',object);
+             console.log("*** Asserting *** ", endpointProvider.ready);
+             // should be ready, should have a GUEST userid
+             console.log('TEST -> userid: ' + endpointProvider.config.userid);
+             assert.ok(/^GUEST/.test(endpointProvider.config.userid), 'ID is a GUEST id.');
+             console.log('TEST -> ready '+ endpointProvider.ready);
+             assert.ok(endpointProvider.ready, 'Provider is ready');
+             try {
+              endpointProvider.setUserID('TestUser');
+             } catch (e) {
+               console.log("ERROR!", e);
+               failure = true;
+             }
+             console.log('TEST -> userid: ' + endpointProvider.getUserID());
+             assert.equal('TestUser', endpointProvider.getUserID(), 'Correctly set on endpointProvider');
+             console.log('TEST -> endpointConnection: ', endpointProvider.getEndpointConnection());
+             assert.equal('TestUser', endpointProvider.getEndpointConnection().getUserID(), 'Propogated to EndpointConnection');
+             assert.notOk(failure, 'setUserID on anonymous call worked.');
+           });
+           endpointProvider.init(config1,finish, finish);
+     },
 
      "init() with  userid": function() {
            console.log('********** Run Test ************');

@@ -389,7 +389,7 @@ var EndpointProvider =  function EndpointProvider() {
       objConfig.userid = this.config.userid;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint using config: ', objConfig);
       endpoint = new RtcommEndpoint(objConfig);
-      endpoint.setEndpointConnection(this.dependencies.endpointConnection);
+      this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
 //      endpoint.init(objConfig);
       endpoint.on('destroyed', function(event_object) {
         endpointProvider._.endpointRegistry.remove(event_object.endpoint);
@@ -466,13 +466,17 @@ var EndpointProvider =  function EndpointProvider() {
   /*
    * Set the userId -- generally used prior to init.
    * cannot overwrite an existing ID, but will propogate to endpoints.
+   *
+   * If we are anonymous, can update the userid
    */
   this.setUserID = function(userid) {
-    if (this.config.userid && (userid !== this.config.userid)) {
+    if (this.config.userid && (userid !== this.config.userid) && !(/^GUEST/.test(this.config.userid))) {
       throw new Error('Cannot change UserID once it is set');
     } else {
       this.config.userid = userid;
       this._.id = userid;
+      // update the endpoint connection
+      this.getEndpointConnection() && this.getEndpointConnection().setUserID(userid);
       // update the endpoints
       this._.endpointRegistry.list().forEach(function(endpoint){
         endpoint.setUserID(userid);
