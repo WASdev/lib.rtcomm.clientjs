@@ -648,24 +648,56 @@ var WebRTCConnection = (function invocation() {
   },
 
  setIceServers: function(service) {
+   function buildTURNobject(url) {
+     // We expect this to be in form 
+     // turn:<userid>@servername:port:credential:<password>
+     var matches = /^turn:(\S+)\@(\S+\:\d+):credential:(.+$)/.exec(url);
+     var user = matches[1] || null;
+     var server = matches[2] || null;
+     var credential = matches[3] || null;
+
+     var iceServer = {
+       'url': null,
+       'username': null,
+       'credential': null
+     }
+     if (user && server && credential) {
+       iceServer.url = 'turn:'+server;
+       iceServer.username= user;
+       iceServer.credential= credential;
+     } else {
+       l('DEBUG') && console.log('Unable to parse the url into a Turn Server');
+       iceServer = null;
+     }
+     return iceServer;
+   }
+
     // Returned object expected to look something like:
     // {"iceServers":[{"url": "stun:host:port"}, {"url","turn:host:port"}] 
     var urls = [];
     if (service && service.iceURL)  {
         service.iceURL.split(',').forEach(function(url){
-          urls.push({'url': url});
+          // remove leading/trailing spaces
+          url = url.trim();
+          var obj = null;
+          if (/^stun:/.test(url)) {
+            l('DEBUG') && console.debug(this+'.setIceServers() Is STUN: '+url)
+            obj = {'url': url};
+          } else if (/^turn:/.test(url)) {
+            l('DEBUG') && console.debug(this+'.setIceServers() Is TURN: '+url)
+            obj = buildTURNobject(url);
+          } else {
+            l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url)
+          }
+          obj && urls.push(obj);
         });
     } 
     this.config.iceServers = urls;
    },
   getIceServers: function() {
     return this.config.iceServers;
-  }
-  };
-
-
-
-
+    }
+ };
 
 })()); // End of Prototype
 
