@@ -265,6 +265,9 @@ var EndpointProvider =  function EndpointProvider() {
         endpoint.setEndpointConnection(endpointConnection);
       });
     }
+    if (this._.presenceMonitor) {
+      this._.presenceMonitor.setEndpointConnection(endpointConnection);
+    }
     // Propogate our loglevel
     //
     endpointConnection.setLogLevel(getLogLevel());
@@ -440,8 +443,13 @@ var EndpointProvider =  function EndpointProvider() {
     return new MqttEndpoint({connection: this.dependencies.endpointConnection});
   };
 
-  /** get the Presence Monitor
-   * @returns {module:rtcomm.PresenceMonitor} */
+  /** 
+   * Get the PresenceMonitor Object 
+   *
+   * This object is used to add topics to monitor for presence. 
+   *
+   * @returns {module:rtcomm.PresenceMonitor}
+   */
   this.getPresenceMonitor= function(topic) {
     console.log('this._ is: ', this._);
     console.log('this is: ', this);
@@ -451,8 +459,6 @@ var EndpointProvider =  function EndpointProvider() {
     } 
     return this._.presenceMonitor;
   };
-
-
   /** 
    * Destroy all endpoints and cleanup the endpointProvider.
    */
@@ -461,6 +467,7 @@ var EndpointProvider =  function EndpointProvider() {
     this.clearEventListeners();
     // Clear callbacks
     this._.endpointRegistry.destroy();
+    this._.presenceMonitor.destroy();
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointRegistry');
     this.dependencies.endpointConnection && this.dependencies.endpointConnection.destroy();
     this.dependencies.endpointConnection = null;
@@ -510,9 +517,16 @@ var EndpointProvider =  function EndpointProvider() {
       });
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
     }
+    return this;
   };
   /**
    * Make your presence available
+   *
+   * @param {object} presenceConfig 
+   * @param {string} presenceConfig.state One of 'available', 'unavailable', 'away', 'busy'
+   * @param {string} presenceConfig.alias An alias to be associated with the presence record
+   * @param {array} presenceConfig.userDefines  Array of userdefined objects associated w/ presence
+   *
    */
   this.publishPresence = function(presenceConfig) {
 
@@ -532,6 +546,7 @@ var EndpointProvider =  function EndpointProvider() {
     // build a message, publish it as retained.
     var doc = this.getEndpointConnection().createPresenceDocument(presenceConfig);
     this.getEndpointConnection().publishPresence(doc);
+    return this;
   };
   /**
    * Update queues from server
