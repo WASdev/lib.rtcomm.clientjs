@@ -55,6 +55,7 @@ var EndpointProvider =  function EndpointProvider() {
   /* Instantiate the endpoint Registry */
   /*global EndpointRegistry:false */
   this._.endpointRegistry = new EndpointRegistry();
+  this._.presenceMonitor = null;
   this._.objName = "EndpointProvider";
   this._.rtcommEndpointConfig = {};
 
@@ -136,18 +137,25 @@ var EndpointProvider =  function EndpointProvider() {
 
     // Used to set up config for endoint connection;
     var config = null;
+    var rtcommTopicPath = '/rtcomm/';
     var configDefinition = {
         required: { server: 'string', port: 'number'},
         optional: {
           credentials : 'object',
           rtcommTopicPath: 'string',
           managementTopicName: 'string',
+          presence: 'object',
           userid: 'string',
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
-          rtcommTopicPath: '/rtcomm/',
+          rtcommTopicPath: rtcommTopicPath,
           managementTopicName: 'management',
+          presence: { 
+            // Relative to the rtcommTopicPath
+            rootTopic: 'sphere/',
+            topic: '', // Same as rootTopic by default
+          },
           appContext: 'rtcomm',
           port: 1883,
           register: false,
@@ -160,11 +168,13 @@ var EndpointProvider =  function EndpointProvider() {
       // appContext may already be set, ahve to save it.
       var appContext = (this.config && this.config.appContext) ? this.config.appContext : null;
       var userid = (this.config && this.config.userid) ? this.config.userid : null;
+      var presence = (this.config && this.config.presence) ? this.config.presence: null;
       config = this.config = setConfig(options,configDefinition);
       this.config.appContext = appContext || this.config.appContext;
       this.setUserID(userid || this.config.userid);
     } else {
-      throw new Error("EndpointProvider initialization requires a minimum configuration: "+ JSON.stringify(configDefinition.required));
+      throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
+                      JSON.stringify(configDefinition.required));
     }
     var endpointProvider = this;
     cbSuccess = cbSuccess || function(message) {
@@ -175,13 +185,16 @@ var EndpointProvider =  function EndpointProvider() {
     };
 
     // Create the Endpoint Connection  
+    l('DEBUG') && console.debug(this+'.start() Using config ', config);
 
     var connectionConfig =  util.makeCopy(config);
     // everything else is the same config.
     connectionConfig.hasOwnProperty('register') && delete connectionConfig.register;
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
     // createEndpointConnection
-    var endpointConnection = this.dependencies.endpointConnection = createEndpointConnection.call(this, connectionConfig);
+    var endpointConnection = 
+      this.dependencies.endpointConnection = 
+      createEndpointConnection.call(this, connectionConfig);
     // onSuccess callback for endpointConnection.connect();
     var onSuccess = function(message) {
       l('DEBUG') && console.log(endpointProvider+'.onSuccess() called ');
@@ -427,6 +440,19 @@ var EndpointProvider =  function EndpointProvider() {
     return new MqttEndpoint({connection: this.dependencies.endpointConnection});
   };
 
+  /** get the Presence Monitor
+   * @returns {module:rtcomm.PresenceMonitor} */
+  this.getPresenceMonitor= function(topic) {
+    console.log('this._ is: ', this._);
+    console.log('this is: ', this);
+    this._.presenceMonitor  = this._.presenceMonitor || new PresenceMonitor({connection: this.dependencies.endpointConnection});
+    if (this.ready) {
+      topic && this._.presenceMonitor.add(topic);
+    } 
+    return this._.presenceMonitor;
+  };
+
+
   /** 
    * Destroy all endpoints and cleanup the endpointProvider.
    */
@@ -471,6 +497,7 @@ var EndpointProvider =  function EndpointProvider() {
    */
   this.setUserID = function(userid) {
     if (this.config.userid && (userid !== this.config.userid) && !(/^GUEST/.test(this.config.userid))) {
+      console.log(this.config.userid +'!== '+ userid);
       throw new Error('Cannot change UserID once it is set');
     } else {
       this.config.userid = userid;
@@ -483,6 +510,28 @@ var EndpointProvider =  function EndpointProvider() {
       });
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
     }
+  };
+  /**
+   * Make your presence available
+   */
+  this.publishPresence = function(presenceConfig) {
+
+    // Possible states for presence
+    var states = {
+      'available': 'available',
+      'unavailable': 'unavailable',
+      'busy':'busy' 
+    };
+    // Always default to available
+    var state = (presenceConfig && presenceConfig.state) ?
+      states[presenceConfig.state.trim()] || 'available' : 
+      'available';
+    presenceConfig = presenceConfig || {};
+    presenceConfig.state = state;
+
+    // build a message, publish it as retained.
+    var doc = this.getEndpointConnection().createPresenceDocument(presenceConfig);
+    this.getEndpointConnection().publishPresence(doc);
   };
   /**
    * Update queues from server
