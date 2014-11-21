@@ -123,7 +123,7 @@ var MqttConnection = function MqttConnection(config) {
     throw new Error("MqttConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition.required));
   }
 
-  console.debug(this+'>>>>>>> constructor config: '+JSON.stringify(this.config));
+  console.log(this+'>>>>>>> constructor config: '+JSON.stringify(this.config));
 
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();
@@ -282,9 +282,9 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
        }
       },
       publish: function publish(/* string */ topic, message, /* boolean */retained) {
-        l('DEBUG') && console.debug(this+'.publish() Publishing message',message);
-        l('DEBUG') && console.debug(this+'.publish() To Topic: '+ topic);
-        l('DEBUG') && console.debug(this+'.publish() retained?: '+ retained);
+        l('DEBUG') && console.log(this+'.publish() Publishing message',message);
+        l('DEBUG') && console.log(this+'.publish() To Topic: '+ topic);
+        l('DEBUG') && console.log(this+'.publish() retained?: '+ retained);
         var messageToSend = createMqttMessage(message);
         if (messageToSend) {
           messageToSend.destinationName = topic;

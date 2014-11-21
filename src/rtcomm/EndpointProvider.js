@@ -185,7 +185,7 @@ var EndpointProvider =  function EndpointProvider() {
     };
 
     // Create the Endpoint Connection  
-    l('DEBUG') && console.debug(this+'.start() Using config ', config);
+    l('DEBUG') && console.log(this+'.start() Using config ', config);
 
     var connectionConfig =  util.makeCopy(config);
     // everything else is the same config.

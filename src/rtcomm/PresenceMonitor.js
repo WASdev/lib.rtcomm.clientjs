@@ -103,7 +103,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
         // If we don't find a node create one.
         if (!n) { 
           // nodes[1] should be a node BELOW us.
-          l('DEBUG') && console.debug(this+'.createSubNode() Creating Node: '+nodes[1]);
+          l('DEBUG') && console.log(this+'.createSubNode() Creating Node: '+nodes[1]);
           n = new PresenceNode(nodes[1]);
           this.nodes.push(n);
         }
@@ -124,19 +124,19 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     var nodeToDelete = this.findSubNode(nodes);
     // We found the end node
     if (nodeToDelete) {
-      l('DEBUG') && console.debug(this+'.deleteSubNode() Deleting Node: '+nodeToDelete.name);
+      l('DEBUG') && console.log(this+'.deleteSubNode() Deleting Node: '+nodeToDelete.name);
       // have to find its parent.
       var parentNode = this.findSubNode(nodes.slice(0, nodes.length-1));
       var index = parentNode.nodes.indexOf(nodeToDelete);
       // Remove it.
       parentNode.nodes.splice(index,1);
     } else {
-      l('DEBUG') && console.debug(this+'.deleteSubNode() Node not found for topic: '+topic);
+      l('DEBUG') && console.log(this+'.deleteSubNode() Node not found for topic: '+topic);
     }
   },
   addPresence: function addPresence(topic,presenceMessage) {
     var presence = this.getSubNode(topic);
-    l('DEBUG') && console.debug(this+'.addPresence() created node: ', presence);
+    l('DEBUG') && console.log(this+'.addPresence() created node: ', presence);
     presence.record = true;
     if (typeof presenceMessage.self !== 'undefined') {
       presence.self = presenceMessage.self;
@@ -229,7 +229,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
     // Monitor. Once we are 'Started', we will need to normalize presence here...
     // do we need a timer?  or something to delay emitting the initial event?
     // pull out the topic:
-    l('DEBUG') && console.debug('PresenceMonitor received message: ', message);
+    l('DEBUG') && console.log('PresenceMonitor received message: ', message);
     var endpointID = message.fromEndpointID;
     // Following removes the endpointID, we don't need to do that.
     // var r = new RegExp('(^\/.+)\/'+endpointID+'$');

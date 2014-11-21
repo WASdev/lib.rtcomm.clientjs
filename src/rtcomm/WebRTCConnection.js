@@ -225,7 +225,7 @@ var WebRTCConnection = (function invocation() {
 
     _disconnect: function() {
       if (this.pc && this.pc.signalingState !== 'closed') {
-        l('DEBUG') && console.debug(this+'._disconnect() Closing peer connection');
+        l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
        this.pc.close();
       }
 
@@ -605,7 +605,7 @@ var WebRTCConnection = (function invocation() {
       this.setBroadcast({audio: audio, video: video});
     } else {
       callback = (typeof options === 'function') ? options : function(success, message) {
-       l('DEBUG') && console.debug(self+'.enableLocalAV() default callback(success='+success+',message='+message);
+       l('DEBUG') && console.log(self+'.enableLocalAV() default callback(success='+success+',message='+message);
       };
       // using current settings.
       audio = this.config.broadcast.audio;
@@ -643,7 +643,7 @@ var WebRTCConnection = (function invocation() {
         });
       }
     } else {
-      l('DEBUG') && console.debug(self+'.enableLocalAV() - nothing to do; both audio & video are false');
+      l('DEBUG') && console.log(self+'.enableLocalAV() - nothing to do; both audio & video are false');
     }
   },
 
@@ -681,10 +681,10 @@ var WebRTCConnection = (function invocation() {
           url = url.trim();
           var obj = null;
           if (/^stun:/.test(url)) {
-            l('DEBUG') && console.debug(this+'.setIceServers() Is STUN: '+url)
+            l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url)
             obj = {'url': url};
           } else if (/^turn:/.test(url)) {
-            l('DEBUG') && console.debug(this+'.setIceServers() Is TURN: '+url)
+            l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url)
             obj = buildTURNobject(url);
           } else {
             l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url)
