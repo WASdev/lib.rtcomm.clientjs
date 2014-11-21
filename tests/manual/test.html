@@ -3,8 +3,8 @@
 <head>
 <meta charset="US-ASCII">
 <title>WebRTC rtcomm.* test</title>
-<script type="text/javascript" src="../lib/mqttws31.js" ></script>
-<script type="text/javascript" src="../build/js/ibm/rtcomm.js" ></script>
+<script type="text/javascript" src="../../lib/mqttws31.js" ></script>
+<script type="text/javascript" src="../../build/js/ibm/rtcomm.js" ></script>
 </head>
 
 <body>
@@ -23,8 +23,11 @@ var myConfig = {
             server: 'svt-msd4.rtp.raleigh.ibm.com', 
             port: 1883, 
             userid: 'scott', 
-            rtcommTopicName: 'management', 
-            topicPath: '/rtcommscott/',
+            managementTopicName: 'management', 
+            rtcommTopicPath: '/rtcommscott/',
+            presence: { 
+              topic: 'manager'
+            },
             appContext:'rtcommtest'
 };
 
@@ -59,6 +62,14 @@ var mqtt2 = EP1.getMqttEndpoint();
 mqtt2.on('message', function(msg) {
     console.log('mqtt2 --> ', msg);
     });
+// Array Like Object
+
+var PresenceData = function PresenceData() {
+
+};
+PresenceData.prototype = Object.create(Array.prototype)
+
+
 
 
 // This should create a Session Only node.

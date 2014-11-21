@@ -263,6 +263,18 @@ define([
             }
             
           },
+        "getPresenceMonitor() ": function() {
+          var pm = endpointProvider.getPresenceMonitor();
+          assert.equal('PresenceMonitor',pm.objName, 'Created/returned correct object');
+          var error = false;
+          try {
+            pm.add('topic/something');
+          } catch(e){
+            error = true;
+          }
+          // Should have an error.
+          assert.ok(error);
+        },
         "logLevel": function(){
             var error = null;
             try {

@@ -189,6 +189,30 @@ define([
                   failure = true;
                 }
                );
+     },
+     "Presence": function() {
+       var dfd = this.async(T1);
+       var testConfig = config.clientConfig();
+       testConfig.presence = {topic: 'test'};
+       testConfig.userid = 'testuser';
+       var presenceMonitor = endpointProvider.getPresenceMonitor();
+       var finish = dfd.callback(function(object) {
+          console.log('************ Finish called w/ OBJECT: ',object);
+          assert.equal(presenceMonitor.getPresenceData(), object);
+          assert.equal('test', presenceMonitor.getPresenceData()[0].name, 'Primary topic created...')
+          assert.equal('testuser', presenceMonitor.getPresenceData()[0].nodes[0].name, 'User topic created...')
+       });
+
+       presenceMonitor.on('updated', finish)
+       endpointProvider.init(testConfig, 
+         function(obj){
+           endpointProvider.publishPresence();
+           presenceMonitor.add('test');
+         },
+         function(error){
+         });
+
      }
+
     });
 });

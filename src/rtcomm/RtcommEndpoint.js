@@ -45,6 +45,7 @@ var RtcommEndpoint = (function invocation(){
 
     this.events = {
       'message': [],
+      'ringing': [],
       'connected': [],
       'alerting': [],
       'disconnected': []
@@ -153,6 +154,9 @@ var RtcommEndpoint = (function invocation(){
 
   var createChat = function createChat(parent) {
     var chat = new Chat(parent);
+    chat.on('ringing', function(event_obj) {
+      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
+    });
     chat.on('message', function(message) {
       parent.emit('chat:message', {'message': message});
     });
@@ -167,7 +171,6 @@ var RtcommEndpoint = (function invocation(){
     chat.on('disconnected', function() {
       parent.emit('chat:disconnected');
     });
-
     return chat;
   };
 
@@ -176,7 +179,7 @@ var RtcommEndpoint = (function invocation(){
     /* globals WebRTCConnection:false */
     var webrtc = new WebRTCConnection(parent);
     webrtc.on('ringing', function(event_obj) {
-      parent.emit('session:ringing');
+      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
     });
     webrtc.on('alerting', function(event_obj) {
       parent.emit('session:alerting', {protocols: 'webrtc'});
@@ -236,6 +239,11 @@ var RtcommEndpoint = (function invocation(){
       media : { In : null,
                Out: null},
     };
+    // Used to store the last event emitted;
+    this.lastEvent = null;
+    // Used to store the last event emitted;
+    //
+    this.state = 'session:stopped';
     var self = this;
     config && Object.keys(config).forEach(function(key) {
       self.config[key] = config[key];
@@ -296,6 +304,18 @@ var RtcommEndpoint = (function invocation(){
          * @event module:rtcomm.RtcommEndpoint#session:ringing
          * @property {module:rtcomm.RtcommEndpoint~Event}
          */
+        "session:trying": [],
+        /**
+         * A Queue has been contacted and we are waiting for a response.
+         * @event module:rtcomm.RtcommEndpoint#session:queued
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        "session:queued": [],
+        /**
+         * A peer has been reached, but not connected (inbound/outound)
+         * @event module:rtcomm.RtcommEndpoint#session:ringing
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
         "session:ringing": [],
         /**
          * An inbound connection is being requested.
@@ -309,12 +329,6 @@ var RtcommEndpoint = (function invocation(){
          * @property {module:rtcomm.RtcommEndpoint~Event}
          */
         "session:failed": [],
-        /**
-         * The remote party rejected establishing the session
-         * @event module:rtcomm.RtcommEndpoint#session:rejected
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:rejected": [],
         /**
          * The session has stopped
          * @event module:rtcomm.RtcommEndpoint#session:stopped
@@ -396,8 +410,33 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
   //
   function addSessionCallbacks(context, session) {
      // Define our callbacks for the session.
-    session.on('pranswer', function(content){
+    // received a pranswer
+    session.on('have_pranswer', function(content){
+      // Got a pranswer:
+      console.log('REMOVE ME: Recieved a PRANSWER! lastEvent is: ', context.lastEvent);
+      context.setState('session:ringing');
       context._processMessage(content);
+    });
+    /*
+     * this is a bit of a special message... content MAY contain:
+     * content.queuePosition
+     * content.message
+     *
+     * content.message is all we propogate.
+     *
+     */
+    session.on('queued', function(content){
+      l('DEBUG') && console.log('SigSession callback called to queue: ', content);
+      var position = 0;
+
+      if (typeof content.queuePosition !== 'undefined') {
+        position = content.queuePosition;
+        context.setState('session:queued',{'queuePosition':position});
+        content = (content.message)? content.message : content
+      } else {
+        context.setState('session:queued');
+        context._processMessage(content);
+      }
     });
     session.on('message', function(content){
       l('DEBUG') && console.log('SigSession callback called to process content: ', content);
@@ -409,19 +448,20 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
       if (context._.referralSession) {
         context._.referralSession.respond(true);
       }
-      context.emit('session:started');
+      context.setState('session:started');
     });
     session.on('stopped', function(message) {
       // In this case, we should disconnect();
-      context.emit('session:stopped');
+      context.setState('session:stopped');
       context.disconnect();
     });
     session.on('starting', function() {
+      context.setState('session:trying');
       console.log('Session Starting');
     });
     session.on('failed', function(message) {
       context.disconnect();
-      context.emit('session:failed',{reason: message});
+      context.setState('session:failed',{reason: message});
     });
     l('DEBUG') && console.log(context+' createSignalingSession created!', session);
    // session.listEvents();
@@ -468,7 +508,8 @@ return  {
            // If we need to pranswer, processMessage can handle it.
            this._processMessage(session.message.peerContent);
          } else {
-           this.emit('session:alerting', {protocols:''});
+           session.pranswer();
+           this.setState('session:alerting', {protocols:''});
            //session.respond();
          }
          this.available(false);
@@ -497,7 +538,7 @@ return  {
         }
       } else if (content.type === 'refer') {
         this._.referralSession && this._.referralSession.pranswer();
-        this.emit('session:refer');
+        this.setState('session:refer');
       } else {
         if (this.config.webrtc && this.webrtc) { 
           // calling enable will enable if not already enabled... 
@@ -550,9 +591,12 @@ return  {
       this.available(false);
       this._.activeSession = createSignalingSession(endpointid, this);
       addSessionCallbacks(this, this._.activeSession);
-      if (this.config.webrtc && this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
+      this.setState('session:trying');
+      if (this.config.webrtc && 
+          this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
         l('DEBUG') && console.log(this+'.connect() initiating with webrtc._connect');
-      } else if (this.config.chat && this.chat._connect(this._.activeSession.start.bind(this._.activeSession))){
+      } else if (this.config.chat && 
+                 this.chat._connect(this._.activeSession.start.bind(this._.activeSession))){
         l('DEBUG') && console.log(this+'.connect() initiating with chat._connect');
       } else {
         l('DEBUG') && console.log(this+'.connect() sending startMessage w/ no content');
@@ -573,7 +617,7 @@ return  {
     if (this.sessionStarted()) {
       this._.activeSession.stop();
       this._.activeSession = null;
-      this.emit('session:stopped');
+      this.setState('session:stopped');
     }
     this.available(true);
     return this;
@@ -624,8 +668,13 @@ return  {
   getUserID : function(userid) {
       return this.config.userid; 
   },
+
   setUserID : function(userid) {
       this.userid = this.config.userid = userid;
+  },
+
+  getState: function() {
+    return this.state;
   },
 
   /**
@@ -682,6 +731,7 @@ return  {
 
   /* This is an event formatter that is called by the prototype emit() to format an event if 
    * it exists
+   * When passed an object, we ammend it w/ eventName and endpoint and pass it along.
    */
   _Event : function Event(event, object) {
       var RtcommEvent =  {

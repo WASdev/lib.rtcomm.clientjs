@@ -122,10 +122,13 @@ var MqttConnection = function MqttConnection(config) {
   } else {
     throw new Error("MqttConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition.required));
   }
+
+  console.debug(this+'>>>>>>> constructor config: '+JSON.stringify(this.config));
+
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();
   this.config.myTopic = this.config.myTopic || this.config.rtcommTopicPath + this.config.clientID;
-  this.config.lwtTopic = this.config.lwtTopic || this.config.rtcommTopicPath+"lwt/";
+  this.config.presenceTopic = this.config.presenceTopic || this.config.rtcommTopicPath+"sphere/";
   this.config.destinationTopic = this.config.defaultTopic ? this.config.rtcommTopicPath + this.config.defaultTopic : '';
   // Save an 'ID' for this service.
   this.id = this.config.clientID;
@@ -153,11 +156,10 @@ var MqttConnection = function MqttConnection(config) {
 MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
 
   var createMqttMessage = function(message) {
-    l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Creating message > '+message);
+    l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Creating message > ', message);
     var messageToSend = null;
     if (message && typeof message === 'object') {
-      // Convert message for mqtt send
-      messageToSend = new Paho.MQTT.Message(JSON.stringify(message.toJSON()));
+      messageToSend = new Paho.MQTT.Message(JSON.stringify(message));
     } else if (typeof message === 'string' ) {
       // If its just a string, we support sending it still, though no practical purpose for htis.
       messageToSend = new Paho.MQTT.Message(message);
@@ -186,14 +188,14 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         var cbOnsuccess = null;
         var cbOnfailure = null;
         var willMessage = null;
-        var lwtTopic = null;
+        var presenceTopic = null;
         
         l('DEBUG')&& console.log(this+'.connect() called with options: ', options);
         if (options) {
           cbOnsuccess = options.onSuccess || null;
           cbOnfailure = options.onFailure || null;
           willMessage = options.willMessage || null;
-          lwtTopic = options.lwtTopic || null;
+          presenceTopic = options.presenceTopic || null;
         }
 
         var mqttConnectOptions = {};
@@ -204,10 +206,13 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
             mqttConnectOptions.password = this.config.credentials.password;
           }
         }
-        if (lwtTopic ) {
+
+        if (presenceTopic ) {
           mqttConnectOptions.willMessage = createMqttMessage(willMessage);
-          mqttConnectOptions.willMessage.destinationName= lwtTopic;
+          mqttConnectOptions.willMessage.destinationName= presenceTopic;
+          mqttConnectOptions.willMessage.retained = true;
         }
+
         var onSuccess = cbOnsuccess || function() {
           l('DEBUG')&& console.log(this+'.connect() was successful, override for more information');
         }.bind(this);
@@ -276,10 +281,14 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
          return false;
        }
       },
-      publish: function publish(/* string */ topic, message) {
+      publish: function publish(/* string */ topic, message, /* boolean */retained) {
+        l('DEBUG') && console.debug(this+'.publish() Publishing message',message);
+        l('DEBUG') && console.debug(this+'.publish() To Topic: '+ topic);
+        l('DEBUG') && console.debug(this+'.publish() retained?: '+ retained);
         var messageToSend = createMqttMessage(message);
         if (messageToSend) {
           messageToSend.destinationName = topic;
+          messageToSend.retained = (typeof retained === 'boolean') ? retained: false;
           this.dependencies.mqttClient.send(messageToSend);
         } else {
           l('INFO') && console.error(this+'.publish(): invalid message ');
