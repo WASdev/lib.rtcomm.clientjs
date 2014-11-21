@@ -82,6 +82,7 @@ var SigSession = function SigSession(config) {
       'failed':[],
       'stopped':[],
       'message':[],
+      'queued':[],
       'ice_candidate':[],
       'have_pranswer':[],
       'pranswer':[],
@@ -380,10 +381,15 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         var timeout = (typeof message.holdTimeout === 'undefined') ? this.finalTimeout : message.holdTimeout*1000;
         l('TRACE') && console.log('PRANSWER, resetting timeout to :',timeout);
         this._startTransaction && this._startTransaction.setTimeout(timeout);
-        if (!message.holdTimeout) {
+
+        if (message.holdTimeout || message.queuePosition) {
+          // We've been Queued...
+          this.state = 'queued';
+          this.emit('queued', {'queuePosition': message.queuePosition, 'message': message.peerContent});
+        } else {
           this.state = 'have_pranswer';
           this.emit('have_pranswer', message.peerContent);
-        }
+        } 
         break;
       case 'ICE_CANDIDATE':
         this.emit('ice_candidate', message.peerContent);

@@ -34,10 +34,12 @@ var RtcommBaseObject = {
     /*
      * Methods
      */
-    setState : function(value) {
-      if (this.states.hasOwnProperty(value)) {
+    setState : function(value, object) {
+      if (typeof this.state !== 'undefined') {
         this.state = value;
-        this.emit(value);
+        this.emit(value,object);
+      } else {
+        this.emit(value,object);
       }
     },
     listEvents : function() {
@@ -93,6 +95,10 @@ var RtcommBaseObject = {
       if (this.events && this.events[event] ) {
      //   console.log('>>>>>>>> Firing event '+event);
         l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);
+        // Save the event
+        if (typeof self.lastEvent !== 'undefined') {
+          self.lastEvent = event;
+        };
          // Event exists, call all callbacks
         self.events[event].forEach(function(callback) {
             if (typeof callback === 'function') {

@@ -156,7 +156,46 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     this.deleteSubNode(topic);
   }
 });
-
+/**
+ * @class
+ * @memberof module:rtcomm
+ * @classdesc
+ * An object that can be used to monitor presence on topics.
+ * <p>
+ *
+ * <p>
+ *
+ * @requires {@link mqttws31.js}
+ *
+ */
+/**
+ *  @memberof module:rtcomm
+ *  @description
+ *  This object can only be created with the {@link module:rtcomm.EndpointProvider#getPresenceMonitor|getPresenceMonitor} function.
+ *  <p>
+ *
+ * The PresenceMonitor object provides an interface for the UI Developer to monitor presence of
+ * other EndpointProviders that have published their presence w/ the
+ * {@link module:rtcomm.EndpointProvider#publishPresence|publishPresence} function.
+ *
+ * Once created, it is necessary to 'add' a topic to monitor.  This topic can be nested and will 
+ * look something like: 'us/agents' in order to monitor the presence of agents in the US.  
+ *
+ * This can go as deep as necessary.
+ *
+ * The presenceData is kept up to date in the PresenceMonitor.getPresenceData() object.
+ *  @constructor
+ *  @extends  module:rtcomm.util.RtcommBaseObject
+ *
+ *
+ * @example
+ *
+ * // After creating and initializing the EndpointProvider (EP)
+ *
+ * var presenceMonitor = EP.getPresenceMonitor();
+ * presenceMonitor.add('us/agents');
+ * var presenceData = presenceMonitor.getPresenceData();
+ */
 var PresenceMonitor= function PresenceMonitor(config) {
   // Standard Class attributes
   this.objName = 'PresenceMonitor';
@@ -174,6 +213,11 @@ var PresenceMonitor= function PresenceMonitor(config) {
   this.dependencies.connection = config && config.connection;
   this._.sphereTopic = (config && config.connection) ? normalizeTopic(config.connection.getPresenceRoot()) : null;
   this.events = {
+    /**
+     * The presenceData has been updated.  
+     * @event module:rtcomm.PresenceMonitor#updated
+     * @property {module:rtcomm.presenceData}
+     */
     'updated': [],
     };
 };
@@ -204,7 +248,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       } else {
          presence.removePresence(topic, endpointID);
       }
-      this.emit('updated');
+      this.emit('updated', this.getPresenceData());
     } else {
       // No Root Node
       l('DEBUG') && console.error('No Root node... dropping presence message');
@@ -212,6 +256,12 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
   }
 
   return { 
+    /**
+     * Add a topic to monitor presence on
+     *
+     * @param {string} topic  A topic/group to monitor, ex. 'us/agents'
+     *
+     */
     add: function add(topic) {
       var presenceData = this._.presenceData;
       // Validate our topic... 
@@ -237,7 +287,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         this._.subscriptions.push(subscriptionTopic);
       } else {
         // No Sphere topic.
-        console.error('No Sphere topic, not connected?');
+        throw new Error('Adding a topic to monitor requires the EndpointProvider be initialized');
       }
       return this;
     },
@@ -247,9 +297,20 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
       }
     },
+    /**
+     * Get an array representing the presence data
+     * @returns {array} An array of PresenceNodes
+     */
     getPresenceData: function getPresenceData() {
       return this._.presenceData;
     },
+
+    /**
+     * Return the root presenceNode if it exists.
+     *
+     * @param {string} topic
+     * @returns {PresenceNode} The root PresenceNode for a topic (if it already exists)
+     */
     getRootNode: function getRootNode(topic) {
       var rootNode = null;
       var rootTopic = null;
@@ -266,6 +327,11 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
      return rootNode;
     },
 
+  /**
+   * Destroy the PresenceMonitor 
+   *  Unsubscribes from presence topics
+   *
+   */
   destroy: function() {
        l('DEBUG') &&  console.log('Destroying mqtt(unsubscribing everything... ');
        var pm = this;
@@ -273,7 +339,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        this._.presenceData = [];
        // Unsubscribe ..
        Object.keys(this._.subscriptions).forEach( function(key) {
-         pm.unsubscribe(key);
+         pm.dependencies.connection.unsubscribe(key);
        });
     }
   } ;

@@ -140,15 +140,35 @@ define([
             console.log("******************Asserting now...***********************");
             console.log('endpoint1: ',ep1);
             console.log('endpoint2: ',ep2);
+            assert.ok(ep1_trying, 'Caller generated trying event');
+            assert.ok(ep1_ringing, 'Caller generated ringing event');
+            assert.ok(ep2_alerting, 'Callee generated alerting event');
             assert.ok(ep1.sessionStarted());
             assert.ok(ep2.sessionStarted());
             endpointProvider2.destroy();
          });
 
+         // States we should hit:
+         // ep1(caller) 
+         //   place call --> trying
+         var ep1_trying = false;
+         var ep1_ringing= false;
+         var ep2_alerting= false;
+         //   receive PRANSWER --> ringing
+         //   receive ANSWER --> started
+         // ep2(callee)
+         //   receive call --> alerting
+         //   send ANSWER --> started
+         ep1.on('session:ringing', function() { ep1_ringing = true})
+         ep1.on('session:trying', function() { ep1_trying = true})
          ep1.on('session:started', finish);
          ep2.on('session:alerting', function(obj) {
+           ep2_alerting = true;
            console.log('>>>>TEST  accepting call');
-           ep2.accept();
+           setTimeout(function() {
+            ep2.accept();
+           },1000);
+
          });
          endpointProvider.init(config1,
                   function(obj) {
@@ -185,15 +205,24 @@ define([
                console.log("******************Asserting now...***********************");
                assert.ok(customer.sessionStarted());
                assert.ok(agent.sessionStarted());
+               assert.ok(queued, 'customer is queued.');
                endpointProvider2.destroy();
             });
 
             // Here is what we are waiting for.
             customer.on('session:started', finish);
+            var queued = false;
+            customer.on('session:queued', function(obj){
+              // uncomment when we release new beta
+              // assert.ok(typeof obj.queuePosition !== 'undefined', 'queuePosition appended to event');
+              queued = true;
+            });
 
             agent.on('session:alerting', function(obj) {
              console.log('>>>>TEST  accepting call');
-             agent.accept();
+             setTimeout(function() {
+              agent.accept();
+             },2000);
             });
 
             endpointProvider2.on('queueupdate',function(queues) {

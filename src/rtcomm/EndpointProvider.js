@@ -467,7 +467,8 @@ var EndpointProvider =  function EndpointProvider() {
     this.clearEventListeners();
     // Clear callbacks
     this._.endpointRegistry.destroy();
-    this._.presenceMonitor.destroy();
+    this._.presenceMonitor && this._.presenceMonitor.destroy();
+    this._.presenceMonitor = null;
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointRegistry');
     this.dependencies.endpointConnection && this.dependencies.endpointConnection.destroy();
     this.dependencies.endpointConnection = null;

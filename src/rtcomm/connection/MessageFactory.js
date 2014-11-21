@@ -33,7 +33,8 @@ var MessageFactory = (function (){
       'reason': null,
       'toEndpointID': null,
       'appContext': null,
-      'holdTimeout': null
+      'holdTimeout': null,
+      'queuePosition': null
   };
   
   // Override base headers and add new headers for the OUTBOUND message
