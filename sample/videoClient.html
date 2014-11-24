@@ -303,7 +303,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
         }
       },
       'session:failed': function(event_object) {
-        updateMessage(event_object.message);
+        updateMessage("Connection failed - reason: "+event_object.reason);
       },
       'session:refer': function(conn) {
         $('#answerDialog .modal-body').html(

@@ -296,11 +296,26 @@ var EndpointProvider =  function EndpointProvider() {
         if (endpoint) {
           l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Existing Endpoint: ', endpoint);
           endpoint.newSession(session);
-        } else {
+        } else if (endpointProvider.hasEventListener('newendpoint'))  {
+          // create an endpoint and send it to the listener.
           endpoint = endpointProvider.getRtcommEndpoint();
           l('DEBUG') && console.log(endpointProvider+'-on.newsession Created a NEW endpoint for session: ', endpoint);
           endpoint.newSession(session);
           endpointProvider.emit('newendpoint', endpoint);
+        } else {
+          // If there is no 'newendpoint' listener, we really only support 1 endpoint.  pass it to that one,
+          // it will need to respond if its busy.
+          var endpoints = endpointProvider._.endpointRegistry.list();
+          if (endpoints.length > 1) {
+            // Fail the session, we don't know where to send it.
+            session.start();
+            session.fail('Unable to accept inbound call: Busy');
+            console.error(endpointProvider+
+            '-on.newsession - Rejecting session, ambiguous enpdoint selection; add newendpoint callback? ');
+          } else {
+            // Do not emit anything... 
+            endpoints[0].newSession(session);
+          }
         }
       } else {
         console.error(endpointProvider+'-on.newsession - expected a session object to be passed.');
