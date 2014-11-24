@@ -33,7 +33,7 @@ var WebRTCConnection = (function invocation() {
 
     this.config = {
       RTCConfiguration : {iceTransports : "all"},
-      RTCOfferConstraints: null,
+      RTCOfferConstraints: OfferConstraints,
       RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
       iceServers: [],
       mediaIn: null,
@@ -262,8 +262,8 @@ var WebRTCConnection = (function invocation() {
         console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
         self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
           console.error('failed to create answer', error);
-        }
-        //self.config.RTCOfferConstraints);
+        },
+         self.config.RTCOfferConstraints
         );
       };
       l('DEBUG') && console.log(this+'.accept() -- accepting --');
@@ -304,17 +304,21 @@ var WebRTCConnection = (function invocation() {
      *  @param {boolean} broadcast.video
      */
     setBroadcast : function setBroadcast(broadcast) {
-      this.config.broadcast.audio = (broadcast.hasOwnProperty('audio') && typeof broadcast.audio === 'boolean') ?
-        broadcast.audio :
-        this.config.broadcast.audio;
-      this.config.broadcast.video= (broadcast.hasOwnProperty('video') && typeof broadcast.video=== 'boolean') ?
-        broadcast.video:
-        this.config.broadcast.video;
+      this.config.broadcast.audio = (broadcast.hasOwnProperty('audio') && 
+                                     typeof broadcast.audio === 'boolean') ? 
+                                      broadcast.audio :
+                                      this.config.broadcast.audio;
+      this.config.broadcast.video= (broadcast.hasOwnProperty('video') && 
+                                    typeof broadcast.video=== 'boolean') ?
+                                      broadcast.video:
+                                      this.config.broadcast.video;
+      /*
       if (!broadcast.audio && !broadcast.video) { 
         this.config.RTCOfferConstraints= {'mandatory': {OfferToReceiveAudio: true, OfferToReceiveVideo: true}};
       } else {
         this.config.RTCOfferConstraints = null;
       }
+      */
       return this;
     },
     pauseBroadcast: function() {
