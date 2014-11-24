@@ -73,6 +73,10 @@ var RtcommBaseObject = {
       }   
     },  
 
+    hasEventListener: function(event){
+     return (event in this.events) && (this.events[event].length > 0);
+    },
+
     /** Establish a listener for an event */
     on : function(event,callback) {
       //console.log('on -- this.events is: '+ JSON.stringify(this.events));
