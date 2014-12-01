@@ -37,6 +37,7 @@
 
 }(this, function (@DEPALIAS@) {
 "use strict";
+var VERSION = '@VERSION@';
 
 @CONTENTS@
 

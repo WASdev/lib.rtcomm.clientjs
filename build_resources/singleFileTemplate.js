@@ -37,6 +37,7 @@
    * @exports RTCommHubProvider
    */
 
+var VERSION = '@VERSION@';
 @CONTENTS@
 
 return { @RETURNS@ };

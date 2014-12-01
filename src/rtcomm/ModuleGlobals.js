@@ -27,6 +27,8 @@ var logging = new util.Log(),
     /*global log: false */
     log = logging.log;
 
+console.log('**** rtcomm.js --> '+VERSION);
+
 /* function log() {
           // I want to log CallingObject[id].method Message [possibly an object]
 

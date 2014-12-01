@@ -38,6 +38,7 @@
 	 <!-- JavaScript Module custom properties -->
 	
 	 <!-- Our master module name --> 
+   <property name="version_root" value="v1.0.0-beta" />
 	 <property name="js.namespace" value="ibm" />
 	 <property name="package.name" value="rtcomm" />
 	 <!-- Build properties, should be no need to change -->
@@ -45,10 +46,7 @@
 	 <property name="js.umdmodule.dir" value="${build.dir}/js/umd/${js.namespace}/${package.name}" />
    <property name="js.packagelib.file" value="${build.dir}/js/${js.namespace}/${package.name}.js" />
 	 <property name="js.source.dir" value="${basedir}/src/" />
-	
 	<property name="js.packagesrc.dir" value="${js.source.dir}/${package.name}" />
-	
-	
 	<property name="publish.files.dir" value="${basedir}/publish/files" />
 	 <property name="build.resources" value="${basedir}/build_resources" />
 	 <property name="publish.clients.rtcomm" value="${liberty.lib.dir}/../clients/rtcomm" />
@@ -67,7 +65,7 @@
 	    We expect moduleHeader.js, moduleGlobals.js, moduleFooter.js
 	    Anything else should be classes that goes in between.
 	    -->
-    <target name="umdModule" >
+    <target name="umdModule" depends="build.version">
 	     <var name="module" unset="true"/>
 	     <var name="umd.contents" unset="true" /> 
 	 	   <basename property="module" file="${mod.dir}" />
@@ -101,9 +99,19 @@
 	 	                <replacetokens>
 	 	                    <token key="CONTENTS" value="${umd.contents}"/>
 	 	                </replacetokens>  
+	 	                <replacetokens>
+	 	                    <token key="VERSION" value="${build_version}"/>
+	 	                </replacetokens>  
 	 	               </filterchain> 
 	 	            </copy>
     </target>
+    <!-- software revision number -->
+  <target name="build.version">
+    <tstamp>
+      <format property="version.time" pattern="yyyyMMddhhmmss"/>
+    </tstamp>
+    <property name="build_version" value="${version_root}-${version.time}" />
+  </target>
 
 	 <target name="umdModules" depends="clean-js"
 	      description="Build UMD JavaScript SubModules" >
@@ -145,13 +153,16 @@
 	                    <replacetokens>
 	                        <token key="CONTENTS" value="${contents}"/>
 	                    </replacetokens>  
+	 	                  <replacetokens>
+	 	                    <token key="VERSION" value="${build_version}"/>
+	 	                  </replacetokens>  
 	                   </filterchain> 
 	                </copy>
 	                <echo message="Finished building ${package.name} --> ${js.umdmodule.dir}/../${package.name}.js"/>
 </target>
 
 
-  <target name="subContent">
+  <target name="subContent" depends="build.version">
           <var name="module" unset="true"/>
           <var name="sf.contents" unset="true" /> 
         	<var name="content.file" unset="true" />
@@ -187,6 +198,9 @@
                        <replacetokens>
                            <token key="CONTENTS" value="${sf.contents}"/>
                        </replacetokens>  
+	 	                   <replacetokens>
+	 	                      <token key="VERSION" value="${build_version}"/>
+	 	                   </replacetokens>  
                       </filterchain> 
                    </copy>
                    <echo message="Finished building ${module}"/>
@@ -208,7 +222,7 @@
 	   </foreach>
     </target>
 	
-   <target name="singleModule" depends="subContents"
+   <target name="singleModule" depends="subContents, build.version"
 	      description="Build single Module" >
            <echo message="Building Single Module" />
        <property name="sf.template.file" value="${build.resources}/singleFileTemplate.js" />
@@ -246,6 +260,9 @@
                        <replacetokens>
                            <token key="CONTENTS" value="${single.contents}"/>
                        </replacetokens>  
+	 	                   <replacetokens>
+	 	                      <token key="VERSION" value="${build_version}"/>
+	 	                   </replacetokens>  
                       </filterchain> 
                    </copy>
                    <echo message="Finished building ${package.name} --> ${js.packagelib.file}"/>
@@ -291,7 +308,7 @@
 	</target>
   <!-- create a release version of the rtcomm.zip file, will be used to 'release' -->
   <target name="release" depends="build" >
-    <property name="release.name" value="${package.name}-${version}" />
+    <property name="release.name" value="${package.name}-${version_root}${version}" />
     <mkdir dir="${build.dir}/tmp/${release.name}" />
     <unzip src="${build.dir}/lib/${package.name}.zip" dest="${build.dir}/tmp/${release.name}" />
 		<zip destfile="${build.dir}/lib/${release.name}.zip">
