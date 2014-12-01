@@ -465,8 +465,11 @@ var WebRTCConnection = (function invocation() {
          *
          */
         // Set our local description
-        isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
-        this._setState('ringing');
+        //  Only set state to ringing if we have a local offer...
+        if (isPC && this.pc.signalingState === 'have-local-offer') {
+          isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          this._setState('ringing');
+        }
         break;
       case 'answer':
         /*
