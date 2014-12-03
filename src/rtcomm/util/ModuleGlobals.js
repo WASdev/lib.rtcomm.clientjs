@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/ 
+
+/*jshint -W030*/
 var Log = function Log() {
     var LOG_LEVEL = {"MESSAGE": 1,// bin '01' Only MESSAGE lines
         "INFO": 2,  // bin '10'   -- Only Info Messages

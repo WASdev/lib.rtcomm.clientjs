@@ -14,7 +14,9 @@
  * limitations under the License.
  **/ 
 // rtcservice & util should be defined here:
+/*jshint -W030*/
 /*global util:false*/
+
 var logging = new util.Log(),
     setLogLevel = logging.s,
     getLogLevel = logging.g,
@@ -80,7 +82,4 @@ var logging = new util.Log(),
             }
           }
         }; // end of log/ 
-        
-    
-        
-    
+

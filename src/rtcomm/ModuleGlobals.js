@@ -14,6 +14,7 @@
  * limitations under the License.
  **/ 
 // rtcservice & util should be defined here:
+/*jshint -W030*/
 /*global util:false*/
 var logging = new util.Log(),
     setLogLevel = logging.s,
@@ -26,8 +27,8 @@ var logging = new util.Log(),
     setConfig = util.setConfig,
     /*global log: false */
     log = logging.log;
-
-console.log('**** rtcomm.js --> '+VERSION);
+// Removing, will do another way.
+//console.log('**** rtcomm.js --> '+VERSION);
 
 /* function log() {
           // I want to log CallingObject[id].method Message [possibly an object]
