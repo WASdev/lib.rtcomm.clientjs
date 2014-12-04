@@ -120,6 +120,58 @@ module.exports = function(grunt) {
     watch: {
       files: ['<%= jshint.files %>'],
       tasks: ['jshint', 'qunit']
+    },
+    jsdoc : {
+        dist : {
+            src: ['dist/rtcomm.js'], 
+            options: {
+              destination: 'jsdoc',
+              template : "node_modules/grunt-jsdoc/node_modules/ink-docstrap/template",
+              configure : "node_modules/grunt-jsdoc/node_modules/ink-docstrap/template/jsdoc.conf.json"
+            }
+        }
+    },
+    intern: {
+      client: {
+        options: {
+          // for other available options, see:
+          // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
+          config: 'tests/intern',
+          reporters: [ 'console', 'lcov' ]
+        }
+      },
+      unit: {
+        options: {
+          // for other available options, see:
+          // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
+          config: 'tests/intern',
+          runner: 'client',
+          reporters: [ 'console', 'lcov' ],
+          suites: [
+          'unit/connection/connection.js',
+            'unit/util/util.js',
+            'unit/EndpointProvider.js'
+          ]
+        }
+      },
+      fat: {
+        options: {
+          // for other available options, see:
+          // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
+          config: 'tests/intern',
+          runner: 'client',
+          reporters: [ 'console', 'lcov' ],
+          suites: [
+            'functional/connection/MqttConnection.js',
+            'functional/connection/EndpointConnection.js',
+            'functional/EndpointProvider.js',
+            'functional/RtcommEndpoint.js',
+            'functional/RtcommEndpoint.chat.js',
+            'functional/MqttEndpoint.js',
+            'functional/SessionQueue.js'
+           ]
+        }
+      }
     }
   });
 
@@ -144,10 +196,12 @@ module.exports = function(grunt) {
 });
 
 
-require('load-grunt-tasks')(grunt);
-  grunt.registerTask('test', ['jshint']);
+ require('load-grunt-tasks')(grunt);
+  grunt.loadNpmTasks('intern');
+  grunt.registerTask('test', ['intern']);
 
   grunt.registerTask('umdModules', ['prepareModules', 'concat', 'umd']);
-  grunt.registerTask('default', ['umdModules', 'concat:rtcomm_final','uglify']);
+  grunt.registerTask('default', ['umdModules', 'concat:rtcomm_final','uglify','jsdoc']);
+  grunt.registerTask('lite', ['umdModules', 'concat:rtcomm_final','uglify']);
 
 };
