@@ -20,7 +20,7 @@
   "license": "MIT",
   "private": true,
   "ignore": [
-    "umd",
+    "**/umd/*",
     "sample",
     "build",
     "build_resources",
