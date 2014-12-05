@@ -89,7 +89,7 @@ http://tools.ietf.org/id/draft-nandakumar-rtcweb-sdp-01.html.
 ## Endpoint Registration
 
 In order for a service to locate an endpoint, it needs to know the endpoint's identifier and the corresponding topic that the endpoint is subscribed to. 
-An endpoint declares this information by publishing a 'DOCUMENT' message.  This message is an MQTT Retained message that is consumed by the service which stores this as registration information. The service stores this registration until the endpoint goes away (either purposefully or accidentally).  When it goes away it sends an empty LWT message to the topic it published this DOCUMENT which clears the retained message.  Services receiving the LWT clean up any related resource such as the registration or any sessions related to the endpoint.
+An endpoint declares this information by publishing a 'DOCUMENT' message.  This message is an MQTT Retained message that is consumed by the service which stores this as registration information. The service stores this registration until the endpoint goes away (either purposefully or accidentally).  When it goes away it sends an empty LWT message to the topic it published this DOCUMENT which clears the retained message.  Services receiving the LWT messages clean up any related resources such as the registration or any active sessions related to the endpoint.
 
 Here is an example of a DOCUMENT message:
 
