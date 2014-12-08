@@ -247,4 +247,4 @@ var MessageFactory = (function (){
   };
 })();
 
-
+exports.MessageFactory = MessageFactory;

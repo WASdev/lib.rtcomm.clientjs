@@ -35,6 +35,7 @@
  * 
  * @private
  */
+
 var MqttConnection = function MqttConnection(config) {
   /* Class Globals */
 
@@ -366,4 +367,5 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
       }
     }; // end of Return
 })());
+exports.MqttConnection = MqttConnection;
 

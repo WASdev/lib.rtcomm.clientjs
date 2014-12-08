@@ -8,7 +8,7 @@ module.exports = function(grunt) {
         dest: 'dist/umd/rtcomm.js' 
       },
       rtcomm_final: {
-        src: ['dist/umd/util.js', 'dist/umd/connection.js','dist/umd/rtcomm.js'],
+        src: ['dist/umd/rtcomm/util.js', 'dist/umd/rtcomm/connection.js','dist/umd/rtcomm.js'],
         dest: 'dist/rtcomm.js' 
        }
     },
@@ -16,24 +16,26 @@ module.exports = function(grunt) {
       rtcomm: {
         options: {
           src: 'dist/umd/rtcomm.js',
-          objectToExport: '{util: util, connection:connection, EndpointProvider:EndpointProvider}',
+          objectToExport: 'EndpointProvider',
           globalAlias: 'rtcomm',
+          template: 'build_resources/umd.hbs',
           deps: { 
             'default': ['connection','util'],
-            amd: ['connection','util'],
-            cjs: ['connection','util'],
+            amd: ['./rtcomm/connection','./rtcomm/util'],
+            cjs: ['./rtcomm/connection','./rtcomm/util'],
             global: ['connection','util']
           }
         }
       },
       connection: {
         options: {
-          src:'dist/umd/connection.js',
-          objectToExport: '{util: util, connection: {EndpointConnection:EndpointConnection, MessageFactory:MessageFactory, MqttConnection:MqttConnection}}',
+          src:'dist/umd/rtcomm/connection.js',
+          objectToExport: 'connection',
           globalAlias: 'rtcomm',
+          template: 'build_resources/umd.hbs',
           deps: { 
             'default': ['util'],
-            amd: ['util'],
+            amd: ['./util'],
             cjs: ['util'],
             global: ['util']
           }
@@ -41,8 +43,9 @@ module.exports = function(grunt) {
       },
       util: {
         options: {
-          src:'dist/umd/util.js',
-          objectToExport: '{util: {Log: Log, RtcommBaseObject:RtcommBaseObject, validateConfig: validateConfig, setConfig:setConfig, applyConfig: applyConfig, generateUUID: generateUUID, generateRandomBytes: generateRandomBytes, whenTrue:whenTrue, makeCopy: makeCopy,combineObjects : combineObjects}}',
+          src:'dist/umd/rtcomm/util.js',
+          template: 'build_resources/umd.hbs',
+          objectToExport: 'util',
           globalAlias: 'rtcomm'
         }
       }
@@ -73,7 +76,7 @@ module.exports = function(grunt) {
       },
       dist: {
         files: {
-          'dist/<%= pkg.name %>.min.js': ['<%= concat.rtcomm_final.dest %>']
+          'dist/rtcomm.min.js': ['<%= concat.rtcomm_final.dest %>']
         }
       }
     },
@@ -184,10 +187,18 @@ module.exports = function(grunt) {
         var concat = grunt.config.get('concat') || {};
         // create a subtask for each module, find all src files
         // and combine into a single js file per module
+        var fileList = [];
+        grunt.file.expand({filter:'isFile'}, dir+"/**/*.js").forEach(function(file){
+          if (/ModuleGlobal/.test(file)) {
+            fileList.unshift(file);
+          } else {
+            fileList.push(file);
+          }
+        });
         grunt.log.ok(dirName);
         concat[dirName] = {
-            src: [dir + '/**/*.js'],
-            dest: 'dist/umd/' + dirName + '.js'
+            src: fileList,
+            dest: 'dist/umd/rtcomm/' + dirName + '.js'
         };
 
         // add module subtasks to the concat task in initConfig
@@ -199,9 +210,7 @@ module.exports = function(grunt) {
  require('load-grunt-tasks')(grunt);
   grunt.loadNpmTasks('intern');
   grunt.registerTask('test', ['intern']);
-
-  grunt.registerTask('umdModules', ['prepareModules', 'concat', 'umd']);
-  grunt.registerTask('default', ['umdModules', 'concat:rtcomm_final','uglify','jsdoc']);
+  grunt.registerTask('umdModules', ['clean', 'prepareModules', 'concat', 'umd']);
   grunt.registerTask('lite', ['umdModules', 'concat:rtcomm_final','uglify']);
-
+  grunt.registerTask('default', ['lite', 'test', 'jsdoc']);
 };

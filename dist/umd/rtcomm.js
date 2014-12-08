@@ -1,18 +1,19 @@
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
-    define(["connection",
-      "util"], function (connection, util) {
+    define(["./rtcomm/connection",
+      "./rtcomm/util"], function (connection, util) {
       return (root.returnExportsGlobal = factory(connection, util));
     });
   } else if (typeof exports === 'object') {
     // Node. Does not work with strict CommonJS, but
     // only CommonJS-like enviroments that support module.exports,
     // like Node.
-    module.exports = factory(require("connection"),
-      require("util"));
+    module.exports = factory(require("./rtcomm/connection"),
+      require("./rtcomm/util"));
   } else {
-    root['rtcomm'] = factory(rtcomm.connection,
+        root['rtcomm'] = root['rtcomm']  || {};
+        root['rtcomm']['EndpointProvider'] = factory(rtcomm.connection,
       rtcomm.util);
   }
 }(this, function (connection, util) {
@@ -879,8 +880,6 @@ var EndpointProvider =  function EndpointProvider() {
 }; // end of constructor
 
 EndpointProvider.prototype = util.RtcommBaseObject.extend({});
-
-
 
 /*
  * This is a private EndpointRegistry object that 
@@ -3338,6 +3337,6 @@ return WebRTCConnection;
 
 
 
-return {util: util, connection:connection, EndpointProvider:EndpointProvider};
+return EndpointProvider;
 
 }));

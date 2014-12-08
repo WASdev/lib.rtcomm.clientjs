@@ -10,7 +10,8 @@
     // like Node.
     module.exports = factory();
   } else {
-    root['rtcomm'] = factory();
+        root['rtcomm'] = root['rtcomm']  || {};
+        root['rtcomm']['util'] = factory();
   }
 }(this, function () {
 
@@ -29,6 +30,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/ 
+
+// what we will export in the module
+// Module Name
+var exports = {};
+var util = exports;
 
 /*jshint -W030*/
 var Log = function Log() {
@@ -63,7 +69,8 @@ var Log = function Log() {
 console.log('logging already set? ', logging);
 
 var logging =  logging || new Log(),
-    l = logging.l,
+    l = logging.l;
+
 /**
  *  validate a config object against a reference object
  *
@@ -74,7 +81,7 @@ var logging =  logging || new Log(),
  *
  *
  */
-validateConfig = function validateConfig(/* object */ config, /* object */ reference) {
+var validateConfig = function validateConfig(/* object */ config, /* object */ reference) {
   // take 'reference' and ensure all the entries are in it and have same type.
   for (var key in reference) {
     if (config.hasOwnProperty(key)) {
@@ -88,7 +95,7 @@ validateConfig = function validateConfig(/* object */ config, /* object */ refer
     }
   }
   return true;
-},
+};
 /**
  *  When given a config object apply config to it(by default):
  *
@@ -100,7 +107,7 @@ validateConfig = function validateConfig(/* object */ config, /* object */ refer
  *  @param {object} obj - Object to apply config to.
  *  @param {boolean} lenient - If true, apply all config to obj, whether exists or not.
  */
-applyConfig = function applyConfig(config, obj, lenient ) {
+var applyConfig = function applyConfig(config, obj, lenient ) {
   var configurable = [];
   // What we can configure
   for (var prop in obj) {
@@ -120,7 +127,7 @@ applyConfig = function applyConfig(config, obj, lenient ) {
   }
   return true;
   //console.log(configurable);
-},
+};
 
 
 /*
@@ -128,7 +135,7 @@ applyConfig = function applyConfig(config, obj, lenient ) {
  *  @param configDefinition { required: {}, optional: {}, defaults{}}
  *  @param config config to check and apply defaults 
  */
-setConfig = function(config,configDefinition) {
+var setConfig = function(config,configDefinition) {
   console.log(this+'.setConfig() passed in: -->  '+JSON.stringify(config));
   var requiredConfig = configDefinition.required || {};
   var possibleConfig = configDefinition.optional || {};
@@ -173,12 +180,12 @@ setConfig = function(config,configDefinition) {
   } else {
     throw new Error("A minumum config is required: " + JSON.stringify(requiredConfig));
   }
-},
+};
 /*
  * combine left object with right object
  * left object takes precendence
  */
-combineObjects = function combineObjects(obj1, obj2) {
+var combineObjects = function combineObjects(obj1, obj2) {
   var allkeys = [];
   var combinedObj = {};
   // What keys do we have
@@ -197,17 +204,17 @@ combineObjects = function combineObjects(obj1, obj2) {
     combinedObj[key] = obj1[key]?obj1[key]:obj2[key];
   });
   return combinedObj;
-},
+};
 
-makeCopy = function(obj) {
+var makeCopy = function(obj) {
   var returnObject = {};;
   Object.keys(obj).forEach(function(key){
     returnObject[key] = obj[key];
   });
   return returnObject;
-},
+};
 
-whenTrue = function(func1, callback, timeout) {
+var whenTrue = function(func1, callback, timeout) {
   l('DEBUG') && console.log('whenTrue!', func1, callback, timeout);
   var max = timeout || 500;
   var waittime = 0;
@@ -260,6 +267,15 @@ var generateUUID = function() {
 	return generateRandomBytes('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx');
 };
 
+exports.Log = Log;
+exports.validateConfig = validateConfig;
+exports.setConfig = setConfig; 
+exports.applyConfig= applyConfig; 
+exports.generateUUID= generateUUID;
+exports.generateRandomBytes= generateRandomBytes; 
+exports.whenTrue=whenTrue; 
+exports.makeCopy=makeCopy;
+exports.combineObjects = combineObjects;
 
 
 /*
@@ -410,6 +426,7 @@ var RtcommBaseObject = {
     }
 };
 
+exports.RtcommBaseObject = RtcommBaseObject;
 
 /*
  * Copyright 2014 IBM Corp.
@@ -432,14 +449,14 @@ var RtcommEvent = function RtcommEvent() {
   this.object = "";
 };
 
-return {util: {Log: Log, RtcommBaseObject:RtcommBaseObject, validateConfig: validateConfig, setConfig:setConfig, applyConfig: applyConfig, generateUUID: generateUUID, generateRandomBytes: generateRandomBytes, whenTrue:whenTrue, makeCopy: makeCopy,combineObjects : combineObjects}};
+return util;
 
 }));
 
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
-    define(["util"], function (util) {
+    define(["./util"], function (util) {
       return (root.returnExportsGlobal = factory(util));
     });
   } else if (typeof exports === 'object') {
@@ -448,9 +465,99 @@ return {util: {Log: Log, RtcommBaseObject:RtcommBaseObject, validateConfig: vali
     // like Node.
     module.exports = factory(require("util"));
   } else {
-    root['rtcomm'] = factory(rtcomm.util);
+        root['rtcomm'] = root['rtcomm']  || {};
+        root['rtcomm']['connection'] = factory(rtcomm.util);
   }
 }(this, function (util) {
+
+/*
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/ 
+// rtcservice & util should be defined here:
+/*jshint -W030*/
+/*global util:false*/
+
+var exports = {};
+var connection = exports;
+
+var logging = new util.Log(),
+    setLogLevel = logging.s,
+    getLogLevel = logging.g,
+    l = logging.l,
+    generateUUID = util.generateUUID,    
+    generateRandomBytes= util.generateRandomBytes,    
+    validateConfig = util.validateConfig,
+    applyConfig = util.applyConfig,
+    setConfig = util.setConfig,
+    /*global log: false */
+    log = function log() {
+          // I want to log CallingObject[id].method Message [possibly an object]
+
+          var object = {},
+              method = '<none>',
+              message = null,
+              remainder = null,
+              logMessage = "";
+
+          var args = [].slice.call(arguments);
+
+          if (args.length === 0 ) {
+            return;
+          } else if (args.length === 1 ) {
+            // Just a Message, log it...
+            message = args[0];
+          } else if (args.length === 2) {
+            object = args[0];
+            message = args[1];
+          } else if (args.length === 3 ) {
+            object = args[0];
+            method = args[1];
+            message = args[2];
+          } else {
+            object = args.shift();
+            method = args.shift();
+            message = args.shift();
+            remainder = args;
+          }
+
+          if (object) {
+            logMessage = object.toString() + "." + method + ' ' + message;
+          } else {
+            logMessage = "<none>" + "." + method + ' ' + message;
+          }
+          // Ignore Colors...
+          if (object && object.color) {object.color = null;}
+          
+          var css = "";
+          if (object && object.color) {
+            logMessage = '%c ' + logMessage;
+            css = 'color: ' + object.color;
+            if (remainder) {
+              console.log(logMessage, css, remainder);
+            } else {
+              console.log(logMessage,css);
+            }
+          } else {
+            if (remainder) {
+              console.log(logMessage, remainder);
+            } else {
+              console.log(logMessage);
+            }
+          }
+        }; // end of log/ 
+
 
 /*
  * Copyright 2014 IBM Corp.
@@ -1238,6 +1345,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
     };
   })()
 );
+/* globals exports:false */
+exports.EndpointConnection = EndpointConnection;
 
 /*
  * Copyright 2014 IBM Corp.
@@ -1488,93 +1597,7 @@ var MessageFactory = (function (){
   };
 })();
 
-
-
-/*
- * Copyright 2014 IBM Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **/ 
-// rtcservice & util should be defined here:
-/*jshint -W030*/
-/*global util:false*/
-
-var logging = new util.Log(),
-    setLogLevel = logging.s,
-    getLogLevel = logging.g,
-    l = logging.l,
-    generateUUID = util.generateUUID,    
-    generateRandomBytes= util.generateRandomBytes,    
-    validateConfig = util.validateConfig,
-    applyConfig = util.applyConfig,
-    setConfig = util.setConfig,
-    /*global log: false */
-    log = function log() {
-          // I want to log CallingObject[id].method Message [possibly an object]
-
-          var object = {},
-              method = '<none>',
-              message = null,
-              remainder = null,
-              logMessage = "";
-
-          var args = [].slice.call(arguments);
-
-          if (args.length === 0 ) {
-            return;
-          } else if (args.length === 1 ) {
-            // Just a Message, log it...
-            message = args[0];
-          } else if (args.length === 2) {
-            object = args[0];
-            message = args[1];
-          } else if (args.length === 3 ) {
-            object = args[0];
-            method = args[1];
-            message = args[2];
-          } else {
-            object = args.shift();
-            method = args.shift();
-            message = args.shift();
-            remainder = args;
-          }
-
-          if (object) {
-            logMessage = object.toString() + "." + method + ' ' + message;
-          } else {
-            logMessage = "<none>" + "." + method + ' ' + message;
-          }
-          // Ignore Colors...
-          if (object && object.color) {object.color = null;}
-          
-          var css = "";
-          if (object && object.color) {
-            logMessage = '%c ' + logMessage;
-            css = 'color: ' + object.color;
-            if (remainder) {
-              console.log(logMessage, css, remainder);
-            } else {
-              console.log(logMessage,css);
-            }
-          } else {
-            if (remainder) {
-              console.log(logMessage, remainder);
-            } else {
-              console.log(logMessage);
-            }
-          }
-        }; // end of log/ 
-
+exports.MessageFactory = MessageFactory;
 
 /*
  * Copyright 2014 IBM Corp.
@@ -1613,6 +1636,7 @@ var logging = new util.Log(),
  * 
  * @private
  */
+
 var MqttConnection = function MqttConnection(config) {
   /* Class Globals */
 
@@ -1944,6 +1968,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
       }
     }; // end of Return
 })());
+exports.MqttConnection = MqttConnection;
 
 
 /*
@@ -2510,25 +2535,26 @@ Transaction.prototype = util.RtcommBaseObject.extend(
   }
 });
 
-return {util: util, connection: {EndpointConnection:EndpointConnection, MessageFactory:MessageFactory, MqttConnection:MqttConnection}};
+return connection;
 
 }));
 
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
-    define(["connection",
-      "util"], function (connection, util) {
+    define(["./rtcomm/connection",
+      "./rtcomm/util"], function (connection, util) {
       return (root.returnExportsGlobal = factory(connection, util));
     });
   } else if (typeof exports === 'object') {
     // Node. Does not work with strict CommonJS, but
     // only CommonJS-like enviroments that support module.exports,
     // like Node.
-    module.exports = factory(require("connection"),
-      require("util"));
+    module.exports = factory(require("./rtcomm/connection"),
+      require("./rtcomm/util"));
   } else {
-    root['rtcomm'] = factory(rtcomm.connection,
+        root['rtcomm'] = root['rtcomm']  || {};
+        root['rtcomm']['EndpointProvider'] = factory(rtcomm.connection,
       rtcomm.util);
   }
 }(this, function (connection, util) {
@@ -3395,8 +3421,6 @@ var EndpointProvider =  function EndpointProvider() {
 }; // end of constructor
 
 EndpointProvider.prototype = util.RtcommBaseObject.extend({});
-
-
 
 /*
  * This is a private EndpointRegistry object that 
@@ -5854,6 +5878,6 @@ return WebRTCConnection;
 
 
 
-return {util: util, connection:connection, EndpointProvider:EndpointProvider};
+return EndpointProvider;
 
 }));

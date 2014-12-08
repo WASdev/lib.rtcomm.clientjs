@@ -17,6 +17,9 @@
 /*jshint -W030*/
 /*global util:false*/
 
+var exports = {};
+var connection = exports;
+
 var logging = new util.Log(),
     setLogLevel = logging.s,
     getLogLevel = logging.g,
