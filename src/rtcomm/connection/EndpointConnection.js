@@ -784,3 +784,5 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
     };
   })()
 );
+/* globals exports:false */
+exports.EndpointConnection = EndpointConnection;

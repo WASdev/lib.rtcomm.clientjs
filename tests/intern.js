@@ -49,7 +49,7 @@ define({
 	// can be used here
 	loader: {
 		// Packages that should be registered with the loader in each testing environment
-		packages: [ { name: 'ibm', location: 'build/js/umd/ibm'},
+		packages: [ { name: 'umd', location: 'dist/umd'},
                 { name: 'unit', location: 'tests/unit'},
                 { name: 'functional', location: 'tests/functional'},
                 { name: 'support', location: 'tests/support'}],

@@ -143,8 +143,8 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
 <!-- The following paths may need to be modified depending on the location of this script. -->
 
-<script src="../js/lib/mqttws31.js"></script>
-<script src="../js/ibm/rtcomm.js"></script>
+<script src="../lib/mqttws31.js"></script>
+<script src="../dist/rtcomm.js"></script>
 
 
 <script>
@@ -153,7 +153,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
    * Define Globals 
    *************************************************/
   // Define the RtcommEndpointProvider globabl variable
-  var ibmep = new ibm.rtcomm.EndpointProvider();
+  var ibmep = new rtcomm.EndpointProvider();
   // Change the loglevel - default is 'INFO', possibilities are:
   // 'MESSAGES' --> Just log sent/received messages in console.
   // 'DEBUG' -- > log most everything

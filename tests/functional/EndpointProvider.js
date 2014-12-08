@@ -21,7 +21,7 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm'
+    'umd/rtcomm'
 ], function (registerSuite, assert, Deferred,globals, config, rtcomm) {
 
     /*
@@ -65,14 +65,14 @@ define([
           endpointProvider.destroy();
           endpointProvider = null;
         }
-        endpointProvider = new rtcomm.EndpointProvider();
+        endpointProvider = new rtcomm();
         endpointProvider.setAppContext('test');
         endpointProvider.setLogLevel('DEBUG');
       },
       'constructorTest': function() {
             console.log('rtcomm: ', rtcomm);
             console.log('ep', endpointProvider);
-            assert.ok(endpointProvider instanceof rtcomm.RtcommEndpointProvider);
+            assert.ok(endpointProvider instanceof rtcomm);
             assert.notOk(endpointProvider.ready);
       },
       /**

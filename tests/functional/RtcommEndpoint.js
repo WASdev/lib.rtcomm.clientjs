@@ -21,7 +21,7 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm'
+    'umd/rtcomm'
 ], function (registerSuite, assert, Deferred,globals, config, rtcomm) {
 
 
@@ -71,7 +71,7 @@ define([
             endpointProvider = null;
           }
           console.log("***************************** NEW TEST ***************************");
-          endpointProvider = new rtcomm.EndpointProvider();
+          endpointProvider = new rtcomm();
           endpointProvider.setAppContext('test');
           endpointProvider.setLogLevel('DEBUG');
         },
@@ -126,7 +126,7 @@ define([
           endpointProvider.init(config1,finish, finish);
         },
      "in Browser A calls B": function() {
-         var endpointProvider2 = new rtcomm.EndpointProvider();
+         var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
@@ -188,9 +188,9 @@ define([
                  );
          },
      "in Browser A calls B, neither accept call from C": function() {
-         var endpointProvider2 = new rtcomm.EndpointProvider();
+         var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');
-         var endpointProvider3 = new rtcomm.EndpointProvider();
+         var endpointProvider3 = new rtcomm();
          endpointProvider3.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
@@ -270,7 +270,7 @@ define([
          });
          },
      "Customer A calls Queue[Toys], establish session": function() {
-           var endpointProvider2 = new rtcomm.EndpointProvider();
+           var endpointProvider2 = new rtcomm();
            endpointProvider2.setAppContext('test');
            // mark for destroy;
            g.endpointProvider2 = endpointProvider2;
@@ -343,11 +343,11 @@ define([
        this.skip();
          // mark for destroy;
          var config1 = config.clientConfig();
-         var endpointProvider2 = g.endpointProvider2 = new rtcomm.EndpointProvider();
+         var endpointProvider2 = g.endpointProvider2 = new rtcomm();
          var config2 = config.clientConfig();
-         var endpointProvider3 = g.endpointProvider3 = new rtcomm.EndpointProvider();
+         var endpointProvider3 = g.endpointProvider3 = new rtcomm();
          var config3 = config.clientConfig();
-         var endpointProvider4 = g.endpointProvider4 = new rtcomm.EndpointProvider();
+         var endpointProvider4 = g.endpointProvider4 = new rtcomm();
          var config4 = config.clientConfig();
 
          endpointProvider2.setAppContext('test');

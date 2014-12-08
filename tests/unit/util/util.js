@@ -16,7 +16,7 @@
 define([
     'intern!object',
     'intern/chai!assert',
-    'ibm/rtcomm/util'
+    'umd/rtcomm/util'
 ], function (registerSuite, assert,util) {
     registerSuite({
       name: "Unit Tests - util module",

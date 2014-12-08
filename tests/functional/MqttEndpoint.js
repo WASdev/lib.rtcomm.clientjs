@@ -21,7 +21,7 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm'
+    'umd/rtcomm'
 ], function (registerSuite, assert, Deferred,globals,config, rtcomm) {
  /*   if (typeof window === 'undefined' && global) {
       require(['intern/dojo/node!./tests_intern/mock/mqttws31_shim'], function(globals) {
@@ -79,7 +79,7 @@ define([
           console.log('*************setup!**************');
           cfg.userid = 'scott';
           /* init the EndpointProvider */
-          ep = new rtcomm.RtcommEndpointProvider();
+          ep = new rtcomm();
           ep.setLogLevel('DEBUG');
           ep.init(cfg, function(obj) {
             console.log('*** Creating MqttEndpoints ***');

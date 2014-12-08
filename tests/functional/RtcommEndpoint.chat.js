@@ -23,12 +23,12 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm'
+    'umd/rtcomm'
 ], function (registerSuite, assert, Deferred, globals,config, rtcomm) {
 
     var createProvider = function createProvider(userid,appContext) {
       var dfd = new Deferred();
-      var EP = new rtcomm.EndpointProvider();
+      var EP = new rtcomm();
       EP.setLogLevel('DEBUG');
       EP.setUserID(userid);
       EP.setAppContext(appContext);
