@@ -1840,7 +1840,6 @@ var RtcommEndpoint = (function invocation(){
     // Private info.
     this._ = {
       objName: 'RtcommEndpoint',
-      referralSession: null,
       activeSession: null,
       available: true,
       uuid: generateUUID(),
@@ -2093,39 +2092,28 @@ return  {
         // We match appContexts (or don't care)
         if (this.available()){
           // We are available (we can mark ourselves busy to not accept the call)
-          // TODO:  Fix the inbound session to always alert.
-          if (session.type === 'refer') {
+          // Save the session 
+          this._.activeSession = session;
+          addSessionCallbacks(this,session);
+          // If this session is created by a REFER, we do something different
+          if (session.referralTransaction ) {
+            // Don't start it, emit 'session:refer'
             l('DEBUG') && console.log(this + '.newSession() REFER');
-            this._.referralSession = session;
+            this.setState('session:refer');
           } else {
-           this._.activeSession = session;
-           addSessionCallbacks(this,session);
+            // any other inbound session should be started.
+            session.start();
+           // Depending on the session.message (i.e its peerContent or future content) then do something. 
+           if (session.message && session.message.peerContent) {
+             // If we need to pranswer, processMessage can handle it.
+             this._processMessage(session.message.peerContent);
+           } else {
+             // it doesn't have any peerContent, so we not part of a subprotocol
+             session.pranswer();
+             this.setState('session:alerting', {protocols:''});
+           }
+           this.available(false);
           }
-         // Save the session and start it.
-         session.start();
-         // Now, depending on the session.message (i.e its peerContent or future content) then do something. 
-         //  For an inbound session, we have several scenarios:
-         //
-         //  1. peerContent === webrtc 
-         //    -- we need to send a pranswer, create our webrtc endpoint, and 'answer'
-         //
-         //  2. peerContent === chat
-         //    -- it is chat content, emit it out, but respond and set up the session.
-         //
-         if (session.message && session.message.peerContent) {
-           // If it is chat. be consistent and pass to 
-           // TEST:  Do not respond automatically on CHAT.
-           //if (session.message.peerContent.type === 'user') {
-           //  session.respond();
-           //} 
-           // If we need to pranswer, processMessage can handle it.
-           this._processMessage(session.message.peerContent);
-         } else {
-           session.pranswer();
-           this.setState('session:alerting', {protocols:''});
-           //session.respond();
-         }
-         this.available(false);
         } else {
           msg = 'Busy';
           l('DEBUG') && console.log(this+'.newSession() '+msg);
@@ -2147,11 +2135,8 @@ return  {
           this.chat._processMessage(content);
           //this.emit('chat:message', content.userdata);
         } else {
-          console.error('Received chat message, but chat not supported!');
+          console.error('Received chat message, but chat not supported!',content);
         }
-      } else if (content.type === 'refer') {
-        this._.referralSession && this._.referralSession.pranswer();
-        this.setState('session:refer');
       } else {
         if (this.config.webrtc && this.webrtc) { 
           // calling enable will enable if not already enabled... 
@@ -2166,7 +2151,7 @@ return  {
           });
           }
         } else {
-          console.error('Received webrtc message, but webrtc not supported!');
+          console.error(this+' Received message, but nothing to do with it', content);
         }
       }
     }
@@ -2202,8 +2187,10 @@ return  {
   connect: function(endpointid) {
     if (this.ready()) {
       this.available(false);
-      this._.activeSession = createSignalingSession(endpointid, this);
-      addSessionCallbacks(this, this._.activeSession);
+      if (!this._.activeSession) { 
+        this._.activeSession = createSignalingSession(endpointid, this);
+        addSessionCallbacks(this, this._.activeSession);
+      }
       this.setState('session:trying');
       if (this.config.webrtc && 
           this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
@@ -2241,7 +2228,7 @@ return  {
    *
    */
   accept: function(options) {
-    if (this._.referralSession) {
+    if (this.getState() === 'session:refer') {  
       this.connect(null);
     } else if (this.webrtc || this.chat ) {
       this.webrtc && this.webrtc.accept(options);

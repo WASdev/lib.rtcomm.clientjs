@@ -78,7 +78,7 @@ define([
         "Endpoint creation(anonymous)": function() {
           console.log('***************** RunTest ************');
           var dfd = this.async(T1);
-          var ep= endpointProvider.createRtcommEndpoint();
+          var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:false});
           console.log('TEST endpoint: ', ep);
           var initObj = null;
           var success = false;
@@ -98,7 +98,7 @@ define([
       "Join/Leave queue": function() {
           console.log('***************** RunTest ************');
           var dfd = this.async();
-          var ep = endpointProvider.createRtcommEndpoint();
+          var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:false});
           console.log('TEST endpoint: ', ep);
           var initObj = null;
           var success = false;

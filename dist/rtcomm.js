@@ -719,6 +719,19 @@ var EndpointConnection = function EndpointConnection(config) {
                                   {message:rtcommMessage, 
                                     source: topic, 
                                     fromEndpointID: fromEndpointID}));
+      } else if (rtcommMessage.method === 'REFER' )  {
+        /*
+         * This is an INBOUND Transaction... 
+         * ... NOT COMPLETE ...
+         */
+        var t = this.createTransaction({message: rtcommMessage, timeout:30000});
+        // Create a new session:
+        endpointConnection.emit('newsession', 
+                                endpointConnection.createSession(
+                                  {message:rtcommMessage, 
+                                    referralTransaction: t,
+                                    source: topic }));
+
       } else {
         // We have a transID, we need to pass message to it.
         // May fail? check.
@@ -1402,6 +1415,12 @@ var MessageFactory = (function (){
         'toEndpointID': null,
         'peerContent': null,
       },
+      'REFER' : {
+        'method': 'REFER',
+        'transID':null,
+        'toEndpointID': null,
+        'details': null,
+      },
      'STOP_SESSION' : {
         'method': 'STOP_SESSION',
         'sigSessID':null,
@@ -1447,6 +1466,11 @@ var MessageFactory = (function (){
         'result': null,
         'peerContent': null,
         'transID': null,
+      },
+      'REFER' : {
+        'orig': 'REFER',
+        'transID':null,
+        'result': null,
       },
       'REGISTER': {
         'orig': 'REGISTER',
@@ -1724,9 +1748,6 @@ var MqttConnection = function MqttConnection(config) {
   } else {
     throw new Error("MqttConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition.required));
   }
-
-  console.log(this+'>>>>>>> constructor config: '+JSON.stringify(this.config));
-
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();
   this.config.myTopic = this.config.myTopic || this.config.rtcommTopicPath + this.config.clientID;
@@ -2019,36 +2040,46 @@ var SigSession = function SigSession(config) {
   this.source = null;
   this.toTopic = null;
   this.type = 'normal'; // or refer
-  this.referralDetails = null;
+  this.referralDetails= null;
+  this.referralTransaction = null;
   this.appContext = null;
 
   if (config) {
-    if (config.message && config.message.sigSessID) {
-      // We are INBOUND. 
-      this.message = config.message;
-      this.id = config.message.sigSessID;
+    if (config.message) {
       this.appContext = config.message.appContext || null;
-      this.remoteEndpointID = config.fromEndpointID || null;
       this.source = config.source || null;
-      this.toTopic = config.toTopic || config.message.fromTopic || null;
-      if (config.message.peerContent && config.message.peerContent.type === 'refer') {
-        this.type = 'refer';
-        this.referralDetails = config.message.peerContent.details;
+      if (config.message.method === 'START_SESSION') {
+        l('DEBUG') && 
+          console.log(this+'.constructor - inbound message(START_SESSION) config: ', config);
+        // We are INBOUND. 
+        this.message = config.message;
+        this.id = config.message.sigSessID;
+        this.remoteEndpointID = config.fromEndpointID || null;
+        this.toTopic = config.toTopic || config.message.fromTopic || null;
+      } else if (config.message.method === 'REFER') {
+        l('DEBUG') && 
+          console.log(this+'.constructor - inbound message(REFER) config: ', config);
+        // If there is a sessionID, use it...
+        this.id = config.message.details.sessionID && config.message.details.sessionID;
+        this.remoteEndpointID = config.message.details.toEndpointID || null;
+        this.referralTransaction = config.referralTransaction;
+      } else {
+        l('DEBUG') && 
+          console.log(this+'.constructor - inbound message(unknown) doing nothing -->  config: ', config);
       }
     } else {
+      l('DEBUG') && console.log(this+'.constructor creating session from config: ', config);
       this.remoteEndpointID = config.remoteEndpointID || null;
       this.id = this.id || config.id;
       this.toTopic = this.toTopic || config.toTopic;
       this.appContext = this.appContext|| config.appContext;
     }
-  } 
+  }
 
   /* global generateUUID: false */
   this.id = this.id || generateUUID();
-
   l('DEBUG') && console.log(this+'.constructor creating session from config: ', config);
-  l('DEBUG') && console.log(this+'.constructor created session from config: ', this);
- 
+
   this.events = {
       'starting':[],
       'started':[],
@@ -2120,9 +2151,6 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         l('DEBUG') && console.log('SigSession.start() already started/starting');
         return;
       }
-
-
-
       this._setupQueue();
       /*global l:false*/
       l('DEBUG') && console.log('SigSession.start() using config: ', config);
@@ -2162,8 +2190,8 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         }
 
         this._startTransaction = null;
-        //  this.processMessage(message);
-        // if Inbound it means we SENT an answer. and have 'FINISHED' the transaction.
+        this.referralTransaction && 
+          this.referralTransaction.finish(this.endpointconnector.createResponse('REFER'));
         this.emit('started', message.peerContent);
       };
 
@@ -2216,17 +2244,23 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         messageToSend = this.endpointconnector.createResponse('START_SESSION');
         messageToSend.transID = this._startTransaction.id;
         messageToSend.sigSessID = this.id;
+        var referralResponse = this.endpointconnector.createResponse('REFER');
 
         if (SUCCESS) { 
           messageToSend.result = 'SUCCESS';
-          messageToSend.peerContent = (this.type === 'refer') ? {type: 'refer'} : message; 
+          messageToSend.peerContent = message;
+          // If there is a referral transaction, finish it...
           this.state = 'started';
         } else {
           messageToSend.result = 'FAILURE';
           messageToSend.reason = message || "Unknown";
+          referralResponse.result = 'FAILURE';
+          referralResponse.reason = message || "Unknown";
           this.state = 'failed';
         }
         // Finish the transaction
+        this.referralTransaction && 
+          this.referralTransaction.finish(referralResponse);
         this._startTransaction.finish(messageToSend);
         this.emit(this.state);
       } else {
@@ -4381,7 +4415,6 @@ var RtcommEndpoint = (function invocation(){
     // Private info.
     this._ = {
       objName: 'RtcommEndpoint',
-      referralSession: null,
       activeSession: null,
       available: true,
       uuid: generateUUID(),
@@ -4634,39 +4667,28 @@ return  {
         // We match appContexts (or don't care)
         if (this.available()){
           // We are available (we can mark ourselves busy to not accept the call)
-          // TODO:  Fix the inbound session to always alert.
-          if (session.type === 'refer') {
+          // Save the session 
+          this._.activeSession = session;
+          addSessionCallbacks(this,session);
+          // If this session is created by a REFER, we do something different
+          if (session.referralTransaction ) {
+            // Don't start it, emit 'session:refer'
             l('DEBUG') && console.log(this + '.newSession() REFER');
-            this._.referralSession = session;
+            this.setState('session:refer');
           } else {
-           this._.activeSession = session;
-           addSessionCallbacks(this,session);
+            // any other inbound session should be started.
+            session.start();
+           // Depending on the session.message (i.e its peerContent or future content) then do something. 
+           if (session.message && session.message.peerContent) {
+             // If we need to pranswer, processMessage can handle it.
+             this._processMessage(session.message.peerContent);
+           } else {
+             // it doesn't have any peerContent, so we not part of a subprotocol
+             session.pranswer();
+             this.setState('session:alerting', {protocols:''});
+           }
+           this.available(false);
           }
-         // Save the session and start it.
-         session.start();
-         // Now, depending on the session.message (i.e its peerContent or future content) then do something. 
-         //  For an inbound session, we have several scenarios:
-         //
-         //  1. peerContent === webrtc 
-         //    -- we need to send a pranswer, create our webrtc endpoint, and 'answer'
-         //
-         //  2. peerContent === chat
-         //    -- it is chat content, emit it out, but respond and set up the session.
-         //
-         if (session.message && session.message.peerContent) {
-           // If it is chat. be consistent and pass to 
-           // TEST:  Do not respond automatically on CHAT.
-           //if (session.message.peerContent.type === 'user') {
-           //  session.respond();
-           //} 
-           // If we need to pranswer, processMessage can handle it.
-           this._processMessage(session.message.peerContent);
-         } else {
-           session.pranswer();
-           this.setState('session:alerting', {protocols:''});
-           //session.respond();
-         }
-         this.available(false);
         } else {
           msg = 'Busy';
           l('DEBUG') && console.log(this+'.newSession() '+msg);
@@ -4688,11 +4710,8 @@ return  {
           this.chat._processMessage(content);
           //this.emit('chat:message', content.userdata);
         } else {
-          console.error('Received chat message, but chat not supported!');
+          console.error('Received chat message, but chat not supported!',content);
         }
-      } else if (content.type === 'refer') {
-        this._.referralSession && this._.referralSession.pranswer();
-        this.setState('session:refer');
       } else {
         if (this.config.webrtc && this.webrtc) { 
           // calling enable will enable if not already enabled... 
@@ -4707,7 +4726,7 @@ return  {
           });
           }
         } else {
-          console.error('Received webrtc message, but webrtc not supported!');
+          console.error(this+' Received message, but nothing to do with it', content);
         }
       }
     }
@@ -4743,8 +4762,10 @@ return  {
   connect: function(endpointid) {
     if (this.ready()) {
       this.available(false);
-      this._.activeSession = createSignalingSession(endpointid, this);
-      addSessionCallbacks(this, this._.activeSession);
+      if (!this._.activeSession) { 
+        this._.activeSession = createSignalingSession(endpointid, this);
+        addSessionCallbacks(this, this._.activeSession);
+      }
       this.setState('session:trying');
       if (this.config.webrtc && 
           this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
@@ -4782,7 +4803,7 @@ return  {
    *
    */
   accept: function(options) {
-    if (this._.referralSession) {
+    if (this.getState() === 'session:refer') {  
       this.connect(null);
     } else if (this.webrtc || this.chat ) {
       this.webrtc && this.webrtc.accept(options);

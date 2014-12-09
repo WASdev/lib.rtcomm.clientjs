@@ -52,6 +52,12 @@ var MessageFactory = (function (){
         'toEndpointID': null,
         'peerContent': null,
       },
+      'REFER' : {
+        'method': 'REFER',
+        'transID':null,
+        'toEndpointID': null,
+        'details': null,
+      },
      'STOP_SESSION' : {
         'method': 'STOP_SESSION',
         'sigSessID':null,
@@ -97,6 +103,11 @@ var MessageFactory = (function (){
         'result': null,
         'peerContent': null,
         'transID': null,
+      },
+      'REFER' : {
+        'orig': 'REFER',
+        'transID':null,
+        'result': null,
       },
       'REGISTER': {
         'orig': 'REGISTER',

@@ -158,6 +158,19 @@ var EndpointConnection = function EndpointConnection(config) {
                                   {message:rtcommMessage, 
                                     source: topic, 
                                     fromEndpointID: fromEndpointID}));
+      } else if (rtcommMessage.method === 'REFER' )  {
+        /*
+         * This is an INBOUND Transaction... 
+         * ... NOT COMPLETE ...
+         */
+        var t = this.createTransaction({message: rtcommMessage, timeout:30000});
+        // Create a new session:
+        endpointConnection.emit('newsession', 
+                                endpointConnection.createSession(
+                                  {message:rtcommMessage, 
+                                    referralTransaction: t,
+                                    source: topic }));
+
       } else {
         // We have a transID, we need to pass message to it.
         // May fail? check.
