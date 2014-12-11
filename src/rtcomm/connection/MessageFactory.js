@@ -22,7 +22,7 @@
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.2.0',
+      'rtcommVer': 'v0.3.0',
        'method' : null,
        'fromTopic': null
   };
@@ -72,14 +72,14 @@ var MessageFactory = (function (){
         'method':'MESSAGE',
         'peerContent': null
       },
-      'ICE_CANDIDATE':{
-        'method':'ICE_CANDIDATE',
-        'fromTopic': null
-      },
-      'REGISTER': {
-        'method': 'REGISTER',
-        'regTopic':null,
-        'appContext':null
+      'DOCUMENT': {
+        'method': 'DOCUMENT',
+        'type': 'ENDPOINT',
+        'topic':null,
+        'appContext':null,
+        'state': null,
+        'alias': null,
+        'userDefines':[]
       }
   };
   
@@ -108,14 +108,7 @@ var MessageFactory = (function (){
         'orig': 'REFER',
         'transID':null,
         'result': null,
-      },
-      'REGISTER': {
-        'orig': 'REGISTER',
-        'expires': 120,
-        'result': null,
-        'transID': null,
       }
-      
   };
   
   function getMessageTemplate(type) {

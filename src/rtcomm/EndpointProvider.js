@@ -128,13 +128,12 @@ var EndpointProvider =  function EndpointProvider() {
    * );
    *
    */
-  this.start = function init(options, cbSuccess, cbFailure) {
+  this.start = function start(options, cbSuccess, cbFailure) {
     // You can only be init'd 1 time, without destroying reconnecting.
     if (this.ready) {
       l('INFO') && console.log('EndpointProvider.init() has been called and the object is READY');
       return this;
     }
-
     // Used to set up config for endoint connection;
     var config = null;
     var rtcommTopicPath = '/rtcomm/';
@@ -158,7 +157,6 @@ var EndpointProvider =  function EndpointProvider() {
           },
           appContext: 'rtcomm',
           port: 1883,
-          register: false,
           createEndpoint: false }
       };
     // the configuration for Endpoint Provider
@@ -189,65 +187,52 @@ var EndpointProvider =  function EndpointProvider() {
 
     var connectionConfig =  util.makeCopy(config);
     // everything else is the same config.
-    connectionConfig.hasOwnProperty('register') && delete connectionConfig.register;
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
     // createEndpointConnection
     var endpointConnection = 
       this.dependencies.endpointConnection = 
       createEndpointConnection.call(this, connectionConfig);
-    // onSuccess callback for endpointConnection.connect();
+    /*
+     * onSuccess callback for endpointConnection.connect();
+     */
     var onSuccess = function(message) {
       l('DEBUG') && console.log(endpointProvider+'.onSuccess() called ');
       var returnObj = {
           'ready': true,
-          'registered': false,
           'endpoint': null
       };
       this.ready = true;
       /*
        * Depending on the configuration, the init() can do some different things
-       *
        * if there is a userid, we register.
        */
-      if (config.userid) {
-
-        l('DEBUG') && 
-          console.log(endpointProvider+'.init() Registering with rtcomm server as: '+ config.userid+'|'+config.appContext);
-        endpointConnection.register(function(message){
-            returnObj.registered = true;
-            if (config.createEndpoint) {
-              returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
-            }
-            endpointProvider.setUserID(config.userid);
-            cbSuccess(returnObj);
-          },
-          function(error) {
-              cbFailure(error);
-          });
-      } else {
-        // We are anonymous
-        l('DEBUG') && 
-          console.log(endpointProvider+'.init() anonymous provider, outbound support only');
-        endpointProvider.setUserID(endpointConnection.setUserID());
-        endpointConnection.serviceQuery();
-        if (config.createEndpoint) {
-          returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
-        }
-        cbSuccess(returnObj);
+      if (config.createEndpoint) {
+        returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
       }
+      if (config.userid) {
+        l('DEBUG') && 
+          console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
+        endpointProvider.publishPresence();
+        endpointProvider.setUserID(config.userid);
+      }
+      // Update the userid
+      endpointProvider.setUserID(config.userid ? config.userid: endpointConnection.getUserID());
+      endpointConnection.serviceQuery();
+      cbSuccess(returnObj);
     };
     /*
-     * onFailure for EndpointConnection
+     * onFailure for EndpointConnection.connect()
      */
     var onFailure = function(error) {
       this.ready = false;
       cbFailure(error);
     };
     // Connect!
-    endpointConnection.connect( onSuccess.bind(this), onFailure.bind(this));
+    endpointConnection.connect(onSuccess.bind(this), onFailure.bind(this));
     // Return ourself for chaining.
     return this;
   };  // End of RtcommEndpointProvider.init()
+
   this.stop = this.destroy;
   this.init = this.start;
 
@@ -545,7 +530,6 @@ var EndpointProvider =  function EndpointProvider() {
    *
    */
   this.publishPresence = function(presenceConfig) {
-
     // Possible states for presence
     var states = {
       'available': 'available',

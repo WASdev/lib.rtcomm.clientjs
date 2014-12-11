@@ -324,7 +324,6 @@ var EndpointConnection = function EndpointConnection(config) {
   // If we are connected
   this.connected = false;
   this._init = false;
-  this._registerTimer = null;
   var rtcommTopicPath = '/rtcomm/';
   var configDefinition = {
     required: { 
@@ -488,6 +487,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             topic = p.test(topic)? topic : begin + topic;
             var p2 = new RegExp(end + "$", "g");
             topic = p2.test(topic) ? topic: topic + "/" + end;
+            // Replace Double '//' if present
+            topic = topic.replace('\/\/','\/');
           } else {
             if (this.connectorTopicName) { 
               topic = this.normalizeTopic(this.connectorTopicName);
@@ -519,17 +520,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           l('DEBUG')&&console.log(this+'.createMessage() returned', message);
           return message;
         },
-
         createPresenceDocument: function(config){
-          var presenceDocument = {
-            topic: '',
-            endpointID: '',
-            state: '',
-            alias: '',
-            userDefines: []
-          };
+          var presenceDocument = MessageFactory.createMessage('DOCUMENT');
           presenceDocument.topic = this.getMyTopic();
-          presenceDocument.endpointID = this.getUserID();
+          presenceDocument.appContext = this.appContext;
           if (config) {
             presenceDocument.state = config.state || presenceDocument.state;
             presenceDocument.alias = config.alias || presenceDocument.alias;
@@ -657,8 +651,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          },
         disconnect : function() {
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
-          this.unregister();
-          l('DEBUG') && console.log(this+'.disconnect() RegisterTimer should be null: '+ this._registerTimer);
           l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
           this.publish(this.getMyPresenceTopic(), this.getLwtMessage());
           this.sessions.clear();
@@ -699,109 +691,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
                     cbFailure);
           } else {
             console.error('Unable to execute service query, not connected');
-          }
-        },
-
-        /**
-         *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
-         *  rtcomm service so it can receive inbound requests.
-         *
-         *  @param {string} [userid] 
-         *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid
-         *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
-         */
-        register : function(userid, cbSuccess, cbFailure) {
-          var endpointConnection = this;
-          l('DEBUG') && console.log(endpointConnection+'.register() Register Timer is set to: '+this._registerTimer);
-          // Initialize the input
-          if (typeof userid === 'function') { 
-            cbFailure = cbSuccess;
-            cbSuccess = userid;
-            userid = null;
-          }
-          cbSuccess = cbSuccess || function(message) {
-            console.log(endpointConnection+'.register() Default Success message, use callback to process:', message);
-          };
-          cbFailure = cbFailure || function(error) {
-            console.log(endpointConnection+'.register() Default Failure message, use callback to process:', error);
-          };
-          var minimumReregister = 30;  // 30 seconds;
-          var onSuccess = function(register_message) {
-            l('DEBUG') && console.log(endpointConnection+'register() REGISTER RESPONSE: ', register_message);
-            //
-            // TO BE removed in the future.  Configure how to disable this.
-            // Essentially, if the SERVICE_QUERY does not return an LWT topic, we know our LWT won't
-            // work.  So, we need to keep our time.
-            //
-            if (!this.useLwt()) {
-              if (register_message.orig === 'REGISTER' && register_message.expires) {
-                var expires = register_message.expires;
-                l('DEBUG') && console.log(endpointConnection+'.register() Message Expires in: '+ expires);
-                /* We will reregister every expires/2 unless that is less than minimumReregister */
-                var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
-                // we have a expire in seconds, register a timer...
-                l('DEBUG') && console.log(endpointConnection+'.register() Setting Timeout to:  '+regAgain*1000);
-                endpointConnection._registerTimer = setTimeout(endpointConnection.register.bind(endpointConnection), regAgain*1000);
-              }
-            }
-            endpointConnection.registered = true;
-            // Call our passed in w/ no info...
-            if (cbSuccess && typeof cbSuccess === 'function') {
-              cbSuccess(register_message);
-            } else {
-              l('DEBUG') && console.log(endpointConnection + ".register() Register Succeeded (use onSuccess Callback to get the message)", register_message);
-            }
-          };
-          // {'failureReason': 'some reason' }
-          var onFailure = function(errorObject) {
-            if (cbFailure && typeof cbFailure === 'function') {
-              cbFailure(errorObject.failureReason);
-            } else {
-              console.error('Registration failed : '+errorObject.failureReason);
-            }
-          };
-
-          var doRegister =  function() {
-            var message = endpointConnection.createMessage('REGISTER');
-            message.appContext = endpointConnection.appContext;
-            message.regTopic = message.fromTopic;
-            var t = endpointConnection.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
-            t.start();
-          }.bind(this);
-
-          /*
-           * It is possible to register with an id, if one is not already set. 
-           */
-
-          if (userid) {
-            this.setUserID(userid);
-          }
-
-          if (this.userid) {
-            if (this.ready) {
-              doRegister(true);
-            } else {
-              this.serviceQuery(doRegister, cbFailure);
-            }
-          } else {
-            cbFailure('No userid to register');
-          }
-        },
-        /**
-         *  Unregister the userid associated with the EndpointConnection
-         */
-        unregister : function() {
-          if (this._registerTimer) {
-            clearTimeout(this._registerTimer);
-            this._registerTimer=null;
-            var message = this.createMessage('REGISTER');
-            message.regTopic = message.fromTopic;
-            message.appContext = this.appContext;
-            message.expires = "0";
-            this.send({'message':message});
-            this.registered = false;
-          } else {
-            l('DEBUG') && console.log(this+' No registration found, cannot unregister');
           }
         },
         /**
@@ -930,7 +819,7 @@ exports.EndpointConnection = EndpointConnection;
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.2.0',
+      'rtcommVer': 'v0.3.0',
        'method' : null,
        'fromTopic': null
   };
@@ -980,14 +869,14 @@ var MessageFactory = (function (){
         'method':'MESSAGE',
         'peerContent': null
       },
-      'ICE_CANDIDATE':{
-        'method':'ICE_CANDIDATE',
-        'fromTopic': null
-      },
-      'REGISTER': {
-        'method': 'REGISTER',
-        'regTopic':null,
-        'appContext':null
+      'DOCUMENT': {
+        'method': 'DOCUMENT',
+        'type': 'ENDPOINT',
+        'topic':null,
+        'appContext':null,
+        'state': null,
+        'alias': null,
+        'userDefines':[]
       }
   };
   
@@ -1016,14 +905,7 @@ var MessageFactory = (function (){
         'orig': 'REFER',
         'transID':null,
         'result': null,
-      },
-      'REGISTER': {
-        'orig': 'REGISTER',
-        'expires': 120,
-        'result': null,
-        'transID': null,
       }
-      
   };
   
   function getMessageTemplate(type) {
