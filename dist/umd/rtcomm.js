@@ -631,8 +631,6 @@ var EndpointProvider =  function EndpointProvider() {
    * @returns {module:rtcomm.PresenceMonitor}
    */
   this.getPresenceMonitor= function(topic) {
-    console.log('this._ is: ', this._);
-    console.log('this is: ', this);
     this._.presenceMonitor  = this._.presenceMonitor || new PresenceMonitor({connection: this.dependencies.endpointConnection});
     if (this.ready) {
       topic && this._.presenceMonitor.add(topic);
@@ -1199,7 +1197,8 @@ var PresenceNode = function PresenceNode(nodename, record) {
   this.objName = 'PresenceNode';
   this.name = nodename || '';
   this.record = record || false;
-  this.topic = null;
+  this.addressTopic = null;
+  this.presenceTopic = null;
   this.nodes= [];
   this.id = this.name;
 };
@@ -1228,6 +1227,18 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     //createNode(message.topic).addRecord(message);
     
   },
+  flatten: function() {
+    // return array of all 'records' (dropping the hierarchy)
+    var flat = [];
+    this.nodes.forEach(function(node){
+      if (node.record) {
+        flat.push(node);
+      } else {
+        flat.concat(node.flatten());
+      } 
+    });
+    return flat;
+  },
   /** 
    * Return the presenceNode Object matching this topic
    * if it doesn't exist, creates it.
@@ -1245,6 +1256,22 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     l('DEBUG') && console.log(this+'.findSubNode() searching for nodes --> ', nodes);
     // If the root node matches our name... 
     var returnValue = null;
+    /*
+     * if this.name === '/' then we are THE master Root node ('/') and we will presume that nodes[0] should
+     * be below us... 
+     */
+
+
+    if (this.name === '/') {
+      if (nodes.length === 1 && nodes[0] === '/') {
+        return this;
+      } else {
+        // If we are searching off of the Top Level, we need to insert it into nodes...
+        nodes.unshift('/');
+      }
+    }
+
+    l('DEBUG') && console.log(this+ '.findSubNode() name is: '+this.name);
     if(nodes[0] === this.name) {
       var match = null;
       // Search... 
@@ -1262,6 +1289,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       // If a subnode exists, then we did a search and match is accurate.
       //
       if (nodes[1]) {
+        l('DEBUG') && console.log(this+ '.findSubNode() >>> Found1? '+nodes[1]);
         returnValue = match;
       } else {
         returnValue = this;
@@ -1269,6 +1297,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     } else {
       returnValue = this;
     }
+    l('DEBUG') && console.log(this+ '.findSubNode() >>> RETURNING: ',returnValue);
     return returnValue;
   },
   /*
@@ -1316,6 +1345,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       l('DEBUG') && console.log(this+'.deleteSubNode() Deleting Node: '+nodeToDelete.name);
       // have to find its parent.
       var parentNode = this.findSubNode(nodes.slice(0, nodes.length-1));
+      l('DEBUG') && console.log(this+'.deleteSubNode() Found parent: ', parentNode);
       var index = parentNode.nodes.indexOf(nodeToDelete);
       // Remove it.
       parentNode.nodes.splice(index,1);
@@ -1325,6 +1355,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
   },
   addPresence: function addPresence(topic,presenceMessage) {
     var presence = this.getSubNode(topic);
+    presence.presenceTopic = topic;
     l('DEBUG') && console.log(this+'.addPresence() created node: ', presence);
     presence.record = true;
     if (typeof presenceMessage.self !== 'undefined') {
@@ -1337,7 +1368,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       }
       presence.alias = msg.alias || null;
       presence.state = msg.state || 'unknown';
-      presence.topic = msg.topic|| null;
+      presence.addressTopic = msg.addressTopic|| null;
       presence.nodes = msg.userDefines ||  [];
     }
   },
@@ -1429,7 +1460,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       message.self = true;
     }
     var topic = r.exec(message.topic)[1];
-    var presence = this.getRootNode(topic);
+    var presence = this.getRootNode();
     if (presence) {
       if (message.content && message.content !== '') {
         // If content is '' or null then it REMOVES the presence record.
@@ -1462,9 +1493,11 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       if (this._.sphereTopic) {
         // Make sure it starts with 
         subscriptionTopic = normalizeTopic(this._.sphereTopic +topic + '/#');
+        // Topic may or may not start w/ a /, either way it is added to the sphere topic.
+        // And is BASED on the 'RootNode' or '/' 
         var a = topic.split('/');
         rootTopic = (a[0] === '') ? a[1] : a[0];
-        match = this.getRootNode(topic);
+        match = this.getRootNode();
         if (match) { 
           match.getSubNode(topic);
         } else {
@@ -1494,25 +1527,49 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       return this._.presenceData;
     },
 
+    getRootNode: function getRootNode() {
+      var rootNode = null;
+      var presenceData = this._.presenceData;
+      if (presenceData.length === 1) {
+        rootNode = presenceData[0]; 
+      } else {
+        rootNode = new PresenceNode("/");
+        this._.presenceData[0] = rootNode;
+      }
+      return rootNode;
+    },
+
     /**
      * Return the root presenceNode if it exists.
      *
      * @param {string} topic
      * @returns {PresenceNode} The root PresenceNode for a topic (if it already exists)
      */
-    getRootNode: function getRootNode(topic) {
+    __getRootNode: function getRootNode(topic) {
+      // The root node matching the topic (if it exists)
       var rootNode = null;
+      // The most top level node( if it exists)
+      var topLevelNode = null;
+      // Root Topic from passed in topic, used to find the matching rootNode
       var rootTopic = null;
       var presenceData = this._.presenceData;
       // Make sure it starts with 
       var a = normalizeTopic(topic).split('/');
       rootTopic = (a[0] === '') ? a[1] : a[0];
+
       for(var i = 0; i<presenceData.length;i++ ) {
+        console.log('REMOVE ME '+a+' rootTopic: '+rootTopic+ ' pd.name: '+presenceData[i].name);
         if ( presenceData[i].name === rootTopic ) { 
           rootNode =  presenceData[i];
           break;
         }
+        if (presenceData[i].name === '') {
+          // This is the most top level node.  Return it if no other was found.
+          topLevelNode = presenceData[i];
+        }
       }
+     rootNode = (rootNode)? rootNode:(topLevelNode?topLevelNode: null);
+     l('DEBUG') &&  console.log(this+'.getRootNode() for topic:'+topic+' found: ',rootNode);
      return rootNode;
     },
 
@@ -1722,13 +1779,11 @@ var RtcommEndpoint = (function invocation(){
     this._processMessage = function(message) {
       // If we are connected, emit the message
       if (this.state === 'connected') {
-        if (message.type === 'user') { 
-          this.emit('message', message.userdata);
-        } 
+        this.emit('message', message.message);
       } else {
         if (!parent.sessionStopped()) {
           parent._.activeSession && parent._.activeSession.pranswer();
-          this._setState('alerting', {'message': message.userdata});
+          this._setState('alerting', {'message': message.message});
         }
       }
       return this;
@@ -1826,8 +1881,10 @@ var RtcommEndpoint = (function invocation(){
       objName: 'RtcommEndpoint',
       activeSession: null,
       available: true,
+      /*global generateUUID:false */
       uuid: generateUUID(),
       initialized : false,
+      protocols : [],
       // webrtc Only 
       inboundMedia: null,
       attachMedia: false,
@@ -1844,6 +1901,10 @@ var RtcommEndpoint = (function invocation(){
     config && Object.keys(config).forEach(function(key) {
       self.config[key] = config[key];
     });
+
+    this.config.webrtc && this._.protocols.push('webrtc');
+    this.config.chat && this._.protocols.push('chat');
+
     // expose the ID
     this.id = this._.uuid;
     this.userid = this.config.userid || null;
@@ -1981,22 +2042,28 @@ var RtcommEndpoint = (function invocation(){
 /*globals l:false*/
 RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
 
-  function createSignalingSession(remoteEndpointID, context) {
+  function createSignalingSession(endpoint, context) {
+    var remoteEndpointID = null;
+    var toTopic = null;
+    if (typeof endpoint === 'object') {
+      if (endpoint.remoteEndpointID && endpoint.toTopic) {
+        remoteEndpointID = endpoint.remoteEndpointID;
+        toTopic = endpoint.toTopic;
+      } else {
+        throw new Error('Invalid object passed on connect! should be {remoteEndpointID: something, toTopic: something}');
+      }
+    } else {
+      remoteEndpointID = endpoint;
+    } 
     l('DEBUG') && console.log(context+" createSignalingSession context: ", context);
     var sessid = null;
-    var toTopic = null;
-    if (context._.referralSession) {
-      var details = context._.referralSession.referralDetails;
-      sessid =  (details && details.sessionID) ? details.sessionID : null;
-      remoteEndpointID =  (details && details.toEndpointID) ? details.toEndpointID : null;
-      toTopic =  (details && details.toTopic) ? details.toTopic : null;
-    }
     if (!remoteEndpointID) {
       throw new Error('toEndpointID must be set');
     }
     var session = context.dependencies.endpointConnection.createSession({
       id : sessid,
       toTopic : toTopic,
+      protocols: context._.protocols,
       remoteEndpointID: remoteEndpointID,
       appContext: context.config.appContext
     });
@@ -2009,7 +2076,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     // received a pranswer
     session.on('have_pranswer', function(content){
       // Got a pranswer:
-      console.log('REMOVE ME: Recieved a PRANSWER! lastEvent is: ', context.lastEvent);
       context.setState('session:ringing');
       context._processMessage(content);
     });
@@ -2024,11 +2090,10 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     session.on('queued', function(content){
       l('DEBUG') && console.log('SigSession callback called to queue: ', content);
       var position = 0;
-
       if (typeof content.queuePosition !== 'undefined') {
         position = content.queuePosition;
         context.setState('session:queued',{'queuePosition':position});
-        content = (content.message)? content.message : content
+        content = (content.message)? content.message : content;
       } else {
         context.setState('session:queued');
         context._processMessage(content);
@@ -2041,9 +2106,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     session.on('started', function(content){
       // Our Session is started!
       content && context._processMessage(content);
-      if (context._.referralSession) {
-        context._.referralSession.respond(true);
-      }
       context.setState('session:started');
     });
     session.on('stopped', function(message) {
@@ -2072,32 +2134,41 @@ return  {
       // If there is a session.appContext, it must match unless this.ignoreAppContext is set 
       if (this.config.ignoreAppContext || 
          (session.appContext && (session.appContext === this.getAppContext())) || 
-         (typeof session.appContext === 'undefined' && session.type === 'refer')) {
+         (typeof session.appContext === 'undefined' )) {
         // We match appContexts (or don't care)
         if (this.available()){
           // We are available (we can mark ourselves busy to not accept the call)
           // Save the session 
           this._.activeSession = session;
           addSessionCallbacks(this,session);
+          console.log('MY PROTOCOLS? ', this._.protocols);
+          console.log('INBOUND PROTOCOLS? ', session.protocols);
+          var commonProtocols = util.commonArrayItems(this._.protocols, session.protocols);
+          console.log('COMMON PROTOCOLS? ', commonProtocols);
           // If this session is created by a REFER, we do something different
           if (session.referralTransaction ) {
             // Don't start it, emit 'session:refer'
             l('DEBUG') && console.log(this + '.newSession() REFER');
             this.setState('session:refer');
-          } else {
+          } else if (commonProtocols.length > 0){
+            // have a common protocol 
             // any other inbound session should be started.
-            session.start();
-           // Depending on the session.message (i.e its peerContent or future content) then do something. 
-           if (session.message && session.message.peerContent) {
-             // If we need to pranswer, processMessage can handle it.
-             this._processMessage(session.message.peerContent);
-           } else {
-             // it doesn't have any peerContent, so we not part of a subprotocol
-             session.pranswer();
-             this.setState('session:alerting', {protocols:''});
-           }
-           this.available(false);
+            session.start({protocols: commonProtocols});
+            // Depending on the session.message (i.e its peerContent or future content) then do something. 
+            if (session.message && session.message.payload) {
+              // If we need to pranswer, processMessage can handle it.
+              this._processMessage(session.message.payload);
+            } else {
+              // it doesn't have any payload, but could have protocols subprotocol
+              session.pranswer();
+              this.setState('session:alerting', {protocols:commonProtocols});
+            }
+          } else {
+            // can't do anything w/ this session, same as busy... different reason.
+            l('DEBUG') && console.log(this+'.newSession() No common protocols');
+            session.fail('No common protocols');
           }
+          this.available(false);
         } else {
           msg = 'Busy';
           l('DEBUG') && console.log(this+'.newSession() '+msg);
@@ -2109,36 +2180,53 @@ return  {
         session.fail(msg);
       }
   },
-  _processMessage: function(content) {
+  _processMessage: function(payload) {
+
+    // Content should be {type: blah, content: blah};
+    // but may be {protocols: [], payload: {}}
     // basically a protocol router...
+    var protocols;
+    if (payload.protocols) {
+      protocols = payload.protocols;
+      payload = payload.payload;
+    }
+    // In the case our protocols are different, we have a common protocol, but should disable the others.
+    if (protocols !== this._.protocols) {
+      // protocols is what is common.
+      console.log('msg protocols?', protocols);
+      console.log('my protocols?', this._.protocols);
+    //  console.error('Protocols changed, DO SOMETHING -- FIX THIS');
+    }
     var self = this;
-    if (content) {
-      if (content.type === 'user') { 
+    if (payload) {
+      if (payload.type === 'chat') { 
       // It is a chat this will change to something different later on...
         if (this.config.chat) { 
-          this.chat._processMessage(content);
-          //this.emit('chat:message', content.userdata);
+          this.chat._processMessage(payload.content);
+          //this.emit('chat:message', payload.userdata);
         } else {
-          console.error('Received chat message, but chat not supported!',content);
+          console.error('Received chat message, but chat not supported!',payload);
         }
-      } else {
+      } else if (payload.type === 'webrtc') {
         if (this.config.webrtc && this.webrtc) { 
           // calling enable will enable if not already enabled... 
           if (this.webrtc.enabled()) {
-            self.webrtc._processMessage(content);
+            self.webrtc._processMessage(payload.content);
           } else {
             // This should only occur on inbound. don't connect, that is for outbound.
             this.webrtc.enable({connect: false}, function(success){
               if (success) {
-                self.webrtc._processMessage(content);
+                self.webrtc._processMessage(payload.content);
               }
-          });
+            });
           }
-        } else {
-          console.error(this+' Received message, but nothing to do with it', content);
         }
-      }
-    }
+      }else {
+          console.error(this+' Received message, but unknown protocol: ', payload);
+        }
+   } else {
+     console.error(this+' Received message, but nothing to do with it', payload);
+   }
   },
   /** Endpoint is available to accept an incoming call
    *
@@ -2165,14 +2253,31 @@ return  {
    * also generate an Offer to the remote endpoint. <br>
    * If chat is enabled, an initial message will be sent in the session as well.
    * </p>
-   * @param {string} endpointid Remote ID of endpoint to connect.
+   *
+   * @param {string|object} endpoint Remote ID of endpoint to connect.
+   *
+   * TODO:  Doc this..
+   *
    */
 
-  connect: function(endpointid) {
+  connect: function(endpoint) {
+    console.log('REMOVE ME:  ',endpoint);
+    var remoteEndpointID = null;
+    var toTopic = null;
+    if (typeof endpoint === 'object') {
+      if (endpoint.remoteEndpointID && endpoint.toTopic) {
+        remoteEndpointID = endpoint.remoteEndpointID;
+        toTopic = endpoint.toTopic;
+      } else {
+        throw new Error('Invalid object passed on connect! should be {remoteEndpointID: something, toTopic: something}');
+      }
+    } else {
+      remoteEndpointID = endpoint;
+    } 
     if (this.ready()) {
       this.available(false);
       if (!this._.activeSession) { 
-        this._.activeSession = createSignalingSession(endpointid, this);
+        this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
       }
       this.setState('session:trying');
@@ -2413,6 +2518,8 @@ var WebRTCConnection = (function invocation() {
 
   };
 
+  /*global util:false*/
+
   WebRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.WebRTCConnection.prototype */
     return {
@@ -2447,6 +2554,7 @@ var WebRTCConnection = (function invocation() {
       //
       var self = this;
       var parent = self.dependencies.parent;
+      /*global l:false*/
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
 
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
@@ -2542,7 +2650,7 @@ var WebRTCConnection = (function invocation() {
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
-                sendMethod({message: offersdp});
+                sendMethod({message: self.createMessage(offersdp)});
                 self._setState('trying');
                 self.pc.setLocalDescription(offersdp, function(){
                   l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
@@ -2588,7 +2696,7 @@ var WebRTCConnection = (function invocation() {
       // Validate message?
       message = (message && message.message) ? message.message : message;
       if (parent._.activeSession) {
-        parent._.activeSession.send(message);
+        parent._.activeSession.send(this.createMessage(message));
       }
     },
 
@@ -2640,7 +2748,7 @@ var WebRTCConnection = (function invocation() {
         return true;
       } else {
         return false;
-      };
+      }
     },
     /** configure broadcast 
      *  @param {object} broadcast 
@@ -2752,11 +2860,12 @@ var WebRTCConnection = (function invocation() {
     var PRANSWER = (pcSigState === 'have-remote-offer') && (sessionState === 'starting');
     var RESPOND = sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
     var SKIP = false;
+    var message = this.createMessage(desc);
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     if (RESPOND) {
       l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
-      console.log(this+'.createAnswer sending answer as a RESPONSE', desc);
-      session.respond(true, desc);
+      console.log(this+'.createAnswer sending answer as a RESPONSE', message);
+      session.respond(true, message);
       this._setState('connected');
     } else if (PRANSWER){
       l('DEBUG') && console.log(this+'.createAnswer sending PRANSWER');
@@ -2765,11 +2874,11 @@ var WebRTCConnection = (function invocation() {
       answer.type = 'pranswer';
       answer.sdp = this.pranswer ? desc.sdp : '';
       desc = answer;
-      session.pranswer(desc);
+      session.pranswer(this.createMessage(desc));
     } else if (this.getState() === 'connected' || this.getState() === 'alerting') {
       l('DEBUG') && console.log(this+'.createAnswer sending ANSWER (renegotiation?)');
       // Should be a renegotiation, just send the answer...
-      session.send(desc);
+      session.send(message);
     } else {
       SKIP = true;
       this._setState('alerting');
@@ -2783,6 +2892,19 @@ var WebRTCConnection = (function invocation() {
         /*error*/ function(message) {
         console.error(message);
       });
+    }
+  },
+
+  createMessage: function(content) {
+    if (content) {
+      if (content.type && content.content) {
+        // presumably OK, just return it
+        return content;
+      } else {
+        return {'type':'webrtc', 'content': content};
+      }
+    } else {
+        return {'type':'webrtc', 'content': content};
     }
   },
 
@@ -3011,7 +3133,7 @@ var WebRTCConnection = (function invocation() {
        'url': null,
        'username': null,
        'credential': null
-     }
+     };
      if (user && server && credential) {
        iceServer.url = 'turn:'+server;
        iceServer.username= user;
@@ -3032,13 +3154,13 @@ var WebRTCConnection = (function invocation() {
           url = url.trim();
           var obj = null;
           if (/^stun:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url)
+            l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url);
             obj = {'url': url};
           } else if (/^turn:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url)
+            l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url);
             obj = buildTURNobject(url);
           } else {
-            l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url)
+            l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url);
           }
           obj && urls.push(obj);
         });
@@ -3304,7 +3426,7 @@ var getUserMedia, attachMediaStream,detachMediaStream;
 
 return WebRTCConnection;
 
-})()
+})();
 
 
 

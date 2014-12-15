@@ -238,7 +238,6 @@ define([
       "Service Query Test": function() {
           var nc = new connection.EndpointConnection(config1);
           var success = false;
-
           var dfd = this.async(T1);
           nc.connect(function() {
             console.log('CONNECT SUCCESS!');
@@ -250,11 +249,11 @@ define([
               assert.ok(success, 'service Query success');
               nc.disconnect();
             }), dfd.callback(function(error){
+              console.error(error);
               console.log('nc.ready', nc.ready);
               assert.ok(success, 'service Query success');
               console.log(nc);
               nc.disconnect();
-              console.error(error);
             }));
           }, 
           function() {

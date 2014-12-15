@@ -69,6 +69,8 @@ var WebRTCConnection = (function invocation() {
 
   };
 
+  /*global util:false*/
+
   WebRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.WebRTCConnection.prototype */
     return {
@@ -103,6 +105,7 @@ var WebRTCConnection = (function invocation() {
       //
       var self = this;
       var parent = self.dependencies.parent;
+      /*global l:false*/
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
 
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
@@ -198,7 +201,7 @@ var WebRTCConnection = (function invocation() {
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
-                sendMethod({message: offersdp});
+                sendMethod({message: self.createMessage(offersdp)});
                 self._setState('trying');
                 self.pc.setLocalDescription(offersdp, function(){
                   l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
@@ -244,7 +247,7 @@ var WebRTCConnection = (function invocation() {
       // Validate message?
       message = (message && message.message) ? message.message : message;
       if (parent._.activeSession) {
-        parent._.activeSession.send(message);
+        parent._.activeSession.send(this.createMessage(message));
       }
     },
 
@@ -296,7 +299,7 @@ var WebRTCConnection = (function invocation() {
         return true;
       } else {
         return false;
-      };
+      }
     },
     /** configure broadcast 
      *  @param {object} broadcast 
@@ -408,11 +411,12 @@ var WebRTCConnection = (function invocation() {
     var PRANSWER = (pcSigState === 'have-remote-offer') && (sessionState === 'starting');
     var RESPOND = sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
     var SKIP = false;
+    var message = this.createMessage(desc);
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     if (RESPOND) {
       l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
-      console.log(this+'.createAnswer sending answer as a RESPONSE', desc);
-      session.respond(true, desc);
+      console.log(this+'.createAnswer sending answer as a RESPONSE', message);
+      session.respond(true, message);
       this._setState('connected');
     } else if (PRANSWER){
       l('DEBUG') && console.log(this+'.createAnswer sending PRANSWER');
@@ -421,11 +425,11 @@ var WebRTCConnection = (function invocation() {
       answer.type = 'pranswer';
       answer.sdp = this.pranswer ? desc.sdp : '';
       desc = answer;
-      session.pranswer(desc);
+      session.pranswer(this.createMessage(desc));
     } else if (this.getState() === 'connected' || this.getState() === 'alerting') {
       l('DEBUG') && console.log(this+'.createAnswer sending ANSWER (renegotiation?)');
       // Should be a renegotiation, just send the answer...
-      session.send(desc);
+      session.send(message);
     } else {
       SKIP = true;
       this._setState('alerting');
@@ -439,6 +443,19 @@ var WebRTCConnection = (function invocation() {
         /*error*/ function(message) {
         console.error(message);
       });
+    }
+  },
+
+  createMessage: function(content) {
+    if (content) {
+      if (content.type && content.content) {
+        // presumably OK, just return it
+        return content;
+      } else {
+        return {'type':'webrtc', 'content': content};
+      }
+    } else {
+        return {'type':'webrtc', 'content': content};
     }
   },
 
@@ -667,7 +684,7 @@ var WebRTCConnection = (function invocation() {
        'url': null,
        'username': null,
        'credential': null
-     }
+     };
      if (user && server && credential) {
        iceServer.url = 'turn:'+server;
        iceServer.username= user;
@@ -688,13 +705,13 @@ var WebRTCConnection = (function invocation() {
           url = url.trim();
           var obj = null;
           if (/^stun:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url)
+            l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url);
             obj = {'url': url};
           } else if (/^turn:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url)
+            l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url);
             obj = buildTURNobject(url);
           } else {
-            l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url)
+            l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url);
           }
           obj && urls.push(obj);
         });
@@ -960,6 +977,6 @@ var getUserMedia, attachMediaStream,detachMediaStream;
 
 return WebRTCConnection;
 
-})()
+})();
 
 

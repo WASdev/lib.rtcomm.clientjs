@@ -451,8 +451,6 @@ var EndpointProvider =  function EndpointProvider() {
    * @returns {module:rtcomm.PresenceMonitor}
    */
   this.getPresenceMonitor= function(topic) {
-    console.log('this._ is: ', this._);
-    console.log('this is: ', this);
     this._.presenceMonitor  = this._.presenceMonitor || new PresenceMonitor({connection: this.dependencies.endpointConnection});
     if (this.ready) {
       topic && this._.presenceMonitor.add(topic);

@@ -416,7 +416,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
         createPresenceDocument: function(config){
           var presenceDocument = MessageFactory.createMessage('DOCUMENT');
-          presenceDocument.topic = this.getMyTopic();
+          presenceDocument.addressTopic = this.getMyTopic();
           presenceDocument.appContext = this.appContext;
           if (config) {
             presenceDocument.state = config.state || presenceDocument.state;
@@ -478,7 +478,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          *
          */
         _query : function(message, contentfield, cbSuccess, cbFailure) {
-          var successContent = contentfield || 'peerContent';
+          var successContent = contentfield || 'payload';
           var onSuccess = function(query_response) {
             if (cbSuccess && typeof cbSuccess === 'function') {
               if (query_response) {
@@ -546,7 +546,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         disconnect : function() {
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
           l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
-          this.publish(this.getMyPresenceTopic(), this.getLwtMessage());
+          this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
           this.sessions.clear();
           this.transactions.clear();
           this.clearEventListeners();

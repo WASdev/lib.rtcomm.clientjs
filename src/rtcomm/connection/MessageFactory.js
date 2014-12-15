@@ -47,10 +47,11 @@ var MessageFactory = (function (){
       },
       'START_SESSION' : {
         'method': 'START_SESSION',
+        'protocols': [],
         'sigSessID':null,
         'transID':null,
         'toEndpointID': null,
-        'peerContent': null,
+        'payload': null,
       },
       'REFER' : {
         'method': 'REFER',
@@ -61,21 +62,22 @@ var MessageFactory = (function (){
      'STOP_SESSION' : {
         'method': 'STOP_SESSION',
         'sigSessID':null,
-        'peerContent': null,
+        'payload': null,
       },
       'PRANSWER': {
         'method': 'PRANSWER',
-        'peerContent': null
+        'protocols': [],
+        'payload': null
       },
       // Message is generic and could be anything... 
       'MESSAGE':{
         'method':'MESSAGE',
-        'peerContent': null
+        'payload': null
       },
       'DOCUMENT': {
         'method': 'DOCUMENT',
         'type': 'ENDPOINT',
-        'topic':null,
+        'addressTopic':null,
         'appContext':null,
         'state': null,
         'alias': null,
@@ -99,9 +101,10 @@ var MessageFactory = (function (){
       },
       'START_SESSION' : {
         'orig': 'START_SESSION',
+        'protocols': [],
         'sigSessID': null,
         'result': null,
-        'peerContent': null,
+        'payload': null,
         'transID': null,
       },
       'REFER' : {

@@ -23,14 +23,24 @@
 <body>
 
 <div id="MainContainer" class="mainContentContainer">
- <div id="topContainer">
+     <div id="topContainer">
         <div class="pull-left logo">
           <span class="blue">IBM</span> WebRTC Sample
         </div>
         <div class="pull-right logo" style="font-size: 24px; padding-right: 30px">
           <span id="displayNameStr"></span>
         </div>
-      </div>
+    </div>
+    <div class='row'>
+      <div class="col-md-3">
+        <div class = "panel panel-primary">
+          <div class="panel-heading">
+>>            <span class="glyphicon glyphicon-comment"></span> Presence
+            </div>
+            <div id='presenceContainer'></div>
+         </div>
+        </div>
+<div class = "col-md-9">
   <div id="videoContainer">
     <div id='selfViewContainer'>
       <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
@@ -52,6 +62,7 @@
           Please Register
     </div>
   </div>
+</div>
 </div>
 
 <div id="answerDialog" class="modal fade">

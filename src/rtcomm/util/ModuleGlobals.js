@@ -249,6 +249,17 @@ var generateRandomBytes = function(pattern) {
 var generateUUID = function() {
 	return generateRandomBytes('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx');
 };
+var commonArrayItems = function(array1, array2) {
+  var a = [];
+  for (var i = 0; i<array1.length; i++){
+    for (var j = 0; j<array2.length; j++){
+      if (array1[i] === array2[j]) {
+        a.push(array1[i]);
+      }
+    }
+  }
+  return a;
+};
 
 exports.Log = Log;
 exports.validateConfig = validateConfig;
@@ -259,4 +270,5 @@ exports.generateRandomBytes= generateRandomBytes;
 exports.whenTrue=whenTrue; 
 exports.makeCopy=makeCopy;
 exports.combineObjects = combineObjects;
+exports.commonArrayItems= commonArrayItems;
 

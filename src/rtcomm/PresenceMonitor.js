@@ -10,7 +10,8 @@ var PresenceNode = function PresenceNode(nodename, record) {
   this.objName = 'PresenceNode';
   this.name = nodename || '';
   this.record = record || false;
-  this.topic = null;
+  this.addressTopic = null;
+  this.presenceTopic = null;
   this.nodes= [];
   this.id = this.name;
 };
@@ -39,6 +40,18 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     //createNode(message.topic).addRecord(message);
     
   },
+  flatten: function() {
+    // return array of all 'records' (dropping the hierarchy)
+    var flat = [];
+    this.nodes.forEach(function(node){
+      if (node.record) {
+        flat.push(node);
+      } else {
+        flat.concat(node.flatten());
+      } 
+    });
+    return flat;
+  },
   /** 
    * Return the presenceNode Object matching this topic
    * if it doesn't exist, creates it.
@@ -56,6 +69,22 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     l('DEBUG') && console.log(this+'.findSubNode() searching for nodes --> ', nodes);
     // If the root node matches our name... 
     var returnValue = null;
+    /*
+     * if this.name === '/' then we are THE master Root node ('/') and we will presume that nodes[0] should
+     * be below us... 
+     */
+
+
+    if (this.name === '/') {
+      if (nodes.length === 1 && nodes[0] === '/') {
+        return this;
+      } else {
+        // If we are searching off of the Top Level, we need to insert it into nodes...
+        nodes.unshift('/');
+      }
+    }
+
+    l('DEBUG') && console.log(this+ '.findSubNode() name is: '+this.name);
     if(nodes[0] === this.name) {
       var match = null;
       // Search... 
@@ -73,6 +102,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       // If a subnode exists, then we did a search and match is accurate.
       //
       if (nodes[1]) {
+        l('DEBUG') && console.log(this+ '.findSubNode() >>> Found1? '+nodes[1]);
         returnValue = match;
       } else {
         returnValue = this;
@@ -80,6 +110,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     } else {
       returnValue = this;
     }
+    l('DEBUG') && console.log(this+ '.findSubNode() >>> RETURNING: ',returnValue);
     return returnValue;
   },
   /*
@@ -127,6 +158,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       l('DEBUG') && console.log(this+'.deleteSubNode() Deleting Node: '+nodeToDelete.name);
       // have to find its parent.
       var parentNode = this.findSubNode(nodes.slice(0, nodes.length-1));
+      l('DEBUG') && console.log(this+'.deleteSubNode() Found parent: ', parentNode);
       var index = parentNode.nodes.indexOf(nodeToDelete);
       // Remove it.
       parentNode.nodes.splice(index,1);
@@ -136,6 +168,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
   },
   addPresence: function addPresence(topic,presenceMessage) {
     var presence = this.getSubNode(topic);
+    presence.presenceTopic = topic;
     l('DEBUG') && console.log(this+'.addPresence() created node: ', presence);
     presence.record = true;
     if (typeof presenceMessage.self !== 'undefined') {
@@ -148,7 +181,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       }
       presence.alias = msg.alias || null;
       presence.state = msg.state || 'unknown';
-      presence.topic = msg.topic|| null;
+      presence.addressTopic = msg.addressTopic|| null;
       presence.nodes = msg.userDefines ||  [];
     }
   },
@@ -240,7 +273,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       message.self = true;
     }
     var topic = r.exec(message.topic)[1];
-    var presence = this.getRootNode(topic);
+    var presence = this.getRootNode();
     if (presence) {
       if (message.content && message.content !== '') {
         // If content is '' or null then it REMOVES the presence record.
@@ -273,9 +306,11 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       if (this._.sphereTopic) {
         // Make sure it starts with 
         subscriptionTopic = normalizeTopic(this._.sphereTopic +topic + '/#');
+        // Topic may or may not start w/ a /, either way it is added to the sphere topic.
+        // And is BASED on the 'RootNode' or '/' 
         var a = topic.split('/');
         rootTopic = (a[0] === '') ? a[1] : a[0];
-        match = this.getRootNode(topic);
+        match = this.getRootNode();
         if (match) { 
           match.getSubNode(topic);
         } else {
@@ -305,25 +340,49 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       return this._.presenceData;
     },
 
+    getRootNode: function getRootNode() {
+      var rootNode = null;
+      var presenceData = this._.presenceData;
+      if (presenceData.length === 1) {
+        rootNode = presenceData[0]; 
+      } else {
+        rootNode = new PresenceNode("/");
+        this._.presenceData[0] = rootNode;
+      }
+      return rootNode;
+    },
+
     /**
      * Return the root presenceNode if it exists.
      *
      * @param {string} topic
      * @returns {PresenceNode} The root PresenceNode for a topic (if it already exists)
      */
-    getRootNode: function getRootNode(topic) {
+    __getRootNode: function getRootNode(topic) {
+      // The root node matching the topic (if it exists)
       var rootNode = null;
+      // The most top level node( if it exists)
+      var topLevelNode = null;
+      // Root Topic from passed in topic, used to find the matching rootNode
       var rootTopic = null;
       var presenceData = this._.presenceData;
       // Make sure it starts with 
       var a = normalizeTopic(topic).split('/');
       rootTopic = (a[0] === '') ? a[1] : a[0];
+
       for(var i = 0; i<presenceData.length;i++ ) {
+        console.log('REMOVE ME '+a+' rootTopic: '+rootTopic+ ' pd.name: '+presenceData[i].name);
         if ( presenceData[i].name === rootTopic ) { 
           rootNode =  presenceData[i];
           break;
         }
+        if (presenceData[i].name === '') {
+          // This is the most top level node.  Return it if no other was found.
+          topLevelNode = presenceData[i];
+        }
       }
+     rootNode = (rootNode)? rootNode:(topLevelNode?topLevelNode: null);
+     l('DEBUG') &&  console.log(this+'.getRootNode() for topic:'+topic+' found: ',rootNode);
      return rootNode;
     },
 
