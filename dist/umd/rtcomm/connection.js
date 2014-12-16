@@ -317,13 +317,15 @@ var EndpointConnection = function EndpointConnection(config) {
       'message': [],
       'newsession': []};
 
-  this.private = {};
+  // Private
+  this._ = {};
+  this._.init = false;
+  this._.presenceTopic = null;
   // If we have services and are configured
   // We are fully functional at this point.
   this.ready = false;
   // If we are connected
   this.connected = false;
-  this._init = false;
   var rtcommTopicPath = '/rtcomm/';
   var configDefinition = {
     required: { 
@@ -334,25 +336,27 @@ var EndpointConnection = function EndpointConnection(config) {
       myTopic: 'string', 
       rtcommTopicPath: 'string', 
       managementTopicName: 'string', 
+      connectorTopicName: 'string',
       userid: 'string', 
       appContext: 'string', 
       secure: 'boolean', 
+      publishPresence: 'boolean', 
       presence: 'object'
     },
     defaults: { 
       rtcommTopicPath: rtcommTopicPath, 
       managementTopicName: 'management', 
+      connectorTopicname : "connector",
+      publishPresence: 'false', 
       presence: { 
         rootTopic: rtcommTopicPath + 'sphere/',
-        topic: '', // Same as rootTopic by default
+        topic: '/', // Same as rootTopic by default
       }
     }
   };
-
   // the configuration for Endpoint
   if (config) {
     /* global setConfig:false */
-    // Set any defaults
     this.config = setConfig(config,configDefinition);
   } else {
     throw new Error("EndpointConnection instantiation requires a minimum configuration: "+ 
@@ -376,20 +380,20 @@ var EndpointConnection = function EndpointConnection(config) {
   // Services Config.
 
   // Should be overwritten by the service_query
-  this.connectorTopicName = "nodeConnector";
 
   this.RTCOMM_CONNECTOR_SERVICE = {};
   this.RTCOMM_CALL_CONTROL_SERVICE = {};
   this.RTCOMM_CALL_QUEUE_SERVICE = {};
 
   // LWT config 
-  this.private.willMessage = null;
+  this._.willMessage = null;
+
   //create our Mqtt Layer
   this.mqttConnection = createMqttConnection(mqttConfig);
   this.mqttConnection.on('message', processMessage.bind(this));
 
   this.config.myTopic = this.mqttConnection.config.myTopic;
-  this._init = true;
+  this._.init = true;
 };  // End of Constructor
 
 /*global util:false */
@@ -476,8 +480,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          * toTopic, in that case we will leave it alone.
          *
          */
-
-        // our topic should contain the rtcommTopicPath -- we MUST stay in the topic Path... and we MUST append our ID after it, so...
+         // our topic should contain the rtcommTopicPath -- we MUST stay in the topic Path... 
+         // and we MUST append our ID after it, so...
           if (topic) {
             l('TRACE') && console.log(this+'.normalizeTopic topic is: '+topic);
             var begin = this.config.rtcommTopicPath;
@@ -488,7 +492,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             var p2 = new RegExp(end + "$", "g");
             topic = p2.test(topic) ? topic: topic + "/" + end;
             // Replace Double '//' if present
-            topic = topic.replace('\/\/','\/');
+            topic = topic.replace(/\/+/g,'\/');
           } else {
             if (this.connectorTopicName) { 
               topic = this.normalizeTopic(this.connectorTopicName);
@@ -531,8 +535,14 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           }
           return presenceDocument;
         },
+
         publishPresence : function(presenceDoc) {
-          this.publish(this.getMyPresenceTopic(), presenceDoc, true);
+          if (this.config.publishPresence) {
+            this.publish(this.getMyPresenceTopic(), presenceDoc, true);
+          } else {
+            throw new Error('Cannot publish presence if publishPresence != true upon connection creation');
+          }
+          return this;
         },
         /**
          * Create a Response Message for this EndpointConnection
@@ -605,7 +615,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             }
           };
           if (this.connected) {
-            var t = this.createTransaction({message: message, toTopic: this.config.managementTopicName }, onSuccess,onFailure);
+            var t = this.createTransaction({
+              message: message, 
+              toTopic: this.config.managementTopicName 
+            }, onSuccess,onFailure);
             t.start();
           } else {
             console.error(this+'._query(): not Ready!');
@@ -619,6 +632,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         connect : function(cbSuccess, cbFailure) {
           var epConn = this;
+
           l('DEBUG') && console.log(this+'.connect() LWT topic: '+ this.getMyPresenceTopic()+ ' message', this.getLwtMessage());
           cbSuccess = (typeof cbSuccess === 'function') ? cbSuccess :
             function(service) {
@@ -629,7 +643,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             function(error) {
               console.error('EndpointConnection.connect() failed - specify a callback for more information', error);
           };
-          if (!this._init) {
+          if (!this._.init) {
             throw new Error('not initialized -- call init() first');
           }
           if (this.connected) {
@@ -644,10 +658,15 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             this.connected = false;
             cbFailure(error);
           };
-          this.mqttConnection.connect({'willMessage': this.getLwtMessage(),
-                                       'presenceTopic' : this.getMyPresenceTopic(),
-                                      'onSuccess': onSuccess.bind(this),
-                                       'onFailure': onFailure.bind(this)});
+
+          var mqttConfig ={'onSuccess': onSuccess.bind(this),
+                           'onFailure': onFailure.bind(this)};
+          if (this.config.publishPresence) {
+            mqttConfig.willMessage = this.getLwtMessage();
+            mqttConfig.presenceTopic =this.getMyPresenceTopic();
+          }
+          // Connect MQTT
+          this.mqttConnection.connect(mqttConfig);
          },
         disconnect : function() {
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
@@ -755,6 +774,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             return id;
           } else if (this.id === id){
             l('DEBUG') && console.log(this+'.setUserID() already set to same value: '+id);
+            return id;
           } else {
             console.error(this+'.setUserID() ID already set, cannot be changed: '+ this.id);
             return id;
@@ -765,18 +785,18 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         }, 
         getLwtMessage: function() {
           // should be an empty message
-          this.private.willMessage =  this.private.willMessage || ''; 
-          return this.private.willMessage;
+          this._.willMessage =  this._.willMessage || ''; 
+          return this._.willMessage;
         },
-
         /**
          * Return the topic my presence is published to (includes user id);
          */
         getMyPresenceTopic: function() {
-          this.private.presenceTopic = this.private.presenceTopic || this.normalizeTopic(this.config.presence.rootTopic + this.config.presence.topic ,true);
-          l('DEBUG') && console.log(this+'.getMyPresenceTopic() returning topic: '+this.private.presenceTopic);
-          return this.private.presenceTopic;
+          this._.presenceTopic = this._.presenceTopic || this.normalizeTopic(this.config.presence.rootTopic + this.config.presence.topic ,true);
+          l('DEBUG') && console.log(this+'.getMyPresenceTopic() returning topic: '+this._.presenceTopic);
+          return this._.presenceTopic;
         },
+
         getPresenceRoot: function() {
           l('DEBUG') && console.log(this+'.getPresenceRoot() returning topic: '+ 
                                    this.normalizeTopic(this.config.presence.rootTopic));
@@ -1181,7 +1201,7 @@ var MqttConnection = function MqttConnection(config) {
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();
   this.config.myTopic = this.config.myTopic || this.config.rtcommTopicPath + this.config.clientID;
-  this.config.presenceTopic = this.config.presenceTopic || this.config.rtcommTopicPath+"sphere/";
+  this.config.presenceTopic = this.config.presenceTopic || null;
   this.config.destinationTopic = this.config.defaultTopic ? this.config.rtcommTopicPath + this.config.defaultTopic : '';
   // Save an 'ID' for this service.
   this.id = this.config.clientID;

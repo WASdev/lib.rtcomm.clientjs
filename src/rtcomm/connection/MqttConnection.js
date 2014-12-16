@@ -126,7 +126,7 @@ var MqttConnection = function MqttConnection(config) {
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();
   this.config.myTopic = this.config.myTopic || this.config.rtcommTopicPath + this.config.clientID;
-  this.config.presenceTopic = this.config.presenceTopic || this.config.rtcommTopicPath+"sphere/";
+  this.config.presenceTopic = this.config.presenceTopic || null;
   this.config.destinationTopic = this.config.defaultTopic ? this.config.rtcommTopicPath + this.config.defaultTopic : '';
   // Save an 'ID' for this service.
   this.id = this.config.clientID;

@@ -140,11 +140,10 @@ define([
              console.log("*** Asserting *** ", endpointProvider.ready);
              // should be ready, should have a GUEST userid
              console.log('TEST -> userid: ' + endpointProvider.config.userid);
-             assert.equal('testuser', endpointProvider.config.userid);
+             console.log('TEST -> userid: ' + endpointProvider._.id);
+             assert.equal(endpointProvider.config.userid, 'testuser');
              console.log('TEST -> ready '+ endpointProvider.ready);
              assert.ok(endpointProvider.ready);
-             console.log("TEST => registered: "+ object.registered);
-             assert.ok(object.registered);
            });
            endpointProvider.init(config1,finish, finish);
      },
@@ -190,19 +189,22 @@ define([
                 }
                );
      },
+
      "Presence": function() {
-       var dfd = this.async(T1);
+       var dfd = this.async(5000);
        var testConfig = config.clientConfig();
        testConfig.presence = {topic: 'test'};
        testConfig.userid = 'testuser';
        var presenceMonitor = endpointProvider.getPresenceMonitor();
+
        var finish = dfd.callback(function(object) {
           console.log('************ Finish called w/ OBJECT: ',object);
-          assert.equal(presenceMonitor.getPresenceData(), object);
-          assert.equal('test', presenceMonitor.getPresenceData()[0].name, 'Primary topic created...')
-          assert.equal('testuser', presenceMonitor.getPresenceData()[0].nodes[0].name, 'User topic created...')
+          console.log('************ Finish called w/ OBJECT: ',presenceMonitor.getPresenceData());
+          assert.equal(presenceMonitor.getPresenceData(), object, 'PresenceData object was passed');
+          assert.equal('/', presenceMonitor.getPresenceData()[0].name, 'Root topic created...')
+          assert.equal('test', presenceMonitor.getPresenceData()[0].nodes[0].name, 'Primary topic created...')
+          assert.equal('testuser', presenceMonitor.getPresenceData()[0].nodes[0].nodes[0].name, 'User topic created...')
        });
-
        presenceMonitor.on('updated', finish)
        endpointProvider.init(testConfig, 
          function(obj){

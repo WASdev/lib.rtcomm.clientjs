@@ -308,7 +308,7 @@ var EndpointProvider =  function EndpointProvider() {
    * );
    *
    */
-  this.start = function start(options, cbSuccess, cbFailure) {
+  this.init = function init(options, cbSuccess, cbFailure) {
     // You can only be init'd 1 time, without destroying reconnecting.
     if (this.ready) {
       l('INFO') && console.log('EndpointProvider.init() has been called and the object is READY');
@@ -333,7 +333,7 @@ var EndpointProvider =  function EndpointProvider() {
           presence: { 
             // Relative to the rtcommTopicPath
             rootTopic: 'sphere/',
-            topic: '', // Same as rootTopic by default
+            topic: '/', // Same as rootTopic by default
           },
           appContext: 'rtcomm',
           port: 1883,
@@ -341,12 +341,12 @@ var EndpointProvider =  function EndpointProvider() {
       };
     // the configuration for Endpoint Provider
     if (options) {
-      /* global setConfig:false */
       // Set any defaults
-      // appContext may already be set, ahve to save it.
+      // appContext may already be set, have to save it.
       var appContext = (this.config && this.config.appContext) ? this.config.appContext : null;
       var userid = (this.config && this.config.userid) ? this.config.userid : null;
       var presence = (this.config && this.config.presence) ? this.config.presence: null;
+      /* global setConfig:false */
       config = this.config = setConfig(options,configDefinition);
       this.config.appContext = appContext || this.config.appContext;
       this.setUserID(userid || this.config.userid);
@@ -363,11 +363,12 @@ var EndpointProvider =  function EndpointProvider() {
     };
 
     // Create the Endpoint Connection  
-    l('DEBUG') && console.log(this+'.start() Using config ', config);
+    l('DEBUG') && console.log(this+'.init() Using config ', config);
 
     var connectionConfig =  util.makeCopy(config);
     // everything else is the same config.
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
+    connectionConfig.publishPresence = true;
     // createEndpointConnection
     var endpointConnection = 
       this.dependencies.endpointConnection = 
@@ -379,7 +380,8 @@ var EndpointProvider =  function EndpointProvider() {
       l('DEBUG') && console.log(endpointProvider+'.onSuccess() called ');
       var returnObj = {
           'ready': true,
-          'endpoint': null
+          'endpoint': null,
+          'registered': false
       };
       this.ready = true;
       /*
@@ -394,9 +396,10 @@ var EndpointProvider =  function EndpointProvider() {
           console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
         endpointProvider.publishPresence();
         endpointProvider.setUserID(config.userid);
+        returnObj.registered = true;
       }
       // Update the userid
-      endpointProvider.setUserID(config.userid ? config.userid: endpointConnection.getUserID());
+      endpointProvider.setUserID(config.userid);
       endpointConnection.serviceQuery();
       cbSuccess(returnObj);
     };
@@ -414,13 +417,14 @@ var EndpointProvider =  function EndpointProvider() {
   };  // End of RtcommEndpointProvider.init()
 
   this.stop = this.destroy;
-  this.init = this.start;
+  this.start = this.init;
 
   /*
    * Create the endpoint connection to the MQTT Server
    * // bind endpointProvider as this when called
    */
   var createEndpointConnection = function createEndpointConnection(config) {
+
     var endpointProvider = this;
     var endpointConnection = new connection.EndpointConnection(config);
 
@@ -439,7 +443,6 @@ var EndpointProvider =  function EndpointProvider() {
 
     endpointConnection.on('servicesupdate', function(services) {
       endpointProvider._.services = services;
-
       endpointProvider.updateQueues();
     });
 
@@ -682,14 +685,15 @@ var EndpointProvider =  function EndpointProvider() {
    * If we are anonymous, can update the userid
    */
   this.setUserID = function(userid) {
+
     if (this.config.userid && (userid !== this.config.userid) && !(/^GUEST/.test(this.config.userid))) {
-      console.log(this.config.userid +'!== '+ userid);
+      l('DEBUG') && console.error(this.config.userid +'!== '+ userid);
       throw new Error('Cannot change UserID once it is set');
     } else {
-      this.config.userid = userid;
-      this._.id = userid;
-      // update the endpoint connection
-      this.getEndpointConnection() && this.getEndpointConnection().setUserID(userid);
+      l('DEBUG') && console.log(this+'.setUserID() called with: '+userid);
+      userid = (this.getEndpointConnection()) ? this.getEndpointConnection().setUserID(userid):userid;
+      l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
+      this.config.userid = this._.id = userid;
       // update the endpoints
       this._.endpointRegistry.list().forEach(function(endpoint){
         endpoint.setUserID(userid);
@@ -720,7 +724,6 @@ var EndpointProvider =  function EndpointProvider() {
       'available';
     presenceConfig = presenceConfig || {};
     presenceConfig.state = state;
-
     // build a message, publish it as retained.
     var doc = this.getEndpointConnection().createPresenceDocument(presenceConfig);
     this.getEndpointConnection().publishPresence(doc);
@@ -1190,7 +1193,7 @@ var normalizeTopic = function normalizeTopic(topic) {
   // Replace the two slashes if they exist...
   // Remove trailing slash
   var newTopic = null;
-  newTopic = topic.replace('\/\/','\/').replace(/\/$/g, '');
+  newTopic = topic.replace(/\/+/g,'\/').replace(/\/$/g, '');
   return /^\//.test(newTopic) ? newTopic : '/'+newTopic;
 };
 var PresenceNode = function PresenceNode(nodename, record) {
