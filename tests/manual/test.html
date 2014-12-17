@@ -46,6 +46,10 @@ var createProvider = function createProvider(userid) {
 }
 
 var EP1 = createProvider('scott');
+// Mock for service_query stuff...
+EP1.dependencies.endpointConnection.services.SIP_CONNECTOR_SERVICE.topic="/rtcommscott/sip";
+EP1.dependencies.endpointConnection.services.SIP_CONNECTOR_SERVICE.schemes=['sip', 'sips', 'tel'];
+
 scott = EP1.createRtcommEndpoint();
 scott.on('chat:message', function(message){
   console.log('****************************MESSAGE ***', message)
