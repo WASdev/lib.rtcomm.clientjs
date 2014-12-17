@@ -309,7 +309,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           throw new Error('connect() must be called before calling init()');
         }
         var message = config.message,
-            userid = config.userid,
             toTopic  = config.toTopic,
         // onSuccess Callback
         onSuccess = config.onSuccess || function() {

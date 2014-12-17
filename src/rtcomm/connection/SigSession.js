@@ -36,7 +36,6 @@
  * @private
  */
 var SigSession = function SigSession(config) {
-
   /* Instance Properties */
   this.objName = 'SigSession';
   this.endpointconnector = null;
@@ -65,7 +64,7 @@ var SigSession = function SigSession(config) {
     } else {
       this.remoteEndpointID = config.remoteEndpointID || null;
       this.id = this.id || config.id;
-      this.toTopic = this.toTopic || config.toTopic;
+      this.toTopic = this.toTopic || config.toTopic; 
       this.appContext = this.appContext|| config.appContext;
     }
   } 
@@ -140,16 +139,12 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      *  config = {remoteEndpointID: something, message:  }
      */
     start : function(config) {
-
       if (this._startTransaction) {
         // already Started
         //
         l('DEBUG') && console.log('SigSession.start() already started/starting');
         return;
       }
-
-
-
       this._setupQueue();
       /*global l:false*/
       l('DEBUG') && console.log('SigSession.start() using config: ', config);
