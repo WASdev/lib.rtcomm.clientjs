@@ -24,7 +24,7 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm'
+    'umd/rtcomm'
 ], function (registerSuite, assert, Deferred, globals,config, rtcomm) {
 
     var ep = null;
@@ -52,7 +52,7 @@ define([
         name: 'FVT - EndpointProvider SessionQueue', 
         setup: function() {
           var dfd = new Deferred();
-          ep = new rtcomm.EndpointProvider();
+          ep = new rtcomm();
           ep.setLogLevel('DEBUG');
           cfg.userid = 'intern';
           cfg.appContext = 'rtcommTest';

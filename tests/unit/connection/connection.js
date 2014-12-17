@@ -21,7 +21,7 @@ define([
       ?'intern/dojo/node!../../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm/connection'
+    'umd/rtcomm/connection'
 ], function (registerSuite, assert, Deferred, globals,config, connection) {
   var optionalHeaders = {
       'sigSessID':null,

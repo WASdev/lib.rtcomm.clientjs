@@ -146,3 +146,4 @@ var RtcommBaseObject = {
     }
 };
 
+exports.RtcommBaseObject = RtcommBaseObject;

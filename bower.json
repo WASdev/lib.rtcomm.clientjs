@@ -1,0 +1,46 @@
+{
+  "name": "lib.rtcomm.clientjs",
+  "version": "v0.0.4",
+  "homepage": "https://github.com/WASdev/lib.rtcomm.clientjs",
+  "authors": [
+    "Scott W Graham <swgraham@us.ibm.com>"
+  ],
+  "description": "RealTime Communications library implement WebRTC using MQTT for signaling",
+  "main": "dist/rtcomm.js",
+  "moduleType": [
+    "amd",
+    "globals"
+  ],
+  "keywords": [
+    "rtcomm",
+    "ibm",
+    "webrtc",
+    "mqtt"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/umd/*",
+    "sample",
+    "build",
+    "build_resources",
+    "lib",
+    "bin",
+    "config",
+    "src",
+    "doc",
+    "rtcomm.signaling.proto.spec.md",
+    "build.xml",
+    "Gruntfile.js",
+    "README.md",
+    "CONTRIBUTING.md",
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bower-mqttws": "~1.0.0"
+  }
+}

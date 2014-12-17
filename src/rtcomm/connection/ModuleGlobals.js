@@ -14,7 +14,12 @@
  * limitations under the License.
  **/ 
 // rtcservice & util should be defined here:
+/*jshint -W030*/
 /*global util:false*/
+
+var exports = {};
+var connection = exports;
+
 var logging = new util.Log(),
     setLogLevel = logging.s,
     getLogLevel = logging.g,
@@ -80,7 +85,6 @@ var logging = new util.Log(),
             }
           }
         }; // end of log/ 
-
       var uidRoute = function(userid) {
         l('TRACE') && console.log('uidRoute called w/ id '+userid);
         var returnObj = { 
@@ -99,6 +103,7 @@ var logging = new util.Log(),
         l('TRACE') && console.log('uidRoute returning ',returnObj);
         return returnObj;
       };
+
       var routeLookup =  function(services, scheme) {
           // should be something like [sips, sip, tel ] for the SIP CONNECTOR SERVICE
           l('TRACE') && console.log('routeLookup() finding scheme: '+scheme);
@@ -119,4 +124,3 @@ var logging = new util.Log(),
           l('TRACE') && console.log('routeLookup() returing topic: '+topic);
           return topic;
         };
-    
