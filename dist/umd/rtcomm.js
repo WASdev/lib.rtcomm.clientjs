@@ -18,6 +18,7 @@
   }
 }(this, function (connection, util) {
 
+/*! lib.rtcomm.clientjs 1.0.0-beta.8 18-12-2014 */
 var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
   // Presuming you creat an object based on this one, 
   // you must override the session event handler and
@@ -1208,7 +1209,7 @@ var normalizeTopic = function normalizeTopic(topic) {
   // Replace the two slashes if they exist...
   // Remove trailing slash
   var newTopic = null;
-  newTopic = topic.replace('\/\/','\/').replace(/\/$/g, '');
+  newTopic = topic.replace(/\/+/g,'\/').replace(/\/$/g, '');
   return /^\//.test(newTopic) ? newTopic : '/'+newTopic;
 };
 var PresenceNode = function PresenceNode(nodename, record) {
@@ -2152,6 +2153,9 @@ return  {
       } else if (content.type === 'refer') {
         this._.referralSession && this._.referralSession.pranswer();
         this.setState('session:refer');
+      } else if (content.type === 'pranswer'){
+        // Do nothing w/ it, we've already changed state here... chat/webrtc don't care about it right now.
+        l('DEBUG') && console.log('Pranswer in RtcommEndpoint.  ');
       } else {
         if (this.config.webrtc && this.webrtc) { 
           // calling enable will enable if not already enabled... 

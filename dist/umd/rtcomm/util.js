@@ -15,6 +15,7 @@
   }
 }(this, function () {
 
+/*! lib.rtcomm.clientjs 1.0.0-beta.8 18-12-2014 */
 /*
  * Copyright 2014 IBM Corp.
  *

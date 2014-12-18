@@ -3,13 +3,16 @@ module.exports = function(grunt) {
     pkg: grunt.file.readJSON('package.json'),
     clean: ["dist"],
     concat: {
+      options: {
+          banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %> */\n',
+      },
       rtcomm: {
         src: 'src/rtcomm/*.js',
         dest: 'dist/umd/rtcomm.js' 
       },
       rtcomm_final: {
         src: ['dist/umd/rtcomm/util.js', 'dist/umd/rtcomm/connection.js','dist/umd/rtcomm.js'],
-        dest: 'dist/rtcomm.js' 
+        dest: 'dist/js/rtcomm.js' 
        }
     },
     umd: {
@@ -53,15 +56,14 @@ module.exports = function(grunt) {
     compress: {
       main: {
         options: {
-          archive:'<%= pkg.name %>-<%=pkg.version %>.zip'
+          archive:'dist/release/<%= pkg.name %>-<%=pkg.version %>.zip'
         },
         files: [ 
-          {src:['dist/**'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
+          {expand: true, src:['dist/**'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {src:['lib/**'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
-          {src:['doc/index.html'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
+          {expand: true, cwd: './build_resources/doc/',src:['index.html'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {src:['LICENCE'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {src:['README.md'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
-          {src:['dist/**'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {src:['sample/**'], dest:'<%= pkg.name %>-<%=pkg.version %>/', filter: function(src) { 
             grunt.log.ok(src);
             return /__/.test(src) ? false: true;
@@ -72,11 +74,11 @@ module.exports = function(grunt) {
 
     uglify: {
       options: {
-        banner: '/*! <%= pkg.name %> <%= grunt.template.today("dd-mm-yyyy") %> */\n'
+        banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %> */\n'
       },
       dist: {
         files: {
-          'dist/rtcomm.min.js': ['<%= concat.rtcomm_final.dest %>']
+          'dist/js/rtcomm.min.js': ['<%= concat.rtcomm_final.dest %>']
         }
       }
     },
@@ -140,7 +142,7 @@ module.exports = function(grunt) {
           // for other available options, see:
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
-          reporters: [ 'console', 'lcov' ]
+          reporters: [ 'console', 'lcov', 'junit' ]
         }
       },
       unit: {
@@ -149,7 +151,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: [ 'console', 'lcov' ],
+          reporters: [ 'console', 'lcov', 'junit' ],
           suites: [
           'unit/connection/connection.js',
             'unit/util/util.js',
@@ -163,7 +165,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: [ 'console', 'lcov' ],
+          reporters: [ 'console', 'lcov', 'junit' ],
           suites: [
             'functional/connection/MqttConnection.js',
             'functional/connection/EndpointConnection.js',
@@ -209,8 +211,9 @@ module.exports = function(grunt) {
 
  require('load-grunt-tasks')(grunt);
   grunt.loadNpmTasks('intern');
-  grunt.registerTask('test', ['intern']);
+  grunt.registerTask('test', ['intern:client']);
+  grunt.registerTask('release', ['default', 'compress']);
   grunt.registerTask('umdModules', ['clean', 'prepareModules', 'concat', 'umd']);
   grunt.registerTask('lite', ['umdModules', 'concat:rtcomm_final','uglify']);
-  grunt.registerTask('default', ['lite', 'test', 'jsdoc']);
+  grunt.registerTask('default', ['clean', 'lite', 'jsdoc']);
 };

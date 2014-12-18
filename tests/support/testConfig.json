@@ -1,5 +1,5 @@
 {
    "mqttServers" : ["svt-msd4.rtp.raleigh.ibm.com:1883"],
    "managementTopicName" : "management",
-   "rtcommTopicPath" : "/rtcommscott/"
+   "rtcommTopicPath" : "/rtcommwebrtc/"
 }

@@ -377,6 +377,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             topic = p.test(topic)? topic : begin + topic;
             var p2 = new RegExp(end + "$", "g");
             topic = p2.test(topic) ? topic: topic + "/" + end;
+            topic = topic.replace(/\/+/g,'\/');
           } else {
             if (this.connectorTopicName) { 
               topic = this.normalizeTopic(this.connectorTopicName);
@@ -384,7 +385,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
               throw new Error('normalize Topic requires connectorTopicName to be set - call serviceQuery?');
             }
           }
-          l('TRACE') && console.log(this+'.getTopic returing topic: '+topic);
+          l('TRACE') && console.log(this+'.normalizeTopic returing topic: '+topic);
           return topic;
         },
 
@@ -462,8 +463,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           // start a transaction of type START_SESSION
           // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
           // if message & fromEndpointID -- we are inbound..
-          var routeTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
-          config.toTopic = routeTopic || config.toTopic;
+          if (config && config.remoteEndpointID) {
+            config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route)) || config.toTopic;
+          }
           /*global SigSession:false*/
           var session = new SigSession(config);
           session.endpointconnector = this;

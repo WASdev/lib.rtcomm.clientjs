@@ -1,7 +1,7 @@
 {
   "name": "lib.rtcomm.clientjs",
-  "version": "v0.0.4",
   "homepage": "https://github.com/WASdev/lib.rtcomm.clientjs",
+  "version": "1.0.0-beta.8",
   "authors": [
     "Scott W Graham <swgraham@us.ibm.com>"
   ],
@@ -17,8 +17,7 @@
     "webrtc",
     "mqtt"
   ],
-  "license": "MIT",
-  "private": true,
+  "license": "Apache-2.0",
   "ignore": [
     "**/umd/*",
     "sample",

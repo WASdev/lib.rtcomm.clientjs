@@ -3,7 +3,7 @@ var normalizeTopic = function normalizeTopic(topic) {
   // Replace the two slashes if they exist...
   // Remove trailing slash
   var newTopic = null;
-  newTopic = topic.replace('\/\/','\/').replace(/\/$/g, '');
+  newTopic = topic.replace(/\/+/g,'\/').replace(/\/$/g, '');
   return /^\//.test(newTopic) ? newTopic : '/'+newTopic;
 };
 var PresenceNode = function PresenceNode(nodename, record) {

@@ -15,6 +15,7 @@
   }
 }(this, function (util) {
 
+/*! lib.rtcomm.clientjs 1.0.0-beta.8 18-12-2014 */
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -102,7 +103,45 @@ var logging = new util.Log(),
             }
           }
         }; // end of log/ 
+      var uidRoute = function(userid) {
+        l('TRACE') && console.log('uidRoute called w/ id '+userid);
+        var returnObj = { 
+          route:null ,
+          userid: null
+        };
+        var a = userid.split(':');
+        if (a.length === 1) {
+          returnObj.userid = userid;
+        } else if (a.length === 2) {
+          returnObj.route= a[0];
+          returnObj.userid = a[1];
+        } else {
+          throw new Error('Unable to process userid: '+ userid);
+        }  
+        l('TRACE') && console.log('uidRoute returning ',returnObj);
+        return returnObj;
+      };
 
+      var routeLookup =  function(services, scheme) {
+          // should be something like [sips, sip, tel ] for the SIP CONNECTOR SERVICE
+          l('TRACE') && console.log('routeLookup() finding scheme: '+scheme);
+          var topic = null;
+          for(var key in services) {
+            l('TRACE') && console.log('routeLookup() searching key: '+key);
+            if (services.hasOwnProperty(key)){
+              l('TRACE') && console.log('routeLookup() searching key: ',services[key]);
+              if (typeof services[key].schemes !== 'undefined' && 
+                  typeof services[key].topic !== 'undefined') {
+                  if (services[key].schemes.indexOf(scheme) >= 0) {
+                    topic = services[key].topic;
+                    break;
+                  }
+              }
+            }
+          }
+          l('TRACE') && console.log('routeLookup() returing topic: '+topic);
+          return topic;
+        };
 
 /*
  * Copyright 2014 IBM Corp.
@@ -366,9 +405,12 @@ var EndpointConnection = function EndpointConnection(config) {
   // Should be overwritten by the service_query
   this.connectorTopicName = "nodeConnector";
 
-  this.RTCOMM_CONNECTOR_SERVICE = {};
-  this.RTCOMM_CALL_CONTROL_SERVICE = {};
-  this.RTCOMM_CALL_QUEUE_SERVICE = {};
+  this.services = {
+    RTCOMM_CONNECTOR_SERVICE : {},
+    RTCOMM_CALL_CONTROL_SERVICE : {},
+    RTCOMM_CALL_QUEUE_SERVICE : {},
+    SIP_CONNECTOR_SERVICE: {},
+  }; 
 
   // LWT config 
   this.private.willMessage = null;
@@ -411,6 +453,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         // The ^ at the beginning in the return ensures that it STARTS w/ the topic passed.
         return new RegExp('^'+regex+'$');
       };
+
       /*
        * Parse the results of the serviceQuery and apply them to the connection object
        * "services":{
@@ -430,14 +473,17 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
       var parseServices = function parseServices(services, connection) {
         if (services) {
           if (services.RTCOMM_CONNECTOR_SERVICE) {
-            connection.RTCOMM_CONNECTOR_SERVICE = services.RTCOMM_CONNECTOR_SERVICE;
+            connection.services.RTCOMM_CONNECTOR_SERVICE = services.RTCOMM_CONNECTOR_SERVICE;
             connection.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic;
           }
           if (services.RTCOMM_CALL_CONTROL_SERVICE) {
-            connection.RTCOMM_CALL_CONTROL_SERVICE = services.RTCOMM_CALL_CONTROL_SERVICE;
+            connection.services.RTCOMM_CALL_CONTROL_SERVICE = services.RTCOMM_CALL_CONTROL_SERVICE;
           }
           if (services.RTCOMM_CALL_QUEUE_SERVICE) {
-            connection.RTCOMM_CALL_QUEUE_SERVICE = services.RTCOMM_CALL_QUEUE_SERVICE;
+            connection.services.RTCOMM_CALL_QUEUE_SERVICE = services.RTCOMM_CALL_QUEUE_SERVICE;
+          }
+          if (services.SIP_CONNECTOR_SERVICE) {
+            connection.services.SIP_CONNECTOR_SERVICE = services.SIP_CONNECTOR_SERVICE;
           }
         }
       };
@@ -448,6 +494,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           var randomBytes = generateRandomBytes('xxxxxx');
           return prefix + "-" + randomBytes;
       };
+
 
       /** @lends module:rtcomm.connector.EndpointConnection.prototype */
       return {
@@ -475,6 +522,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             topic = p.test(topic)? topic : begin + topic;
             var p2 = new RegExp(end + "$", "g");
             topic = p2.test(topic) ? topic: topic + "/" + end;
+            topic = topic.replace(/\/+/g,'\/');
           } else {
             if (this.connectorTopicName) { 
               topic = this.normalizeTopic(this.connectorTopicName);
@@ -482,7 +530,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
               throw new Error('normalize Topic requires connectorTopicName to be set - call serviceQuery?');
             }
           }
-          l('TRACE') && console.log(this+'.getTopic returing topic: '+topic);
+          l('TRACE') && console.log(this+'.normalizeTopic returing topic: '+topic);
           return topic;
         },
 
@@ -556,9 +604,13 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           if (!this.connected) {
             throw new Error('not Ready -- call connect() first');
           }
+
           // start a transaction of type START_SESSION
           // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
           // if message & fromEndpointID -- we are inbound..
+          if (config && config.remoteEndpointID) {
+            config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route)) || config.toTopic;
+          }
           /*global SigSession:false*/
           var session = new SigSession(config);
           session.endpointconnector = this;
@@ -829,10 +881,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           if (!this.connected) {
             throw new Error('not Ready -- call connect() first');
           }
-          var toTopic = null;
           if (config) {
-            toTopic = this.normalizeTopic(config.toTopic);
-            this.mqttConnection.send({userid: this.config.userid, message:config.message, toTopic:toTopic});
+            var toTopic = this.normalizeTopic(config.toTopic);
+            this.mqttConnection.send({message:config.message, toTopic:toTopic});
           } else {
             console.error('EndpointConnection.send() Nothing to send');
           }
@@ -881,7 +932,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           return this.normalizeTopic(this.config.presence.rootTopic,false);
         },
         useLwt: function() {
-          if (this.RTCOMM_CONNECTOR_SERVICE.sphereTopic) {
+          if (this.services.RTCOMM_CONNECTOR_SERVICE.sphereTopic) {
             return true;
           } else {
             return false;
@@ -1456,7 +1507,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           throw new Error('connect() must be called before calling init()');
         }
         var message = config.message,
-            userid = config.userid,
             toTopic  = config.toTopic,
         // onSuccess Callback
         onSuccess = config.onSuccess || function() {
@@ -1554,7 +1604,6 @@ exports.MqttConnection = MqttConnection;
  * @private
  */
 var SigSession = function SigSession(config) {
-
   /* Instance Properties */
   this.objName = 'SigSession';
   this.endpointconnector = null;
@@ -1583,7 +1632,7 @@ var SigSession = function SigSession(config) {
     } else {
       this.remoteEndpointID = config.remoteEndpointID || null;
       this.id = this.id || config.id;
-      this.toTopic = this.toTopic || config.toTopic;
+      this.toTopic = this.toTopic || config.toTopic; 
       this.appContext = this.appContext|| config.appContext;
     }
   } 
@@ -1658,16 +1707,12 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      *  config = {remoteEndpointID: something, message:  }
      */
     start : function(config) {
-
       if (this._startTransaction) {
         // already Started
         //
         l('DEBUG') && console.log('SigSession.start() already started/starting');
         return;
       }
-
-
-
       this._setupQueue();
       /*global l:false*/
       l('DEBUG') && console.log('SigSession.start() using config: ', config);

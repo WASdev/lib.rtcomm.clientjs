@@ -23,23 +23,23 @@ Given the directory structure:
       /WEB-INF/
       /META-INF/
 ```
-Extract the 'rtcomm-<release>.zip' file into a temporary directory:
+Extract the 'lib.rtcomm.clientjs-<release>.zip' file into a temporary directory:
 ```
 cd /tmp
-unzip <path to rtcomm-<release>.zip> 
+unzip <path to lib.rtcomm.clientjs-<release>.zip> 
 ls
-rtcomm-<release>/
+lib.rtcomm.clientjs-<release>/
 ```
 
-Move the contents of the rtcomm-<release>/ directory into the WebContent directory.  It should end up looking like:
+Move the contents of the lib.rtcomm.clientjs-<release>/ directory into the WebContent directory.  It should end up looking like:
 
 ```
     WebContent/
       /WEB-INF/
       /META-INF/
-      /js/
+      /dist/
+      /lib/
       /sample/
-      /docs
       index.html
 ``` 
 Edit the file 'WebContent/sample/videoClient.html'.  Find the creation of the epConfig object:
@@ -68,13 +68,13 @@ The library exposes a single object called an 'EndpointProvider'.  The EndpointP
 
 ##Install
 
-After you have downloaded 'rtcomm-<release>.zip', Copy and unzip this file to the application development directory where JavaScript libraries are stored.  
+After you have downloaded 'lib.rtcomm.clientjs-<release>.zip', Copy and unzip this file to the application development directory where JavaScript libraries are stored.  
 
-1. Unzip rtcomm-<release>.zip file and copy two files into your application($APPDIR):
+1. Unzip lib.rtcomm.clientjs-<release>.zip file and copy two files into your application($APPDIR):
 ```
-    unzip rtcomm-<release>.zip
-    cp rtcomm-<release>/ibm/rtcomm.js $APPDIR
-    cp rtcomm-<release>/lib/mqtt31ws.js $APPDIR 
+    unzip lib.rtcomm.clientjs-<release>.zip
+    cp lib.rtcomm.clientjs-<release>/dist/js/rtcomm.js $APPDIR
+    cp lib.rtcomm.clientjs-<release>/lib/mqtt31ws.js $APPDIR 
 ```
 2. Embed in your application:
 
@@ -86,21 +86,21 @@ Then, include the rtcomm library in your application.  This can be done classica
 <p>
 **Classically, imported to the 'ibm.rtcomm' namespace:**
 
-`<script src="js/ibm/rtcomm.js"></script>`
+`<script src="js/rtcomm.js"></script>`
 
 **Via AMD(assuming proper AMD configuration):**
 
     var endpointProvider = null; // We need to be global.
-    require( ["ibm/rtcomm"],
-    function(rtcomm) {
-      endpointProvider = new rtcomm.EndpointProvider();
+    require( ["rtcomm"],
+    function(EndpointProvider) {
+      endpointProvider = new EndpointProvider();
     });
 
 ## Using the EndpointProvider
 
 The following shows how to configure and instantiate the EndpointProvider. You need to know the MQTT Server address and ensure you use a unique 'connectorTopicName':
 
-     var endpointProvider = new ibm.rtcomm.EndpointProvider(); 
+     var endpointProvider = new rtcomm.EndpointProvider(); 
      var endpointProviderConfig = {
             server : "messagesight.demos.ibm.com", // mqtt server 
             userid : 'ibmAgent1@mysurance.org', // userid
@@ -193,7 +193,7 @@ The above scenario is the simplest way to connect two endpoints using the rtcomm
 2.  The EndpointProvider can create many RtcommEndpoints.  Each RtcommEndpoint can have a single WebRTCConnection.
 
 ##Sample videoClient
-'rtcomm.zip' contains a 'sample/videoClient.html' file that demonstrates how to use the rtcomm.js library.   This sample can be placed on a web server with the js/lib/mqttws31.js, js/ibm/rtcomm.js from the rtcomm.zip. This sample is also dependent on jQuery that is accessed with the jQuery CDN (http://code.jquery.com/jquery-2.1.1.js). You can obtain jQuery 2.1.1 from the Downloading jQuery site.
+'lib.rtcomm.clientjs-<release>.zip' contains a 'sample/videoClient.html' file that demonstrates how to use the rtcomm.js library.   This sample can be placed on a web server with the lib/mqttws31.js, js/rtcomm.js from the lib.rtcomm.clientjs-<release>.zip. This sample is also dependent on jQuery that is accessed with the jQuery CDN (http://code.jquery.com/jquery-2.1.1.js). You can obtain jQuery 2.1.1 from the Downloading jQuery site if you prefer..
 
 1.  Extract the Zip file into your Web Server Directory
 
@@ -204,8 +204,8 @@ The above scenario is the simplest way to connect two endpoints using the rtcomm
       server: 'messagesight.demos.ibm.com',
       port: 1883,
       userid : null,
-      rtcommTopicName : "management",
-      topicPath: "/rtcomm/",
+      managementTopicName : "management",
+      rtcommTopicPath: "/rtcomm/",
       createEndpoint: true
     };
 ```
@@ -214,33 +214,40 @@ The above scenario is the simplest way to connect two endpoints using the rtcomm
 
 #Building the code
 
-If you want to clone the repository and build this yourself, you will need:
+If you want to clone the repository and build this yourself, you will need to:
 
-1.  ant v 1.8.4 (Not tested with any other, but may work)
-2.  ant-contrib from:  http://sourceforge.net/projects/ant-contrib/files/ant-contrib/1.0b3/ant-contrib-1.0b3-bin.zip/download
-
-Then in order to build just run:
+1.  Clone the repository:  
 ```
- ant
+git clone https://github.com/WASdev/lib.rtcomm.clientjs.git
+```
+2.  Install node.js and npm (http://nodejs.org/download/)
+3.  Install necessary dependencies via npm from the repository directory (assuming lib.rtcomm.clientjs)
+```
+lib.rtcomm.clientjs/ #  npm install
+```
+4.  Install the grunt-cli (globally if not installed)
+``` 
+npm install -g grunt-cli
+```
+5.  Build the library:
+```
+grunt
+```
+
+This will create a **dist** directory with the following contents:
  ```
- This will create a build directory with the following contents:
- ```
-   README.md
-   index.html
-   |-docs
-   |---jsDoc
-   |-----scripts
-   |-------prettify
-   |-----styles
+   |-jsdoc
    |-js
-   |---ibm
-   |---lib
-   |---umd
-   |-----ibm
-   |-------rtcomm
-   |-lib
-   |-sample
-   |---resources
-   |-----css
+   |--rtcomm.js
+   |--rtcomm.min.js
+   |-umd
+   |--rtcomm.js
+   |--rtcomm
+   |---connection.js
+   |---util.js
 ```
+
+# Running the tests
+
+Reference the README.md file in the tests/ directory.
 
