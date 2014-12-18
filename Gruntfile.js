@@ -4,7 +4,7 @@ module.exports = function(grunt) {
     clean: ["dist"],
     concat: {
       options: {
-          banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %> */\n',
+          banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %> */\nconsole.log(\'<%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %>\');\n',
       },
       rtcomm: {
         src: 'src/rtcomm/*.js',

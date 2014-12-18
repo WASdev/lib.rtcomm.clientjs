@@ -73,12 +73,12 @@ define([
           console.log("***************************** NEW TEST ***************************");
           endpointProvider = new rtcomm();
           endpointProvider.setAppContext('test');
-          endpointProvider.setLogLevel('DEBUG');
+          endpointProvider.setLogLevel('TRACE');
         },
         "Endpoint creation(anonymous)": function() {
           console.log('***************** RunTest ************');
           var dfd = this.async(T1);
-          var ep= endpointProvider.createRtcommEndpoint();
+          var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
           console.log('TEST endpoint: ', ep);
           var initObj = null;
           var success = false;
@@ -98,7 +98,7 @@ define([
       "Join/Leave queue": function() {
           console.log('***************** RunTest ************');
           var dfd = this.async();
-          var ep = endpointProvider.createRtcommEndpoint();
+          var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
           console.log('TEST endpoint: ', ep);
           var initObj = null;
           var success = false;
@@ -130,8 +130,8 @@ define([
          endpointProvider2.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
+         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
          config1.userid='testuser1';
          config2.userid='testuser2';
          var dfd = this.async(T1);
@@ -195,9 +195,9 @@ define([
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
          g.endpointProvider3 = endpointProvider3;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:false});
+         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
          config1.userid='testuser1';
          config2.userid='testuser2';
          var config3 = config.clientConfig();
@@ -274,8 +274,8 @@ define([
            endpointProvider2.setAppContext('test');
            // mark for destroy;
            g.endpointProvider2 = endpointProvider2;
-           var customer = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
-           var agent = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
+           var customer = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
+           var agent = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
 
            var message1 = null;
            var message2 = null;
@@ -356,9 +356,9 @@ define([
 
          // All enpdointProvider1 should be INBOUND... 
           
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep4 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:false});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep4 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
 
          var onNewEndpoint = function(event) {
            // you don't know the provider here.

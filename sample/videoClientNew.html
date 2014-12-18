@@ -1,68 +1,91 @@
 <!DOCTYPE html>
-<!--
-#
-#****************************************************************
-# Licensed Materials - Property of IBM
-# 5725-F96 IBM MessageSight
-# (C) Copyright IBM Corp. 2014 All Rights Reserved.
-#
-# US Government Users Restricted Rights - Use, duplication or
-# disclosure restricted by GSA ADP Schedule Contract with
-# IBM Corp.
-#****************************************************************
-#
--->
-<html>
-<head>  
-<meta charset="utf-8">
-<title>IBM WebRTC Demo</title>
-<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
-<link href="resources/css/video.css" rel="stylesheet">
+<html lang="en" >
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<title>IBM WebRTC Demo</title>
+	<!-- Bootstrap core CSS -->
+  <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+  <link href="resources/css/rtcomm.css" rel="stylesheet">
 
+  <script src="http://code.jquery.com/jquery-2.1.1.js"></script>
+  <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+
+<!-- The following paths may need to be modified depending on the location of this script. -->
+
+  <script src="../lib/mqttws31.js"></script>
+  <script src="../dist/rtcomm.js"></script>
+
+	<style type="text/css">
+		html {
+		  height: 100%;
+		}
+		body {
+			height: 100%;
+			width: 100%;
+			font-family: HelveticaNeue-Light, Arial, sans-serif;
+			padding-top: 60px;
+			padding-bottom: 40px;
+		}
+	</style>
 </head>
-<body>
 
-<div id="MainContainer" class="mainContentContainer">
-     <div id="topContainer">
-        <div class="pull-left logo">
-          <span class="blue">IBM</span> WebRTC Sample
+<body>
+	<div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Rtcomm HelpDesk Agent</a>
         </div>
-        <div class="pull-right logo" style="font-size: 24px; padding-right: 30px">
-          <span id="displayNameStr"></span>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+           	<li class="active"><a href="index.html">Home</a></li>
+          </ul>
         </div>
+      </div>
     </div>
-    <div class='row'>
-      <div class="col-md-3">
+ 	<div class="container-fluid">
+		<div class="row">
+			<div class="col-md-2">
         <div class = "panel panel-primary">
           <div class="panel-heading">
->>            <span class="glyphicon glyphicon-comment"></span> Presence
-            </div>
-            <div id='presenceContainer'></div>
-         </div>
+>>           <span class="glyphicon glyphicon-comment"></span> Presence
+           </div>
+           <div id='presenceContainer'></div>
         </div>
-<div class = "col-md-9">
-  <div id="videoContainer">
-    <div id='selfViewContainer'>
-      <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
-    </div>
-    
-    <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
-    </video>
-     </div>
-     <div class="video-controls">
-    <div class="btn-group pull-left" style='padding-top:10px'>
-     <button id='btnRegister' class='btn btn-primary'>
-       Register
-      </button>
-      <button id='btnConnect' class='btn btn-default' disabled='disabled'>
-         Connect  
-      </button>
-    </div>
-     <div id='statusMessage' class="pull-right logo" style="font-size: 24px; padding-right: 30px">
-          Please Register
+			</div>
+			<div class="col-md-9">
+      <div id="videoContainer">
+        <div id='selfViewContainer'>
+          <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
+        </div>
+        <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
+        </video>
+      </div>
+      <div class="video-controls">
+        <div class="btn-group pull-left" style='padding-top:10px'>
+         <button id='btnRegister' class='btn btn-primary'>
+           Register
+          </button>
+          <button id='btnConnect' class='btn btn-default' disabled='disabled'>
+             Connect  
+          </button>
+        </div>
+        <div id='statusMessage' class="pull-right logo" style="font-size: 24px; padding-right: 30px">
+              Please Register
+        </div>
+      </div>
+      </div>
     </div>
   </div>
-</div>
 </div>
 
 <div id="answerDialog" class="modal fade">
@@ -144,20 +167,6 @@
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
-
-<!-- 
-This is SAMPLE is dependent on jQuery and bootstrap. Both load from a CDN. Alternatively, download jquery 
-from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
--->
-<script src="http://code.jquery.com/jquery-2.1.1.js"></script>
-<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
-
-<!-- The following paths may need to be modified depending on the location of this script. -->
-
-<script src="../lib/mqttws31.js"></script>
-<script src="../dist/rtcomm.js"></script>
-
-
 <script>
 
   /*************************************************
@@ -201,6 +210,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   console.log('regwithAV is: ', regwithAV);
   // This uses any params passed on URL to override config.
   updateConfig(epConfig, urlConfig);
+  var presence = null;
 
   /********************************************************************
    *  Rtcomm Functions
@@ -246,19 +256,11 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
                   rtcommEndpoint.webrtc.enable({lazyAV: false}, function() {
                     console.log('>>>>>>>>>>>>>>SUCCESS ENABLED WEBRTC CALLBACK');
                   });
-                  /******* OLD WAY
-                  rtcommEndpoint
-                      .attachLocalMedia(function(value, message) {
-                        if (!value) {
-                          alertMessage('Failed to get local Audio/Video - nothing to broadcast');
-                          if (ibmep) {
-                            rtcommEndpoint.unregister();
-                            uiUnregister();
-                          }
-                        }
-                      });
-                   ****/
                 }
+              // getPresenceMonitor
+              presence = ibmep.getPresenceMonitor();
+              presence.on('updated',updatePeerList);
+              presence.add("/");
               }, function(error) { //onFailure
                 console.error('init failed: ', error);
                 alertMessage('Initialization and registration failed!');
@@ -460,8 +462,6 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     return false;
   });
 
-
-
   function alertMessage(message) {
     console.log('Updating statusMessge with ', message);
     $('#statusMessage').css('color:red');
@@ -514,6 +514,38 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     return paramhash;
   }
 
+  function updatePeerList() {
+      $('#presenceContainer').empty();
+      var buttonTemplate = '<button type="button" id="BTNID" class="btn BTNSTATE btn-lg btn-block presenceItem" data-toggle="tooltip" data-placement="top" title="BTNDESC" >BTNNAME</button>';
+      presence.getPresenceData()[0].flatten().forEach(function(item) {
+        console.log(item.name);
+        var button = buttonTemplate.replace('BTNID', item.presenceTopic).replace('BTNNAME', item.name).replace('BTNDESC', item.alias || "None"); 
+         button = button.replace('BTNSTATE','btn-default');
+          $(button).appendTo('#presenceContainer');
+          // Init the tooltip on the queue
+          $('#'+item.name).tooltip();
+       });
+
+        $(".presenceItem").on('click', function() {
+          var t = $(this).attr('id');
+          console.log('Looking up node for t: '+t);
+          var node = presence.getPresenceData()[0].getSubNode(t);
+          console.log('Node for t: ',node);
+          var remoteid = node.name;
+          updateMessage('Connecting to '+remoteid);
+        // This is only necessary if you want to enable/connect in same motion. 
+          rtcommEndpoint.webrtc.enable(function(success, message) {
+            console.log('Enable Completed: '+ success);
+            if (success) {
+              rtcommEndpoint.connect({remoteEndpointID: remoteid, toTopic: node.addressTopic});
+            } else {
+              console.error('enable failed: '+ message)
+            }
+          });
+
+        });
+  };
+
 window.onload = function() {
   console.log('ONLOAD! '+regOnload+' userid: '+userid);
   if (regOnload && userid) {
@@ -522,8 +554,5 @@ window.onload = function() {
   }
 }
 </script>
-
-
-
 </body>
 </html>

@@ -22,7 +22,7 @@
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.2.0',
+      'rtcommVer': 'v0.3.0',
        'method' : null,
        'fromTopic': null
   };
@@ -47,33 +47,41 @@ var MessageFactory = (function (){
       },
       'START_SESSION' : {
         'method': 'START_SESSION',
+        'protocols': [],
         'sigSessID':null,
         'transID':null,
         'toEndpointID': null,
-        'peerContent': null,
+        'payload': null,
+      },
+      'REFER' : {
+        'method': 'REFER',
+        'transID':null,
+        'toEndpointID': null,
+        'details': null,
       },
      'STOP_SESSION' : {
         'method': 'STOP_SESSION',
         'sigSessID':null,
-        'peerContent': null,
+        'payload': null,
       },
       'PRANSWER': {
         'method': 'PRANSWER',
-        'peerContent': null
+        'protocols': [],
+        'payload': null
       },
       // Message is generic and could be anything... 
       'MESSAGE':{
         'method':'MESSAGE',
-        'peerContent': null
+        'payload': null
       },
-      'ICE_CANDIDATE':{
-        'method':'ICE_CANDIDATE',
-        'fromTopic': null
-      },
-      'REGISTER': {
-        'method': 'REGISTER',
-        'regTopic':null,
-        'appContext':null
+      'DOCUMENT': {
+        'method': 'DOCUMENT',
+        'type': 'ENDPOINT',
+        'addressTopic':null,
+        'appContext':null,
+        'state': null,
+        'alias': null,
+        'userDefines':[]
       }
   };
   
@@ -93,18 +101,17 @@ var MessageFactory = (function (){
       },
       'START_SESSION' : {
         'orig': 'START_SESSION',
+        'protocols': [],
         'sigSessID': null,
         'result': null,
-        'peerContent': null,
+        'payload': null,
         'transID': null,
       },
-      'REGISTER': {
-        'orig': 'REGISTER',
-        'expires': 120,
+      'REFER' : {
+        'orig': 'REFER',
+        'transID':null,
         'result': null,
-        'transID': null,
       }
-      
   };
   
   function getMessageTemplate(type) {

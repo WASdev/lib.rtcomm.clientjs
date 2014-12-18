@@ -43,38 +43,51 @@ var SigSession = function SigSession(config) {
   this.remoteEndpointID = null;
   this.message = null;
   this.source = null;
+  this.protocols = [];
   this.toTopic = null;
   this.type = 'normal'; // or refer
-  this.referralDetails = null;
+  this.referralDetails= null;
+  this.referralTransaction = null;
   this.appContext = null;
 
   if (config) {
-    if (config.message && config.message.sigSessID) {
-      // We are INBOUND. 
-      this.message = config.message;
-      this.id = config.message.sigSessID;
+    if (config.message) {
       this.appContext = config.message.appContext || null;
-      this.remoteEndpointID = config.fromEndpointID || null;
       this.source = config.source || null;
-      this.toTopic = config.toTopic || config.message.fromTopic || null;
-      if (config.message.peerContent && config.message.peerContent.type === 'refer') {
-        this.type = 'refer';
-        this.referralDetails = config.message.peerContent.details;
+      if (config.message.method === 'START_SESSION') {
+        l('DEBUG') && 
+          console.log(this+'.constructor - inbound message(START_SESSION) config: ', config);
+        // We are INBOUND. 
+        this.message = config.message;
+        this.id = config.message.sigSessID;
+        this.remoteEndpointID = config.fromEndpointID || null;
+        this.toTopic = config.toTopic || config.message.fromTopic || null;
+        this.protocols = config.message.protocols;
+      } else if (config.message.method === 'REFER') {
+        l('DEBUG') && 
+          console.log(this+'.constructor - inbound message(REFER) config: ', config);
+        // If there is a sessionID, use it...
+        this.id = config.message.details.sessionID && config.message.details.sessionID;
+        this.remoteEndpointID = config.message.details.toEndpointID || null;
+        this.referralTransaction = config.referralTransaction;
+      } else {
+        l('DEBUG') && 
+          console.log(this+'.constructor - inbound message(unknown) doing nothing -->  config: ', config);
       }
     } else {
+      l('DEBUG') && console.log(this+'.constructor creating session from config: ', config);
       this.remoteEndpointID = config.remoteEndpointID || null;
       this.id = this.id || config.id;
-      this.toTopic = this.toTopic || config.toTopic; 
+      this.protocols = config.protocols || this.protocols;
+      this.toTopic = this.toTopic || config.toTopic;
       this.appContext = this.appContext|| config.appContext;
     }
-  } 
+  }
 
   /* global generateUUID: false */
   this.id = this.id || generateUUID();
-
   l('DEBUG') && console.log(this+'.constructor creating session from config: ', config);
-  l('DEBUG') && console.log(this+'.constructor created session from config: ', this);
- 
+
   this.events = {
       'starting':[],
       'started':[],
@@ -136,12 +149,12 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      * start must be called to send the first message.
      * options are:
      * 
-     *  config = {remoteEndpointID: something, message:  }
+     *  config = {remoteEndpointID: something, protocols:[]  }
+     *
      */
     start : function(config) {
       if (this._startTransaction) {
         // already Started
-        //
         l('DEBUG') && console.log('SigSession.start() already started/starting');
         return;
       }
@@ -152,13 +165,13 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       var message = null;
       if (config) {
         this.remoteEndpointID = remoteEndpointID = config.remoteEndpointID || remoteEndpointID;
+        this.protocols = (config.protocols && config.protocols.length > 0) ? config.protocols : this.protocols;
         message = config.message|| null;
       }
       this.state = 'starting';
       if (!remoteEndpointID) {
         throw new Error('remoteEndpointID is required in start() or SigSession() instantiation');
       }  
-
       /*
        * If we are new, (no message...) then we should create START and 
        *  a Transaction and send it....
@@ -166,8 +179,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
        *    
        */
       if (!this.message) {
-        this.message = this.createMessage('START_SESSION');
-        this.message.peerContent = message || null;
+        this.message = this.createMessage('START_SESSION', message);
         if (this.appContext) {
           this.message.appContext = this.appContext;
         }
@@ -177,16 +189,14 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         // recieved a Response, if it has an Answer, we need to pass it up.
         l('DEBUG') && console.log(this+'.sessionStarted!  ', message);
         this.state = 'started';
-
         if (message.fromEndpointID !== this.remoteEndpointID) {
-          l('DEBUG') && console.log(this+'.sessionStarted! updating remoteEndpointID to: '+ message.fromEndpointID);
+          l('DEBUG') && console.log(this+'.sessionStarted! remoteEndpointID reset:'+ message.fromEndpointID);
           this.remoteEndpointID = message.fromEndpointID;
         }
-
         this._startTransaction = null;
-        //  this.processMessage(message);
-        // if Inbound it means we SENT an answer. and have 'FINISHED' the transaction.
-        this.emit('started', message.peerContent);
+        this.referralTransaction && 
+          this.referralTransaction.finish(this.endpointconnector.createResponse('REFER'));
+        this.emit('started', message.payload);
       };
 
       var session_failed = function(message) {
@@ -238,17 +248,23 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         messageToSend = this.endpointconnector.createResponse('START_SESSION');
         messageToSend.transID = this._startTransaction.id;
         messageToSend.sigSessID = this.id;
+        var referralResponse = this.endpointconnector.createResponse('REFER');
 
         if (SUCCESS) { 
           messageToSend.result = 'SUCCESS';
-          messageToSend.peerContent = (this.type === 'refer') ? {type: 'refer'} : message; 
+          messageToSend.payload = message;
+          // If there is a referral transaction, finish it...
           this.state = 'started';
         } else {
           messageToSend.result = 'FAILURE';
           messageToSend.reason = message || "Unknown";
+          referralResponse.result = 'FAILURE';
+          referralResponse.reason = message || "Unknown";
           this.state = 'failed';
         }
         // Finish the transaction
+        this.referralTransaction && 
+          this.referralTransaction.finish(referralResponse);
         this._startTransaction.finish(messageToSend);
         this.emit(this.state);
       } else {
@@ -269,15 +285,14 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      *  
      *  peerContent -- Message to send
      *  timeout -- in SECONDS -- timeout to wait.
+     *  
      */
-    pranswer : function(peerContent, timeout) {
-      if (typeof peerContent !== 'number') { 
-        peerContent = peerContent || {'type':'pranswer'};
-      } else {
-        timeout = peerContent;
-        peerContent = {'type':'pranswer'};
+    pranswer : function(payload, timeout) {
+      if (typeof payload=== 'number') { 
+        timeout = payload;
+        payload = null;
       }
-      var pranswerMessage = this.createMessage(peerContent);
+      var pranswerMessage = this.createMessage('PRANSWER', payload);
       if (timeout) { 
         pranswerMessage.holdTimeout=timeout;
       }
@@ -333,27 +348,19 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         }
       }
     },
-    createMessage : function(object) {
-      // We create messages for a sigSession... 
-      // generally, this is what we should send, peerContent.
-      var peerContent = null;
-      // object could be a RAW Message... 
-      // Object could be a peerContent type of message {type:offer|answer/icecandidate/user sdp/candidate/userdata: }
-      //   where could infer our message type.
-      // object could be a type we are going to set content...
-      if (object && object.type ) { 
-        peerContent = object;
+    createMessage : function(messageType,payload) {
+      if (typeof messageType === 'object') {
+        payload = messageType;
+        messageType = 'MESSAGE';
       }
-      var type = 'MESSAGE';
-      if (peerContent) {
-        type = peerContent.type === 'pranswer' ? 'PRANSWER' : 'MESSAGE';
-      } else {
-        type = object;
-      }
-      var message = this.endpointconnector.createMessage(type);
+      var message = this.endpointconnector.createMessage(messageType);
       message.toEndpointID = this.remoteEndpointID;
       message.sigSessID = this.id;
-      message.peerContent = peerContent ? object : null;
+      message.protocols = this.protocols;
+      if (payload && payload.type && payload.content) {
+        // Its a good message, can be added to the message
+        message.payload= payload;
+      }
       return message;
     },
     getState : function(){
@@ -366,7 +373,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       // If our fromTopic is dfferent than our toTopic, then update it.
 
       this.toTopic = (message.fromTopic !== this.toTopic) ? message.fromTopic : this.toTopic;
-
+      
       switch(message.method) {
       case 'PRANSWER':
         // change our state, emit content if it is there.
@@ -380,23 +387,24 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         if (message.holdTimeout || message.queuePosition) {
           // We've been Queued...
           this.state = 'queued';
-          this.emit('queued', {'queuePosition': message.queuePosition, 'message': message.peerContent});
+          this.emit('queued', {'queuePosition': message.queuePosition, 'message': message.payload});
         } else {
           this.state = 'have_pranswer';
-          this.emit('have_pranswer', message.peerContent);
+          this.protocols = message.protocols;
+          this.emit('have_pranswer', {'protocols': this.protocols, 'payload': message.payload});
         } 
         break;
       case 'ICE_CANDIDATE':
-        this.emit('ice_candidate', message.peerContent);
+        this.emit('ice_candidate', message.payload);
         break;
       case 'STOP_SESSION':
         this.state='stopped';
-        this.emit('stopped', message.peerContent);
+        this.emit('stopped', message.payload);
         this.emit('finished');
         break;
       case 'MESSAGE':
-        l('DEBUG') && console.log('Emitting event [message]', message.peerContent);
-        this.emit('message', message.peerContent);
+        l('DEBUG') && console.log('Emitting event [message]', message.payload);
+        this.emit('message', message.payload);
         break;
       default:
         console.error('Unexpected Message, dropping... ', message);

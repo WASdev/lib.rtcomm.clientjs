@@ -4,7 +4,7 @@
 <meta charset="US-ASCII">
 <title>WebRTC rtcomm.* test</title>
 <script type="text/javascript" src="../../lib/mqttws31.js" ></script>
-<script type="text/javascript" src="../../build/js/ibm/rtcomm.js" ></script>
+<script type="text/javascript" src="../../dist/js/rtcomm.js" ></script>
 </head>
 
 <body>
@@ -32,7 +32,7 @@ var myConfig = {
 };
 
 var createProvider = function createProvider(userid) {
-  var EP = new ibm.rtcomm.RtcommEndpointProvider();
+  var EP = new rtcomm.EndpointProvider();
   EP.setLogLevel('TRACE');
   var rtcEP = null;
   myConfig.userid = userid || myConfig.userid;
