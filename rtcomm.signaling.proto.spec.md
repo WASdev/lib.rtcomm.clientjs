@@ -35,11 +35,11 @@ As you'll see in the various signaling messages below, some messages contain a h
 
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
-| protocols             | JSON array    |
+| protocols             | Array of strings   |
 
 Protocols are sub-protocols embedded in the signaling session and identify the types of data that may be in the 'payload' header.  At this time, the following protocols are supported:
 
-| Key                   | Value                                     |
+| Protocol                 | Description                               |
 | ----------------------|:-------------------------------------------|
 | chat            | Declares session can support chat      |
 | webrtc          | Declares session can support webrtc    |
@@ -54,17 +54,15 @@ As you'll see in the various signaling messages below, some messages contain a h
 | payload               | JSON object defined in the table below. |
 
 
-This JSON object that represents the payload value contains at most a single "type" key/value pair and a "content" key followed by the associated data like this:
+This JSON object that represents the payload value contains can contain a key/value pair for each supported protocol. Examples for supported protocols for 'webrtc' and 'chat' are
 
 | Key                   | Value                                      |
 | ----------------------|:-------------------------------------------|
-| type                  | Should match a defined sub-protocol.  e.g. "chat", "webrtc" |
-| content               | The content will be specific to the sub-protocol, it is defined in the table below| 
+| webrtc                | JSON Object specific to the sub-protocol defined below |
+| chat                  | JSON Object specific to the sub-protocol defined below | 
 
 
-One of the following data types:"sdp", "candidate", "userData", "details") | see table below for details |
-
-Rtcomm currently supports the following types & content (only one of these can exist within a peerContent JSON object at a time):
+For the protocols currently supported, the sub-protocol JSON Object should be:
 
 #### chat content
 |  Key                   | Value                                     |
