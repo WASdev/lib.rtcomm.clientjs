@@ -162,11 +162,11 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       /*global l:false*/
       l('DEBUG') && console.log('SigSession.start() using config: ', config);
       var remoteEndpointID = this.remoteEndpointID;
-      var message = null;
+      var payload = null;
       if (config) {
         this.remoteEndpointID = remoteEndpointID = config.remoteEndpointID || remoteEndpointID;
         this.protocols = (config.protocols && config.protocols.length > 0) ? config.protocols : this.protocols;
-        message = config.message|| null;
+        payload = config.payload || null;
       }
       this.state = 'starting';
       if (!remoteEndpointID) {
@@ -179,7 +179,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
        *    
        */
       if (!this.message) {
-        this.message = this.createMessage('START_SESSION', message);
+        this.message = this.createMessage('START_SESSION', payload);
         if (this.appContext) {
           this.message.appContext = this.appContext;
         }

@@ -272,8 +272,10 @@ var WebRTCConnection = (function invocation() {
       l('DEBUG') && console.log(this+'.accept() -- accepting --');
       if (this.getState() === 'alerting') {
         this.enableLocalAV(doAnswer);
+        return true;
+      } else {
+        return false;
       }
-      return this;
     },
     /** reject an inbound connection */
     reject: function() {

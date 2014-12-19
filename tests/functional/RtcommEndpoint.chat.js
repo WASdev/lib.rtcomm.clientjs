@@ -88,10 +88,8 @@ define([
           assert.equal(EP1.endpoints().length, 1);
           assert.equal(EP2.endpoints().length ,1);
         },
-
-        'connect 2 sessions':function() {
-          this.skip();
-          var dfd = this.async(3000);
+        'connect 2 sessions[No Liberty]':function() {
+          var dfd = this.async(10000);
           console.log(EP1.currentState());
           console.log(EP1.currentState());
           EP1.setLogLevel('DEBUG');
@@ -110,10 +108,12 @@ define([
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
-          chat1.connect(uid2);
+          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         },
-        'Initial Chat message on connect (if enabled)': function() {
+        'Initial Chat message on connect (if enabled) [No Liberty]': function() {
           console.log('************** START OF TEST ********************');
+          console.log('chat1: ', chat1);
+          console.log('chat2: ', chat2);
           /*
            * Enable chat prior to connect.  We should get a message
            * then connect.
@@ -124,8 +124,6 @@ define([
           var c2_started = false;
           var c2_messages = false;
           var alert_message = false;
-
-
           chat1.chat.enable();
           chat1.on('session:alerting', function(event) {
             // Should not get here.
@@ -153,14 +151,14 @@ define([
             assert.equal(event.protocols, 'chat', 'Correct protocol');
             chat2.accept();
             console.log('Received a Chat message...', event);
-            alert_message = event.message.message;
+            alert_message = event.message;
           });
           chat2.on('chat:message', function(event){
             console.log('Received a Chat message...', event);
             c2_messages = true;
             // message is event_object.message.message
           });
-          chat1.connect(uid2);
+          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         }
     });
 });

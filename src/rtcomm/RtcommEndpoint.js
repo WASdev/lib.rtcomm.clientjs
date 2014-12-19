@@ -31,7 +31,7 @@ var RtcommEndpoint = (function invocation(){
   var Chat = function Chat(parent) {
     // Does this matter?
     var createChatMessage = function(message) {
-      return {'type':'user', 'userdata': {'message': message, 'from': parent.userid}};
+      return {'type': 'chat', 'content': {'message': message, 'from': parent.userid}};
     };
     var chat = this;
     this._ = {};
@@ -80,6 +80,9 @@ var RtcommEndpoint = (function invocation(){
       l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
       if (this.state === 'alerting') {
         this.enable(message || 'Accepting chat connection');
+        return true;
+      } else {
+        return false;
       }
     };
     /**
@@ -105,8 +108,8 @@ var RtcommEndpoint = (function invocation(){
      * @param {string} message  Message to send
      */
     this.send = function(message) {
-      message = (message && message.message) ? message.message : message;
-      message = (message && message.type === 'user') ? message : createChatMessage(message);
+      message = (message && message.payload) ? message.payload: message;
+      message = (message && message.type === 'chat') ? message : createChatMessage(message);
       if (parent._.activeSession) {
         parent._.activeSession.send(message);
       }
@@ -114,14 +117,18 @@ var RtcommEndpoint = (function invocation(){
     this._connect = function(sendMethod) {
       sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
       if (this._.enabled) {
-        this.onEnabledMessage && sendMethod({message: this.onEnabledMessage});
+        this.onEnabledMessage && sendMethod({'payload': this.onEnabledMessage});
         this._setState('connected');
         return true;
       } else {
-        console.log('!!!!! not enabled, skipping...'); 
+        l('DEBUG') && console.log(this+ '_connect() !!!!! not enabled, skipping...'); 
         return false;
       }
     };
+    // Message should be in the format:
+    // {payload content... }
+    // {'message': message, 'from':from}
+    //
     this._processMessage = function(message) {
       // If we are connected, emit the message
       if (this.state === 'connected') {
@@ -389,12 +396,16 @@ var RtcommEndpoint = (function invocation(){
 RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
 
   function createSignalingSession(endpoint, context) {
+    console.log('REMOVE ME: ', endpoint);
     var remoteEndpointID = null;
     var toTopic = null;
     if (typeof endpoint === 'object') {
       if (endpoint.remoteEndpointID && endpoint.toTopic) {
+        
         remoteEndpointID = endpoint.remoteEndpointID;
         toTopic = endpoint.toTopic;
+        console.log('toTopic?: '+toTopic);
+        console.log('remoteEndpointID?: '+remoteEndpointID);
       } else {
         throw new Error('Invalid object passed on connect! should be {remoteEndpointID: something, toTopic: something}');
       }
@@ -404,7 +415,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     l('DEBUG') && console.log(context+" createSignalingSession context: ", context);
     var sessid = null;
     if (!remoteEndpointID) {
-      throw new Error('toEndpointID must be set');
+      throw new Error('remoteEndpointID must be set');
     }
     var session = context.dependencies.endpointConnection.createSession({
       id : sessid,
@@ -487,10 +498,8 @@ return  {
           // Save the session 
           this._.activeSession = session;
           addSessionCallbacks(this,session);
-          console.log('MY PROTOCOLS? ', this._.protocols);
-          console.log('INBOUND PROTOCOLS? ', session.protocols);
           var commonProtocols = util.commonArrayItems(this._.protocols, session.protocols);
-          console.log('COMMON PROTOCOLS? ', commonProtocols);
+          l('DEBUG') && console.log(this+'.newSession() common protocols: '+ commonProtocols);
           // If this session is created by a REFER, we do something different
           if (session.referralTransaction ) {
             // Don't start it, emit 'session:refer'
@@ -571,7 +580,7 @@ return  {
           console.error(this+' Received message, but unknown protocol: ', payload);
         }
    } else {
-     console.error(this+' Received message, but nothing to do with it', payload);
+     l('DEBUG') && console.log(this+' Received message, but nothing to do with it', payload);
    }
   },
   /** Endpoint is available to accept an incoming call
@@ -665,10 +674,12 @@ return  {
   accept: function(options) {
     if (this.getState() === 'session:refer') {  
       this.connect(null);
-    } else if (this.webrtc || this.chat ) {
-      this.webrtc && this.webrtc.accept(options);
-      this.chat && this.chat.accept(options);
+    } else if (this.webrtc && this.webrtc && this.webrtc.accept(options)) {
+      l('DEBUG') && console.log(this+'.accept() Accepted in webrtc.');
+    } else if (this.chat && this.chat.accept(options)) {
+      l('DEBUG') && console.log(this+'.accept() Accepted in chat.');
     } else {
+      l('DEBUG') && console.log(this+'.accept() accepting generically.');
       if (!this.sessionStarted()) {
         this._.activeSession.respond();
       }

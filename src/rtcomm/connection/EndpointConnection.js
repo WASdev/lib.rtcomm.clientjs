@@ -240,7 +240,7 @@ var EndpointConnection = function EndpointConnection(config) {
     defaults: { 
       rtcommTopicPath: rtcommTopicPath, 
       managementTopicName: 'management', 
-      connectorTopicname : "connector",
+      connectorTopicName : "connector",
       publishPresence: 'false', 
       presence: { 
         rootTopic: rtcommTopicPath + 'sphere/',
@@ -345,7 +345,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         if (services) {
           if (services.RTCOMM_CONNECTOR_SERVICE) {
             connection.services.RTCOMM_CONNECTOR_SERVICE = services.RTCOMM_CONNECTOR_SERVICE;
-            connection.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic;
+            connection.config.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic|| connection.config.connectorTopicName;
           }
           if (services.RTCOMM_CALL_CONTROL_SERVICE) {
             connection.services.RTCOMM_CALL_CONTROL_SERVICE = services.RTCOMM_CALL_CONTROL_SERVICE;
@@ -396,8 +396,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             // Replace Double '//' if present
             topic = topic.replace(/\/+/g,'\/');
           } else {
-            if (this.connectorTopicName) { 
-              topic = this.normalizeTopic(this.connectorTopicName);
+            if (this.config.connectorTopicName) { 
+              topic = this.normalizeTopic(this.config.connectorTopicName);
             } else {
               throw new Error('normalize Topic requires connectorTopicName to be set - call serviceQuery?');
             }
@@ -479,8 +479,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           // start a transaction of type START_SESSION
           // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
           // if message & fromEndpointID -- we are inbound..
+          //  ALWAYS use a configure toTopic as an override.
           if (config && config.remoteEndpointID) {
-            config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route)) || config.toTopic;
+            config.toTopic = this.normalizeTopic(config.toTopic) || this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
           }
           /*global SigSession:false*/
           var session = new SigSession(config);
