@@ -281,7 +281,7 @@ define([
            var message2 = null;
            var queueid = null;
 
-           var dfd = this.async(T1);
+           var dfd = this.async(T2);
 
            var finish = dfd.callback(function() {
                console.log("******************Asserting now...***********************");
@@ -295,8 +295,7 @@ define([
             customer.on('session:started', finish);
             var queued = false;
             customer.on('session:queued', function(obj){
-              // uncomment when we release new beta
-              // assert.ok(typeof obj.queuePosition !== 'undefined', 'queuePosition appended to event');
+              assert.ok(typeof obj.queuePosition !== 'undefined', 'queuePosition appended to event');
               queued = true;
             });
 
@@ -304,7 +303,7 @@ define([
              console.log('>>>>TEST  accepting call');
              setTimeout(function() {
               agent.accept();
-             },2000);
+             },1000);
             });
 
             endpointProvider2.on('queueupdate',function(queues) {
@@ -315,6 +314,8 @@ define([
                 queueid = Object.keys(queues)[0];
                 endpointProvider2.joinQueue(queueid);
                 console.log('TEST>>>> Agent Available? '+agent.available());
+                console.log('TEST>>>> Connecting to QUEUEID:  '+queueid);
+                customer.connect(queueid);
                 // Connect to the queue now.
               } 
             });
@@ -327,7 +328,6 @@ define([
                         function(obj) {
                           console.log('init was successful');
                           console.log('TEST>>>> Agent Available? '+agent.available());
-                          customer.connect(queueid);
                         },
                         function(error) {
                           console.log('error in agent init:' + error);
@@ -340,6 +340,7 @@ define([
                  );
          },
      "Create many endpoints" : function() {
+       // This test is in progress
        this.skip();
          // mark for destroy;
          var config1 = config.clientConfig();
@@ -374,12 +375,10 @@ define([
            setTimeout(function(){
             dfd.resolve();
            },3000);
-
            return dfd.promise;
          };
 
          var dfd = this.async(T1);
-
          initAllEps.then(
 
          );

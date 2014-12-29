@@ -36,10 +36,11 @@ define([
         'rtcommVer': 'v0.1.0',
         'method': 'START_SESSION',
         'fromTopic': null,
+        'protocols': ['chat'],
         'sigSessID':'1111-fake-test-1111',
         'transID':'2222-fake-test-2222',
         'toEndpointID': 'queueid',
-        'peerContent': { type: 'offer' },
+        'payload': { type: 'offer' },
         'appContext': 'rtcommTest' 
     };
     function getPublishTopic(sharedTopic) {
@@ -68,9 +69,9 @@ define([
           return dfd.promise;
         },
         beforeEach: function() {
-          console.log('reset the rtcommEP');
+          console.log('>>>>>>>>>>>> Reset the rtcommEP[New Test] <<<<<<<<<<<<<<<');
           rtcommEP && rtcommEP.destroy();
-          rtcommEP = ep.createRtcommEndpoint({chat:false, webrtc: false});
+          rtcommEP = ep.createRtcommEndpoint({chat:true, webrtc: false});
           console.log('reset the mqtt');
           mqtt && mqtt.destroy();
           mqtt = ep.getMqttEndpoint();
@@ -80,8 +81,12 @@ define([
           ep = null;
         },
         'Init of rtcommEP creates Queues' : function() {
-          console.log(ep.listQueues());
-          assert.ok(ep.listQueues().length > 0 , 'queues is defined');
+          var dfd = this.async(3000);
+          ep.on('queueupdate',dfd.callback(function(){
+            console.log(ep.listQueues());
+            assert.ok(ep.listQueues().length > 0 , 'queues is defined');
+          }));
+
 //          this.skip();
         },
 
@@ -111,17 +116,15 @@ define([
             // and Source should match our topic we know...
             console.log('FINISH Called!', obj);
             assert.equal(endpoint._.activeSession.source, publishTopic+'/intern', 'source topic is right');
-          });   
-
+          });
           rtcommEP.on('session:alerting', finish);
           // Create a Message
-          START_SESSION.fromTopic = '/scott';
           var msg = ep.dependencies.endpointConnection.createMessage('START_SESSION');
+          msg.protocols = ['chat'];
           msg.fromTopic = '/scott';
           msg.sigSessID = '1111-fake-test-1111';
           msg.transID = '2222-fake-test-2222';
           msg.toEndpointID = 'queueid';
-          //msg.peerContent=  { type: 'offer' };
           msg.appContext='rtcommTest' ;
           mqtt.publish(publishTopic+'/intern', msg);
         },

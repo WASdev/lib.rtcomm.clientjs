@@ -122,42 +122,65 @@ define([
           var bad_alert = false;
           var c1_started = false;
           var c2_started = false;
-          var c2_messages = false;
+          var c1_rcv_message = null;
+          var c2_rcv_message = null;
           var alert_message = false;
+
+          var c1Toc2Msg = "Hello from c1";
+          var c2Toc1Msg = "Hello from c2";
+
           chat1.chat.enable();
+
+          var finish = dfd.callback(function(event){
+            /*
+             * This is where we assert the test passed
+             */
+            console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
+            assert.notOk(bad_alert, 'Chat1 alert should not be called');
+            assert.ok(c1_started, 'Chat1 should be started');
+            assert.ok(c2_started, 'Chat2 should be started');
+            assert.equal(c2_rcv_message,c1Toc2Msg,  'Chat2 received message from chat1');
+            assert.equal(c1_rcv_message,c2Toc1Msg,  'Chat1 received message from chat2');
+            assert.equal(alert_message,'client1 has initiated a Chat with you', "Received chat from startup");
+            console.log('TEST >>>>> Finished asserting');
+          });
+
           chat1.on('session:alerting', function(event) {
             // Should not get here.
             bad_alert = true;
           });
           chat1.on('session:started', dfd.callback(function(event){
-            /*
-             * This is where we assert the test passed
-             */
             c1_started = true;
-            console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
-            assert.notOk(bad_alert, 'Chat1 alert should not be called');
-            assert.ok(c1_started, 'Chat1 should be started');
-            assert.ok(c2_started, 'Chat2 should be started');
-            assert.notOk(c2_messages, 'Chat2 should not receive any messages on chat:message');
-            assert.equal(alert_message,'client1 has initiated a Chat with you', "Received chat from startup");
-            console.log('TEST >>>>> Finished asserting');
+            console.log(' TEST >>>>>> Chat 1Session Started Event --> Sending messages');
+            chat1.chat.send(c1Toc2Msg);
+            chat2.chat.send(c2Toc1Msg);
+            setTimeout(function(){
+              console.log(' TEST >>>>>> Chat1 DISCONNECTING ');
+              chat1.disconnect();
+            },2000);
           }));
+          chat1.on('chat:message', function(event){
+            console.log('Received a Chat message...', event);
+            c1_rcv_message = event.message;;
+            // message is event_object.message.message
+          });
           chat2.on('session:started', function(event){
             c2_started = true;
             console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
             // Send messages here?
           });
           chat2.on('session:alerting', function(event) {
-            assert.equal(event.protocols, 'chat', 'Correct protocol');
-            chat2.accept();
+           // assert.equal(event.protocols, 'chat', 'Correct protocol');
             console.log('Received a Chat message...', event);
+            chat2.accept();
             alert_message = event.message;
           });
           chat2.on('chat:message', function(event){
             console.log('Received a Chat message...', event);
-            c2_messages = true;
+            c2_rcv_message = event.message;
             // message is event_object.message.message
           });
+          chat2.on('session:stopped', finish)
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         }
     });

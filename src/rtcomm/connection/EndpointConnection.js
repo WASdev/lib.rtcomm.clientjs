@@ -481,7 +481,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           // if message & fromEndpointID -- we are inbound..
           //  ALWAYS use a configure toTopic as an override.
           if (config && config.remoteEndpointID) {
-            config.toTopic = this.normalizeTopic(config.toTopic) || this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
+            config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
           }
           /*global SigSession:false*/
           var session = new SigSession(config);
@@ -705,7 +705,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
 
         getPresenceRoot: function() {
           l('DEBUG') && console.log(this+'.getPresenceRoot() returning topic: '+ 
-                                   this.normalizeTopic(this.config.presence.rootTopic));
+                                   this.normalizeTopic(this.config.presence.rootTopic, false));
           return this.normalizeTopic(this.config.presence.rootTopic,false);
         },
         useLwt: function() {

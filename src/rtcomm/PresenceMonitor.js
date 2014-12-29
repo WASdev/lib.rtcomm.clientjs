@@ -73,25 +73,18 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
      * if this.name === '/' then we are THE master Root node ('/') and we will presume that nodes[0] should
      * be below us... 
      */
-
-
-    if (this.name === '/') {
-      if (nodes.length === 1 && nodes[0] === '/') {
-        return this;
-      } else {
+    if (this.name === '/' && nodes[0] !== '/') {
         // If we are searching off of the Top Level, we need to insert it into nodes...
         nodes.unshift('/');
-      }
     }
-
-    l('DEBUG') && console.log(this+ '.findSubNode() name is: '+this.name);
+    l('DEBUG') && console.log(this+ '.findSubNode() this.name is: '+this.name);
     if(nodes[0] === this.name) {
       var match = null;
       // Search... 
       l('DEBUG') && console.log(this+ '.findSubNode() searching node '+nodes[0]+' for '+nodes[1]);
       for(var i = 0; i<this.nodes.length;i++ ) {
         if ( this.nodes[i].name === nodes[1] ) { 
-          l('DEBUG') && console.log(this+ '.findSubNode() >>> Found '+nodes[1]);
+          l('DEBUG') && console.log(this+ '.findSubNode() >>> We found '+nodes[1]);
           match =  this.nodes[i].findSubNode(nodes.slice(1));
           break;
         }
@@ -102,7 +95,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       // If a subnode exists, then we did a search and match is accurate.
       //
       if (nodes[1]) {
-        l('DEBUG') && console.log(this+ '.findSubNode() >>> Found1? '+nodes[1]);
+        l('DEBUG') && console.log(this+ '.findSubNode() >>> The match was found for: '+nodes[1]);
         returnValue = match;
       } else {
         returnValue = this;
@@ -337,7 +330,8 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
      * @returns {array} An array of PresenceNodes
      */
     getPresenceData: function getPresenceData() {
-      return this._.presenceData;
+      // This returns everything under the ROOT.
+      return this._.presenceData[0].nodes;
     },
 
     getRootNode: function getRootNode() {

@@ -136,7 +136,7 @@ var RtcommEndpoint = (function invocation(){
       } else {
         if (!parent.sessionStopped()) {
           parent._.activeSession && parent._.activeSession.pranswer();
-          this._setState('alerting', {'message': message.message});
+          this._setState('alerting', message.message);
         }
       }
       return this;
@@ -165,8 +165,9 @@ var RtcommEndpoint = (function invocation(){
     chat.on('message', function(message) {
       parent.emit('chat:message', {'message': message});
     });
-    chat.on('alerting', function(obj) {
-      obj = obj || {};
+    chat.on('alerting', function(message) {
+      var obj =  {};
+      obj.message  = message;
       obj.protocols = 'chat';
       parent.emit('session:alerting', obj );
     });
@@ -629,6 +630,7 @@ return  {
     } else {
       remoteEndpointID = endpoint;
     } 
+    l('DEBUG') && console.log(this+'.connect() using remoteEndpointID: '+ remoteEndpointID +' & toTopic:'+toTopic);
     if (this.ready()) {
       this.available(false);
       if (!this._.activeSession) { 

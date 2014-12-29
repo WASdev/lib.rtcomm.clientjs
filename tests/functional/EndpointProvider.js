@@ -199,13 +199,14 @@ define([
 
        var finish = dfd.callback(function(object) {
           console.log('************ Finish called w/ OBJECT: ',object);
-          console.log('************ Finish called w/ OBJECT: ',presenceMonitor.getPresenceData());
+          console.log('************ Current Presence Data? : ',presenceMonitor.getPresenceData());
           assert.equal(presenceMonitor.getPresenceData(), object, 'PresenceData object was passed');
-          assert.equal('/', presenceMonitor.getPresenceData()[0].name, 'Root topic created...')
-          assert.equal('test', presenceMonitor.getPresenceData()[0].nodes[0].name, 'Primary topic created...')
-          assert.equal('testuser', presenceMonitor.getPresenceData()[0].nodes[0].nodes[0].name, 'User topic created...')
+          assert.equal(1, presenceMonitor.getPresenceData().length,' PresenceData has 1 top level entry');
+          assert.equal(1, presenceMonitor.getPresenceData()[0].nodes.length,' PresenceData[test] has 1 entry');
+          assert.equal('test', presenceMonitor.getPresenceData()[0].name, 'Primary topic created...');
+          assert.equal('testuser', presenceMonitor.getPresenceData()[0].nodes[0].name, 'User topic created...');
        });
-       presenceMonitor.on('updated', finish)
+       presenceMonitor.on('updated', finish);
        endpointProvider.init(testConfig, 
          function(obj){
            endpointProvider.publishPresence();
