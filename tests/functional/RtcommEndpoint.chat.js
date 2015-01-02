@@ -42,6 +42,20 @@ define([
       return dfd.promise;
     };
 
+    var createAutoConnectEP = function createAutoConnectEP(provider) {
+      var ep = provider.createRtcommEndpoint();
+    //  ep.on('session:started', function() {});
+     // ep.on('session:trying', function() {});
+      //ep.on('session:ringing', function() {});
+      ep.on('session:alerting', function() {
+        ep.accept();
+      });
+      //ep.on('session:failed', function() {});
+      //ep.on('chat:connected', function() {});
+      //ep.on('chat:disconnected', function() {});
+      //ep.on('chat:message', function() {});
+    };
+
     var EP1 = null;
     var EP2 = null;
 
@@ -90,10 +104,6 @@ define([
         },
         'connect 2 sessions[No Liberty]':function() {
           var dfd = this.async(10000);
-          console.log(EP1.currentState());
-          console.log(EP1.currentState());
-          EP1.setLogLevel('DEBUG');
-          EP2.setLogLevel('DEBUG');
           chat1.on('chat:message', function(message){
             console.log('****************************MESSAGE ***', message)
           });
@@ -108,6 +118,39 @@ define([
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
+          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+        },
+        'Issue 33:  Busy connect 2 sessions[No Liberty]':function() {
+          /* chat1 calls chat2 which accepts.  
+           * chat3 calls chat2 -- should get 'BUSY'
+           */
+          var dfd = this.async(10000);
+          // We have a 3rd endpoint here...
+          var chat3, EP3;
+          chat1.on('chat:message', function(message){
+            console.log('****************************MESSAGE ***', message)
+          });
+          chat2.on('session:alerting', function(){
+            chat2.accept();
+          });
+
+          /** FINISH **/
+          var finish = dfd.callback( function(obj) {
+            //obj should be a WebRTCConnection
+            // and Source should match our topic we know...
+            console.log('FINISH Called!', obj);
+            assert.equal('Busy', obj.reason, 'Session Failed correctly!');
+            assert.isNull(chat3._.activeSession, 'No ActiveSession (GOOD)!');
+          });   
+
+          chat1.on('session:started',function() {
+            // Now create a 3rd endpoint
+            EP3 = createProvider('client3','internChatTest').then(function(EP){
+              chat3 = EP.createRtcommEndpoint();
+              chat3.on('session:failed',finish);
+              chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+            });
+          });
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         },
         'Initial Chat message on connect (if enabled) [No Liberty]': function() {

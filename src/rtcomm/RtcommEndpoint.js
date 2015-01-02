@@ -664,6 +664,8 @@ return  {
       this._.activeSession.stop();
       this._.activeSession = null;
       this.setState('session:stopped');
+    } else {
+      this._.activeSession=null;
     }
     this.available(true);
     return this;

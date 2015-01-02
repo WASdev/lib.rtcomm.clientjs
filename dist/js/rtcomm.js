@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 29-12-2014 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 29-12-2014');
+/*! lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -17,8 +17,8 @@ console.log('lib.rtcomm.clientjs 1.0.0-beta.8 29-12-2014');
   }
 }(this, function () {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 29-12-2014 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 29-12-2014');
+/*! lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -486,8 +486,8 @@ return util;
   }
 }(this, function (util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 29-12-2014 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 29-12-2014');
+/*! lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -2555,8 +2555,8 @@ return connection;
   }
 }(this, function (connection, util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 29-12-2014 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 29-12-2014');
+/*! lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015');
 var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
   // Presuming you creat an object based on this one, 
   // you must override the session event handler and
@@ -4854,6 +4854,8 @@ return  {
       this._.activeSession.stop();
       this._.activeSession = null;
       this.setState('session:stopped');
+    } else {
+      this._.activeSession=null;
     }
     this.available(true);
     return this;
