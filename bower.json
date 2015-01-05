@@ -20,7 +20,9 @@
   "license": "Apache-2.0",
   "ignore": [
     "CONTRIBUTING.md",
-    "dist/umd/*",
+    "dist/umd",
+    "dist/jsdoc",
+    "dist/release",
     "sample",
     "lib",
     "bin",
@@ -29,6 +31,7 @@
     "rtcomm.signaling.proto.spec.md",
     "Gruntfile.js",
     "**/.*",
+    "build_resources",
     "node_modules",
     "persistence",
     "bower_components",
