@@ -1,5 +1,5 @@
 {
-  "name": "lib.rtcomm.clientjs",
+  "name": "rtcomm",
   "homepage": "https://github.com/WASdev/lib.rtcomm.clientjs",
   "version": "1.0.0-beta.9",
   "authors": [
@@ -19,24 +19,19 @@
   ],
   "license": "Apache-2.0",
   "ignore": [
-    "**/umd/*",
+    "CONTRIBUTING.md",
+    "dist/umd/*",
     "sample",
-    "build",
-    "build_resources",
     "lib",
     "bin",
     "config",
     "src",
-    "doc",
     "rtcomm.signaling.proto.spec.md",
-    "build.xml",
     "Gruntfile.js",
-    "README.md",
-    "CONTRIBUTING.md",
     "**/.*",
     "node_modules",
+    "persistence",
     "bower_components",
-    "test",
     "tests"
   ],
   "dependencies": {

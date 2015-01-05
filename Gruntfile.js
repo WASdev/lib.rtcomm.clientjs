@@ -12,7 +12,7 @@ module.exports = function(grunt) {
       },
       rtcomm_final: {
         src: ['dist/umd/rtcomm/util.js', 'dist/umd/rtcomm/connection.js','dist/umd/rtcomm.js'],
-        dest: 'dist/js/rtcomm.js' 
+        dest: 'dist/rtcomm.js' 
        }
     },
     umd: {
@@ -78,7 +78,7 @@ module.exports = function(grunt) {
       },
       dist: {
         files: {
-          'dist/js/rtcomm.min.js': ['<%= concat.rtcomm_final.dest %>']
+          'dist/rtcomm.min.js': ['<%= concat.rtcomm_final.dest %>']
         }
       }
     },

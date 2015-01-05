@@ -18,8 +18,8 @@
   }
 }(this, function (connection, util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015');
 var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
   // Presuming you creat an object based on this one, 
   // you must override the session event handler and

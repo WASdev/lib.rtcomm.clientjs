@@ -15,8 +15,8 @@
   }
 }(this, function (util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 02-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *

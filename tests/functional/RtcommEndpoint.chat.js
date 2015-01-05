@@ -142,7 +142,6 @@ define([
             assert.equal('Busy', obj.reason, 'Session Failed correctly!');
             assert.isNull(chat3._.activeSession, 'No ActiveSession (GOOD)!');
           });   
-
           chat1.on('session:started',function() {
             // Now create a 3rd endpoint
             EP3 = createProvider('client3','internChatTest').then(function(EP){
