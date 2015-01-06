@@ -201,7 +201,7 @@ var WebRTCConnection = (function invocation() {
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
-                sendMethod({message: self.createMessage(offersdp)});
+                sendMethod({payload: self.createMessage(offersdp)});
                 self._setState('trying');
                 self.pc.setLocalDescription(offersdp, function(){
                   l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
@@ -245,7 +245,7 @@ var WebRTCConnection = (function invocation() {
     send: function(message) {
       var parent = this.dependencies.parent;
       // Validate message?
-      message = (message && message.message) ? message.message : message;
+      message = (message && message.payload) ? message.payload: message;
       if (parent._.activeSession) {
         parent._.activeSession.send(this.createMessage(message));
       }
@@ -519,7 +519,7 @@ var WebRTCConnection = (function invocation() {
          * to inform the UI.
          */
         var offer = message;
-        l('DEBUG') && console.log(this+'_processMessage received an offer ');
+        l('DEBUG') && console.log(this+'_processMessage received an offer -> State:  '+this.getState());
         if (this.getState() === 'disconnected') {
            self.pc.setRemoteDescription(new MyRTCSessionDescription(offer),
              /*onSuccess*/ function() {
@@ -548,6 +548,7 @@ var WebRTCConnection = (function invocation() {
         }
         break;
       case 'icecandidate':
+        l('DEBUG') && console.log(this+'_processMessage iceCandidate --> message:', message);
         try {
           var iceCandidate = new MyRTCIceCandidate(message.candidate);
           l('DEBUG') && console.log(this+'_processMessage iceCandidate ', iceCandidate );
@@ -901,6 +902,7 @@ var MyRTCIceCandidate = (function() {
   //  throw new Error("Unsupported Browser: ", getBrowser());
   }
 })();
+
 l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
 
 var validMediaElement = function(element) {

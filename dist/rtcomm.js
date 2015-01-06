@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -17,8 +17,8 @@ console.log('lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015');
   }
 }(this, function () {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -486,8 +486,8 @@ return util;
   }
 }(this, function (util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -2555,8 +2555,8 @@ return connection;
   }
 }(this, function (connection, util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.8 05-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015');
 var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
   // Presuming you creat an object based on this one, 
   // you must override the session event handler and
@@ -5201,7 +5201,7 @@ var WebRTCConnection = (function invocation() {
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
-                sendMethod({message: self.createMessage(offersdp)});
+                sendMethod({payload: self.createMessage(offersdp)});
                 self._setState('trying');
                 self.pc.setLocalDescription(offersdp, function(){
                   l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
@@ -5245,7 +5245,7 @@ var WebRTCConnection = (function invocation() {
     send: function(message) {
       var parent = this.dependencies.parent;
       // Validate message?
-      message = (message && message.message) ? message.message : message;
+      message = (message && message.payload) ? message.payload: message;
       if (parent._.activeSession) {
         parent._.activeSession.send(this.createMessage(message));
       }
@@ -5519,7 +5519,7 @@ var WebRTCConnection = (function invocation() {
          * to inform the UI.
          */
         var offer = message;
-        l('DEBUG') && console.log(this+'_processMessage received an offer ');
+        l('DEBUG') && console.log(this+'_processMessage received an offer -> State:  '+this.getState());
         if (this.getState() === 'disconnected') {
            self.pc.setRemoteDescription(new MyRTCSessionDescription(offer),
              /*onSuccess*/ function() {
@@ -5548,6 +5548,7 @@ var WebRTCConnection = (function invocation() {
         }
         break;
       case 'icecandidate':
+        l('DEBUG') && console.log(this+'_processMessage iceCandidate --> message:', message);
         try {
           var iceCandidate = new MyRTCIceCandidate(message.candidate);
           l('DEBUG') && console.log(this+'_processMessage iceCandidate ', iceCandidate );
@@ -5901,6 +5902,7 @@ var MyRTCIceCandidate = (function() {
   //  throw new Error("Unsupported Browser: ", getBrowser());
   }
 })();
+
 l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
 
 var validMediaElement = function(element) {

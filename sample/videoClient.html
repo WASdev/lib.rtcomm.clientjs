@@ -23,24 +23,14 @@
 <body>
 
 <div id="MainContainer" class="mainContentContainer">
-     <div id="topContainer">
+ <div id="topContainer">
         <div class="pull-left logo">
           <span class="blue">IBM</span> WebRTC Sample
         </div>
         <div class="pull-right logo" style="font-size: 24px; padding-right: 30px">
           <span id="displayNameStr"></span>
         </div>
-    </div>
-    <div class='row'>
-      <div class="col-md-3">
-        <div class = "panel panel-primary">
-          <div class="panel-heading">
->>            <span class="glyphicon glyphicon-comment"></span> Presence
-            </div>
-            <div id='presenceContainer'></div>
-         </div>
-        </div>
-<div class = "col-md-9">
+      </div>
   <div id="videoContainer">
     <div id='selfViewContainer'>
       <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
@@ -62,7 +52,6 @@
           Please Register
     </div>
   </div>
-</div>
 </div>
 
 <div id="answerDialog" class="modal fade">
@@ -169,7 +158,7 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   // 'MESSAGES' --> Just log sent/received messages in console.
   // 'DEBUG' -- > log most everything
   // 'TRACE' --> log everything
-  ibmep.setLogLevel('TRACE');
+  ibmep.setLogLevel('DEBUG');
   // In this sample, initializing rtcommEndpoint variable as a GLOBAL
   var rtcommEndpoint = null;
   // UI State
@@ -316,9 +305,9 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
       'session:failed': function(event_object) {
         updateMessage("Connection failed - reason: "+event_object.reason);
       },
-      'session:refer': function(event_object) {
+      'session:refer': function(conn) {
         $('#answerDialog .modal-body').html(
-            "[3PCC] Initiate call to "+ event_object.endpoint.getRemoteEndpointID());
+            "[3PCC] Initiate call to " + conn.toEndpointID);
         $('#answerDialog').modal('show');
       }
   });
