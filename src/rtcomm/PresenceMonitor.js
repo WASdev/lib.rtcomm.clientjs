@@ -235,7 +235,7 @@ var PresenceMonitor= function PresenceMonitor(config) {
   };
   // Initialize the presenceData w/ the Root Node
   this._.presenceData=[new PresenceNode("/")];
-  this._.subscriptions = [];
+  this._.presenceMonitors = [];
 
   // Required...
   this.dependencies.connection = config && config.connection;
@@ -314,7 +314,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
           node.getSubNode(topic);
         }
         this.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
-        this._.subscriptions.push(subscriptionTopic);
+        this._.presenceMonitors.push({topic: topic, subscriptionTopic: subscriptionTopic});
       } else {
         // No Sphere topic.
         throw new Error('Adding a topic to monitor requires the EndpointProvider be initialized');
@@ -327,10 +327,14 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       if (connection) {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
-        if (this._.subscriptions.length > 0) {
+        // reset presence Data:
+        this._.presenceData=[new PresenceNode("/")];
+        var p = this._.presenceMonitors.slice(0);  // Clone the array
+        this._.presenceMonitors = [];
+        if (p.length > 0) {
           // We already have subscriptions, need to add them.
-           this._.subscriptions.forEach(function(subscriptionTopic) {
-             pm.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(pm));
+           p.forEach(function(monitor) {
+             pm.add(monitor.topic);
            });
         }
       }
@@ -401,8 +405,8 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        // Wipe out the data... 
        this._.presenceData = [];
        // Unsubscribe ..
-       this._.subscriptions.forEach( function(key) {
-         pm.dependencies.connection.unsubscribe(key);
+       this._.presenceMonitors.forEach( function(key) {
+         pm.dependencies.connection.unsubscribe(key.subscriptionTopic);
        });
     }
   } ;
