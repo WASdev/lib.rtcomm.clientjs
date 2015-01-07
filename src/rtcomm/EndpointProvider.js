@@ -80,8 +80,6 @@ var EndpointProvider =  function EndpointProvider() {
        */
       'queueupdate': []};
 
-
-
   /** init method
    *
    *  This method is required to be called prior to doing anything else.  If init() is called w/ a userid, the
@@ -130,11 +128,11 @@ var EndpointProvider =  function EndpointProvider() {
    */
   this.init = function init(options, cbSuccess, cbFailure) {
     // You can only be init'd 1 time, without destroying reconnecting.
-    if (this.ready) {
-      l('INFO') && console.log('EndpointProvider.init() has been called and the object is READY');
-      return this;
-    }
-    // Used to set up config for endoint connection;
+    //if (this.ready) {
+    //  l('INFO') && console.log('EndpointProvider.init() has been called and the object is READY');
+    //  return this;
+    //}
+    // Used to set up config for endpoint connection;
     var config = null;
     var rtcommTopicPath = '/rtcomm/';
     var configDefinition = {
@@ -190,6 +188,14 @@ var EndpointProvider =  function EndpointProvider() {
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
     connectionConfig.publishPresence = true;
     // createEndpointConnection
+
+    if (this.ready) {
+      // we are init'd already. Re-init
+      l('DEBUG') && console.log(this+'.init() Re-initializing with a new connection');
+      if (this.dependencies.endpointConnection) {
+        this.dependencies.endpointConnection.destroy();
+      }
+    }
     var endpointConnection = 
       this.dependencies.endpointConnection = 
       createEndpointConnection.call(this, connectionConfig);
@@ -505,11 +511,12 @@ var EndpointProvider =  function EndpointProvider() {
    * If we are anonymous, can update the userid
    */
   this.setUserID = function(userid) {
-
-    if (this.config.userid && (userid !== this.config.userid) && !(/^GUEST/.test(this.config.userid))) {
-      l('DEBUG') && console.error(this.config.userid +'!== '+ userid);
-      throw new Error('Cannot change UserID once it is set');
-    } else {
+    /*
+    *if (this.config.userid && (userid !== this.config.userid) && !(/^GUEST/.test(this.config.userid))) {
+    *  l('DEBUG') && console.error(this.config.userid +'!== '+ userid);
+    *  throw new Error('Cannot change UserID once it is set');
+    *} else {
+    */
       l('DEBUG') && console.log(this+'.setUserID() called with: '+userid);
       userid = (this.getEndpointConnection()) ? this.getEndpointConnection().setUserID(userid):userid;
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
@@ -519,7 +526,7 @@ var EndpointProvider =  function EndpointProvider() {
         endpoint.setUserID(userid);
       });
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
-    }
+    //}
     return this;
   };
   /**

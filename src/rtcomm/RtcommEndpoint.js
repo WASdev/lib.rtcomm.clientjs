@@ -546,13 +546,6 @@ return  {
       protocols = payload.protocols;
       payload = payload.payload;
     }
-    // In the case our protocols are different, we have a common protocol, but should disable the others.
-    if (protocols !== this._.protocols) {
-      // protocols is what is common.
-      console.log('msg protocols?', protocols);
-      console.log('my protocols?', this._.protocols);
-    //  console.error('Protocols changed, DO SOMETHING -- FIX THIS');
-    }
     var self = this;
     if (payload) {
       if (payload.type === 'chat') { 

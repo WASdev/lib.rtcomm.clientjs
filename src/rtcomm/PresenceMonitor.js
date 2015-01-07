@@ -232,7 +232,8 @@ var PresenceMonitor= function PresenceMonitor(config) {
   this.dependencies = { 
     connection: null,
   };
-  this._.presenceData=[];
+  // Initialize the presenceData w/ the Root Node
+  this._.presenceData=[new PresenceNode("/")];
   this._.subscriptions = [];
 
   // Required...
@@ -323,6 +324,12 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       if (connection) {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
+        if (this._.subscriptions.length > 0) {
+          // We already have subscriptions, need to add them.
+           this._.subscriptions.forEach(function(subcriptionTopic) {
+             pm.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
+           });
+        }
       }
     },
     /**
@@ -391,7 +398,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        // Wipe out the data... 
        this._.presenceData = [];
        // Unsubscribe ..
-       Object.keys(this._.subscriptions).forEach( function(key) {
+       this._.subscriptions.forEach( function(key) {
          pm.dependencies.connection.unsubscribe(key);
        });
     }

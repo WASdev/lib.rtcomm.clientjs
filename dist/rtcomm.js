@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -17,8 +17,8 @@ console.log('lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015');
   }
 }(this, function () {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -486,8 +486,8 @@ return util;
   }
 }(this, function (util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -2555,8 +2555,8 @@ return connection;
   }
 }(this, function (connection, util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 05-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015');
 var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
   // Presuming you creat an object based on this one, 
   // you must override the session event handler and
@@ -2799,8 +2799,6 @@ var EndpointProvider =  function EndpointProvider() {
        */
       'queueupdate': []};
 
-
-
   /** init method
    *
    *  This method is required to be called prior to doing anything else.  If init() is called w/ a userid, the
@@ -2849,11 +2847,11 @@ var EndpointProvider =  function EndpointProvider() {
    */
   this.init = function init(options, cbSuccess, cbFailure) {
     // You can only be init'd 1 time, without destroying reconnecting.
-    if (this.ready) {
-      l('INFO') && console.log('EndpointProvider.init() has been called and the object is READY');
-      return this;
-    }
-    // Used to set up config for endoint connection;
+    //if (this.ready) {
+    //  l('INFO') && console.log('EndpointProvider.init() has been called and the object is READY');
+    //  return this;
+    //}
+    // Used to set up config for endpoint connection;
     var config = null;
     var rtcommTopicPath = '/rtcomm/';
     var configDefinition = {
@@ -2909,6 +2907,14 @@ var EndpointProvider =  function EndpointProvider() {
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
     connectionConfig.publishPresence = true;
     // createEndpointConnection
+
+    if (this.ready) {
+      // we are init'd already. Re-init
+      l('DEBUG') && console.log(this+'.init() Re-initializing with a new connection');
+      if (this.dependencies.endpointConnection) {
+        this.dependencies.endpointConnection.destroy();
+      }
+    }
     var endpointConnection = 
       this.dependencies.endpointConnection = 
       createEndpointConnection.call(this, connectionConfig);
@@ -3224,11 +3230,12 @@ var EndpointProvider =  function EndpointProvider() {
    * If we are anonymous, can update the userid
    */
   this.setUserID = function(userid) {
-
-    if (this.config.userid && (userid !== this.config.userid) && !(/^GUEST/.test(this.config.userid))) {
-      l('DEBUG') && console.error(this.config.userid +'!== '+ userid);
-      throw new Error('Cannot change UserID once it is set');
-    } else {
+    /*
+    *if (this.config.userid && (userid !== this.config.userid) && !(/^GUEST/.test(this.config.userid))) {
+    *  l('DEBUG') && console.error(this.config.userid +'!== '+ userid);
+    *  throw new Error('Cannot change UserID once it is set');
+    *} else {
+    */
       l('DEBUG') && console.log(this+'.setUserID() called with: '+userid);
       userid = (this.getEndpointConnection()) ? this.getEndpointConnection().setUserID(userid):userid;
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
@@ -3238,7 +3245,7 @@ var EndpointProvider =  function EndpointProvider() {
         endpoint.setUserID(userid);
       });
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
-    }
+    //}
     return this;
   };
   /**
@@ -3961,7 +3968,8 @@ var PresenceMonitor= function PresenceMonitor(config) {
   this.dependencies = { 
     connection: null,
   };
-  this._.presenceData=[];
+  // Initialize the presenceData w/ the Root Node
+  this._.presenceData=[new PresenceNode("/")];
   this._.subscriptions = [];
 
   // Required...
@@ -4052,6 +4060,12 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       if (connection) {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
+        if (this._.subscriptions.length > 0) {
+          // We already have subscriptions, need to add them.
+           this._.subscriptions.forEach(function(subcriptionTopic) {
+             pm.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
+           });
+        }
       }
     },
     /**
@@ -4120,7 +4134,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        // Wipe out the data... 
        this._.presenceData = [];
        // Unsubscribe ..
-       Object.keys(this._.subscriptions).forEach( function(key) {
+       this._.subscriptions.forEach( function(key) {
          pm.dependencies.connection.unsubscribe(key);
        });
     }
@@ -4735,13 +4749,6 @@ return  {
     if (payload.protocols) {
       protocols = payload.protocols;
       payload = payload.payload;
-    }
-    // In the case our protocols are different, we have a common protocol, but should disable the others.
-    if (protocols !== this._.protocols) {
-      // protocols is what is common.
-      console.log('msg protocols?', protocols);
-      console.log('my protocols?', this._.protocols);
-    //  console.error('Protocols changed, DO SOMETHING -- FIX THIS');
     }
     var self = this;
     if (payload) {
