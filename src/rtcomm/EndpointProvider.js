@@ -160,14 +160,16 @@ var EndpointProvider =  function EndpointProvider() {
     // the configuration for Endpoint Provider
     if (options) {
       // Set any defaults
-      // appContext may already be set, have to save it.
+      // appContext/presence/userid may already be set, have to save them.
       var appContext = (this.config && this.config.appContext) ? this.config.appContext : null;
       var userid = (this.config && this.config.userid) ? this.config.userid : null;
       var presence = (this.config && this.config.presence) ? this.config.presence: null;
+
       /* global setConfig:false */
       config = this.config = setConfig(options,configDefinition);
-      this.config.appContext = appContext || this.config.appContext;
-      this.setUserID(userid || this.config.userid);
+      // If we are READY (we are resetting) so use the NEW ones... otherwise, use saved ones.
+      this.config.appContext = (this.ready) ? this.config.appContext : appContext || this.config.appContext ; 
+      this.setUserID((this.ready) ? this.config.userid: userid || this.config.userid, true) ; 
     } else {
       throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
                       JSON.stringify(configDefinition.required));
@@ -217,15 +219,20 @@ var EndpointProvider =  function EndpointProvider() {
       if (config.createEndpoint) {
         returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
       }
+
       if (config.userid) {
         l('DEBUG') && 
           console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
         endpointProvider.publishPresence();
-        endpointProvider.setUserID(config.userid);
+       // endpointProvider.setUserID(config.userid);
         returnObj.registered = true;
       }
+      // Attach endpointConnection if a presenceMonitor
+      if (endpointProvider._.presenceMonitor) {
+         endpointProvider._.presenceMonitor.setEndpointConnection(endpointConnection);
+      }
       // Update the userid
-      endpointProvider.setUserID(config.userid);
+      endpointProvider.setUserID(config.userid,true);
       endpointConnection.serviceQuery();
       cbSuccess(returnObj);
     };
@@ -259,9 +266,6 @@ var EndpointProvider =  function EndpointProvider() {
       this._.endpointRegistry.list().forEach(function(endpoint) {
         endpoint.setEndpointConnection(endpointConnection);
       });
-    }
-    if (this._.presenceMonitor) {
-      this._.presenceMonitor.setEndpointConnection(endpointConnection);
     }
     // Propogate our loglevel
     //
@@ -510,13 +514,9 @@ var EndpointProvider =  function EndpointProvider() {
    *
    * If we are anonymous, can update the userid
    */
-  this.setUserID = function(userid) {
-    /*
-    *if (this.config.userid && (userid !== this.config.userid) && !(/^GUEST/.test(this.config.userid))) {
-    *  l('DEBUG') && console.error(this.config.userid +'!== '+ userid);
-    *  throw new Error('Cannot change UserID once it is set');
-    *} else {
-    */
+  this.setUserID = function(userid,force) {
+    // If we are READY we can only do this when true.
+    if (!this.ready || (this.ready && force) || /^GUEST/.test(this.config.userid)) {
       l('DEBUG') && console.log(this+'.setUserID() called with: '+userid);
       userid = (this.getEndpointConnection()) ? this.getEndpointConnection().setUserID(userid):userid;
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
@@ -526,7 +526,9 @@ var EndpointProvider =  function EndpointProvider() {
         endpoint.setUserID(userid);
       });
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
-    //}
+    } else {
+      throw new Error('Cannot change UserID in this state');
+    }
     return this;
   };
   /**

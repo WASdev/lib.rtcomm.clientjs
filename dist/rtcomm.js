@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 07-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 07-01-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -17,8 +17,8 @@ console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015');
   }
 }(this, function () {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 07-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 07-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -486,8 +486,8 @@ return util;
   }
 }(this, function (util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 07-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 07-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -2555,8 +2555,8 @@ return connection;
   }
 }(this, function (connection, util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 07-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 07-01-2015');
 var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
   // Presuming you creat an object based on this one, 
   // you must override the session event handler and
@@ -2879,14 +2879,16 @@ var EndpointProvider =  function EndpointProvider() {
     // the configuration for Endpoint Provider
     if (options) {
       // Set any defaults
-      // appContext may already be set, have to save it.
+      // appContext/presence/userid may already be set, have to save them.
       var appContext = (this.config && this.config.appContext) ? this.config.appContext : null;
       var userid = (this.config && this.config.userid) ? this.config.userid : null;
       var presence = (this.config && this.config.presence) ? this.config.presence: null;
+
       /* global setConfig:false */
       config = this.config = setConfig(options,configDefinition);
-      this.config.appContext = appContext || this.config.appContext;
-      this.setUserID(userid || this.config.userid);
+      // If we are READY (we are resetting) so use the NEW ones... otherwise, use saved ones.
+      this.config.appContext = (this.ready) ? this.config.appContext : appContext || this.config.appContext ; 
+      this.setUserID((this.ready) ? this.config.userid: userid || this.config.userid, true) ; 
     } else {
       throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
                       JSON.stringify(configDefinition.required));
@@ -2936,15 +2938,20 @@ var EndpointProvider =  function EndpointProvider() {
       if (config.createEndpoint) {
         returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
       }
+
       if (config.userid) {
         l('DEBUG') && 
           console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
         endpointProvider.publishPresence();
-        endpointProvider.setUserID(config.userid);
+       // endpointProvider.setUserID(config.userid);
         returnObj.registered = true;
       }
+      // Attach endpointConnection if a presenceMonitor
+      if (endpointProvider._.presenceMonitor) {
+         endpointProvider._.presenceMonitor.setEndpointConnection(endpointConnection);
+      }
       // Update the userid
-      endpointProvider.setUserID(config.userid);
+      endpointProvider.setUserID(config.userid,true);
       endpointConnection.serviceQuery();
       cbSuccess(returnObj);
     };
@@ -2978,9 +2985,6 @@ var EndpointProvider =  function EndpointProvider() {
       this._.endpointRegistry.list().forEach(function(endpoint) {
         endpoint.setEndpointConnection(endpointConnection);
       });
-    }
-    if (this._.presenceMonitor) {
-      this._.presenceMonitor.setEndpointConnection(endpointConnection);
     }
     // Propogate our loglevel
     //
@@ -3229,13 +3233,9 @@ var EndpointProvider =  function EndpointProvider() {
    *
    * If we are anonymous, can update the userid
    */
-  this.setUserID = function(userid) {
-    /*
-    *if (this.config.userid && (userid !== this.config.userid) && !(/^GUEST/.test(this.config.userid))) {
-    *  l('DEBUG') && console.error(this.config.userid +'!== '+ userid);
-    *  throw new Error('Cannot change UserID once it is set');
-    *} else {
-    */
+  this.setUserID = function(userid,force) {
+    // If we are READY we can only do this when true.
+    if (!this.ready || (this.ready && force) || /^GUEST/.test(this.config.userid)) {
       l('DEBUG') && console.log(this+'.setUserID() called with: '+userid);
       userid = (this.getEndpointConnection()) ? this.getEndpointConnection().setUserID(userid):userid;
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
@@ -3245,7 +3245,9 @@ var EndpointProvider =  function EndpointProvider() {
         endpoint.setUserID(userid);
       });
       l('DEBUG') && console.log(this+'.setUserID() Set userid to: '+userid);
-    //}
+    } else {
+      throw new Error('Cannot change UserID in this state');
+    }
     return this;
   };
   /**
@@ -3734,6 +3736,7 @@ MqttEndpoint.prototype = util.RtcommBaseObject.extend({
            }
 });
 
+/*global l:false*/
 var normalizeTopic = function normalizeTopic(topic) {
   // have only 1 /, starts with a /, ends without a /
   // Replace the two slashes if they exist...
@@ -3802,7 +3805,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     }
   },
   findSubNode : function findSubNode(nodes) {
-    l('DEBUG') && console.log(this+'.findSubNode() searching for nodes --> ', nodes);
+    l('TRACE') && console.log(this+'.findSubNode() searching for nodes --> ', nodes);
     // If the root node matches our name... 
     var returnValue = null;
     /*
@@ -3813,14 +3816,14 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
         // If we are searching off of the Top Level, we need to insert it into nodes...
         nodes.unshift('/');
     }
-    l('DEBUG') && console.log(this+ '.findSubNode() this.name is: '+this.name);
+    l('TRACE') && console.log(this+ '.findSubNode() this.name is: '+this.name);
     if(nodes[0] === this.name) {
       var match = null;
       // Search... 
-      l('DEBUG') && console.log(this+ '.findSubNode() searching node '+nodes[0]+' for '+nodes[1]);
+      l('TRACE') && console.log(this+ '.findSubNode() searching node '+nodes[0]+' for '+nodes[1]);
       for(var i = 0; i<this.nodes.length;i++ ) {
         if ( this.nodes[i].name === nodes[1] ) { 
-          l('DEBUG') && console.log(this+ '.findSubNode() >>> We found '+nodes[1]);
+          l('TRACE') && console.log(this+ '.findSubNode() >>> We found '+nodes[1]);
           match =  this.nodes[i].findSubNode(nodes.slice(1));
           break;
         }
@@ -3831,7 +3834,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       // If a subnode exists, then we did a search and match is accurate.
       //
       if (nodes[1]) {
-        l('DEBUG') && console.log(this+ '.findSubNode() >>> The match was found for: '+nodes[1]);
+        l('TRACE') && console.log(this+ '.findSubNode() >>> The match was found for: '+nodes[1]);
         returnValue = match;
       } else {
         returnValue = this;
@@ -3852,7 +3855,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
    *
    */
   createSubNode: function createNode(nodes) {
-    l('DEBUG') && console.log(this+'.createSubNode() Would created node for nodes --> ', nodes);
+    l('TRACE') && console.log(this+'.createSubNode() Would created node for nodes --> ', nodes);
     // nodes[0] should be us.
     if(nodes[0] === this.name ) {
       if (nodes.length > 1) {
@@ -3863,7 +3866,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
         // If we don't find a node create one.
         if (!n) { 
           // nodes[1] should be a node BELOW us.
-          l('DEBUG') && console.log(this+'.createSubNode() Creating Node: '+nodes[1]);
+          l('TRACE') && console.log(this+'.createSubNode() Creating Node: '+nodes[1]);
           n = new PresenceNode(nodes[1]);
           this.nodes.push(n);
         }
@@ -3871,7 +3874,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
         // entry off)
         return n.createSubNode(nodes.slice(1));
       } else {
-        l('DEBUG') && console.log(this+ '.createSubNode() Not Creating Node, return this: ',this);
+        l('TRACE') && console.log(this+ '.createSubNode() Not Creating Node, return this: ',this);
         return this;
       }
     } else {
@@ -4056,14 +4059,16 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       }
       return this;
     },
+
     setEndpointConnection: function setEndpointConnection(connection) {
+      var pm = this;
       if (connection) {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
         if (this._.subscriptions.length > 0) {
           // We already have subscriptions, need to add them.
-           this._.subscriptions.forEach(function(subcriptionTopic) {
-             pm.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
+           this._.subscriptions.forEach(function(subscriptionTopic) {
+             pm.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(pm));
            });
         }
       }
@@ -4119,7 +4124,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         }
       }
      rootNode = (rootNode)? rootNode:(topLevelNode?topLevelNode: null);
-     l('DEBUG') &&  console.log(this+'.getRootNode() for topic:'+topic+' found: ',rootNode);
+     l('TRACE') &&  console.log(this+'.getRootNode() for topic:'+topic+' found: ',rootNode);
      return rootNode;
     },
 

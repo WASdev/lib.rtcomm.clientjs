@@ -147,6 +147,75 @@ define([
            });
            endpointProvider.init(config1,finish, finish);
      },
+
+     "init() again w/ new userid": function() {
+           console.log('********** Run Test ************');
+           var dfd = this.async(T1);
+           var initObj = null;
+           var failure = false;
+           var readyToFinish = false;
+           config1.userid = 'testuser';
+           config1.presence = {topic: 'interntest'};
+           var presenceMonitor = endpointProvider.getPresenceMonitor();
+           // Establish the second config.
+           var c2 = config.clientConfig();
+           c2.presence = {topic: 'interntest'};
+           c2.userid = 'testuser2';
+
+           var stepOne = function(object) {
+             presenceMonitor.add('interntest');
+             console.log('TEST -> userid: ' + endpointProvider.config.userid);
+             console.log('TEST -> id: ' + endpointProvider._.id);
+             assert.equal(endpointProvider.config.userid, 'testuser');
+             console.log('TEST -> ready '+ endpointProvider.ready);
+             assert.ok(endpointProvider.ready);
+             endpointProvider.init(c2,stepTwo, stepTwo);
+           };
+
+           /*var finish = dfd.callback(function(object) {
+              console.log('************ Finish called w/ OBJECT: ',object);
+              console.log('************ Current Presence Data? : ',presenceMonitor.getPresenceData());
+              assert.equal(presenceMonitor.getPresenceData(), object, 'PresenceData object was passed');
+              assert.equal(1, presenceMonitor.getPresenceData().length,' PresenceData has 1 top level entry');
+              assert.equal(1, presenceMonitor.getPresenceData()[0].nodes.length,' PresenceData[test] has 1 entry');
+              assert.equal('test', presenceMonitor.getPresenceData()[0].name, 'Primary topic created...');
+              assert.equal('testuser', presenceMonitor.getPresenceData()[0].nodes[0].name, 'User topic created...');
+           });*/
+           var stepTwo = function(object) {
+             console.log('************ Finish called w/ OBJECT: ',object);
+             console.log("*** Asserting *** ", endpointProvider.ready);
+             // should be ready, should have a GUEST userid
+             console.log('TEST -> userid: ' + endpointProvider.config.userid);
+             console.log('TEST -> userid: ' + endpointProvider._.id);
+             assert.equal(endpointProvider.config.userid, c2.userid);
+             assert.ok(endpointProvider.ready);
+             readyToFinish = true;
+           };
+
+           var finish = dfd.callback(function(object) {
+             console.log('************ Finish called w/ OBJECT: ',object);
+             console.log("*** Asserting *** ", endpointProvider.ready);
+             // should be ready, should have a GUEST userid
+             console.log('TEST -> userid: ' + endpointProvider.config.userid);
+             console.log('TEST -> userid: ' + endpointProvider._.id);
+             assert.equal(endpointProvider.config.userid, c2.userid);
+             console.log('TEST -> ready '+ endpointProvider.ready);
+             assert.ok(endpointProvider.ready);
+             console.log('************ Current Presence Data? : ',presenceMonitor.getPresenceData());
+             assert.equal(presenceMonitor.getPresenceData().length,1,' PresenceData has 1 top level entry');
+             assert.equal(presenceMonitor.getPresenceData()[0].nodes.length,1,' PresenceData[test] has 1 entry');
+             assert.equal(presenceMonitor.getPresenceData()[0].name,'interntest',' Primary topic created...');
+             assert.equal(presenceMonitor.getPresenceData()[0].nodes[0].name,'testuser2',  'User topic created...');
+           });
+
+           endpointProvider.init(config1,stepOne, stepOne);
+
+           presenceMonitor.on('updated', function(object){
+             if (readyToFinish) {
+               finish(object);
+             }
+           });
+     },
      "init() with  userid and createEndpoint": function() {
            console.log('********** Run Test ************');
            var dfd = this.async(T1);

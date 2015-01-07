@@ -1,3 +1,4 @@
+/*global l:false*/
 var normalizeTopic = function normalizeTopic(topic) {
   // have only 1 /, starts with a /, ends without a /
   // Replace the two slashes if they exist...
@@ -66,7 +67,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     }
   },
   findSubNode : function findSubNode(nodes) {
-    l('DEBUG') && console.log(this+'.findSubNode() searching for nodes --> ', nodes);
+    l('TRACE') && console.log(this+'.findSubNode() searching for nodes --> ', nodes);
     // If the root node matches our name... 
     var returnValue = null;
     /*
@@ -77,14 +78,14 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
         // If we are searching off of the Top Level, we need to insert it into nodes...
         nodes.unshift('/');
     }
-    l('DEBUG') && console.log(this+ '.findSubNode() this.name is: '+this.name);
+    l('TRACE') && console.log(this+ '.findSubNode() this.name is: '+this.name);
     if(nodes[0] === this.name) {
       var match = null;
       // Search... 
-      l('DEBUG') && console.log(this+ '.findSubNode() searching node '+nodes[0]+' for '+nodes[1]);
+      l('TRACE') && console.log(this+ '.findSubNode() searching node '+nodes[0]+' for '+nodes[1]);
       for(var i = 0; i<this.nodes.length;i++ ) {
         if ( this.nodes[i].name === nodes[1] ) { 
-          l('DEBUG') && console.log(this+ '.findSubNode() >>> We found '+nodes[1]);
+          l('TRACE') && console.log(this+ '.findSubNode() >>> We found '+nodes[1]);
           match =  this.nodes[i].findSubNode(nodes.slice(1));
           break;
         }
@@ -95,7 +96,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       // If a subnode exists, then we did a search and match is accurate.
       //
       if (nodes[1]) {
-        l('DEBUG') && console.log(this+ '.findSubNode() >>> The match was found for: '+nodes[1]);
+        l('TRACE') && console.log(this+ '.findSubNode() >>> The match was found for: '+nodes[1]);
         returnValue = match;
       } else {
         returnValue = this;
@@ -116,7 +117,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
    *
    */
   createSubNode: function createNode(nodes) {
-    l('DEBUG') && console.log(this+'.createSubNode() Would created node for nodes --> ', nodes);
+    l('TRACE') && console.log(this+'.createSubNode() Would created node for nodes --> ', nodes);
     // nodes[0] should be us.
     if(nodes[0] === this.name ) {
       if (nodes.length > 1) {
@@ -127,7 +128,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
         // If we don't find a node create one.
         if (!n) { 
           // nodes[1] should be a node BELOW us.
-          l('DEBUG') && console.log(this+'.createSubNode() Creating Node: '+nodes[1]);
+          l('TRACE') && console.log(this+'.createSubNode() Creating Node: '+nodes[1]);
           n = new PresenceNode(nodes[1]);
           this.nodes.push(n);
         }
@@ -135,7 +136,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
         // entry off)
         return n.createSubNode(nodes.slice(1));
       } else {
-        l('DEBUG') && console.log(this+ '.createSubNode() Not Creating Node, return this: ',this);
+        l('TRACE') && console.log(this+ '.createSubNode() Not Creating Node, return this: ',this);
         return this;
       }
     } else {
@@ -320,14 +321,16 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       }
       return this;
     },
+
     setEndpointConnection: function setEndpointConnection(connection) {
+      var pm = this;
       if (connection) {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
         if (this._.subscriptions.length > 0) {
           // We already have subscriptions, need to add them.
-           this._.subscriptions.forEach(function(subcriptionTopic) {
-             pm.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
+           this._.subscriptions.forEach(function(subscriptionTopic) {
+             pm.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(pm));
            });
         }
       }
@@ -383,7 +386,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         }
       }
      rootNode = (rootNode)? rootNode:(topLevelNode?topLevelNode: null);
-     l('DEBUG') &&  console.log(this+'.getRootNode() for topic:'+topic+' found: ',rootNode);
+     l('TRACE') &&  console.log(this+'.getRootNode() for topic:'+topic+' found: ',rootNode);
      return rootNode;
     },
 
