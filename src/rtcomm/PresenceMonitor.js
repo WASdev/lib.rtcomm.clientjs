@@ -156,8 +156,10 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
       var index = parentNode.nodes.indexOf(nodeToDelete);
       // Remove it.
       parentNode.nodes.splice(index,1);
+      return true;
     } else {
       l('DEBUG') && console.log(this+'.deleteSubNode() Node not found for topic: '+topic);
+      return false;
     }
   },
   addPresence: function addPresence(topic,presenceMessage) {
@@ -235,7 +237,7 @@ var PresenceMonitor= function PresenceMonitor(config) {
   };
   // Initialize the presenceData w/ the Root Node
   this._.presenceData=[new PresenceNode("/")];
-  this._.presenceMonitors = [];
+  this._.monitoredTopics ={}; 
 
   // Required...
   this.dependencies.connection = config && config.connection;
@@ -314,10 +316,22 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
           node.getSubNode(topic);
         }
         this.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
-        this._.presenceMonitors.push({topic: topic, subscriptionTopic: subscriptionTopic});
+        this._.monitoredTopics[topic]=subscriptionTopic;
       } else {
         // No Sphere topic.
         throw new Error('Adding a topic to monitor requires the EndpointProvider be initialized');
+      }
+      return this;
+    },
+
+    remove: function remove(topic) {
+      var presenceData = this._.presenceData;
+      topic = normalizeTopic(topic);
+      if(!presenceData[0].deleteSubNode(topic)) {
+        throw new Error('Topic not found: '+topic);
+      } else {
+        this.dependencies.connection.unsubscribe(this._.monitoredTopics[topic]);
+        delete this._.monitoredTopics[topic];
       }
       return this;
     },
@@ -329,14 +343,11 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
         // reset presence Data:
         this._.presenceData=[new PresenceNode("/")];
-        var p = this._.presenceMonitors.slice(0);  // Clone the array
-        this._.presenceMonitors = [];
-        if (p.length > 0) {
-          // We already have subscriptions, need to add them.
-           p.forEach(function(monitor) {
-             pm.add(monitor.topic);
-           });
-        }
+        var t = util.makeCopy(this._.monitoredTopics);  // Clone the array
+        this._.monitoredTopics = {};
+        Object.keys(t).forEach(function(topic){
+          pm.add(topic);
+        });
       }
     },
     /**
@@ -405,8 +416,8 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        // Wipe out the data... 
        this._.presenceData = [];
        // Unsubscribe ..
-       this._.presenceMonitors.forEach( function(key) {
-         pm.dependencies.connection.unsubscribe(key.subscriptionTopic);
+       Object.keys(pm._.monitoredTopics).forEach(function(key) {
+         pm.dependencies.connection.unsubscribe(pm._.monitoredTopics[key]);
        });
     }
   } ;
