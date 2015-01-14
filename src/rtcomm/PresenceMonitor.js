@@ -236,7 +236,8 @@ var PresenceMonitor= function PresenceMonitor(config) {
     connection: null,
   };
   // Initialize the presenceData w/ the Root Node
-  this._.presenceData=[new PresenceNode("/")];
+  this._.rootNode = new PresenceNode("/");
+  this._.presenceData=[this._.rootNode];
   this._.monitoredTopics ={}; 
 
   // Required...
@@ -293,7 +294,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
      *
      */
     add: function add(topic) {
-      var presenceData = this._.presenceData;
+     // var presenceData = this._.presenceData;
       // Validate our topic... 
       // now starts w/ a / and has no double slashes.
       topic = normalizeTopic(topic);
@@ -312,7 +313,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
           match.getSubNode(topic);
         } else {
           var node = new PresenceNode(rootTopic);
-          this._.presenceData.push(node);
+          //this._.presenceData.push(node);
           node.getSubNode(topic);
         }
         this.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
@@ -325,9 +326,9 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
     },
 
     remove: function remove(topic) {
-      var presenceData = this._.presenceData;
+      //var presenceData = this._.presenceData;
       topic = normalizeTopic(topic);
-      if(!presenceData[0].deleteSubNode(topic)) {
+      if(!this.getRootNode().deleteSubNode(topic)) {
         throw new Error('Topic not found: '+topic);
       } else {
         this.dependencies.connection.unsubscribe(this._.monitoredTopics[topic]);
@@ -342,7 +343,8 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
         // reset presence Data:
-        this._.presenceData=[new PresenceNode("/")];
+  // this._.presenceData=[new PresenceNode("/")];
+        this._.rootNode.nodes = [];
         var t = util.makeCopy(this._.monitoredTopics);  // Clone the array
         this._.monitoredTopics = {};
         Object.keys(t).forEach(function(topic){
@@ -356,19 +358,12 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
      */
     getPresenceData: function getPresenceData() {
       // This returns everything under the ROOT.
-      return this._.presenceData[0].nodes;
+      return this._.presenceData;
+//      return this._.presenceData[0].nodes;
     },
 
     getRootNode: function getRootNode() {
-      var rootNode = null;
-      var presenceData = this._.presenceData;
-      if (presenceData.length === 1) {
-        rootNode = presenceData[0]; 
-      } else {
-        rootNode = new PresenceNode("/");
-        this._.presenceData[0] = rootNode;
-      }
-      return rootNode;
+      return this._.rootNode;
     },
 
     /**
@@ -414,6 +409,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        l('DEBUG') &&  console.log('Destroying mqtt(unsubscribing everything... ');
        var pm = this;
        // Wipe out the data... 
+       this._.rootNode = null;
        this._.presenceData = [];
        // Unsubscribe ..
        Object.keys(pm._.monitoredTopics).forEach(function(key) {

@@ -132,11 +132,11 @@ var RtcommEndpoint = (function invocation(){
     this._processMessage = function(message) {
       // If we are connected, emit the message
       if (this.state === 'connected') {
-        this.emit('message', message.message);
+        this.emit('message', message);
       } else {
         if (!parent.sessionStopped()) {
           parent._.activeSession && parent._.activeSession.pranswer();
-          this._setState('alerting', message.message);
+          this._setState('alerting', message);
         }
       }
       return this;
@@ -402,7 +402,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     var toTopic = null;
     if (typeof endpoint === 'object') {
       if (endpoint.remoteEndpointID && endpoint.toTopic) {
-        
         remoteEndpointID = endpoint.remoteEndpointID;
         toTopic = endpoint.toTopic;
         console.log('toTopic?: '+toTopic);
@@ -505,6 +504,8 @@ return  {
           if (session.referralTransaction ) {
             // Don't start it, emit 'session:refer'
             l('DEBUG') && console.log(this + '.newSession() REFER');
+            // Set the protocols to match the endpoints.
+            session.protocols = this._.protocols;
             this.setState('session:refer');
           } else if (commonProtocols.length > 0){
             // have a common protocol 
@@ -610,26 +611,12 @@ return  {
    */
 
   connect: function(endpoint) {
-    console.log('REMOVE ME:  ',endpoint);
-    var remoteEndpointID = null;
-    var toTopic = null;
-    if (typeof endpoint === 'object') {
-      if (endpoint.remoteEndpointID && endpoint.toTopic) {
-        remoteEndpointID = endpoint.remoteEndpointID;
-        toTopic = endpoint.toTopic;
-      } else {
-        throw new Error('Invalid object passed on connect! should be {remoteEndpointID: something, toTopic: something}');
-      }
-    } else {
-      remoteEndpointID = endpoint;
-    } 
-    l('DEBUG') && console.log(this+'.connect() using remoteEndpointID: '+ remoteEndpointID +' & toTopic:'+toTopic);
     if (this.ready()) {
       this.available(false);
-      if (!this._.activeSession) { 
+      if (!this._.activeSession ) { 
         this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
-      }
+      } 
       this.setState('session:trying');
       if (this.config.webrtc && 
           this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {

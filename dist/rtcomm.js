@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 08-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 08-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -17,8 +17,8 @@ console.log('lib.rtcomm.clientjs 1.0.0-beta.9 08-01-2015');
   }
 }(this, function () {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 08-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 08-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -486,8 +486,8 @@ return util;
   }
 }(this, function (util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 08-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 08-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -2555,8 +2555,8 @@ return connection;
   }
 }(this, function (connection, util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 08-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 08-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015');
 var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
   // Presuming you creat an object based on this one, 
   // you must override the session event handler and
@@ -3974,7 +3974,8 @@ var PresenceMonitor= function PresenceMonitor(config) {
     connection: null,
   };
   // Initialize the presenceData w/ the Root Node
-  this._.presenceData=[new PresenceNode("/")];
+  this._.rootNode = new PresenceNode("/");
+  this._.presenceData=[this._.rootNode];
   this._.monitoredTopics ={}; 
 
   // Required...
@@ -4031,7 +4032,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
      *
      */
     add: function add(topic) {
-      var presenceData = this._.presenceData;
+     // var presenceData = this._.presenceData;
       // Validate our topic... 
       // now starts w/ a / and has no double slashes.
       topic = normalizeTopic(topic);
@@ -4050,7 +4051,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
           match.getSubNode(topic);
         } else {
           var node = new PresenceNode(rootTopic);
-          this._.presenceData.push(node);
+          //this._.presenceData.push(node);
           node.getSubNode(topic);
         }
         this.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
@@ -4063,9 +4064,9 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
     },
 
     remove: function remove(topic) {
-      var presenceData = this._.presenceData;
+      //var presenceData = this._.presenceData;
       topic = normalizeTopic(topic);
-      if(!presenceData[0].deleteSubNode(topic)) {
+      if(!this.getRootNode().deleteSubNode(topic)) {
         throw new Error('Topic not found: '+topic);
       } else {
         this.dependencies.connection.unsubscribe(this._.monitoredTopics[topic]);
@@ -4080,7 +4081,8 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
         // reset presence Data:
-        this._.presenceData=[new PresenceNode("/")];
+  // this._.presenceData=[new PresenceNode("/")];
+        this._.rootNode.nodes = [];
         var t = util.makeCopy(this._.monitoredTopics);  // Clone the array
         this._.monitoredTopics = {};
         Object.keys(t).forEach(function(topic){
@@ -4094,19 +4096,12 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
      */
     getPresenceData: function getPresenceData() {
       // This returns everything under the ROOT.
-      return this._.presenceData[0].nodes;
+      return this._.presenceData;
+//      return this._.presenceData[0].nodes;
     },
 
     getRootNode: function getRootNode() {
-      var rootNode = null;
-      var presenceData = this._.presenceData;
-      if (presenceData.length === 1) {
-        rootNode = presenceData[0]; 
-      } else {
-        rootNode = new PresenceNode("/");
-        this._.presenceData[0] = rootNode;
-      }
-      return rootNode;
+      return this._.rootNode;
     },
 
     /**
@@ -4152,6 +4147,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        l('DEBUG') &&  console.log('Destroying mqtt(unsubscribing everything... ');
        var pm = this;
        // Wipe out the data... 
+       this._.rootNode = null;
        this._.presenceData = [];
        // Unsubscribe ..
        Object.keys(pm._.monitoredTopics).forEach(function(key) {
@@ -4356,11 +4352,11 @@ var RtcommEndpoint = (function invocation(){
     this._processMessage = function(message) {
       // If we are connected, emit the message
       if (this.state === 'connected') {
-        this.emit('message', message.message);
+        this.emit('message', message);
       } else {
         if (!parent.sessionStopped()) {
           parent._.activeSession && parent._.activeSession.pranswer();
-          this._setState('alerting', message.message);
+          this._setState('alerting', message);
         }
       }
       return this;
@@ -4626,7 +4622,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     var toTopic = null;
     if (typeof endpoint === 'object') {
       if (endpoint.remoteEndpointID && endpoint.toTopic) {
-        
         remoteEndpointID = endpoint.remoteEndpointID;
         toTopic = endpoint.toTopic;
         console.log('toTopic?: '+toTopic);
@@ -4729,6 +4724,8 @@ return  {
           if (session.referralTransaction ) {
             // Don't start it, emit 'session:refer'
             l('DEBUG') && console.log(this + '.newSession() REFER');
+            // Set the protocols to match the endpoints.
+            session.protocols = this._.protocols;
             this.setState('session:refer');
           } else if (commonProtocols.length > 0){
             // have a common protocol 
@@ -4834,26 +4831,12 @@ return  {
    */
 
   connect: function(endpoint) {
-    console.log('REMOVE ME:  ',endpoint);
-    var remoteEndpointID = null;
-    var toTopic = null;
-    if (typeof endpoint === 'object') {
-      if (endpoint.remoteEndpointID && endpoint.toTopic) {
-        remoteEndpointID = endpoint.remoteEndpointID;
-        toTopic = endpoint.toTopic;
-      } else {
-        throw new Error('Invalid object passed on connect! should be {remoteEndpointID: something, toTopic: something}');
-      }
-    } else {
-      remoteEndpointID = endpoint;
-    } 
-    l('DEBUG') && console.log(this+'.connect() using remoteEndpointID: '+ remoteEndpointID +' & toTopic:'+toTopic);
     if (this.ready()) {
       this.available(false);
-      if (!this._.activeSession) { 
+      if (!this._.activeSession ) { 
         this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
-      }
+      } 
       this.setState('session:trying');
       if (this.config.webrtc && 
           this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
