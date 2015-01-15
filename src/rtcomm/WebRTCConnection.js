@@ -260,9 +260,9 @@ var WebRTCConnection = (function invocation() {
       var doAnswer = function doAnswer() {
         l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
         l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
-        console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
-        console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
-        console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
+        //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
+        //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
+        //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
         self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
           console.error('failed to create answer', error);
         },
@@ -417,7 +417,7 @@ var WebRTCConnection = (function invocation() {
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     if (RESPOND) {
       l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
-      console.log(this+'.createAnswer sending answer as a RESPONSE', message);
+      //console.log(this+'.createAnswer sending answer as a RESPONSE', message);
       session.respond(true, message);
       this._setState('connected');
     } else if (PRANSWER){

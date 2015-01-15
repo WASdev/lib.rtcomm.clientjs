@@ -73,15 +73,15 @@ var logging = new util.Log(),
             logMessage = '%c ' + logMessage;
             css = 'color: ' + object.color;
             if (remainder) {
-              console.log(logMessage, css, remainder);
+            l('TRACE') &&   console.log(logMessage, css, remainder);
             } else {
-              console.log(logMessage,css);
+            l('TRACE') &&  console.log(logMessage,css);
             }
           } else {
             if (remainder) {
-              console.log(logMessage, remainder);
+              l('TRACE') && console.log(logMessage, remainder);
             } else {
-              console.log(logMessage);
+              l('TRACE') && console.log(logMessage);
             }
           }
         }; // end of log/ 

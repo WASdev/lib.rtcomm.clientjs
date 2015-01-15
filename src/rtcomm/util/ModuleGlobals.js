@@ -119,7 +119,7 @@ var applyConfig = function applyConfig(config, obj, lenient ) {
  *  @param config config to check and apply defaults 
  */
 var setConfig = function(config,configDefinition) {
-  console.log(this+'.setConfig() passed in: -->  '+JSON.stringify(config));
+  l('DEBUG') && console.log(this+'.setConfig() passed in: -->  '+JSON.stringify(config));
   var requiredConfig = configDefinition.required || {};
   var possibleConfig = configDefinition.optional || {};
   var defaultConfig = configDefinition.defaults || {};
@@ -158,7 +158,7 @@ var setConfig = function(config,configDefinition) {
         throw new Error(key + ' is an invalid property for '+ JSON.stringify(configObj) );
       }
     }
-    console.log(this+'.setConfig() Returning -->  '+JSON.stringify(configObj));
+    l('DEBUG') && console.log(this+'.setConfig() Returning -->  '+JSON.stringify(configObj));
     return configObj;
   } else {
     throw new Error("A minumum config is required: " + JSON.stringify(requiredConfig));

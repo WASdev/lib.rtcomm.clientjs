@@ -397,15 +397,12 @@ var RtcommEndpoint = (function invocation(){
 RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
 
   function createSignalingSession(endpoint, context) {
-    console.log('REMOVE ME: ', endpoint);
     var remoteEndpointID = null;
     var toTopic = null;
     if (typeof endpoint === 'object') {
       if (endpoint.remoteEndpointID && endpoint.toTopic) {
         remoteEndpointID = endpoint.remoteEndpointID;
         toTopic = endpoint.toTopic;
-        console.log('toTopic?: '+toTopic);
-        console.log('remoteEndpointID?: '+remoteEndpointID);
       } else {
         throw new Error('Invalid object passed on connect! should be {remoteEndpointID: something, toTopic: something}');
       }
@@ -472,7 +469,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     });
     session.on('starting', function() {
       context.setState('session:trying');
-      console.log('Session Starting');
     });
     session.on('failed', function(message) {
       context.disconnect();

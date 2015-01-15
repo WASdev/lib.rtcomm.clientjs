@@ -242,7 +242,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
               console.error('connect onSuccess Chain Failure... ', e);
             }
           } else {
-            console.log("No onSuccess callback... ", onSuccess);
+            l('DEBUG') &&  console.log("No onSuccess callback... ", onSuccess);
           }
         }.bind(this);
 

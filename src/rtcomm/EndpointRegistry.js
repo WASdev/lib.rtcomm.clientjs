@@ -33,12 +33,9 @@ var EndpointRegistry = function EndpointRegistry(options) {
   function getOneAvailable() {
     var a = [];
     this.list().forEach(function(item){
-      console.log('REMOVE ME: checking item: ', item);
-      console.log('REMOVE ME: available? '+ item.available());
       item.available() && a.push(item);
     });
     // Return the last one found
-    console.log('REMOVE ME: Found: ', a);
     if(a.length > 0 ) { 
       return a[a.length-1];
     } else {
@@ -94,7 +91,6 @@ var EndpointRegistry = function EndpointRegistry(options) {
       if (registry.hasOwnProperty(appContext)) {
         var eps = Object.keys(registry[appContext]);
         if (eps.length === 1 && singleEndpoint) {
-          console.log('Returning existing object');
           return registry[appContext][eps[0]];
         } else {
           registry[appContext][uuid] = object;

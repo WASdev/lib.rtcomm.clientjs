@@ -269,7 +269,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         this.emit(this.state);
       } else {
         // No transaction to respond to.
-        console.log('NO TRANSACTION TO RESPOND TO.');
+        console.error('NO TRANSACTION TO RESPOND TO.');
       }
     },
     /**

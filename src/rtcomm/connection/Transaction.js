@@ -52,10 +52,10 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   this.toTopic = toTopic;
   this.message = message;
   this.onSuccess = cbSuccess || function(object) {
-    console.log(this+' Response for Transaction received, requires callback for more information:', object);
+    l('DEBUG') && console.log(this+' Response for Transaction received, requires callback for more information:', object);
   };
   this.onFailure = cbFailure || function(object) {
-    console.log(this+' Transaction failed, requires callback for more information:', object);
+    l('DEBUG') && console.log(this+' Transaction failed, requires callback for more information:', object);
   };
 
   l('DEBUG') && console.log(this+ '.constructor Are we outbound?', this.outbound);

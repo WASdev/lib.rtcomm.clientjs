@@ -385,7 +385,6 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       rootTopic = (a[0] === '') ? a[1] : a[0];
 
       for(var i = 0; i<presenceData.length;i++ ) {
-        console.log('REMOVE ME '+a+' rootTopic: '+rootTopic+ ' pd.name: '+presenceData[i].name);
         if ( presenceData[i].name === rootTopic ) { 
           rootNode =  presenceData[i];
           break;

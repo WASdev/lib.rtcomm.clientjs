@@ -176,10 +176,10 @@ var EndpointProvider =  function EndpointProvider() {
     }
     var endpointProvider = this;
     cbSuccess = cbSuccess || function(message) {
-      console.log(endpointProvider+'.init() Default Success message, use callback to process:', message);
+      l('DEBUG') && console.log(endpointProvider+'.init() Default Success message, use callback to process:', message);
     };
     cbFailure = cbFailure || function(error) {
-      console.log(endpointProvider+'.init() Default Failure message, use callback to process:', error);
+      l('DEBUG') && console.log(endpointProvider+'.init() Default Failure message, use callback to process:', error);
     };
 
     // Create the Endpoint Connection  
@@ -322,7 +322,7 @@ var EndpointProvider =  function EndpointProvider() {
 
     endpointConnection.on('message', function(message) {
       if(message) {
-        console.log("TODO:  Handle an incoming message ", message);
+        l('TRACE') && console.log("TODO:  Handle an incoming message ", message);
       }
     });
     return endpointConnection; 
