@@ -49,7 +49,7 @@ var Log = function Log() {
 
 // Enables logging for util methods.
 // If already defined, use that one?
-console.log('logging already set? ', logging);
+// console.log('logging already set? ', logging);
 
 var logging =  logging || new Log(),
     l = logging.l;

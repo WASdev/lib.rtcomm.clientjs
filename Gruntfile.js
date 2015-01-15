@@ -3,14 +3,14 @@ module.exports = function(grunt) {
     pkg: grunt.file.readJSON('package.json'),
     clean: ["dist"],
     concat: {
-      options: {
-          banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %> */\nconsole.log(\'<%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %>\');\n',
-      },
       rtcomm: {
         src: 'src/rtcomm/*.js',
         dest: 'dist/umd/rtcomm.js' 
       },
       rtcomm_final: {
+        options: {
+            banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %> */\nconsole.log(\'<%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %>\');\n',
+        },
         src: ['dist/umd/rtcomm/util.js', 'dist/umd/rtcomm/connection.js','dist/umd/rtcomm.js'],
         dest: 'dist/rtcomm.js' 
        }

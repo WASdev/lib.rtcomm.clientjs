@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 15-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 15-01-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -17,8 +17,6 @@ console.log('lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015');
   }
 }(this, function () {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -70,7 +68,7 @@ var Log = function Log() {
 
 // Enables logging for util methods.
 // If already defined, use that one?
-console.log('logging already set? ', logging);
+// console.log('logging already set? ', logging);
 
 var logging =  logging || new Log(),
     l = logging.l;
@@ -140,7 +138,7 @@ var applyConfig = function applyConfig(config, obj, lenient ) {
  *  @param config config to check and apply defaults 
  */
 var setConfig = function(config,configDefinition) {
-  console.log(this+'.setConfig() passed in: -->  '+JSON.stringify(config));
+  l('DEBUG') && console.log(this+'.setConfig() passed in: -->  '+JSON.stringify(config));
   var requiredConfig = configDefinition.required || {};
   var possibleConfig = configDefinition.optional || {};
   var defaultConfig = configDefinition.defaults || {};
@@ -179,7 +177,7 @@ var setConfig = function(config,configDefinition) {
         throw new Error(key + ' is an invalid property for '+ JSON.stringify(configObj) );
       }
     }
-    console.log(this+'.setConfig() Returning -->  '+JSON.stringify(configObj));
+    l('DEBUG') && console.log(this+'.setConfig() Returning -->  '+JSON.stringify(configObj));
     return configObj;
   } else {
     throw new Error("A minumum config is required: " + JSON.stringify(requiredConfig));
@@ -486,8 +484,6 @@ return util;
   }
 }(this, function (util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015');
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -563,15 +559,15 @@ var logging = new util.Log(),
             logMessage = '%c ' + logMessage;
             css = 'color: ' + object.color;
             if (remainder) {
-              console.log(logMessage, css, remainder);
+            l('TRACE') &&   console.log(logMessage, css, remainder);
             } else {
-              console.log(logMessage,css);
+            l('TRACE') &&  console.log(logMessage,css);
             }
           } else {
             if (remainder) {
-              console.log(logMessage, remainder);
+              l('TRACE') && console.log(logMessage, remainder);
             } else {
-              console.log(logMessage);
+              l('TRACE') && console.log(logMessage);
             }
           }
         }; // end of log/ 
@@ -1840,7 +1836,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
               console.error('connect onSuccess Chain Failure... ', e);
             }
           } else {
-            console.log("No onSuccess callback... ", onSuccess);
+            l('DEBUG') &&  console.log("No onSuccess callback... ", onSuccess);
           }
         }.bind(this);
 
@@ -2235,7 +2231,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         this.emit(this.state);
       } else {
         // No transaction to respond to.
-        console.log('NO TRANSACTION TO RESPOND TO.');
+        console.error('NO TRANSACTION TO RESPOND TO.');
       }
     },
     /**
@@ -2435,10 +2431,10 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   this.toTopic = toTopic;
   this.message = message;
   this.onSuccess = cbSuccess || function(object) {
-    console.log(this+' Response for Transaction received, requires callback for more information:', object);
+    l('DEBUG') && console.log(this+' Response for Transaction received, requires callback for more information:', object);
   };
   this.onFailure = cbFailure || function(object) {
-    console.log(this+' Transaction failed, requires callback for more information:', object);
+    l('DEBUG') && console.log(this+' Transaction failed, requires callback for more information:', object);
   };
 
   l('DEBUG') && console.log(this+ '.constructor Are we outbound?', this.outbound);
@@ -2555,8 +2551,6 @@ return connection;
   }
 }(this, function (connection, util) {
 
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 14-01-2015');
 var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
   // Presuming you creat an object based on this one, 
   // you must override the session event handler and
@@ -2895,10 +2889,10 @@ var EndpointProvider =  function EndpointProvider() {
     }
     var endpointProvider = this;
     cbSuccess = cbSuccess || function(message) {
-      console.log(endpointProvider+'.init() Default Success message, use callback to process:', message);
+      l('DEBUG') && console.log(endpointProvider+'.init() Default Success message, use callback to process:', message);
     };
     cbFailure = cbFailure || function(error) {
-      console.log(endpointProvider+'.init() Default Failure message, use callback to process:', error);
+      l('DEBUG') && console.log(endpointProvider+'.init() Default Failure message, use callback to process:', error);
     };
 
     // Create the Endpoint Connection  
@@ -3041,7 +3035,7 @@ var EndpointProvider =  function EndpointProvider() {
 
     endpointConnection.on('message', function(message) {
       if(message) {
-        console.log("TODO:  Handle an incoming message ", message);
+        l('TRACE') && console.log("TODO:  Handle an incoming message ", message);
       }
     });
     return endpointConnection; 
@@ -3449,12 +3443,9 @@ var EndpointRegistry = function EndpointRegistry(options) {
   function getOneAvailable() {
     var a = [];
     this.list().forEach(function(item){
-      console.log('REMOVE ME: checking item: ', item);
-      console.log('REMOVE ME: available? '+ item.available());
       item.available() && a.push(item);
     });
     // Return the last one found
-    console.log('REMOVE ME: Found: ', a);
     if(a.length > 0 ) { 
       return a[a.length-1];
     } else {
@@ -3510,7 +3501,6 @@ var EndpointRegistry = function EndpointRegistry(options) {
       if (registry.hasOwnProperty(appContext)) {
         var eps = Object.keys(registry[appContext]);
         if (eps.length === 1 && singleEndpoint) {
-          console.log('Returning existing object');
           return registry[appContext][eps[0]];
         } else {
           registry[appContext][uuid] = object;
@@ -3630,68 +3620,6 @@ var logging = new util.Log(),
     setConfig = util.setConfig,
     /*global log: false */
     log = logging.log;
-// Removing, will do another way.
-//console.log('**** rtcomm.js --> '+VERSION);
-
-/* function log() {
-          // I want to log CallingObject[id].method Message [possibly an object]
-
-          var object = {},
-              method = '<none>',
-              message = null,
-              remainder = null,
-              logMessage = "";
-
-          var args = [].slice.call(arguments);
-
-          if (args.length === 0 ) {
-            return;
-          } else if (args.length === 1 ) {
-            // Just a Message, log it...
-            message = args[0];
-          } else if (args.length === 2) {
-            object = args[0];
-            message = args[1];
-          } else if (args.length === 3 ) {
-            object = args[0];
-            method = args[1];
-            message = args[2];
-          } else {
-            object = args.shift();
-            method = args.shift();
-            message = args.shift();
-            remainder = args;
-          }
-
-          if (object) {
-            logMessage = object.toString() + "." + method + ' ' + message;
-          } else {
-            logMessage = "<none>" + "." + method + ' ' + message;
-          }
-          // Ignore Colors...
-          if (object && object.color) {object.color = null;}
-          
-          var css = "";
-          if (object && object.color) {
-            logMessage = '%c ' + logMessage;
-            css = 'color: ' + object.color;
-            if (remainder) {
-              console.log(logMessage, css, remainder);
-            } else {
-              console.log(logMessage,css);
-            }
-          } else {
-            if (remainder) {
-              console.log(logMessage, remainder);
-            } else {
-              console.log(logMessage);
-            }
-          }
-        }; // end of log/ 
-        */
-    
-        
-    
 
 var MqttEndpoint = function MqttEndpoint(config) {
 
@@ -4123,7 +4051,6 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       rootTopic = (a[0] === '') ? a[1] : a[0];
 
       for(var i = 0; i<presenceData.length;i++ ) {
-        console.log('REMOVE ME '+a+' rootTopic: '+rootTopic+ ' pd.name: '+presenceData[i].name);
         if ( presenceData[i].name === rootTopic ) { 
           rootNode =  presenceData[i];
           break;
@@ -4195,7 +4122,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
     this.findByTopic = function(topic) {
       // Typically used on an inbound topic, will iterate through queue and return it.
       var matches = [];
-      console.log(Object.keys(queues));
+      //console.log(Object.keys(queues));
       Object.keys(queues).forEach(function(queue) {
         l('DEBUG') && console.log('Queues.findByTopic testing '+topic+' against regex: '+queues[queue].regex);
         queues[queue].regex && queues[queue].regex.test(topic) && matches.push(queues[queue]);
@@ -4617,15 +4544,12 @@ var RtcommEndpoint = (function invocation(){
 RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
 
   function createSignalingSession(endpoint, context) {
-    console.log('REMOVE ME: ', endpoint);
     var remoteEndpointID = null;
     var toTopic = null;
     if (typeof endpoint === 'object') {
       if (endpoint.remoteEndpointID && endpoint.toTopic) {
         remoteEndpointID = endpoint.remoteEndpointID;
         toTopic = endpoint.toTopic;
-        console.log('toTopic?: '+toTopic);
-        console.log('remoteEndpointID?: '+remoteEndpointID);
       } else {
         throw new Error('Invalid object passed on connect! should be {remoteEndpointID: something, toTopic: something}');
       }
@@ -4692,7 +4616,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     });
     session.on('starting', function() {
       context.setState('session:trying');
-      console.log('Session Starting');
     });
     session.on('failed', function(message) {
       context.disconnect();
@@ -5270,9 +5193,9 @@ var WebRTCConnection = (function invocation() {
       var doAnswer = function doAnswer() {
         l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
         l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
-        console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
-        console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
-        console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
+        //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
+        //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
+        //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
         self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
           console.error('failed to create answer', error);
         },
@@ -5427,7 +5350,7 @@ var WebRTCConnection = (function invocation() {
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     if (RESPOND) {
       l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
-      console.log(this+'.createAnswer sending answer as a RESPONSE', message);
+      //console.log(this+'.createAnswer sending answer as a RESPONSE', message);
       session.respond(true, message);
       this._setState('connected');
     } else if (PRANSWER){
@@ -5741,7 +5664,7 @@ var WebRTCConnection = (function invocation() {
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;
   if (typeof MyRTCPeerConnection !== 'undefined'){
-    l('DEBUG')&& console.log("Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
+    l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
     peerConnection = new MyRTCPeerConnection(RTCConfiguration, RTCConstraints);
 
     //attach callbacks
