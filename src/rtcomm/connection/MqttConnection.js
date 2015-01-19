@@ -35,6 +35,7 @@
  * 
  * @private
  */
+
 var MqttConnection = function MqttConnection(config) {
   /* Class Globals */
 
@@ -122,13 +123,10 @@ var MqttConnection = function MqttConnection(config) {
   } else {
     throw new Error("MqttConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition.required));
   }
-
-  console.log(this+'>>>>>>> constructor config: '+JSON.stringify(this.config));
-
   // Populate this.config
   this.config.clientID = this.config.myTopic || generateClientID();
   this.config.myTopic = this.config.myTopic || this.config.rtcommTopicPath + this.config.clientID;
-  this.config.presenceTopic = this.config.presenceTopic || this.config.rtcommTopicPath+"sphere/";
+  this.config.presenceTopic = this.config.presenceTopic || null;
   this.config.destinationTopic = this.config.defaultTopic ? this.config.rtcommTopicPath + this.config.defaultTopic : '';
   // Save an 'ID' for this service.
   this.id = this.config.clientID;
@@ -244,7 +242,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
               console.error('connect onSuccess Chain Failure... ', e);
             }
           } else {
-            console.log("No onSuccess callback... ", onSuccess);
+            l('DEBUG') &&  console.log("No onSuccess callback... ", onSuccess);
           }
         }.bind(this);
 
@@ -309,7 +307,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           throw new Error('connect() must be called before calling init()');
         }
         var message = config.message,
-            userid = config.userid,
             toTopic  = config.toTopic,
         // onSuccess Callback
         onSuccess = config.onSuccess || function() {
@@ -366,4 +363,5 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
       }
     }; // end of Return
 })());
+exports.MqttConnection = MqttConnection;
 

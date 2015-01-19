@@ -14,7 +14,12 @@
  * limitations under the License.
  **/ 
 // rtcservice & util should be defined here:
+/*jshint -W030*/
 /*global util:false*/
+
+var exports = {};
+var connection = exports;
+
 var logging = new util.Log(),
     setLogLevel = logging.s,
     getLogLevel = logging.g,
@@ -68,19 +73,54 @@ var logging = new util.Log(),
             logMessage = '%c ' + logMessage;
             css = 'color: ' + object.color;
             if (remainder) {
-              console.log(logMessage, css, remainder);
+            l('TRACE') &&   console.log(logMessage, css, remainder);
             } else {
-              console.log(logMessage,css);
+            l('TRACE') &&  console.log(logMessage,css);
             }
           } else {
             if (remainder) {
-              console.log(logMessage, remainder);
+              l('TRACE') && console.log(logMessage, remainder);
             } else {
-              console.log(logMessage);
+              l('TRACE') && console.log(logMessage);
             }
           }
         }; // end of log/ 
-        
-    
-        
-    
+      var uidRoute = function(userid) {
+        l('TRACE') && console.log('uidRoute called w/ id '+userid);
+        var returnObj = { 
+          route:null ,
+          userid: null
+        };
+        var a = userid.split(':');
+        if (a.length === 1) {
+          returnObj.userid = userid;
+        } else if (a.length === 2) {
+          returnObj.route= a[0];
+          returnObj.userid = a[1];
+        } else {
+          throw new Error('Unable to process userid: '+ userid);
+        }  
+        l('TRACE') && console.log('uidRoute returning ',returnObj);
+        return returnObj;
+      };
+
+      var routeLookup =  function(services, scheme) {
+          // should be something like [sips, sip, tel ] for the SIP CONNECTOR SERVICE
+          l('TRACE') && console.log('routeLookup() finding scheme: '+scheme);
+          var topic = null;
+          for(var key in services) {
+            l('TRACE') && console.log('routeLookup() searching key: '+key);
+            if (services.hasOwnProperty(key)){
+              l('TRACE') && console.log('routeLookup() searching key: ',services[key]);
+              if (typeof services[key].schemes !== 'undefined' && 
+                  typeof services[key].topic !== 'undefined') {
+                  if (services[key].schemes.indexOf(scheme) >= 0) {
+                    topic = services[key].topic;
+                    break;
+                  }
+              }
+            }
+          }
+          l('TRACE') && console.log('routeLookup() returing topic: '+topic);
+          return topic;
+        };

@@ -36,7 +36,7 @@
     this.findByTopic = function(topic) {
       // Typically used on an inbound topic, will iterate through queue and return it.
       var matches = [];
-      console.log(Object.keys(queues));
+      //console.log(Object.keys(queues));
       Object.keys(queues).forEach(function(queue) {
         l('DEBUG') && console.log('Queues.findByTopic testing '+topic+' against regex: '+queues[queue].regex);
         queues[queue].regex && queues[queue].regex.test(topic) && matches.push(queues[queue]);

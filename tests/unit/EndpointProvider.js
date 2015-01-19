@@ -21,8 +21,8 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm'
-], function (registerSuite, assert, Deferred, globals,config, rtcomm) {
+    'umd/rtcomm'
+], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
   var badconfig = {
       server: 1,
       port: "a",
@@ -40,7 +40,7 @@ define([
     beforeEach: function() {
      console.log('******** Running Test *********');
      endpointProvider && endpointProvider.destroy();
-     endpointProvider = new rtcomm.RtcommEndpointProvider();
+     endpointProvider = new EndpointProvider();
     },
     "empty config for init()": function() {
         var error = null;
@@ -146,7 +146,7 @@ define([
             var endpoint2 = null;
             var endpoint3 = null;
             var endpoint4 = null;
-            var endpointProvider2 = new rtcomm.RtcommEndpointProvider();
+            var endpointProvider2 = new EndpointProvider();
             try {
               endpointProvider.setAppContext('test');
               endpointProvider2.setAppContext('test');

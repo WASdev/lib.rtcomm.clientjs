@@ -21,7 +21,7 @@ define([
       ?'intern/dojo/node!../../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm/connection'
+    'umd/rtcomm/connection'
 ], function (registerSuite, assert, Deferred,globals, config, connection) {
     var T1 = 2000;  // How long we wait to setup, before sending messages.
     var T2 = T1 + 2000; // How long we wait to check results
@@ -208,7 +208,7 @@ define([
         console.log('********* Before Start of session **************');
         console.log('conn1', epc1);
         console.log('conn2', epc2);
-        console.log('Changing toTOpic fomr:['+sess1.toTopic+'] to ['+test.topic2);
+        console.log('Changing toTopic from:['+sess1.toTopic+'] to ['+test.topic2);
         sess1.toTopic = epc2.getMyTopic();
         console.log('session' ,sess1);
         console.log('config2.userid', config2.userid);
@@ -218,6 +218,29 @@ define([
         console.log('conn1', epc1);
         console.log('conn2', epc2);
       },
+
+      "SIP_CONNECTOR_SERVICE": function() {
+          var nc = new connection.EndpointConnection(config1);
+          nc.setLogLevel('TRACE');
+          var success = false;
+          var dfd = this.async(T1);
+          var sess1 = null;
+          nc.connect(dfd.callback(function() {
+            nc.services.SIP_CONNECTOR_SERVICE.topic="/rtcommscott/sip";
+            nc.services.SIP_CONNECTOR_SERVICE.schemes=['sip', 'sips', 'tel'];
+            sess1 = nc.createSession({'remoteEndpointID': 'sip:scott'});
+            console.log('sess1:',sess1);
+            assert.equal(sess1.toTopic, nc.normalizeTopic("/rtcommscott/sip"));
+            nc.disconnect();
+          }), 
+          function() {
+            console.log('CONNECT FAILURE!');
+            success = false;
+            nc.disconnect();
+          });
+      },
+
+
     "Connection Test - using Server": function() {
           var nc = new connection.EndpointConnection(config1);
           nc.setLogLevel('DEBUG');
@@ -238,8 +261,6 @@ define([
       "Service Query Test": function() {
           var nc = new connection.EndpointConnection(config1);
           var success = false;
-          var register = false;
-
           var dfd = this.async(T1);
           nc.connect(function() {
             console.log('CONNECT SUCCESS!');
@@ -248,11 +269,15 @@ define([
               success = true;
               console.log('nc.ready', nc.ready);
               console.log(nc);
-              assert.ok(success);
+              assert.ok(success, 'service Query success');
               nc.disconnect();
-            }), function(error){
+            }), dfd.callback(function(error){
               console.error(error);
-            });
+              console.log('nc.ready', nc.ready);
+              assert.ok(success, 'service Query success');
+              console.log(nc);
+              nc.disconnect();
+            }));
           }, 
           function() {
             console.log('CONNECT FAILURE!');
@@ -265,7 +290,6 @@ define([
           var nc = new connection.EndpointConnection(cfg);
           var success = false;
           var failure = false;
-          var register = false;
           var dfd = this.async(T1);
           nc.connect(function() {
             console.log('CONNECT SUCCESS!');
@@ -280,59 +304,6 @@ define([
               assert.ok(failure);
               nc.disconnect();
             }));
-          }, 
-          function() {
-            console.log('CONNECT FAILURE!');
-            success = false;
-          })
-      },
-      "register( no userid)": function() {
-          var dfd = this.async(T1);
-          var cfg = config.clientConfig1();
-          delete cfg.userid;
-          var nc = new connection.EndpointConnection(cfg);
-          var success = false;
-          var failure = false;
-          var register = false;
-          nc.connect(function() {
-            console.log('CONNECT SUCCESS!');
-            nc.register(function(info){
-              console.log('Register success: ',info);
-              success = true;
-            }, dfd.callback(function(error){
-              console.error(error);
-              failure=true;
-              console.log('nc.ready', nc.ready);
-              console.log(nc);
-              assert.ok(failure);
-              nc.disconnect();
-            }));
-          }, 
-          function() {
-            console.log('CONNECT FAILURE!');
-            success = false;
-          });
-      },
-      "register( with userid)": function() {
-         var dfd = this.async(T1);
-          var cfg = config.clientConfig1();
-          var nc = new connection.EndpointConnection(cfg);
-          var success = false;
-          var failure = false;
-          var register = false;
-          nc.connect(function() {
-            console.log('CONNECT SUCCESS!');
-            nc.register(dfd.callback(function(info){
-              console.log('Register success: ',info);
-              success = true;
-              console.log('nc.ready', nc.ready);
-              console.log(nc);
-              assert.ok(success);
-              nc.disconnect();
-            }), function(error){
-              console.error(error);
-              failure=true;
-            });
           }, 
           function() {
             console.log('CONNECT FAILURE!');

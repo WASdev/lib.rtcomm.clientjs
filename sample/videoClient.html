@@ -16,12 +16,13 @@
 <head>  
 <meta charset="utf-8">
 <title>IBM WebRTC Demo</title>
+<!-- Load the CSS -->
 <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
 <link href="resources/css/video.css" rel="stylesheet">
-
 </head>
-<body>
 
+<body>
+<!-- The Main Page conainer -->
 <div id="MainContainer" class="mainContentContainer">
  <div id="topContainer">
         <div class="pull-left logo">
@@ -54,6 +55,7 @@
   </div>
 </div>
 
+<!-- The Answer Dialog -->
 <div id="answerDialog" class="modal fade">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -72,6 +74,7 @@
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
+<!-- The Register Modal Dialog -->
 <div id="registerModal" class="modal fade">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -103,6 +106,7 @@
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
+<!-- The Connect Modal Dialog -->
 <div id="connectModal" class="modal fade">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -133,7 +137,6 @@
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
-
 <!-- 
 This is SAMPLE is dependent on jQuery and bootstrap. Both load from a CDN. Alternatively, download jquery 
 from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
@@ -142,18 +145,20 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 
 <!-- The following paths may need to be modified depending on the location of this script. -->
+<script src="../lib/mqttws31.js"></script>
+<script src="../dist/rtcomm.js"></script>
 
-<script src="../js/lib/mqttws31.js"></script>
-<script src="../js/ibm/rtcomm.js"></script>
-
-
+<!-- 
+The primary logic for this HTML Page
+-->
 <script>
 
   /*************************************************
    * Define Globals 
    *************************************************/
   // Define the RtcommEndpointProvider globabl variable
-  var ibmep = new ibm.rtcomm.EndpointProvider();
+  var ibmep = new rtcomm.EndpointProvider();
+
   // Change the loglevel - default is 'INFO', possibilities are:
   // 'MESSAGES' --> Just log sent/received messages in console.
   // 'DEBUG' -- > log most everything
@@ -161,14 +166,15 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
   ibmep.setLogLevel('DEBUG');
   // In this sample, initializing rtcommEndpoint variable as a GLOBAL
   var rtcommEndpoint = null;
+
   // UI State
   var registered = false;
   var connected = false;
-  var autoAnswer = false;
 
   /* Define the configuration for the EndpointProvider.  THis is REQUIRED and generally must be changed.
    * It MUST match the rtcomm configuration used on the liberty server.
-   *  This config can be passed in on the URL via params as well:
+   *
+   * This config can be passed in on the URL via params as well:
    *
    * Example:  videoClient.html?server=servername&port=1883&rtcommTopicPath=/rtcommcompany/
    */
@@ -178,16 +184,26 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     managementTopicName : "management",
     appContext: "videosample",
     rtcommTopicPath: "/rtcomm/",
-    createEndpoint : true
+    createEndpoint : true,
+    presence: {topic: 'defaultRoom'} 
   };
+
   var urlConfig = getUrlParams();
-  /* can be passed on URL videoClient.html?regwithoutAV=true */
+  console.log('** videoClient.html ** Config passed in via URL:', urlConfig);
+  /* 
+   *  The following pulls information from the urlConfig, generally used to simplify
+   *  testing/initial connection
+   *
+   */
+
+  /*  videoClient.html?regwithoutAV=true -- Do not enable AV when registering. 
+      Will wait until a call is established */
   var regwithAV = !(urlConfig.regwithoutAV === 'true');
+  /*  videoClient.html?regOnload=true&userid=someuser -- Immediately register onLoad with userid passed */
   var regOnload = (urlConfig.regOnload === 'true')? true : false;
   var userid = urlConfig.userid || null;
-  autoAnswer = (urlConfig.autoAnswer === true)? true : false;
-  console.log('Config passed in via URL:', urlConfig);
-  console.log('regwithAV is: ', regwithAV);
+  /*  videoClient.html?autoAnswer=true -- inbound call will be automatically answered.  Good for testing. */
+  var autoAnswer = (urlConfig.autoAnswer === true)? true : false;
   // This uses any params passed on URL to override config.
   updateConfig(epConfig, urlConfig);
 
@@ -199,10 +215,10 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
    *
    * This function is the meat of the sample and shows how to
    * init the EndpointProvider using epConfig provided above.  This
-   * config is using register/getRtcommEndpoint = true so that 
+   * config is using getRtcommEndpoint = true so that 
    * the init returns a rtcommEndpoint object.  
-   * 
-   *  This can be decoupled and register() and getRtcommEndpoint() can be
+
+   *  This can be decoupled getRtcommEndpoint() can be
    *  called individually.
    * 
    */
@@ -211,19 +227,28 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     epConfig.userid = userid;
     // make sure this is an integer.
     epConfig.port = parseInt(epConfig.port);
-    //  If the EndpointProvider is ready, it has already been init'd, we don't need to init again. Just register again.
-    // Call init() on the Endpoint Provider.
+    /*
+     * Call init() on the Endpoint Provider.
+     */
     ibmep
           .init(
               epConfig,
-              function(object) { //onSuccess
-                // Because register/getRtcommEndpoint is enabled, we expect an object
+              /* onSuccess for init() will pass an object:
+               *  { endpoint: RtcommEndpoint ,   <-- RtcommEndpoint Object if created
+               *     ready: boolean,             <-- We are ready to proceed.
+               *     registered: boolean}        <-- Register completed.
+               */
+              function(object) { 
+                // Because getRtcommEndpoint is enabled, we expect an object
                 // returned in the onSuccess callback.
-                console.log('init was successful, rtcommEndpoint: ', object);
+                console.log('** videoClient.html ** init was successful, rtcommEndpoint: ', object);
+                // Update the UI with messages, etc..
                 updateMessage('Registered');
                 uiRegister(userid);
+
                 // Configure the rtcommEndpoint now
                 rtcommEndpoint = object.endpoint;
+                // Set the media div's webrtc will use, but do not ENABLE AV yet.
                 rtcommEndpoint.webrtc.setLocalMedia(
                   { enable: false, 
                     mediaOut: document.querySelector('#selfView'),
@@ -231,22 +256,12 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
                   });
                 if (regwithAV) {
                   // Enable Audio Video here.
-                  console.log('>>>>>>>>>>>>>>>>>>>Enabling Webrtc...');
+                  console.log('** videoClient.html ** Enabling Webrtc...');
+                  //NOTE:  lazyAV means we will enable when we have too, in this case, the UI wants
+                  // To enable it right away.  
                   rtcommEndpoint.webrtc.enable({lazyAV: false}, function() {
                     console.log('>>>>>>>>>>>>>>SUCCESS ENABLED WEBRTC CALLBACK');
                   });
-                  /******* OLD WAY
-                  rtcommEndpoint
-                      .attachLocalMedia(function(value, message) {
-                        if (!value) {
-                          alertMessage('Failed to get local Audio/Video - nothing to broadcast');
-                          if (ibmep) {
-                            rtcommEndpoint.unregister();
-                            uiUnregister();
-                          }
-                        }
-                      });
-                   ****/
                 }
               }, function(error) { //onFailure
                 console.error('init failed: ', error);
@@ -256,43 +271,48 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     return true;
   };
 
-    // Assign the callbacks
-    // endpointObject.onNewConnection = onNewConnection;
-    // This will ask user for access to video and attach it to MediaIn
-    // This can be done  when addEndpoint/acceptEndpoint is called but right now,
-    // the video/video is more reliable if it is attached before a call is created.
-
+  /*
+   * Assign the callbacks
+   * 
+   *  This happens prior to the doRegister above and defines the default callbacks to use for 
+   *  all RtcommEndpoints created by the EndpointProvider.
+   *
+   */
   ibmep.setRtcommEndpointConfig({
+      // Our endpoints will be setup to broadcast Audio and Video 
       broadcast: {audio: true, video: true},
-
+      // Fired when webrtc is connected 
       'webrtc:connected': function(event_object) {
         uiConnect("Connected to "+event_object.endpoint.getRemoteEndpointID());
       },
-
+      // Fired when webrtc is disconnected 
       'webrtc:disconnected': function(event_object) {
-          
-          document.querySelector('#remoteView').src = undefined;
-          uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
-        try {
-          event_object.endpoint.disconnect();
-           } catch (e) {
-          console.error(e);
-        }
+         // Reset the UI
+         document.querySelector('#remoteView').src = undefined;
+         uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
+         try {
+           event_object.endpoint.disconnect();
+         } catch (e) {
+           console.error(e);
+         }
       },
+      // An outbound call is starting and the target user has been reached.
       'session:ringing': function(event_object) {
-      if (event_object.object && event_object.object.pcSigState) {
-        if (event_object.object.pcSigState === 'have-local-offer') {
-          // we are the CALLER.
-          // This could be tracked through the UI too.
-          updateMessage('Calling ' + event_object.object.remoteID);
-        } else {
-          updateMessage('Inbound call from  ' + event_object.endpoint.getRemoteEndpointID());
+        // TODO: This should not be necessary, we should always be the caller for ringing
+        if (event_object.object && event_object.object.pcSigState) {
+          if (event_object.object.pcSigState === 'have-local-offer') {
+            // we are the CALLER.
+            // This could be tracked through the UI too.
+            updateMessage('Calling ' + event_object.object.remoteID);
+          } else {
+            updateMessage('Inbound call from  ' + event_object.endpoint.getRemoteEndpointID());
+          }
         }
-      }
       },
+      // An inbound call was received.
       'session:alerting': function(event_object) {
-        console.log('>>>> event_object! ', event_object);
-        // Use this as a global
+        console.log('** videoClient ** Alerting event_object: ', event_object);
+        // Use the global value to autoAnswer if configured.
         if (!autoAnswer) {
           $('#answerDialog .modal-body').html(
               "Inbound call from " + event_object.endpoint.getRemoteEndpointID());
@@ -302,9 +322,11 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
           event_object.endpoint.accept();
         }
       },
+      // Establishing the session failed, display a message, cleanup.
       'session:failed': function(event_object) {
         updateMessage("Connection failed - reason: "+event_object.reason);
       },
+      // An inbound Refer was received.  
       'session:refer': function(conn) {
         $('#answerDialog .modal-body').html(
             "[3PCC] Initiate call to " + conn.toEndpointID);
@@ -314,19 +336,10 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
   /*****************************************************************
    * UI Related functionality
+   *
+   * This section handles manipulating the UI via jQuery/bootstrap
+   * in reaction to doRegister and the endpointCallbacks.
    ****************************************************************/ 
-
-  // Display the configuration we are using in the UI
-  //  displayConfig();
-
-
-  function uiReset() {
-    // unused...
-      $('#btnConnect').prop('disabled', 'disabled');
-      $('#btnRegister').prop('disabled', false);
-      $('#cancel').prop('disabled', false);
-      $('#btnRegister').button('reset');
-  }
 
   function uiConnect(message) {
       $('#btnConnect').text('Disconnect');
@@ -423,16 +436,10 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 
   $("#connectGo").on('click', function(event) {
     var remoteid = $("#remoteid").val();
-    // $("#connectModal").modal("hide");
     if (remoteid === "") {
       $('#connAlert').show();
       return false;
     } else {
-      /* $("#welcome").html("Welcome, <strong>"+name+"</strong>!");
-      $("#displayNameStr").html("Welcome, <span class='blue'>"+name+"</span>");
-      lobby.displayName = name;
-      lobby.connect();
-      initRecorder(); */
       updateMessage('Connecting to '+remoteid);
       // This is only necessary if you want to enable/connect in same motion. 
       rtcommEndpoint.webrtc.enable(function(success, message) {
@@ -448,8 +455,6 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
     }
     return false;
   });
-
-
 
   function alertMessage(message) {
     console.log('Updating statusMessge with ', message);
@@ -468,7 +473,6 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
       }
     }
   }
-
   function displayConfig() {
     var configHTML = "";
     for (key in epConfig) {

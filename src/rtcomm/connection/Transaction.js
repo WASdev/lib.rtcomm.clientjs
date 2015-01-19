@@ -49,13 +49,14 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   /*global generateUUID:false*/
   this.id = (message && message.transID) ? message.transID : generateUUID(); 
   this.method = (message && message.method) ? message.method : 'UNKNOWN'; 
-  this.toTopic = toTopic;
+
+  this.toTopic = toTopic || ((message && message.fromTopic) ? message.fromTopic : null);
   this.message = message;
   this.onSuccess = cbSuccess || function(object) {
-    console.log(this+' Response for Transaction received, requires callback for more information:', object);
+    l('DEBUG') && console.log(this+' Response for Transaction received, requires callback for more information:', object);
   };
   this.onFailure = cbFailure || function(object) {
-    console.log(this+' Transaction failed, requires callback for more information:', object);
+    l('DEBUG') && console.log(this+' Transaction failed, requires callback for more information:', object);
   };
 
   l('DEBUG') && console.log(this+ '.constructor Are we outbound?', this.outbound);

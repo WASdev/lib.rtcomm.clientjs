@@ -21,7 +21,7 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm'
+    'umd/rtcomm'
 ], function (registerSuite, assert, Deferred,globals, config, rtcomm) {
 
 
@@ -71,14 +71,14 @@ define([
             endpointProvider = null;
           }
           console.log("***************************** NEW TEST ***************************");
-          endpointProvider = new rtcomm.EndpointProvider();
+          endpointProvider = new rtcomm();
           endpointProvider.setAppContext('test');
-          endpointProvider.setLogLevel('DEBUG');
+          endpointProvider.setLogLevel('TRACE');
         },
         "Endpoint creation(anonymous)": function() {
           console.log('***************** RunTest ************');
           var dfd = this.async(T1);
-          var ep= endpointProvider.createRtcommEndpoint();
+          var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
           console.log('TEST endpoint: ', ep);
           var initObj = null;
           var success = false;
@@ -98,7 +98,7 @@ define([
       "Join/Leave queue": function() {
           console.log('***************** RunTest ************');
           var dfd = this.async();
-          var ep = endpointProvider.createRtcommEndpoint();
+          var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
           console.log('TEST endpoint: ', ep);
           var initObj = null;
           var success = false;
@@ -126,12 +126,12 @@ define([
           endpointProvider.init(config1,finish, finish);
         },
      "in Browser A calls B": function() {
-         var endpointProvider2 = new rtcomm.EndpointProvider();
+         var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
+         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
          config1.userid='testuser1';
          config2.userid='testuser2';
          var dfd = this.async(T1);
@@ -187,17 +187,85 @@ define([
                   }
                  );
          },
-     "in Browser A calls B, neither accept call from C": function() {
-         var endpointProvider2 = new rtcomm.EndpointProvider();
+     "in Browser A calls B(nested presence)": function() {
+         var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');
-         var endpointProvider3 = new rtcomm.EndpointProvider();
+         // mark for destroy;
+         g.endpointProvider2 = endpointProvider2;
+         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
+         var c1 = config.clientConfig();
+         c1.userid='testuser1';
+         c1.presence={'topic': 'defaultRoom'};
+
+         var c2 = config.clientConfig();
+         c2.userid='testuser2';
+         c2.presence={'topic': 'defaultRoom'};
+
+         var dfd = this.async(T1);
+
+         var finish = dfd.callback(function(object){
+            console.log("******************Asserting now...***********************");
+            console.log('endpoint1: ',ep1);
+            console.log('endpoint2: ',ep2);
+            assert.ok(ep1_trying, 'Caller generated trying event');
+            assert.ok(ep1_ringing, 'Caller generated ringing event');
+            assert.ok(ep2_alerting, 'Callee generated alerting event');
+            assert.ok(ep1.sessionStarted());
+            assert.ok(ep2.sessionStarted());
+            endpointProvider2.destroy();
+         });
+
+         // States we should hit:
+         // ep1(caller) 
+         //   place call --> trying
+         var ep1_trying = false;
+         var ep1_ringing= false;
+         var ep2_alerting= false;
+         //   receive PRANSWER --> ringing
+         //   receive ANSWER --> started
+         // ep2(callee)
+         //   receive call --> alerting
+         //   send ANSWER --> started
+         ep1.on('session:ringing', function() { ep1_ringing = true;});
+         ep1.on('session:trying', function() { ep1_trying = true;});
+         ep1.on('session:started', finish);
+         ep2.on('session:alerting', function(obj) {
+           ep2_alerting = true;
+           console.log('>>>>TEST  accepting call');
+           setTimeout(function() {
+            ep2.accept();
+           },1000);
+
+         });
+         endpointProvider.init(c1,
+                  function(obj) {
+                    endpointProvider2.init(c2,
+                        function(obj) {
+                          console.log('calling EP2');
+                          ep1.connect(c2.userid);
+                        },
+                        function(error) {
+                          console.log('error in ep2 init:' + error);
+                        }
+                       );
+                  },
+                  function(error) {
+                    console.log('error in ep1 init:' + error);
+                  }
+                 );
+         },
+     "in Browser A calls B, neither accept call from C": function() {
+         var endpointProvider2 = new rtcomm();
+         endpointProvider2.setAppContext('test');
+         var endpointProvider3 = new rtcomm();
          endpointProvider3.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
          g.endpointProvider3 = endpointProvider3;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:false});
+         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
          config1.userid='testuser1';
          config2.userid='testuser2';
          var config3 = config.clientConfig();
@@ -270,18 +338,18 @@ define([
          });
          },
      "Customer A calls Queue[Toys], establish session": function() {
-           var endpointProvider2 = new rtcomm.EndpointProvider();
+           var endpointProvider2 = new rtcomm();
            endpointProvider2.setAppContext('test');
            // mark for destroy;
            g.endpointProvider2 = endpointProvider2;
-           var customer = endpointProvider.createRtcommEndpoint({webrtc:false, chat:false});
-           var agent = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
+           var customer = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
+           var agent = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
 
            var message1 = null;
            var message2 = null;
            var queueid = null;
 
-           var dfd = this.async(T1);
+           var dfd = this.async(T2);
 
            var finish = dfd.callback(function() {
                console.log("******************Asserting now...***********************");
@@ -295,8 +363,7 @@ define([
             customer.on('session:started', finish);
             var queued = false;
             customer.on('session:queued', function(obj){
-              // uncomment when we release new beta
-              // assert.ok(typeof obj.queuePosition !== 'undefined', 'queuePosition appended to event');
+              assert.ok(typeof obj.queuePosition !== 'undefined', 'queuePosition appended to event');
               queued = true;
             });
 
@@ -304,7 +371,7 @@ define([
              console.log('>>>>TEST  accepting call');
              setTimeout(function() {
               agent.accept();
-             },2000);
+             },1000);
             });
 
             endpointProvider2.on('queueupdate',function(queues) {
@@ -315,6 +382,8 @@ define([
                 queueid = Object.keys(queues)[0];
                 endpointProvider2.joinQueue(queueid);
                 console.log('TEST>>>> Agent Available? '+agent.available());
+                console.log('TEST>>>> Connecting to QUEUEID:  '+queueid);
+                customer.connect(queueid);
                 // Connect to the queue now.
               } 
             });
@@ -327,7 +396,6 @@ define([
                         function(obj) {
                           console.log('init was successful');
                           console.log('TEST>>>> Agent Available? '+agent.available());
-                          customer.connect(queueid);
                         },
                         function(error) {
                           console.log('error in agent init:' + error);
@@ -340,14 +408,15 @@ define([
                  );
          },
      "Create many endpoints" : function() {
+       // This test is in progress
        this.skip();
          // mark for destroy;
          var config1 = config.clientConfig();
-         var endpointProvider2 = g.endpointProvider2 = new rtcomm.EndpointProvider();
+         var endpointProvider2 = g.endpointProvider2 = new rtcomm();
          var config2 = config.clientConfig();
-         var endpointProvider3 = g.endpointProvider3 = new rtcomm.EndpointProvider();
+         var endpointProvider3 = g.endpointProvider3 = new rtcomm();
          var config3 = config.clientConfig();
-         var endpointProvider4 = g.endpointProvider4 = new rtcomm.EndpointProvider();
+         var endpointProvider4 = g.endpointProvider4 = new rtcomm();
          var config4 = config.clientConfig();
 
          endpointProvider2.setAppContext('test');
@@ -356,9 +425,9 @@ define([
 
          // All enpdointProvider1 should be INBOUND... 
           
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:false});
-         var ep4 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:false});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep4 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
 
          var onNewEndpoint = function(event) {
            // you don't know the provider here.
@@ -374,12 +443,10 @@ define([
            setTimeout(function(){
             dfd.resolve();
            },3000);
-
            return dfd.promise;
          };
 
          var dfd = this.async(T1);
-
          initAllEps.then(
 
          );
