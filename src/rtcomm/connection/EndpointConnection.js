@@ -26,9 +26,8 @@
  * @param {string}  [config.userid] -  Unique user id representing user
  * @param {string}  [config.managementTopicName] - Default topic to register with ibmrtc Server
  * @param {string}  [config.rtcommTopicPath]
- * @param {string}  [config.sphereTopicName] - Default topic to register with ibmrtc Server
+ * @param {object}  [config.presence] - presence configuration
  * @param {object}  [config.credentials] - Optional Credentials for mqtt server.
- *
  *
  * Events
  * @event message    Emit a message (MessageFactor.SigMessage)
@@ -62,7 +61,7 @@ var EndpointConnection = function EndpointConnection(config) {
             // didn't execute yet
             var errorMsg = item.objName + ' '+item.timer+' Timed out ['+item.id+'] after  '+timerTimeout+': '+Date();
             if (typeof registry[item.id].onFailure === 'function' ) {
-              registry[item.id].onFailure({'failureReason': errorMsg});
+              registry[item.id].onFailure({'reason': errorMsg});
             } else {
               l('DEBUG') && console.log(errorMsg);
             }
@@ -136,7 +135,8 @@ var EndpointConnection = function EndpointConnection(config) {
       // Need to propogate this, just in case...
       rtcommMessage.fromEndpointID = fromEndpointID;
     } catch (e) {
-      l('INFO') && console.log(this+'.processMessage() Unable to cast message, emitting original message');
+      l('DEBUG') && console.log(this+'.processMessage() Unable to cast message, emitting original message',e);
+      l('DEBUG') && console.log(this+'.processMessage() Unable to cast message, emitting original message',message);
     }
 
     if (rtcommMessage && rtcommMessage.transID) {
@@ -158,6 +158,19 @@ var EndpointConnection = function EndpointConnection(config) {
                                   {message:rtcommMessage, 
                                     source: topic, 
                                     fromEndpointID: fromEndpointID}));
+      } else if (rtcommMessage.method === 'REFER' )  {
+        /*
+         * This is an INBOUND Transaction... 
+         * ... NOT COMPLETE ...
+         */
+        var t = this.createTransaction({message: rtcommMessage, timeout:30000});
+        // Create a new session:
+        endpointConnection.emit('newsession', 
+                                endpointConnection.createSession(
+                                  {message:rtcommMessage, 
+                                    referralTransaction: t,
+                                    source: topic }));
+
       } else {
         // We have a transID, we need to pass message to it.
         // May fail? check.
@@ -198,33 +211,52 @@ var EndpointConnection = function EndpointConnection(config) {
       'message': [],
       'newsession': []};
 
-  this.private = {};
+  // Private
+  this._ = {};
+  this._.init = false;
+  this._.presenceTopic = null;
   // If we have services and are configured
   // We are fully functional at this point.
   this.ready = false;
   // If we are connected
   this.connected = false;
-  this._init = false;
-  this._registerTimer = null;
-
+  var rtcommTopicPath = '/rtcomm/';
   var configDefinition = {
-    required: { server: 'string', port: 'number'},
-    optional: { credentials : 'object', myTopic: 'string', rtcommTopicPath: 'string', managementTopicName: 'string', userid: 'string', appContext: 'string', secure: 'boolean', sphereTopicName: 'string'},
-    defaults: { rtcommTopicPath: '/rtcomm/', managementTopicName: 'management', sphereTopicName: 'sphere'}
+    required: { 
+      server: 'string', 
+      port: 'number'},
+    optional: { 
+      credentials : 'object', 
+      myTopic: 'string', 
+      rtcommTopicPath: 'string', 
+      managementTopicName: 'string', 
+      connectorTopicName: 'string',
+      userid: 'string', 
+      appContext: 'string', 
+      secure: 'boolean', 
+      publishPresence: 'boolean', 
+      presence: 'object'
+    },
+    defaults: { 
+      rtcommTopicPath: rtcommTopicPath, 
+      managementTopicName: 'management', 
+      connectorTopicName : "connector",
+      publishPresence: 'false', 
+      presence: { 
+        rootTopic: rtcommTopicPath + 'sphere/',
+        topic: '/', // Same as rootTopic by default
+      }
+    }
   };
-
   // the configuration for Endpoint
   if (config) {
     /* global setConfig:false */
-    // Set any defaults
     this.config = setConfig(config,configDefinition);
   } else {
-    throw new Error("EndpointConnection instantiation requires a minimum configuration: "+ JSON.stringify(configDefinition));
+    throw new Error("EndpointConnection instantiation requires a minimum configuration: "+ 
+                    JSON.stringify(configDefinition));
   }
-  l('DEBUG') && console.log('EndpointConnection constructor config: ', this.config);
-
   this.id = this.userid = this.config.userid || null;
-
   var mqttConfig = { server: this.config.server,
                      port: this.config.port,
                      rtcommTopicPath: this.config.rtcommTopicPath ,
@@ -242,20 +274,23 @@ var EndpointConnection = function EndpointConnection(config) {
   // Services Config.
 
   // Should be overwritten by the service_query
-  this.connectorTopicName = "nodeConnector";
 
-  this.RTCOMM_CONNECTOR_SERVICE = {};
-  this.RTCOMM_CALL_CONTROL_SERVICE = {};
-  this.RTCOMM_CALL_QUEUE_SERVICE = {};
+  this.services = {
+    RTCOMM_CONNECTOR_SERVICE : {},
+    RTCOMM_CALL_CONTROL_SERVICE : {},
+    RTCOMM_CALL_QUEUE_SERVICE : {},
+    SIP_CONNECTOR_SERVICE: {},
+  }; 
 
   // LWT config 
-  this.private.willMessage = null;
+  this._.willMessage = null;
+
   //create our Mqtt Layer
   this.mqttConnection = createMqttConnection(mqttConfig);
   this.mqttConnection.on('message', processMessage.bind(this));
 
   this.config.myTopic = this.mqttConnection.config.myTopic;
-  this._init = true;
+  this._.init = true;
 };  // End of Constructor
 
 /*global util:false */
@@ -289,6 +324,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         // The ^ at the beginning in the return ensures that it STARTS w/ the topic passed.
         return new RegExp('^'+regex+'$');
       };
+
       /*
        * Parse the results of the serviceQuery and apply them to the connection object
        * "services":{
@@ -308,14 +344,17 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
       var parseServices = function parseServices(services, connection) {
         if (services) {
           if (services.RTCOMM_CONNECTOR_SERVICE) {
-            connection.RTCOMM_CONNECTOR_SERVICE = services.RTCOMM_CONNECTOR_SERVICE;
-            connection.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic;
+            connection.services.RTCOMM_CONNECTOR_SERVICE = services.RTCOMM_CONNECTOR_SERVICE;
+            connection.config.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic|| connection.config.connectorTopicName;
           }
           if (services.RTCOMM_CALL_CONTROL_SERVICE) {
-            connection.RTCOMM_CALL_CONTROL_SERVICE = services.RTCOMM_CALL_CONTROL_SERVICE;
+            connection.services.RTCOMM_CALL_CONTROL_SERVICE = services.RTCOMM_CALL_CONTROL_SERVICE;
           }
           if (services.RTCOMM_CALL_QUEUE_SERVICE) {
-            connection.RTCOMM_CALL_QUEUE_SERVICE = services.RTCOMM_CALL_QUEUE_SERVICE;
+            connection.services.RTCOMM_CALL_QUEUE_SERVICE = services.RTCOMM_CALL_QUEUE_SERVICE;
+          }
+          if (services.SIP_CONNECTOR_SERVICE) {
+            connection.services.SIP_CONNECTOR_SERVICE = services.SIP_CONNECTOR_SERVICE;
           }
         }
       };
@@ -327,13 +366,14 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           return prefix + "-" + randomBytes;
       };
 
+
       /** @lends module:rtcomm.connector.EndpointConnection.prototype */
       return {
         /*
          * Instance Methods
          */
 
-        normalizeTopic: function normalizeTopic(topic) {
+        normalizeTopic: function normalizeTopic(topic, adduserid) {
         /*
          * The messaging standard is such that we will send to a topic
          * by appending our clientID as follows:  topic/<clientid>
@@ -342,35 +382,36 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          * toTopic, in that case we will leave it alone.
          *
          */
-
-        // our topic should contain the rtcommTopicPath -- we MUST stay in the topic Path... and we MUST append our ID after it, so...
-
+         // our topic should contain the rtcommTopicPath -- we MUST stay in the topic Path... 
+         // and we MUST append our ID after it, so...
           if (topic) {
-            l('TRACE') && console.log(this+'.send toTopic is: '+topic);
+            l('TRACE') && console.log(this+'.normalizeTopic topic is: '+topic);
             var begin = this.config.rtcommTopicPath;
-            var end = this.config.userid;
+            adduserid = (typeof adduserid === 'boolean') ? adduserid : true;
+            var end = (adduserid) ? this.config.userid: '';
             var p = new RegExp("^" + begin,"g");
             topic = p.test(topic)? topic : begin + topic;
             var p2 = new RegExp(end + "$", "g");
             topic = p2.test(topic) ? topic: topic + "/" + end;
+            // Replace Double '//' if present
+            topic = topic.replace(/\/+/g,'\/');
           } else {
-            if (this.connectorTopicName) { 
-              topic = this.normalizeTopic(this.connectorTopicName);
+            if (this.config.connectorTopicName) { 
+              topic = this.normalizeTopic(this.config.connectorTopicName);
             } else {
               throw new Error('normalize Topic requires connectorTopicName to be set - call serviceQuery?');
-            
             }
           }
-          l('TRACE') && console.log(this+'.getTopic returing topic: '+topic);
+          l('TRACE') && console.log(this+'.normalizeTopic returing topic: '+topic);
           return topic;
         },
-
 
         /*global setLogLevel:false */
         setLogLevel: function(level) {
           setLogLevel(level);
         //  util && util.setLogLevel(level);
         },
+
         /*global getLogLevel:false */
         getLogLevel: getLogLevel,
         /* Factory Methods */
@@ -385,11 +426,33 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           l('DEBUG')&&console.log(this+'.createMessage() returned', message);
           return message;
         },
+        createPresenceDocument: function(config){
+          var presenceDocument = MessageFactory.createMessage('DOCUMENT');
+          presenceDocument.addressTopic = this.getMyTopic();
+          presenceDocument.appContext = this.appContext;
+          if (config) {
+            presenceDocument.state = config.state || presenceDocument.state;
+            presenceDocument.alias = config.alias || presenceDocument.alias;
+            presenceDocument.userDefines = config.userDefines || presenceDocument.userDefines;
+          }
+          return presenceDocument;
+        },
+
+        publishPresence : function(presenceDoc) {
+          if (this.config.publishPresence) {
+            this.publish(this.getMyPresenceTopic(), presenceDoc, true);
+          } else {
+            throw new Error('Cannot publish presence if publishPresence != true upon connection creation');
+          }
+          return this;
+        },
         /**
          * Create a Response Message for this EndpointConnection
          */
         createResponse : function(type) {
           var message = MessageFactory.createResponse(type);
+          // default response is SUCCESS
+          message.result = 'SUCCESS';
           return message;
         },
         /**
@@ -414,9 +477,14 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           if (!this.connected) {
             throw new Error('not Ready -- call connect() first');
           }
+
           // start a transaction of type START_SESSION
           // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
           // if message & fromEndpointID -- we are inbound..
+          //  ALWAYS use a configure toTopic as an override.
+          if (config && config.remoteEndpointID) {
+            config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
+          }
           /*global SigSession:false*/
           var session = new SigSession(config);
           session.endpointconnector = this;
@@ -435,7 +503,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          *
          */
         _query : function(message, contentfield, cbSuccess, cbFailure) {
-          var successContent = contentfield || 'peerContent';
+          var successContent = contentfield || 'payload';
           var onSuccess = function(query_response) {
             if (cbSuccess && typeof cbSuccess === 'function') {
               if (query_response) {
@@ -456,7 +524,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             }
           };
           if (this.connected) {
-            var t = this.createTransaction({message: message, toTopic: this.config.managementTopicName }, onSuccess,onFailure);
+            var t = this.createTransaction({
+              message: message, 
+              toTopic: this.config.managementTopicName 
+            }, onSuccess,onFailure);
             t.start();
           } else {
             console.error(this+'._query(): not Ready!');
@@ -470,7 +541,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         connect : function(cbSuccess, cbFailure) {
           var epConn = this;
-          l('DEBUG') && console.log(this+'.connect() LWT topic: '+ this.getSphereTopic()+ ' message', this.getLwtMessage());
+
+          l('DEBUG') && console.log(this+'.connect() LWT topic: '+ this.getMyPresenceTopic()+ ' message', this.getLwtMessage());
           cbSuccess = (typeof cbSuccess === 'function') ? cbSuccess :
             function(service) {
               l('DEBUG') && console.log('Success - specify a callback for more information', service);
@@ -480,7 +552,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             function(error) {
               console.error('EndpointConnection.connect() failed - specify a callback for more information', error);
           };
-          if (!this._init) {
+          if (!this._.init) {
             throw new Error('not initialized -- call init() first');
           }
           if (this.connected) {
@@ -495,17 +567,20 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             this.connected = false;
             cbFailure(error);
           };
-          this.mqttConnection.connect({'willMessage': this.getLwtMessage(),
-                                       'lwtTopic' : this.getSphereTopic(),
-                                      'onSuccess': onSuccess.bind(this),
-                                       'onFailure': onFailure.bind(this)});
-        },
+
+          var mqttConfig ={'onSuccess': onSuccess.bind(this),
+                           'onFailure': onFailure.bind(this)};
+          if (this.config.publishPresence) {
+            mqttConfig.willMessage = this.getLwtMessage();
+            mqttConfig.presenceTopic =this.getMyPresenceTopic();
+          }
+          // Connect MQTT
+          this.mqttConnection.connect(mqttConfig);
+         },
         disconnect : function() {
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
-          this.unregister();
-          l('DEBUG') && console.log(this+'.disconnect() RegisterTimer should be null: '+ this._registerTimer);
           l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
-          this.publish(this.getSphereTopic(), this.getLwtMessage());
+          this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
           this.sessions.clear();
           this.transactions.clear();
           this.clearEventListeners();
@@ -521,10 +596,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         serviceQuery: function(cbSuccess, cbFailure) {
           var self = this;
           cbSuccess = cbSuccess || function(message) {
-            console.log(this+'.serviceQuery() Default Success message, use callback to process:', message);
+            l('DEBUG') && console.log(this+'.serviceQuery() Default Success message, use callback to process:', message);
           };
           cbFailure = cbFailure || function(error) {
-            console.log(this+'.serviceQuery() Default Failure message, use callback to process:', error);
+            l('DEBUG') && console.log(this+'.serviceQuery() Default Failure message, use callback to process:', error);
           };
 
           if (!this.id) {
@@ -544,109 +619,6 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
                     cbFailure);
           } else {
             console.error('Unable to execute service query, not connected');
-          }
-        },
-
-        /**
-         *  Register the 'userid' used in {@link module:rtcomm.RtcommEndpointProvider#init|init} with the
-         *  rtcomm service so it can receive inbound requests.
-         *
-         *  @param {string} [userid] 
-         *  @param {function} [onSuccess] Called when register completes successfully with the returned message about the userid
-         *  @param {function} [onFailure] Callback executed if register fails, argument contains reason.
-         */
-        register : function(userid, cbSuccess, cbFailure) {
-          var endpointConnection = this;
-          l('DEBUG') && console.log(endpointConnection+'.register() Register Timer is set to: '+this._registerTimer);
-          // Initialize the input
-          if (typeof userid === 'function') { 
-            cbFailure = cbSuccess;
-            cbSuccess = userid;
-            userid = null;
-          }
-          cbSuccess = cbSuccess || function(message) {
-            console.log(endpointConnection+'.register() Default Success message, use callback to process:', message);
-          };
-          cbFailure = cbFailure || function(error) {
-            console.log(endpointConnection+'.register() Default Failure message, use callback to process:', error);
-          };
-          var minimumReregister = 30;  // 30 seconds;
-          var onSuccess = function(register_message) {
-            l('DEBUG') && console.log(endpointConnection+'register() REGISTER RESPONSE: ', register_message);
-            //
-            // TO BE removed in the future.  Configure how to disable this.
-            // Essentially, if the SERVICE_QUERY does not return an LWT topic, we know our LWT won't
-            // work.  So, we need to keep our time.
-            //
-            if (!this.useLwt()) {
-              if (register_message.orig === 'REGISTER' && register_message.expires) {
-                var expires = register_message.expires;
-                l('DEBUG') && console.log(endpointConnection+'.register() Message Expires in: '+ expires);
-                /* We will reregister every expires/2 unless that is less than minimumReregister */
-                var regAgain = expires/2>minimumReregister?expires/2:minimumReregister;
-                // we have a expire in seconds, register a timer...
-                l('DEBUG') && console.log(endpointConnection+'.register() Setting Timeout to:  '+regAgain*1000);
-                endpointConnection._registerTimer = setTimeout(endpointConnection.register.bind(endpointConnection), regAgain*1000);
-              }
-            }
-            endpointConnection.registered = true;
-            // Call our passed in w/ no info...
-            if (cbSuccess && typeof cbSuccess === 'function') {
-              cbSuccess(register_message);
-            } else {
-              l('DEBUG') && console.log(endpointConnection + ".register() Register Succeeded (use onSuccess Callback to get the message)", register_message);
-            }
-          };
-          // {'failureReason': 'some reason' }
-          var onFailure = function(errorObject) {
-            if (cbFailure && typeof cbFailure === 'function') {
-              cbFailure(errorObject.failureReason);
-            } else {
-              console.error('Registration failed : '+errorObject.failureReason);
-            }
-          };
-
-          var doRegister =  function() {
-            var message = endpointConnection.createMessage('REGISTER');
-            message.appContext = endpointConnection.appContext;
-            message.regTopic = message.fromTopic;
-            var t = endpointConnection.createTransaction({message:message}, onSuccess.bind(this), onFailure.bind(this));
-            t.start();
-          }.bind(this);
-
-          /*
-           * It is possible to register with an id, if one is not already set. 
-           */
-
-          if (userid) {
-            this.setUserID(userid);
-          }
-
-          if (this.userid) {
-            if (this.ready) {
-              doRegister(true);
-            } else {
-              this.serviceQuery(doRegister, cbFailure);
-            }
-          } else {
-            cbFailure('No userid to register');
-          }
-        },
-        /**
-         *  Unregister the userid associated with the EndpointConnection
-         */
-        unregister : function() {
-          if (this._registerTimer) {
-            clearTimeout(this._registerTimer);
-            this._registerTimer=null;
-            var message = this.createMessage('REGISTER');
-            message.regTopic = message.fromTopic;
-            message.appContext = this.appContext;
-            message.expires = "0";
-            this.send({'message':message});
-            this.registered = false;
-          } else {
-            l('DEBUG') && console.log(this+' No registration found, cannot unregister');
           }
         },
         /**
@@ -669,8 +641,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
 
         //TODO:  Expose all the publish options... (QOS, etc..);
-        publish: function(topic, message) {
-          this.mqttConnection.publish(topic, message);
+        publish: function(topic, message, retained) {
+          this.mqttConnection.publish(topic, message, retained);
         },
 
         destroy : function() {
@@ -687,10 +659,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           if (!this.connected) {
             throw new Error('not Ready -- call connect() first');
           }
-          var toTopic = null;
           if (config) {
-            toTopic = this.normalizeTopic(config.toTopic);
-            this.mqttConnection.send({userid: this.config.userid, message:config.message, toTopic:toTopic});
+            var toTopic = this.normalizeTopic(config.toTopic);
+            this.mqttConnection.send({message:config.message, toTopic:toTopic});
           } else {
             console.error('EndpointConnection.send() Nothing to send');
           }
@@ -702,35 +673,52 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          * set the userid
          */
         setUserID : function(id) {
+
           id = id || createGuestUserID();
           l('DEBUG') && console.log(this+'.setUserID id is '+id);
-          if (this.id === null) {
+          if (this.id === null || /^GUEST/.test(this.id)) {
             // Set the id to what was passed.
             this.id = this.userid = this.config.userid = id;
+            return id;
+          } else if (this.id === id){
+            l('DEBUG') && console.log(this+'.setUserID() already set to same value: '+id);
             return id;
           } else {
             console.error(this+'.setUserID() ID already set, cannot be changed: '+ this.id);
             return id;
            }
         },
+        getUserID : function() {
+          return this.config.userid;
+        }, 
         getLwtMessage: function() {
           // should be an empty message
-          this.private.willMessage =  this.private.willMessage || ''; 
-          return this.private.willMessage;
+          this._.willMessage =  this._.willMessage || ''; 
+          return this._.willMessage;
         },
-        getSphereTopic: function() {
-          this.private.sphereTopic =  this.private.sphereTopic || this.normalizeTopic(this.config.sphereTopicName);
-          l('DEBUG') && console.log(this+'.getSphereTopic() returning topic: '+this.private.sphereTopic);
-          return this.private.sphereTopic;
+        /**
+         * Return the topic my presence is published to (includes user id);
+         */
+        getMyPresenceTopic: function() {
+          this._.presenceTopic = this._.presenceTopic || this.normalizeTopic(this.config.presence.rootTopic + this.config.presence.topic ,true);
+          l('DEBUG') && console.log(this+'.getMyPresenceTopic() returning topic: '+this._.presenceTopic);
+          return this._.presenceTopic;
+        },
+
+        getPresenceRoot: function() {
+          l('DEBUG') && console.log(this+'.getPresenceRoot() returning topic: '+ 
+                                   this.normalizeTopic(this.config.presence.rootTopic, false));
+          return this.normalizeTopic(this.config.presence.rootTopic,false);
         },
         useLwt: function() {
-          if (this.RTCOMM_CONNECTOR_SERVICE.sphereTopic) {
+          if (this.services.RTCOMM_CONNECTOR_SERVICE.sphereTopic) {
             return true;
           } else {
             return false;
           }
         }
-        
     };
   })()
 );
+/* globals exports:false */
+exports.EndpointConnection = EndpointConnection;

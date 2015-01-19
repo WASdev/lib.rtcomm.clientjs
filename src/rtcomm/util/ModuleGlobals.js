@@ -13,6 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/ 
+
+// what we will export in the module
+// Module Name
+var exports = {};
+var util = exports;
+
+/*jshint -W030*/
 var Log = function Log() {
     var LOG_LEVEL = {"MESSAGE": 1,// bin '01' Only MESSAGE lines
         "INFO": 2,  // bin '10'   -- Only Info Messages
@@ -42,10 +49,11 @@ var Log = function Log() {
 
 // Enables logging for util methods.
 // If already defined, use that one?
-console.log('logging already set? ', logging);
+// console.log('logging already set? ', logging);
 
 var logging =  logging || new Log(),
-    l = logging.l,
+    l = logging.l;
+
 /**
  *  validate a config object against a reference object
  *
@@ -56,7 +64,7 @@ var logging =  logging || new Log(),
  *
  *
  */
-validateConfig = function validateConfig(/* object */ config, /* object */ reference) {
+var validateConfig = function validateConfig(/* object */ config, /* object */ reference) {
   // take 'reference' and ensure all the entries are in it and have same type.
   for (var key in reference) {
     if (config.hasOwnProperty(key)) {
@@ -70,7 +78,7 @@ validateConfig = function validateConfig(/* object */ config, /* object */ refer
     }
   }
   return true;
-},
+};
 /**
  *  When given a config object apply config to it(by default):
  *
@@ -82,7 +90,7 @@ validateConfig = function validateConfig(/* object */ config, /* object */ refer
  *  @param {object} obj - Object to apply config to.
  *  @param {boolean} lenient - If true, apply all config to obj, whether exists or not.
  */
-applyConfig = function applyConfig(config, obj, lenient ) {
+var applyConfig = function applyConfig(config, obj, lenient ) {
   var configurable = [];
   // What we can configure
   for (var prop in obj) {
@@ -102,7 +110,7 @@ applyConfig = function applyConfig(config, obj, lenient ) {
   }
   return true;
   //console.log(configurable);
-},
+};
 
 
 /*
@@ -110,7 +118,8 @@ applyConfig = function applyConfig(config, obj, lenient ) {
  *  @param configDefinition { required: {}, optional: {}, defaults{}}
  *  @param config config to check and apply defaults 
  */
-setConfig = function(config,configDefinition) {
+var setConfig = function(config,configDefinition) {
+  l('DEBUG') && console.log(this+'.setConfig() passed in: -->  '+JSON.stringify(config));
   var requiredConfig = configDefinition.required || {};
   var possibleConfig = configDefinition.optional || {};
   var defaultConfig = configDefinition.defaults || {};
@@ -139,21 +148,27 @@ setConfig = function(config,configDefinition) {
     for (key in config) {
       if(config.hasOwnProperty(key) && configObj.hasOwnProperty(key)) {
         // config key can be set, set it...
-        configObj[key] = config[key];
+        // 'null' is an object, have to make sure this is not null too.
+        if (config[key] && typeof config[key] === 'object') {
+          configObj[key]= combineObjects(config[key], configObj[key]);
+        } else { 
+          configObj[key] = config[key];
+        }
       } else{
         throw new Error(key + ' is an invalid property for '+ JSON.stringify(configObj) );
       }
     }
+    l('DEBUG') && console.log(this+'.setConfig() Returning -->  '+JSON.stringify(configObj));
     return configObj;
   } else {
     throw new Error("A minumum config is required: " + JSON.stringify(requiredConfig));
   }
-},
+};
 /*
  * combine left object with right object
  * left object takes precendence
  */
-combineObjects = function combineObjects(obj1, obj2) {
+var combineObjects = function combineObjects(obj1, obj2) {
   var allkeys = [];
   var combinedObj = {};
   // What keys do we have
@@ -172,17 +187,17 @@ combineObjects = function combineObjects(obj1, obj2) {
     combinedObj[key] = obj1[key]?obj1[key]:obj2[key];
   });
   return combinedObj;
-},
+};
 
-makeCopy = function(obj) {
+var makeCopy = function(obj) {
   var returnObject = {};;
   Object.keys(obj).forEach(function(key){
     returnObject[key] = obj[key];
   });
   return returnObject;
-},
+};
 
-whenTrue = function(func1, callback, timeout) {
+var whenTrue = function(func1, callback, timeout) {
   l('DEBUG') && console.log('whenTrue!', func1, callback, timeout);
   var max = timeout || 500;
   var waittime = 0;
@@ -234,5 +249,26 @@ var generateRandomBytes = function(pattern) {
 var generateUUID = function() {
 	return generateRandomBytes('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx');
 };
+var commonArrayItems = function(array1, array2) {
+  var a = [];
+  for (var i = 0; i<array1.length; i++){
+    for (var j = 0; j<array2.length; j++){
+      if (array1[i] === array2[j]) {
+        a.push(array1[i]);
+      }
+    }
+  }
+  return a;
+};
 
+exports.Log = Log;
+exports.validateConfig = validateConfig;
+exports.setConfig = setConfig; 
+exports.applyConfig= applyConfig; 
+exports.generateUUID= generateUUID;
+exports.generateRandomBytes= generateRandomBytes; 
+exports.whenTrue=whenTrue; 
+exports.makeCopy=makeCopy;
+exports.combineObjects = combineObjects;
+exports.commonArrayItems= commonArrayItems;
 

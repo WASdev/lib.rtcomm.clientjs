@@ -91,7 +91,6 @@ var EndpointRegistry = function EndpointRegistry(options) {
       if (registry.hasOwnProperty(appContext)) {
         var eps = Object.keys(registry[appContext]);
         if (eps.length === 1 && singleEndpoint) {
-          console.log('Returning existing object');
           return registry[appContext][eps[0]];
         } else {
           registry[appContext][uuid] = object;

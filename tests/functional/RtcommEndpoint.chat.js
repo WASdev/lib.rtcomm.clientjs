@@ -23,12 +23,12 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'ibm/rtcomm'
+    'umd/rtcomm'
 ], function (registerSuite, assert, Deferred, globals,config, rtcomm) {
 
     var createProvider = function createProvider(userid,appContext) {
       var dfd = new Deferred();
-      var EP = new rtcomm.EndpointProvider();
+      var EP = new rtcomm();
       EP.setLogLevel('DEBUG');
       EP.setUserID(userid);
       EP.setAppContext(appContext);
@@ -40,6 +40,20 @@ define([
         function(message) { console.error('init failed', message); dfd.reject(message);}
       );
       return dfd.promise;
+    };
+
+    var createAutoConnectEP = function createAutoConnectEP(provider) {
+      var ep = provider.createRtcommEndpoint();
+    //  ep.on('session:started', function() {});
+     // ep.on('session:trying', function() {});
+      //ep.on('session:ringing', function() {});
+      ep.on('session:alerting', function() {
+        ep.accept();
+      });
+      //ep.on('session:failed', function() {});
+      //ep.on('chat:connected', function() {});
+      //ep.on('chat:disconnected', function() {});
+      //ep.on('chat:message', function() {});
     };
 
     var EP1 = null;
@@ -88,14 +102,8 @@ define([
           assert.equal(EP1.endpoints().length, 1);
           assert.equal(EP2.endpoints().length ,1);
         },
-
-        'connect 2 sessions':function() {
-          this.skip();
-          var dfd = this.async(3000);
-          console.log(EP1.currentState());
-          console.log(EP1.currentState());
-          EP1.setLogLevel('DEBUG');
-          EP2.setLogLevel('DEBUG');
+        'connect 2 sessions[No Liberty]':function() {
+          var dfd = this.async(10000);
           chat1.on('chat:message', function(message){
             console.log('****************************MESSAGE ***', message)
           });
@@ -110,10 +118,44 @@ define([
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
-          chat1.connect(uid2);
+          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         },
-        'Initial Chat message on connect (if enabled)': function() {
+        'Issue 33:  Busy connect 2 sessions[No Liberty]':function() {
+          /* chat1 calls chat2 which accepts.  
+           * chat3 calls chat2 -- should get 'BUSY'
+           */
+          var dfd = this.async(10000);
+          // We have a 3rd endpoint here...
+          var chat3, EP3;
+          chat1.on('chat:message', function(message){
+            console.log('****************************MESSAGE ***', message)
+          });
+          chat2.on('session:alerting', function(){
+            chat2.accept();
+          });
+
+          /** FINISH **/
+          var finish = dfd.callback( function(obj) {
+            //obj should be a WebRTCConnection
+            // and Source should match our topic we know...
+            console.log('FINISH Called!', obj);
+            assert.equal('Busy', obj.reason, 'Session Failed correctly!');
+            assert.isNull(chat3._.activeSession, 'No ActiveSession (GOOD)!');
+          });   
+          chat1.on('session:started',function() {
+            // Now create a 3rd endpoint
+            EP3 = createProvider('client3','internChatTest').then(function(EP){
+              chat3 = EP.createRtcommEndpoint();
+              chat3.on('session:failed',finish);
+              chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+            });
+          });
+          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+        },
+        'Initial Chat message on connect (if enabled) [No Liberty]': function() {
           console.log('************** START OF TEST ********************');
+          console.log('chat1: ', chat1);
+          console.log('chat2: ', chat2);
           /*
            * Enable chat prior to connect.  We should get a message
            * then connect.
@@ -122,45 +164,109 @@ define([
           var bad_alert = false;
           var c1_started = false;
           var c2_started = false;
-          var c2_messages = false;
+          var c1_rcv_message = null;
+          var c2_rcv_message = null;
           var alert_message = false;
 
+          var c1Toc2Msg = "Hello from c1";
+          var c2Toc1Msg = "Hello from c2";
 
           chat1.chat.enable();
+
+          var finish = dfd.callback(function(event){
+            /*
+             * This is where we assert the test passed
+             */
+            console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
+            assert.notOk(bad_alert, 'Chat1 alert should not be called');
+            assert.ok(c1_started, 'Chat1 should be started');
+            assert.ok(c2_started, 'Chat2 should be started');
+            assert.equal(c2_rcv_message,c1Toc2Msg,  'Chat2 received message from chat1');
+            assert.equal(c1_rcv_message,c2Toc1Msg,  'Chat1 received message from chat2');
+            assert.equal(alert_message,'client1 has initiated a Chat with you', "Received chat from startup");
+            console.log('TEST >>>>> Finished asserting');
+          });
+
           chat1.on('session:alerting', function(event) {
             // Should not get here.
             bad_alert = true;
           });
           chat1.on('session:started', dfd.callback(function(event){
-            /*
-             * This is where we assert the test passed
-             */
             c1_started = true;
-            console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
-            assert.notOk(bad_alert, 'Chat1 alert should not be called');
-            assert.ok(c1_started, 'Chat1 should be started');
-            assert.ok(c2_started, 'Chat2 should be started');
-            assert.notOk(c2_messages, 'Chat2 should not receive any messages on chat:message');
-            assert.equal(alert_message,'client1 has initiated a Chat with you', "Received chat from startup");
-            // Send messages here?
+            console.log(' TEST >>>>>> Chat 1Session Started Event --> Sending messages');
+            chat1.chat.send(c1Toc2Msg);
+            chat2.chat.send(c2Toc1Msg);
+            setTimeout(function(){
+              console.log(' TEST >>>>>> Chat1 DISCONNECTING ');
+              chat1.disconnect();
+            },2000);
           }));
+          chat1.on('chat:message', function(event){
+            console.log('Received a Chat message...', event);
+            c1_rcv_message = event.message;;
+            // message is event_object.message.message
+          });
           chat2.on('session:started', function(event){
             c2_started = true;
             console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
             // Send messages here?
           });
           chat2.on('session:alerting', function(event) {
-            assert.equal(event.protocols, 'chat', 'Correct protocol');
-            chat2.chat.accept();
+           // assert.equal(event.protocols, 'chat', 'Correct protocol');
             console.log('Received a Chat message...', event);
-            alert_message = event.message.message;
+            chat2.accept();
+            alert_message = event.message;
           });
           chat2.on('chat:message', function(event){
             console.log('Received a Chat message...', event);
-            c2_messages = true;
+            c2_rcv_message = event.message;
             // message is event_object.message.message
           });
-          chat1.connect(uid2);
-        }
+          chat2.on('session:stopped', finish)
+          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+        },
+
+        'connect 2 chat clients via 3PCC':function() {
+          var dfd = this.async(10000);
+          var refer = false;
+          var alerted = false;
+          chat1.on('chat:message', function(message){
+            console.log('****************************MESSAGE ***', message)
+          });
+          chat1.on('session:refer', function(){
+            // If we get a refer, connect!
+            refer = true;
+            console.log('*** REFER RECEIVED ***');
+            chat1.connect();
+          });
+          chat2.on('session:alerting', function(){
+            console.log('*** ALERTING RECEIVED ***');
+            alerted = true;
+            chat2.accept();
+          });
+          var finish = dfd.callback( function(obj) {
+            //obj should be a WebRTCConnection
+            // and Source should match our topic we know...
+            console.log('FINISH Called!', obj);
+            assert.ok(chat2.sessionStarted(), 'Session Started!');
+          });   
+          //chat1.on('session:started',finish);
+          console.log('USING UID: ', uid2);
+          var mq = EP1.getMqttEndpoint();
+          var ThirdPCC = "3PCCTestNode";
+          var ThirdPCCMessage = { 
+            'rtcommVer' : 'v0.0.1',
+            'method': '3PCC_PLACE_CALL',
+            'callerEndpoint': EP1.getUserID(),
+            'calleeEndpoint': EP2.getUserID(),
+            'appContext':appContext,
+            'fromTopic': '/'+ThirdPCC,
+            'transID': '1111-1111-1111-1111'};
+          mq.subscribe("/"+ThirdPCC+ "/#");
+          mq.on('message', finish);
+
+          mq.publish("/rtcommscott/callControl", ThirdPCCMessage);
+        //  chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+        },
     });
 });

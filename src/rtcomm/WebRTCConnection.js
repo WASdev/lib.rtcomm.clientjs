@@ -32,9 +32,10 @@ var WebRTCConnection = (function invocation() {
     };
 
     this.config = {
-      RTCConfiguration : null,
-      RTCOfferConstraints: null,
+      RTCConfiguration : {iceTransports : "all"},
+      RTCOfferConstraints: OfferConstraints,
       RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
+      iceServers: [],
       mediaIn: null,
       mediaOut: null,
       broadcast: {
@@ -67,6 +68,8 @@ var WebRTCConnection = (function invocation() {
     this.onDisabledMessage = null;
 
   };
+
+  /*global util:false*/
 
   WebRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.WebRTCConnection.prototype */
@@ -102,8 +105,11 @@ var WebRTCConnection = (function invocation() {
       //
       var self = this;
       var parent = self.dependencies.parent;
+      /*global l:false*/
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
+
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
+      RTCConfiguration.iceServers = RTCConfiguration.iceServers || this.getIceServers();
       var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
       this.config.RTCOfferConstraints= (config && config.RTCOfferConstraints) ? config.RTCOfferConstraints: this.config.RTCOfferConstraints;
 
@@ -195,7 +201,7 @@ var WebRTCConnection = (function invocation() {
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
-                sendMethod({message: offersdp});
+                sendMethod({payload: self.createMessage(offersdp)});
                 self._setState('trying');
                 self.pc.setLocalDescription(offersdp, function(){
                   l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
@@ -222,7 +228,7 @@ var WebRTCConnection = (function invocation() {
 
     _disconnect: function() {
       if (this.pc && this.pc.signalingState !== 'closed') {
-        l('DEBUG') && console.debug(this+'._disconnect() Closing peer connection');
+        l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
        this.pc.close();
       }
 
@@ -239,9 +245,9 @@ var WebRTCConnection = (function invocation() {
     send: function(message) {
       var parent = this.dependencies.parent;
       // Validate message?
-      message = (message && message.message) ? message.message : message;
+      message = (message && message.payload) ? message.payload: message;
       if (parent._.activeSession) {
-        parent._.activeSession.send(message);
+        parent._.activeSession.send(this.createMessage(message));
       }
     },
 
@@ -254,20 +260,22 @@ var WebRTCConnection = (function invocation() {
       var doAnswer = function doAnswer() {
         l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
         l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
-        console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
-        console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
-        console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
+        //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
+        //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
+        //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
         self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
           console.error('failed to create answer', error);
-        }
-        //self.config.RTCOfferConstraints);
+        },
+         self.config.RTCOfferConstraints
         );
       };
       l('DEBUG') && console.log(this+'.accept() -- accepting --');
       if (this.getState() === 'alerting') {
         this.enableLocalAV(doAnswer);
+        return true;
+      } else {
+        return false;
       }
-      return this;
     },
     /** reject an inbound connection */
     reject: function() {
@@ -293,7 +301,7 @@ var WebRTCConnection = (function invocation() {
         return true;
       } else {
         return false;
-      };
+      }
     },
     /** configure broadcast 
      *  @param {object} broadcast 
@@ -301,17 +309,21 @@ var WebRTCConnection = (function invocation() {
      *  @param {boolean} broadcast.video
      */
     setBroadcast : function setBroadcast(broadcast) {
-      this.config.broadcast.audio = (broadcast.hasOwnProperty('audio') && typeof broadcast.audio === 'boolean') ?
-        broadcast.audio :
-        this.config.broadcast.audio;
-      this.config.broadcast.video= (broadcast.hasOwnProperty('video') && typeof broadcast.video=== 'boolean') ?
-        broadcast.video:
-        this.config.broadcast.video;
+      this.config.broadcast.audio = (broadcast.hasOwnProperty('audio') && 
+                                     typeof broadcast.audio === 'boolean') ? 
+                                      broadcast.audio :
+                                      this.config.broadcast.audio;
+      this.config.broadcast.video= (broadcast.hasOwnProperty('video') && 
+                                    typeof broadcast.video=== 'boolean') ?
+                                      broadcast.video:
+                                      this.config.broadcast.video;
+      /*
       if (!broadcast.audio && !broadcast.video) { 
         this.config.RTCOfferConstraints= {'mandatory': {OfferToReceiveAudio: true, OfferToReceiveVideo: true}};
       } else {
         this.config.RTCOfferConstraints = null;
       }
+      */
       return this;
     },
     pauseBroadcast: function() {
@@ -401,11 +413,12 @@ var WebRTCConnection = (function invocation() {
     var PRANSWER = (pcSigState === 'have-remote-offer') && (sessionState === 'starting');
     var RESPOND = sessionState === 'pranswer' || pcSigState === 'have-local-pranswer';
     var SKIP = false;
+    var message = this.createMessage(desc);
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     if (RESPOND) {
       l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
-      console.log(this+'.createAnswer sending answer as a RESPONSE', desc);
-      session.respond(true, desc);
+      //console.log(this+'.createAnswer sending answer as a RESPONSE', message);
+      session.respond(true, message);
       this._setState('connected');
     } else if (PRANSWER){
       l('DEBUG') && console.log(this+'.createAnswer sending PRANSWER');
@@ -414,11 +427,11 @@ var WebRTCConnection = (function invocation() {
       answer.type = 'pranswer';
       answer.sdp = this.pranswer ? desc.sdp : '';
       desc = answer;
-      session.pranswer(desc);
+      session.pranswer(this.createMessage(desc));
     } else if (this.getState() === 'connected' || this.getState() === 'alerting') {
       l('DEBUG') && console.log(this+'.createAnswer sending ANSWER (renegotiation?)');
       // Should be a renegotiation, just send the answer...
-      session.send(desc);
+      session.send(message);
     } else {
       SKIP = true;
       this._setState('alerting');
@@ -432,6 +445,19 @@ var WebRTCConnection = (function invocation() {
         /*error*/ function(message) {
         console.error(message);
       });
+    }
+  },
+
+  createMessage: function(content) {
+    if (content) {
+      if (content.type && content.content) {
+        // presumably OK, just return it
+        return content;
+      } else {
+        return {'type':'webrtc', 'content': content};
+      }
+    } else {
+        return {'type':'webrtc', 'content': content};
     }
   },
 
@@ -458,8 +484,11 @@ var WebRTCConnection = (function invocation() {
          *
          */
         // Set our local description
-        isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
-        this._setState('ringing');
+        //  Only set state to ringing if we have a local offer...
+        if (isPC && this.pc.signalingState === 'have-local-offer') {
+          isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          this._setState('ringing');
+        }
         break;
       case 'answer':
         /*
@@ -490,7 +519,7 @@ var WebRTCConnection = (function invocation() {
          * to inform the UI.
          */
         var offer = message;
-        l('DEBUG') && console.log(this+'_processMessage received an offer ');
+        l('DEBUG') && console.log(this+'_processMessage received an offer -> State:  '+this.getState());
         if (this.getState() === 'disconnected') {
            self.pc.setRemoteDescription(new MyRTCSessionDescription(offer),
              /*onSuccess*/ function() {
@@ -519,6 +548,7 @@ var WebRTCConnection = (function invocation() {
         }
         break;
       case 'icecandidate':
+        l('DEBUG') && console.log(this+'_processMessage iceCandidate --> message:', message);
         try {
           var iceCandidate = new MyRTCIceCandidate(message.candidate);
           l('DEBUG') && console.log(this+'_processMessage iceCandidate ', iceCandidate );
@@ -602,7 +632,7 @@ var WebRTCConnection = (function invocation() {
       this.setBroadcast({audio: audio, video: video});
     } else {
       callback = (typeof options === 'function') ? options : function(success, message) {
-       l('DEBUG') && console.debug(self+'.enableLocalAV() default callback(success='+success+',message='+message);
+       l('DEBUG') && console.log(self+'.enableLocalAV() default callback(success='+success+',message='+message);
       };
       // using current settings.
       audio = this.config.broadcast.audio;
@@ -640,9 +670,60 @@ var WebRTCConnection = (function invocation() {
         });
       }
     } else {
-      l('DEBUG') && console.debug(self+'.enableLocalAV() - nothing to do; both audio & video are false');
+      l('DEBUG') && console.log(self+'.enableLocalAV() - nothing to do; both audio & video are false');
     }
-  }
+  },
+
+ setIceServers: function(service) {
+   function buildTURNobject(url) {
+     // We expect this to be in form 
+     // turn:<userid>@servername:port:credential:<password>
+     var matches = /^turn:(\S+)\@(\S+\:\d+):credential:(.+$)/.exec(url);
+     var user = matches[1] || null;
+     var server = matches[2] || null;
+     var credential = matches[3] || null;
+
+     var iceServer = {
+       'url': null,
+       'username': null,
+       'credential': null
+     };
+     if (user && server && credential) {
+       iceServer.url = 'turn:'+server;
+       iceServer.username= user;
+       iceServer.credential= credential;
+     } else {
+       l('DEBUG') && console.log('Unable to parse the url into a Turn Server');
+       iceServer = null;
+     }
+     return iceServer;
+   }
+
+    // Returned object expected to look something like:
+    // {"iceServers":[{"url": "stun:host:port"}, {"url","turn:host:port"}] 
+    var urls = [];
+    if (service && service.iceURL)  {
+        service.iceURL.split(',').forEach(function(url){
+          // remove leading/trailing spaces
+          url = url.trim();
+          var obj = null;
+          if (/^stun:/.test(url)) {
+            l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url);
+            obj = {'url': url};
+          } else if (/^turn:/.test(url)) {
+            l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url);
+            obj = buildTURNobject(url);
+          } else {
+            l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url);
+          }
+          obj && urls.push(obj);
+        });
+    } 
+    this.config.iceServers = urls;
+   },
+  getIceServers: function() {
+    return this.config.iceServers;
+    }
  };
 
 })()); // End of Prototype
@@ -650,7 +731,7 @@ var WebRTCConnection = (function invocation() {
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;
   if (typeof MyRTCPeerConnection !== 'undefined'){
-    l('DEBUG')&& console.log("Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
+    l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
     peerConnection = new MyRTCPeerConnection(RTCConfiguration, RTCConstraints);
 
     //attach callbacks
@@ -821,6 +902,7 @@ var MyRTCIceCandidate = (function() {
   //  throw new Error("Unsupported Browser: ", getBrowser());
   }
 })();
+
 l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
 
 var validMediaElement = function(element) {
@@ -897,28 +979,8 @@ var getUserMedia, attachMediaStream,detachMediaStream;
   detachMediaStream = skip;
 }
 
-  var getIceServers = function(object) {
-    // Expect object to look something like:
-    // {"iceservers":{"urls": "stun:host:port", "urls","turn:host:port"} }
-    var iceServers = [];
-    var services = null;
-    var servers = null;
-    if (object && object.services && object.services.iceservers) {
-      servers  = object.services.iceservers;
-      if (servers && servers.iceURL) {
-        var urls = [];
-        servers.iceURL.split(',').forEach(function(url){
-          urls.push({'url': url});
-        });
-        iceServers = {'iceServers':urls};
-        return iceServers;
-      }
-    } else {
-      return  {'iceServers':[]};
-    }
-  };
 return WebRTCConnection;
 
-})()
+})();
 
 
