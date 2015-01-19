@@ -194,6 +194,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
           this.remoteEndpointID = message.fromEndpointID;
         }
         this._startTransaction = null;
+        // If we were created due to a refer, respond.
         this.referralTransaction && 
           this.referralTransaction.finish(this.endpointconnector.createResponse('REFER'));
         this.emit('started', message.payload);
@@ -202,6 +203,13 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       var session_failed = function(message) {
         this._startTransaction = null;
         var reason = (message && message.reason) ? message.reason : 'Session Start failed for unknown reason';
+        // fail the referral transaction if exists.
+        if (this.referralTransaction) {
+          var msg = this.endpointconnector.createResponse('REFER');
+          msg.result = 'FAILURE';
+          msg.reason = reason;
+          this.referralTransaction.finish(msg);
+        } 
         this.state = 'stopped';
         console.error('Session Start Failed: ', reason);
         this.emit('failed', reason);

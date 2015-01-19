@@ -451,6 +451,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         createResponse : function(type) {
           var message = MessageFactory.createResponse(type);
+          // default response is SUCCESS
+          message.result = 'SUCCESS';
           return message;
         },
         /**

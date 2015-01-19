@@ -224,6 +224,49 @@ define([
           });
           chat2.on('session:stopped', finish)
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
-        }
+        },
+
+        'connect 2 chat clients via 3PCC':function() {
+          var dfd = this.async(10000);
+          var refer = false;
+          var alerted = false;
+          chat1.on('chat:message', function(message){
+            console.log('****************************MESSAGE ***', message)
+          });
+          chat1.on('session:refer', function(){
+            // If we get a refer, connect!
+            refer = true;
+            console.log('*** REFER RECEIVED ***');
+            chat1.connect();
+          });
+          chat2.on('session:alerting', function(){
+            console.log('*** ALERTING RECEIVED ***');
+            alerted = true;
+            chat2.accept();
+          });
+          var finish = dfd.callback( function(obj) {
+            //obj should be a WebRTCConnection
+            // and Source should match our topic we know...
+            console.log('FINISH Called!', obj);
+            assert.ok(chat2.sessionStarted(), 'Session Started!');
+          });   
+          //chat1.on('session:started',finish);
+          console.log('USING UID: ', uid2);
+          var mq = EP1.getMqttEndpoint();
+          var ThirdPCC = "3PCCTestNode";
+          var ThirdPCCMessage = { 
+            'rtcommVer' : 'v0.0.1',
+            'method': '3PCC_PLACE_CALL',
+            'callerEndpoint': EP1.getUserID(),
+            'calleeEndpoint': EP2.getUserID(),
+            'appContext':appContext,
+            'fromTopic': '/'+ThirdPCC,
+            'transID': '1111-1111-1111-1111'};
+          mq.subscribe("/"+ThirdPCC+ "/#");
+          mq.on('message', finish);
+
+          mq.publish("/rtcommscott/callControl", ThirdPCCMessage);
+        //  chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+        },
     });
 });

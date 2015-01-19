@@ -2,16 +2,30 @@
 
 The rtcomm.js library is a JavaScript Universal Module Description(UMD) formatted module that provides an API for client side web application developers to enable WebRTC functionality.  This module handles signaling and creation of WebRTC PeerConnections between endpoints in a simple and flexible way. This library is works with the 'rtcomm-1.0' feature in WebSphere Liberty Profile server.
 
-
 ##Requirements
 
-1.  An MQTT Server such as IBM MessageSite. For prototyping and development, it is possible to use `messagesight.demos.ibm.com`.
+1.  An MQTT Server such as IBM MessageSite. For prototyping and development, it is possible to use `messagesight.demos.ibm.com`. 
 2.  Chrome or Firefox web browsers that support WebRTC.
 3.  A Liberty Profile server that runs with the  `rtcomm-1.0` feature enabled. 
 
-##Download
+##Installation
+
+There are several methods to install.  
+
+1.  Bower 
+
+'rtcomm' is now a registered bower module and can be installed using bower.  
+```
+bower install rtcomm
+```
+This will handle installing the mqttws31 dependency as well as the rtcomm library.  Once installed, the scripts still need to be loaded in the application html file based on where bower installed the libraries.
+
+2. Download the latest release zip file. 
+
+###Download
 
  Download the latest 'rtcomm.zip' from this [link](https://github.com/WASdev/lib.rtcomm.clientjs/releases/latest)  This file contains the library, sample and documentation.
+
  
 ##Quickstart
 
@@ -73,7 +87,7 @@ After you have downloaded 'lib.rtcomm.clientjs-<release>.zip', Copy and unzip th
 1. Unzip lib.rtcomm.clientjs-<release>.zip file and copy two files into your application($APPDIR):
 ```
     unzip lib.rtcomm.clientjs-<release>.zip
-    cp lib.rtcomm.clientjs-<release>/dist/js/rtcomm.js $APPDIR
+    cp lib.rtcomm.clientjs-<release>/dist/rtcomm.js $APPDIR
     cp lib.rtcomm.clientjs-<release>/lib/mqtt31ws.js $APPDIR 
 ```
 2. Embed in your application:
@@ -237,7 +251,6 @@ grunt
 This will create a **dist** directory with the following contents:
  ```
    |-jsdoc
-   |-js
    |--rtcomm.js
    |--rtcomm.min.js
    |-umd

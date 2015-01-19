@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 15-01-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 15-01-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 19-01-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 19-01-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -1064,6 +1064,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         createResponse : function(type) {
           var message = MessageFactory.createResponse(type);
+          // default response is SUCCESS
+          message.result = 'SUCCESS';
           return message;
         },
         /**
@@ -2156,6 +2158,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
           this.remoteEndpointID = message.fromEndpointID;
         }
         this._startTransaction = null;
+        // If we were created due to a refer, respond.
         this.referralTransaction && 
           this.referralTransaction.finish(this.endpointconnector.createResponse('REFER'));
         this.emit('started', message.payload);
@@ -2164,6 +2167,13 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       var session_failed = function(message) {
         this._startTransaction = null;
         var reason = (message && message.reason) ? message.reason : 'Session Start failed for unknown reason';
+        // fail the referral transaction if exists.
+        if (this.referralTransaction) {
+          var msg = this.endpointconnector.createResponse('REFER');
+          msg.result = 'FAILURE';
+          msg.reason = reason;
+          this.referralTransaction.finish(msg);
+        } 
         this.state = 'stopped';
         console.error('Session Start Failed: ', reason);
         this.emit('failed', reason);
@@ -2428,7 +2438,8 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   /*global generateUUID:false*/
   this.id = (message && message.transID) ? message.transID : generateUUID(); 
   this.method = (message && message.method) ? message.method : 'UNKNOWN'; 
-  this.toTopic = toTopic;
+
+  this.toTopic = toTopic || ((message && message.fromTopic) ? message.fromTopic : null);
   this.message = message;
   this.onSuccess = cbSuccess || function(object) {
     l('DEBUG') && console.log(this+' Response for Transaction received, requires callback for more information:', object);
