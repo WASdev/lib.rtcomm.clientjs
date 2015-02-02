@@ -260,7 +260,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
 
         if (SUCCESS) { 
           messageToSend.result = 'SUCCESS';
-          messageToSend.payload = message;
+          messageToSend.payload = (message.payload)?message.payload:message;
           // If there is a referral transaction, finish it...
           this.state = 'started';
         } else {
@@ -284,6 +284,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      * Fail the session, this is only a RESPONSE to a START_SESSION
      */
     fail: function(message) {
+      l('DEBUG') && console.log(this+'.fail() Failing the START session. Reason: '+message);
       this.start();
       this.respond(false,message);
     },
@@ -365,10 +366,16 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       message.toEndpointID = this.remoteEndpointID;
       message.sigSessID = this.id;
       message.protocols = this.protocols;
+
+      if (payload) {
+        payload = (payload.payload) ? payload.payload : payload;
+      }
+
       if (payload && payload.type && payload.content) {
         // Its a good message, can be added to the message
         message.payload= payload;
-      }
+      } 
+      l('DEBUG') && console.log(this+'.createMessage() Created message: ',message);
       return message;
     },
     getState : function(){

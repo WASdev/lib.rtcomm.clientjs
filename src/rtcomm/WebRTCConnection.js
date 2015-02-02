@@ -231,12 +231,10 @@ var WebRTCConnection = (function invocation() {
         l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
        this.pc.close();
       }
-
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
       detachMediaStream(this.getMediaOut());
-
-      if (this.getState() !== 'disconnected') {
+      if (this.getState() !== 'disconnected' && this.getState() !== 'alerting') {
         this._setState('disconnected');
       }
       return this;
@@ -550,6 +548,7 @@ var WebRTCConnection = (function invocation() {
       case 'icecandidate':
         l('DEBUG') && console.log(this+'_processMessage iceCandidate --> message:', message);
         try {
+          l('DEBUG') && console.log(this+'_processMessage iceCandidate -->', message.candidate);
           var iceCandidate = new MyRTCIceCandidate(message.candidate);
           l('DEBUG') && console.log(this+'_processMessage iceCandidate ', iceCandidate );
           isPC && this.pc.addIceCandidate(iceCandidate);
