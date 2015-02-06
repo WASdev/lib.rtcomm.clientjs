@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.9 02-02-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.9 02-02-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.9 06-02-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.9 06-02-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -88,6 +88,12 @@ var validateConfig = function validateConfig(/* object */ config, /* object */ r
   for (var key in reference) {
     if (config.hasOwnProperty(key)) {
       if (reference[key] !== typeof config[key]) {
+        if (reference[key] === 'number') {
+          if (config[key] === parseInt(config[key]).toString()) {
+            continue;
+          }
+        }
+
         l('INFO') && console.log("Typeof " +key+ " is incorrect. "+ typeof config[key]+"  Should be a " + reference[key]);
         throw new Error("Typeof " +key+ " is incorrect. "+ typeof config[key]+"  Should be a " + reference[key]);
       }
@@ -171,7 +177,8 @@ var setConfig = function(config,configDefinition) {
         if (config[key] && typeof config[key] === 'object') {
           configObj[key]= combineObjects(config[key], configObj[key]);
         } else { 
-          configObj[key] = config[key];
+          var type = requiredConfig[key] || possibleConfig[key] || null;
+          configObj[key] = (type === 'number') ? parseInt(config[key]): config[key];
         }
       } else{
         throw new Error(key + ' is an invalid property for '+ JSON.stringify(configObj) );
@@ -5271,6 +5278,13 @@ var RtcommEndpoint = (function invocation(){
          * @property {module:rtcomm.RtcommEndpoint}
          */
         'destroyed': [],
+        /**
+         * The endpoint received a 'onetimemessage'. The content of the message
+         * should be in the 'otm' header
+         * @event module:rtcomm.RtcommEndpoint#onetimemessage
+         * @property {module:rtcomm.RtcommEndpoint}
+         */
+        'onetimemessage': [],
     };
   };
 /*globals util:false*/
@@ -5448,9 +5462,11 @@ return  {
             });
           }
         }
-      }else {
-          console.error(this+' Received message, but unknown protocol: ', payload);
-        }
+      } else if (payload.type === 'otm') {
+        this.emit('onetimemessage', {'onetimemessage': payload.content});
+      } else {
+        console.error(this+' Received message, but unknown protocol: ', payload);
+      }
    } else {
      l('DEBUG') && console.log(this+' Received message, but nothing to do with it', payload);
    }
@@ -5562,6 +5578,17 @@ return  {
       this.available(true);
       this._.activeSession = null;
       return this;
+  },
+
+  sendOneTimeMessage: function(message){
+    var msg = {};
+    if (this.sessionStarted()) {
+      msg.type = 'otm';
+      msg.content = (typeof message === 'object') ? message : {'message':message};
+      this._.activeSession.send(msg);
+    } else {
+      throw new Error('Unable to send onetimemessage.  Session not started');
+    }
   },
 
   /* used by the parent to assign the endpoint connection */
