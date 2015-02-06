@@ -390,6 +390,13 @@ var RtcommEndpoint = (function invocation(){
          * @property {module:rtcomm.RtcommEndpoint}
          */
         'destroyed': [],
+        /**
+         * The endpoint received a 'onetimemessage'. The content of the message
+         * should be in the 'otm' header
+         * @event module:rtcomm.RtcommEndpoint#onetimemessage
+         * @property {module:rtcomm.RtcommEndpoint}
+         */
+        'onetimemessage': [],
     };
   };
 /*globals util:false*/
@@ -567,9 +574,11 @@ return  {
             });
           }
         }
-      }else {
-          console.error(this+' Received message, but unknown protocol: ', payload);
-        }
+      } else if (payload.type === 'otm') {
+        this.emit('onetimemessage', {'onetimemessage': payload.content});
+      } else {
+        console.error(this+' Received message, but unknown protocol: ', payload);
+      }
    } else {
      l('DEBUG') && console.log(this+' Received message, but nothing to do with it', payload);
    }
@@ -680,6 +689,17 @@ return  {
       this._.activeSession = null;
       this.available(true);
       return this;
+  },
+
+  sendOneTimeMessage: function(message){
+    var msg = {};
+    if (this.sessionStarted()) {
+      msg.type = 'otm';
+      msg.content = (typeof message === 'object') ? message : {'message':message};
+      this._.activeSession.send(msg);
+    } else {
+      throw new Error('Unable to send onetimemessage.  Session not started');
+    }
   },
 
   /* used by the parent to assign the endpoint connection */

@@ -187,6 +187,73 @@ define([
                   }
                  );
          },
+     "in Browser A calls B (sendOneTimeMessage)": function() {
+         var endpointProvider2 = new rtcomm();
+         endpointProvider2.setAppContext('test');
+         // mark for destroy;
+         g.endpointProvider2 = endpointProvider2;
+         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
+         config1.userid='testuser1';
+         config2.userid='testuser2';
+         var dfd = this.async(T2);
+         var finish = dfd.callback(function(object){
+            console.log("******************Asserting now...***********************");
+            assert.ok(ep1_trying, 'Caller generated trying event');
+            assert.ok(ep1_ringing, 'Caller generated ringing event');
+            assert.ok(ep2_alerting, 'Callee generated alerting event');
+            assert.ok(ep1.sessionStarted(),'Ep1 Session Started');
+            assert.ok(ep2.sessionStarted(),'Ep2 Session Started');
+            assert.ok(object.onetimemessage,'Received a onetimemessage');
+            var message = object.onetimemessage;
+            console.log("OneTimeMessage content: "+JSON.stringify(message));
+            assert.equal('http://someurl.com', message.url, 'onetimemessage property matches');
+            endpointProvider2.destroy();
+         });
+
+         // States we should hit:
+         // ep1(caller) 
+         //   place call --> trying
+         var ep1_trying = false;
+         var ep1_ringing= false;
+         var ep2_alerting= false;
+         //   receive PRANSWER --> ringing
+         //   receive ANSWER --> started
+         // ep2(callee)
+         //   receive call --> alerting
+         //   send ANSWER --> started
+         ep1.on('session:ringing', function() { ep1_ringing = true})
+         ep1.on('session:trying', function() { ep1_trying = true})
+         ep1.on('session:started', function(){
+           // Send a message 
+           ep1.sendOneTimeMessage({url:'http://someurl.com'});
+         });
+         ep2.on('session:alerting', function(obj) {
+           ep2_alerting = true;
+           console.log('>>>>TEST  accepting call');
+           setTimeout(function() {
+            ep2.accept();
+           },1000);
+         });
+
+         ep2.on('onetimemessage', finish);
+         endpointProvider.init(config1,
+                  function(obj) {
+                    endpointProvider2.init(config2,
+                        function(obj) {
+                          console.log('calling EP2');
+                          ep1.connect(config2.userid);
+                        },
+                        function(error) {
+                          console.log('error in ep2 init:' + error);
+                        }
+                       );
+                  },
+                  function(error) {
+                    console.log('error in ep1 init:' + error);
+                  }
+                 );
+         },
      "in Browser A calls B(nested presence)": function() {
          var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');

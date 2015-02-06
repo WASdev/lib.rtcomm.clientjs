@@ -69,6 +69,12 @@ var validateConfig = function validateConfig(/* object */ config, /* object */ r
   for (var key in reference) {
     if (config.hasOwnProperty(key)) {
       if (reference[key] !== typeof config[key]) {
+        if (reference[key] === 'number') {
+          if (config[key] === parseInt(config[key]).toString()) {
+            continue;
+          }
+        }
+
         l('INFO') && console.log("Typeof " +key+ " is incorrect. "+ typeof config[key]+"  Should be a " + reference[key]);
         throw new Error("Typeof " +key+ " is incorrect. "+ typeof config[key]+"  Should be a " + reference[key]);
       }
@@ -152,7 +158,8 @@ var setConfig = function(config,configDefinition) {
         if (config[key] && typeof config[key] === 'object') {
           configObj[key]= combineObjects(config[key], configObj[key]);
         } else { 
-          configObj[key] = config[key];
+          var type = requiredConfig[key] || possibleConfig[key] || null;
+          configObj[key] = (type === 'number') ? parseInt(config[key]): config[key];
         }
       } else{
         throw new Error(key + ' is an invalid property for '+ JSON.stringify(configObj) );
