@@ -24,10 +24,7 @@ define([
     'umd/rtcomm'
 ], function (registerSuite, assert, Deferred,globals, config, rtcomm) {
 
-
-
-    
-
+    var SKIP_ALL=false;
     // anything in here will get destroyed (but not recreated) in beforeEach;
     var g ={};
     var destroy = function() {
@@ -76,6 +73,7 @@ define([
           endpointProvider.setLogLevel('TRACE');
         },
         "Endpoint creation(anonymous)": function() {
+          SKIP_ALL && this.skip(SKIP_ALL);
           console.log('***************** RunTest ************');
           var dfd = this.async(T1);
           var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
@@ -96,6 +94,7 @@ define([
           endpointProvider.init(config1,finish, finish);
         },
       "Join/Leave queue": function() {
+          SKIP_ALL && this.skip(SKIP_ALL);
           console.log('***************** RunTest ************');
           var dfd = this.async();
           var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
@@ -126,6 +125,7 @@ define([
           endpointProvider.init(config1,finish, finish);
         },
      "in Browser A calls B": function() {
+         //SKIP_ALL && this.skip(false);
          var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
@@ -188,6 +188,7 @@ define([
                  );
          },
      "in Browser A calls B (sendOneTimeMessage)": function() {
+          SKIP_ALL && this.skip(SKIP_ALL);
          var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
@@ -255,6 +256,7 @@ define([
                  );
          },
      "in Browser A calls B(nested presence)": function() {
+          SKIP_ALL && this.skip(SKIP_ALL);
          var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
@@ -323,6 +325,7 @@ define([
                  );
          },
      "in Browser A calls B, neither accept call from C": function() {
+          SKIP_ALL && this.skip(SKIP_ALL);
          var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');
          var endpointProvider3 = new rtcomm();
@@ -405,6 +408,7 @@ define([
          });
          },
      "Customer A calls Queue[Toys], establish session": function() {
+          SKIP_ALL && this.skip(SKIP_ALL);
            var endpointProvider2 = new rtcomm();
            endpointProvider2.setAppContext('test');
            // mark for destroy;
@@ -476,7 +480,7 @@ define([
          },
      "Create many endpoints" : function() {
        // This test is in progress
-       this.skip();
+         this.skip();
          // mark for destroy;
          var config1 = config.clientConfig();
          var endpointProvider2 = g.endpointProvider2 = new rtcomm();
