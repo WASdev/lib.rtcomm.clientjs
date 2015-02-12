@@ -187,6 +187,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         var cbOnfailure = null;
         var willMessage = null;
         var presenceTopic = null;
+        var mqttVersion = 3;
         
         l('DEBUG')&& console.log(this+'.connect() called with options: ', options);
         if (options) {
@@ -194,10 +195,12 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           cbOnfailure = options.onFailure || null;
           willMessage = options.willMessage || null;
           presenceTopic = options.presenceTopic || null;
+          mqttVersion = options.mqttVersion || mqttVersion;
         }
 
         var mqttConnectOptions = {};
-
+        // set version to 3 for Liberty compatibility
+        mqttConnectOptions.mqttVersion = mqttVersion;
         if (this.config.credentials && this.config.credentials.userName) {
           mqttConnectOptions.userName = this.config.credentials.userName;
           if (this.config.credentials.password) {
