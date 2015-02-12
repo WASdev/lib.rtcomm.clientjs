@@ -59,7 +59,7 @@ module.exports = function(grunt) {
           archive:'dist/release/<%= pkg.name %>-<%=pkg.version %>.zip'
         },
         files: [ 
-          {expand: true, cwd: 'dist/', src: ['*.js'], dest:'<%= pkg.name %>-<%=pkg.version %>/js' },
+          {expand: true, cwd: 'dist/', src: ['*.js'], dest:'<%= pkg.name %>-<%=pkg.version %>/dist' },
           {expand: true, cwd: 'dist/jsdoc', src: ['**'], dest:'<%= pkg.name %>-<%=pkg.version %>/jsdoc' },
           {src:['lib/**'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {expand: true, cwd: './build_resources/doc/',src:['index.html'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
