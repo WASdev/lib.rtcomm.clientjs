@@ -305,7 +305,6 @@ var PhoneRTCConnection = (function invocation() {
        * @throws Error Object does not have a src attribute
        */
       setMediaIn: function(value) {
-        console.log('REMOVE ME: Setting VideoView to container: ', value);
         // Setting the 'local' should cause the getuserMeida to be called...
         this._.phonertc && this._.phonertc.setVideoView({
           'container': value, 
@@ -554,11 +553,11 @@ var PhoneRTCConnection = (function invocation() {
      /* Define callback for the pSession to send a message. */
      context._.pSession.on('sendMessage', context.send.bind(context));
      context._.pSession.on('answer', function(data){
-       console.log('REMOVE ME: ==>  other Client Answered?  Do anthing here?', data);
+       l('DEBUG') && console.log(context + ' Other Client Answered: ', data);
        // Other client answered...
      });
      context._.pSession.on('disconnect', function(data){
-        console.log('REMOVE ME: ==>  other Client Disconnected?  Do anthing here?', data);
+        l('DEBUG') && console.log(context+' Other Client Disconnected', data);
       });
     return context._.pSession;
   }

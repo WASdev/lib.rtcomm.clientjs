@@ -187,7 +187,7 @@ var RtcommEndpoint = (function invocation(){
     /* globals cordova:false */
     var webrtc = null;
     if (typeof cordova !== 'undefined' || typeof phonertc !== 'undefined') {
-      console.log("REMOVE! CORDOVA!!!!");
+      l('DEBUG') && console.log(" Cordova Detected, using PhoneRTC");
       webrtc = new PhoneRTCConnection(parent); 
     } else {
       webrtc = new WebRTCConnection(parent);
@@ -693,7 +693,6 @@ return  {
       l('DEBUG') && console.log(this + ".reject() invoked ");
       this.webrtc.reject();
       this.chat.reject();
-      console.log('REMOVE ME: ActiveSession: ', JSON.stringify(this._.activeSession));
       this._.activeSession && this._.activeSession.fail("The user rejected the call");
       this.available(true);
       this._.activeSession = null;
