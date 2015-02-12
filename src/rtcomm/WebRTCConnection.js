@@ -231,12 +231,10 @@ var WebRTCConnection = (function invocation() {
         l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
        this.pc.close();
       }
-
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
       detachMediaStream(this.getMediaOut());
-
-      if (this.getState() !== 'disconnected') {
+      if (this.getState() !== 'disconnected' && this.getState() !== 'alerting') {
         this._setState('disconnected');
       }
       return this;
@@ -349,6 +347,10 @@ var WebRTCConnection = (function invocation() {
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
         if (this._.remoteStream) {
+          // If we already have a media in and value is different than current, unset current.
+          if (this.config.mediaIn && this.config.mediaIn !== value) {
+            detachMediaStream(this.config.mediaIn);
+          }
           attachMediaStream(value, this._.remoteStream);
           this.config.mediaIn = value;
         } else {
@@ -367,13 +369,25 @@ var WebRTCConnection = (function invocation() {
      * @throws Error Object does not have a src attribute
      */
     setMediaOut: function(value) {
+      l('DEBUG') && console.log(this+'.setMediaOut() called with value: ', value);
       if(validMediaElement(value) ) {
+        // No matter WHAT (I believe) the outbound media element should be muted.
+        value.muted = true; 
         if (this._.localStream) {
+          // If we already have a media in and value is different than current, unset current.
+          if (this.config.mediaOut && this.config.mediaOut !== value) {
+            detachMediaStream(this.config.mediaOut);
+          }
           // We have a stream already, just move the attachment.
           attachMediaStream(value, this._.localStream);
+          // MediaOut should be muted, we should confirm it is...
+          if (!value.muted) {
+            l('DEBUG') && console.log(this+'.setMediaOut() element is not muted, muting.');
+            value.muted = true; 
+          }
           this.config.mediaOut = value;
         } else {
-          // detach streams...
+          // detach streams... for cleanup only.
           detachMediaStream(value);
           this.config.mediaOut = value;
         }
@@ -550,6 +564,7 @@ var WebRTCConnection = (function invocation() {
       case 'icecandidate':
         l('DEBUG') && console.log(this+'_processMessage iceCandidate --> message:', message);
         try {
+          l('DEBUG') && console.log(this+'_processMessage iceCandidate -->', message.candidate);
           var iceCandidate = new MyRTCIceCandidate(message.candidate);
           l('DEBUG') && console.log(this+'_processMessage iceCandidate ', iceCandidate );
           isPC && this.pc.addIceCandidate(iceCandidate);
@@ -752,7 +767,8 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
       }
       l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE '+ this.pc.iceConnectionState);
       // When this is connected, set our state to connected in webrtc.
-      if (this.pc.iceConnectionState === 'disconnected') {
+      if (this.pc.iceConnectionState === 'closed') {
+        // wait for it to be 'Closed'  
         this.disable();
       } else if (this.pc.iceConnectionState === 'connected') {
         this._setState('connected');

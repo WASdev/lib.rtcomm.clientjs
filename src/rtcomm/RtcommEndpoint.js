@@ -183,7 +183,15 @@ var RtcommEndpoint = (function invocation(){
 
   var createWebRTCConnection = function createWebRTCConnection(parent) {
     /* globals WebRTCConnection:false */
-    var webrtc = new WebRTCConnection(parent);
+    /* globals PhoneRTCConnection:false */
+    /* globals cordova:false */
+    var webrtc = null;
+    if (typeof cordova !== 'undefined' || typeof phonertc !== 'undefined') {
+      l('DEBUG') && console.log(" Cordova Detected, using PhoneRTC");
+      webrtc = new PhoneRTCConnection(parent); 
+    } else {
+      webrtc = new WebRTCConnection(parent);
+    }
     webrtc.on('ringing', function(event_obj) {
       (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
     });
@@ -686,8 +694,8 @@ return  {
       this.webrtc.reject();
       this.chat.reject();
       this._.activeSession && this._.activeSession.fail("The user rejected the call");
-      this._.activeSession = null;
       this.available(true);
+      this._.activeSession = null;
       return this;
   },
 
