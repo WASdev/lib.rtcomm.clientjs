@@ -688,6 +688,7 @@ var WebRTCConnection = (function invocation() {
       }
     } else {
       l('DEBUG') && console.log(self+'.enableLocalAV() - nothing to do; both audio & video are false');
+      callback(true, "Not broadcasting anything");
     }
   },
  setIceServers: function(service) {
