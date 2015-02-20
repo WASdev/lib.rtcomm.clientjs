@@ -2571,20 +2571,17 @@ return connection;
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
-    define(["./rtcomm/connection",
-      "./rtcomm/util"], function (connection, util) {
+    define(["./rtcomm/connection","./rtcomm/util"], function (connection, util) {
       return (root.returnExportsGlobal = factory(connection, util));
     });
   } else if (typeof exports === 'object') {
     // Node. Does not work with strict CommonJS, but
     // only CommonJS-like enviroments that support module.exports,
     // like Node.
-    module.exports = factory(require("./rtcomm/connection"),
-      require("./rtcomm/util"));
+    module.exports = factory(require("./rtcomm/connection"),require("./rtcomm/util"));
   } else {
         root['rtcomm'] = root['rtcomm']  || {};
-        root['rtcomm']['EndpointProvider'] = factory(rtcomm.connection,
-      rtcomm.util);
+        root['rtcomm']['EndpointProvider'] = factory(rtcomm.connection,rtcomm.util);
   }
 }(this, function (connection, util) {
 

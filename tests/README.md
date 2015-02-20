@@ -26,6 +26,11 @@ npm install -g grunt-cli
 npm install 
 ```
 
+2.  Build the library
+```
+grunt lite
+```
+
 These tests can be run in two ways:
 
 1.  Via a Browser:  With an http server pointing at the project directory, access the link http://localhost:<port>/node_modules/intern/client.html?config=tests/intern  via a Browser.  This will run the tests and display the results in the browser.
