@@ -73,11 +73,13 @@ var EndpointConnection = function EndpointConnection(config) {
       };
 
     var add = function(item) {
+
       /*global l:false*/
-
       l('TRACE') && console.log('Registry.add() Adding item to registry: ', item);
-
       item.on('finished', function() {
+        this.remove(item);
+      }.bind(this));
+      item.on('canceled', function() {
         this.remove(item);
       }.bind(this));
       timer && item.on('timeout_changed', function(newtimeout) {
