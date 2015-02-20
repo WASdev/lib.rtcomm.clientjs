@@ -43,6 +43,7 @@ var Transaction = function Transaction(options, cbSuccess, cbFailure) {
   this.objName = "Transaction";
   this.events = {'message': [],
       'timeout_changed':[],
+      'canceled':[],
       'finished':[]};
   this.timeout = timeout || this.defaultTimeout;
   this.outbound = (message && message.transID) ? false : true;
@@ -146,5 +147,8 @@ Transaction.prototype = util.RtcommBaseObject.extend(
     } else {
       console.error('Message not for this transaction: ', rtcommMessage);
     }
+  },
+  cancel: function() {
+    this.emit('canceled');
   }
 });

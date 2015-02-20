@@ -653,7 +653,7 @@ return  {
   disconnect: function() {
     this.webrtc && this.webrtc.disable();
     this.chat && this.chat.disable();
-    if (this.sessionStarted()) {
+    if (!this.sessionStopped()) {
       this._.activeSession.stop();
       this._.activeSession = null;
       this.setState('session:stopped');
@@ -710,9 +710,12 @@ return  {
     }
   },
 
+  getRtcommConnectorService: function(){
+    return this.dependencies.endpointConnection.services.RTCOMM_CONNECTOR_SERVICE;
+  },
   /* used by the parent to assign the endpoint connection */
   setEndpointConnection: function(connection) {
-    this.webrtc && this.webrtc.setIceServers(connection.RTCOMM_CONNECTOR_SERVICE);
+    this.webrtc && this.webrtc.setIceServers(connection.services.RTCOMM_CONNECTOR_SERVICE);
     this.dependencies.endpointConnection = connection;
   },
 

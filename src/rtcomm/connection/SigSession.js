@@ -98,7 +98,8 @@ var SigSession = function SigSession(config) {
       'ice_candidate':[],
       'have_pranswer':[],
       'pranswer':[],
-      'finished':[]
+      'finished':[],
+      'canceled':[]
   };
   // Initial State
   this.state = 'stopped';
@@ -314,6 +315,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
       var message = this.createMessage('STOP_SESSION');
       l('DEBUG') && console.log(this+'.stop() stopping...', message);
       this.endpointconnector.send({message:message, toTopic: this.toTopic});
+      this._startTransaction && this._startTransaction.cancel();
       // Let's concerned persons know we are stopped
       this.state = 'stopped';
       this.emit('stopped');
@@ -414,6 +416,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         break;
       case 'STOP_SESSION':
         this.state='stopped';
+        this._startTransaction && this._startTransaction.cancel();
         this.emit('stopped', message.payload);
         this.emit('finished');
         break;

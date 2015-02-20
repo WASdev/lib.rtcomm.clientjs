@@ -109,6 +109,8 @@ var WebRTCConnection = (function invocation() {
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
 
       var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
+
+      // Load Ice Servers...
       RTCConfiguration.iceServers = RTCConfiguration.iceServers || this.getIceServers();
       var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
       this.config.RTCOfferConstraints= (config && config.RTCOfferConstraints) ? config.RTCOfferConstraints: this.config.RTCOfferConstraints;
@@ -686,10 +688,13 @@ var WebRTCConnection = (function invocation() {
       }
     } else {
       l('DEBUG') && console.log(self+'.enableLocalAV() - nothing to do; both audio & video are false');
+      callback(true, "Not broadcasting anything");
     }
   },
-
  setIceServers: function(service) {
+
+   l('DEBUG') && console.log(this+'.setIceServers() called w/ service:', service);
+
    function buildTURNobject(url) {
      // We expect this to be in form 
      // turn:<userid>@servername:port:credential:<password>
@@ -711,6 +716,7 @@ var WebRTCConnection = (function invocation() {
        l('DEBUG') && console.log('Unable to parse the url into a Turn Server');
        iceServer = null;
      }
+     l('DEBUG') && console.log(this+'.setIceServers() built iceServer object: ', iceServer);
      return iceServer;
    }
 

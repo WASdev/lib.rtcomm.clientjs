@@ -1,5 +1,5 @@
 {
-   "mqttServers" : ["127.0.0.1:11080"],
+   "mqttServers" : ["127.0.0.1:9080"],
    "managementTopicName" : "management",
    "rtcommTopicPath" : "/rtcomm/"
 }

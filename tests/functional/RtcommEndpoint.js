@@ -125,7 +125,7 @@ define([
           endpointProvider.init(config1,finish, finish);
         },
      "in Browser A calls B": function() {
-         //SKIP_ALL && this.skip(false);
+         SKIP_ALL && this.skip(false);
          var endpointProvider2 = new rtcomm();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
@@ -170,6 +170,81 @@ define([
            },1000);
 
          });
+         endpointProvider.init(config1,
+                  function(obj) {
+                    endpointProvider2.init(config2,
+                        function(obj) {
+                          console.log('calling EP2');
+                          ep1.connect(config2.userid);
+                        },
+                        function(error) {
+                          console.log('error in ep2 init:' + error);
+                        }
+                       );
+                  },
+                  function(error) {
+                    console.log('error in ep1 init:' + error);
+                  }
+                 );
+         },
+     "in Browser A calls B(disconnect while ringing)": function() {
+         //SKIP_ALL && this.skip(false);
+         var endpointProvider2 = new rtcomm();
+         endpointProvider2.setAppContext('test');
+         // mark for destroy;
+         g.endpointProvider2 = endpointProvider2;
+         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
+         config1.userid='testuser1';
+         config2.userid='testuser2';
+         var dfd = this.async(T1);
+
+         var finish = dfd.callback(function(object){
+            console.log("******************Asserting now...***********************");
+            console.log('endpoint1: ',ep1);
+            console.log('endpoint2: ',ep2);
+            assert.notOk(ep1_failed, 'Caller generated failed event');
+            assert.notOk(ep2_failed, 'Callee generated failed event');
+            assert.notOk(ep1_started, 'Caller generated started event');
+            assert.notOk(ep2_started, 'Callee generated started event');
+            assert.ok(ep1_ringing, 'Caller generated ringing event');
+            assert.ok(ep2_alerting, 'Callee generated alerting event');
+            endpointProvider2.destroy();
+         });
+
+         var ep1_trying = false;
+         var ep1_ringing= false;
+         var ep2_stopped= false;
+         var ep1_stopped = false;
+         var ep2_alerting= false;
+         var ep1_failed= false;
+         var ep2_failed= false;
+         var ep1_started= false;
+         var ep2_started= false;
+
+         //   receive PRANSWER --> ringing
+         //   receive ANSWER --> started
+         // ep2(callee)
+         //   receive call --> alerting
+         //   send ANSWER --> started
+         ep1.on('session:ringing', function() { ep1_ringing = true})
+         ep1.on('session:failed', function() { ep1_failed= true})
+         ep2.on('session:failed', function() { ep2_failed= true})
+         ep1.on('session:trying', function() { ep1_trying = true})
+         ep1.on('session:started', function() { ep1_started = true});
+         ep2.on('session:started', function() { ep2_started = true});
+         ep1.on('session:stopped', function() { ep1_stopped = true;});
+         ep2.on('session:stopped', finish );
+
+         ep2.on('session:alerting', function(obj) {
+           // At this state, cancel the call.
+           ep2_alerting = true;
+           setTimeout(function() {
+            console.log('Disconnecting call');
+            ep1.disconnect();
+           },1000);
+         });
+
          endpointProvider.init(config1,
                   function(obj) {
                     endpointProvider2.init(config2,

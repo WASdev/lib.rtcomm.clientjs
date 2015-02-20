@@ -179,8 +179,8 @@ The primary logic for this HTML Page
    * Example:  videoClient.html?server=servername&port=1883&rtcommTopicPath=/rtcommcompany/
    */
   var epConfig = {
-    server : 'messagesight.demos.ibm.com',
-    port : 1883,
+    server : 'localhost',
+    port : 9080,
     managementTopicName : "management",
     appContext: "default",
     rtcommTopicPath: "/rtcomm/",
@@ -203,7 +203,8 @@ The primary logic for this HTML Page
   var regOnload = (urlConfig.regOnload === 'true')? true : false;
   var userid = urlConfig.userid || null;
   /*  videoClient.html?autoAnswer=true -- inbound call will be automatically answered.  Good for testing. */
-  var autoAnswer = (urlConfig.autoAnswer === true)? true : false;
+  var autoAnswer = (urlConfig.autoAnswer === 'true')? true : false;
+  var BROADCAST = (urlConfig.broadcast === 'false')? false: true;
   // This uses any params passed on URL to override config.
   updateConfig(epConfig, urlConfig);
 
@@ -280,7 +281,8 @@ The primary logic for this HTML Page
    */
   ibmep.setRtcommEndpointConfig({
       // Our endpoints will be setup to broadcast Audio and Video 
-      broadcast: {audio: true, video: true},
+      // BROADCAST is set at the top
+      broadcast:  { audio: BROADCAST, video: BROADCAST},
       // Fired when webrtc is connected 
       'webrtc:connected': function(event_object) {
         uiConnect("Connected to "+event_object.endpoint.getRemoteEndpointID());
