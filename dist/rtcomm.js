@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.10 20-02-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.10 20-02-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.10 22-02-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.10 22-02-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -3755,10 +3755,19 @@ var PhoneRTCConnection = (function invocation() {
       console.log('phonertc is: ', phonertc);
       this._.phonertc = phonertc; 
     } else if (typeof cordova !== 'undefined') {
-      console.log('phonertc is: ', cordova.plugins.phonertc);
-      this._.phonertc = cordova.plugins.phonertc; 
+      console.log('Cordova is: ', cordova);
+      if (cordova.plugins) {
+        if (cordova.plugins.phonertc) {
+            console.log('phonertc is: ', cordova.plugins.phonertc);
+            this._.phonertc = cordova.plugins.phonertc; 
+        } else {
+           console.error('UNABLE TO FIND phonertc!');
+        }
+      } else {
+        console.error('UNABLE TO FIND cordova.plugins!');
+      }
     } else {
-      console.error('UNABLE TO FIND phonertc!');
+       console.error('UNABLE TO FIND cordova!');
     }
     this.id = parent.id;
     // Required to emit.
@@ -3854,6 +3863,7 @@ var PhoneRTCConnection = (function invocation() {
 
       _disconnect: function() {
         this._.pSession && this._.pSession.close();
+        this._.pSession = null;
         if (this.getState() !== 'disconnected' && this.getState() !== 'alerting') {
           this._setState('disconnected');
         }

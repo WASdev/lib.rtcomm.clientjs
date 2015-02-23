@@ -179,8 +179,8 @@ The primary logic for this HTML Page
    * Example:  videoClient.html?server=servername&port=1883&rtcommTopicPath=/rtcommcompany/
    */
   var epConfig = {
-    server : 'localhost',
-    port : 9080,
+    server : window.document.location.hostname,
+    port : window.document.location.port,
     managementTopicName : "management",
     appContext: "default",
     rtcommTopicPath: "/rtcomm/",
