@@ -26,7 +26,7 @@ module.exports = function(grunt) {
             'default': ['connection','util'],
             amd: ['./rtcomm/connection','./rtcomm/util'],
             cjs: ['./rtcomm/connection','./rtcomm/util'],
-            global: ['connection','util']
+            global: ['rtcomm.connection','rtcomm.util']
           }
         }
       },
@@ -40,7 +40,7 @@ module.exports = function(grunt) {
             'default': ['util'],
             amd: ['./util'],
             cjs: ['util'],
-            global: ['util']
+            global: ['rtcomm.util']
           }
         }
       },
