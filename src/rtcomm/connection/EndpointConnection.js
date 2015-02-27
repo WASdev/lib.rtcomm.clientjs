@@ -276,12 +276,11 @@ var EndpointConnection = function EndpointConnection(config) {
   // Services Config.
 
   // Should be overwritten by the service_query
-
+  // We define and expect ONE service if the server exists and the query passed.
+  // Other services can be defined w/ a topic/schemes 
+  //
   this.services = {
-    RTCOMM_CONNECTOR_SERVICE : {},
-    RTCOMM_CALL_CONTROL_SERVICE : {},
-    RTCOMM_CALL_QUEUE_SERVICE : {},
-    SIP_CONNECTOR_SERVICE: {},
+    RTCOMM_CONNECTOR_SERVICE : {}
   }; 
 
   // LWT config 
@@ -342,25 +341,12 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
        *   ]}
        *  }
        */
-
       var parseServices = function parseServices(services, connection) {
         if (services) {
-          if (services.RTCOMM_CONNECTOR_SERVICE) {
-            connection.services.RTCOMM_CONNECTOR_SERVICE = services.RTCOMM_CONNECTOR_SERVICE;
-            connection.config.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic|| connection.config.connectorTopicName;
-          }
-          if (services.RTCOMM_CALL_CONTROL_SERVICE) {
-            connection.services.RTCOMM_CALL_CONTROL_SERVICE = services.RTCOMM_CALL_CONTROL_SERVICE;
-          }
-          if (services.RTCOMM_CALL_QUEUE_SERVICE) {
-            connection.services.RTCOMM_CALL_QUEUE_SERVICE = services.RTCOMM_CALL_QUEUE_SERVICE;
-          }
-          if (services.SIP_CONNECTOR_SERVICE) {
-            connection.services.SIP_CONNECTOR_SERVICE = services.SIP_CONNECTOR_SERVICE;
-          }
+          connection.services = services;
+          connection.config.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic|| connection.config.connectorTopicName;
         }
       };
-
       var  createGuestUserID = function createGuestUserID() {
           /* global generateRandomBytes: false */
           var prefix = "GUEST";
@@ -484,6 +470,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
           // if message & fromEndpointID -- we are inbound..
           //  ALWAYS use a configure toTopic as an override.
+          /*global routeLookup:false*/
+          /*global uidRoute:false*/
           if (config && config.remoteEndpointID) {
             config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
           }
@@ -713,7 +701,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           return this.normalizeTopic(this.config.presence.rootTopic,false);
         },
         useLwt: function() {
-          if (this.services.RTCOMM_CONNECTOR_SERVICE.sphereTopic) {
+          if (this.services.RTCOMM_CONNECTOR_SERVICE && this.services.RTCOMM_CONNECTOR_SERVICE.sphereTopic) {
             return true;
           } else {
             return false;

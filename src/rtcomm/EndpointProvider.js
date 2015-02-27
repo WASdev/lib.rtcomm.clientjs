@@ -36,6 +36,7 @@ var EndpointProvider =  function EndpointProvider() {
   /** @lends module:rtcomm.EndpointProvider */
   /*global util:false*/
   /*global connection:false*/
+  /*global l:false*/
 
   var MISSING_DEPENDENCY = "RtcommEndpointProvider Missing Dependency: ";
   if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
