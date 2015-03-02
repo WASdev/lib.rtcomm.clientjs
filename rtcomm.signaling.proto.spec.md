@@ -127,11 +127,32 @@ Here is an example of a SERVICE_QUERY response:
 | orig                  | SERVICE_QUERY |
 | rtcommVer             | e.g.  v0.3.0          |
 | transID               | transaction ID, this is a unique identifier associed with this transaction.   e.g.  b2a4247f-fafc-4d3c-a23b-822d02e8f08b |
-| services    	        | JSON object containing services available    e.g.  eg. {"iceURL":"stun:stun.juberti.com:3478,turn:test@stun.juberti.com:3478:credential:test","eventMonitoringTopic":"/rtcomm/event"} |
+| services    	        | JSON object containing services available.  See **Note** below|
 | result    	        | result of the operation    e.g.  SUCCESS or FAILURE |
 | reason				| Optionally included if FAILURE is the result. String explaining why the request failed |
 
-The "services" header listed above is a JSON object.     
+
+Note:  The "services" header listed above is a JSON object that contains a list of Services the server supports. 
+If the server responds, it will respond with at least one object that is similar to the following:
+
+```
+"RTCOMM_CONNECTOR_SERVICE": {
+  "topic" : "/rtcomm/connector",
+  "sphereTopic": "/rtcomm/sphere",
+  "iceURL":"stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302,stun:stun2.l.google.com:19302",
+  "eventMonitoringTopic":"/rtcomm/event"} |
+```
+
+It may return additional services depending on the server configuration.  These services are defined on the server. 
+If a returned service contains a **schemes** property then their must be a **topic** property as well define where
+the topic should be routed.  For example:
+
+```
+"SOME_SERVICE" : {
+  "topic" : "topicString",
+  "schemes" : ["scheme1", "scheme2"]
+  }
+```
 
 ## Signaling for peer to peer sessions
 
