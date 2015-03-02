@@ -181,6 +181,11 @@ var EndpointConnection = function EndpointConnection(config) {
     } else if (rtcommMessage && rtcommMessage.sigSessID) {
       // has a session ID, fire it to that.
       endpointConnection.emit(rtcommMessage.sigSessID, rtcommMessage);
+
+    } else if (rtcommMessage && rtcommMessage.method === 'DOCUMENT_REPLACED') {
+      // Our presence document has been replaced by another client, emit and destroy.
+      // We rely on the creator of this to clean it up...
+      endpointConnection.emit('document_replaced', rtcommMessage);
     } else if (message.topic) {
       // If there is a topic, but it wasn't a START_SESSION, emit the WHOLE original message.
        // This should be a raw mqtt type message for any subscription that matches.
@@ -210,6 +215,7 @@ var EndpointConnection = function EndpointConnection(config) {
   //Define events we support
   this.events = {
       'servicesupdate': [],
+      'document_replaced': [],
       'message': [],
       'newsession': []};
 
@@ -567,10 +573,11 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           // Connect MQTT
           this.mqttConnection.connect(mqttConfig);
          },
-        disconnect : function() {
+        disconnect : function(clear_presence) {
+          clear_presence = (typeof clear_presence === 'boolean') ? clear_presence : true;
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
           l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
-          this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
+          clear_presence && this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
           this.sessions.clear();
           this.transactions.clear();
           this.clearEventListeners();
