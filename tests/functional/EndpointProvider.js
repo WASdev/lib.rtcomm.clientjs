@@ -42,6 +42,8 @@ define([
     var T2 = T1 + 3000; // How long we wait to check results
     var T3 = T2 +3000;  // How long we wait to timeout test.
 
+    var tearDown = {};
+
     var endpointProvider = null;
 
     registerSuite({
@@ -58,6 +60,11 @@ define([
             endpointProvider = null;
             console.log('Finished destroying 1');
           }
+          Object.keys(tearDown).forEach(function(key) {
+            tearDown[key].destroy();
+            delete tearDown[key];
+          });
+
       },
       beforeEach: function() {
         console.log("***************************** NEW TEST ***************************");
@@ -266,6 +273,34 @@ define([
          });
 
      },
+     "[No Server] generate reset on DOCUMENT_REPLACED": function() {
+       var dfd = this.async(5000);
+       var testConfig = config.clientConfig();
+       testConfig.presence = {topic: 'test'};
+       testConfig.userid = 'testuser';
+
+
+
+       var finish = dfd.callback(function(object) {
+          console.log('************ Finish called w/ OBJECT: ',object);
+          assert.equal('document_replaced', object.reason, 'Reset because of document_replaced');
+       });
+       // This is our FINISH
+       endpointProvider.on('reset', finish);
+
+       endpointProvider.init(testConfig, 
+         function(obj){
+          // Create another EP
+          var mq = endpointProvider.getMqttEndpoint();
+           var msg = endpointProvider.dependencies.endpointConnection.createMessage('DOCUMENT_REPLACED');
+           msg.fromEndpoint = 'SERVER';
+           var toTopic = endpointProvider.dependencies.endpointConnection.getMyTopic();
+           mq.publish(toTopic+"/SERVER", msg);
+         },
+         function(error){
+
+         });
+     },
      "Second presence generates reset event": function() {
        var dfd = this.async(5000);
        var testConfig = config.clientConfig();
@@ -275,6 +310,7 @@ define([
        // Create another EP
        var EP2 = new rtcomm();
        EP2.setAppContext('test');
+       tearDown.EP2 = EP2;
 
        var finish = dfd.callback(function(object) {
           console.log('************ Finish called w/ OBJECT: ',object);
@@ -302,6 +338,7 @@ define([
            EP2.init(testConfig);
          },
          function(error){
+
          });
      }
 

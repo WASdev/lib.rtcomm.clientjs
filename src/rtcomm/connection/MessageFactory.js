@@ -82,6 +82,9 @@ var MessageFactory = (function (){
         'state': null,
         'alias': null,
         'userDefines':[]
+      },
+      'DOCUMENT_REPLACED': {
+        'method': 'DOCUMENT_REPLACED'
       }
   };
   

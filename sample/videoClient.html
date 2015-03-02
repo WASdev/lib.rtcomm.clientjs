@@ -159,6 +159,10 @@ The primary logic for this HTML Page
   // Define the RtcommEndpointProvider globabl variable
   var ibmep = new rtcomm.EndpointProvider();
 
+  ibmep.on('reset', function(event_object) {
+    updateMessage("Connection was reset - reason: "+event_object.reason);
+  });
+
   // Change the loglevel - default is 'INFO', possibilities are:
   // 'MESSAGES' --> Just log sent/received messages in console.
   // 'DEBUG' -- > log most everything
