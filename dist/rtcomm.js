@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.10 27-02-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.10 27-02-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.10 02-03-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.10 02-03-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -801,6 +801,11 @@ var EndpointConnection = function EndpointConnection(config) {
     } else if (rtcommMessage && rtcommMessage.sigSessID) {
       // has a session ID, fire it to that.
       endpointConnection.emit(rtcommMessage.sigSessID, rtcommMessage);
+
+    } else if (rtcommMessage && rtcommMessage.method === 'DOCUMENT_REPLACED') {
+      // Our presence document has been replaced by another client, emit and destroy.
+      // We rely on the creator of this to clean it up...
+      endpointConnection.emit('document_replaced', rtcommMessage);
     } else if (message.topic) {
       // If there is a topic, but it wasn't a START_SESSION, emit the WHOLE original message.
        // This should be a raw mqtt type message for any subscription that matches.
@@ -830,6 +835,7 @@ var EndpointConnection = function EndpointConnection(config) {
   //Define events we support
   this.events = {
       'servicesupdate': [],
+      'document_replaced': [],
       'message': [],
       'newsession': []};
 
@@ -1187,10 +1193,11 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           // Connect MQTT
           this.mqttConnection.connect(mqttConfig);
          },
-        disconnect : function() {
+        disconnect : function(clear_presence) {
+          clear_presence = (typeof clear_presence === 'boolean') ? clear_presence : true;
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
           l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
-          this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
+          clear_presence && this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
           this.sessions.clear();
           this.transactions.clear();
           this.clearEventListeners();
@@ -2770,8 +2777,15 @@ return  {
 var EndpointProvider =  function EndpointProvider() {
   /** @lends module:rtcomm.EndpointProvider */
   /*global util:false*/
-  /*global connection:false*/
+  /*global getLogLevel:false*/
+  /*global setLogLevel:false*/
   /*global l:false*/
+
+  /*global connection:false*/
+  /*global applyConfig:false*/
+  /*global RtcommEndpoint:false*/
+  /*global MqttEndpoint:false*/
+  /*global PresenceMonitor:false*/
 
   var MISSING_DEPENDENCY = "RtcommEndpointProvider Missing Dependency: ";
   if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
@@ -2814,7 +2828,16 @@ var EndpointProvider =  function EndpointProvider() {
        * @property {module:rtcomm.Queues}
        *
        */
-      'queueupdate': []};
+      'queueupdate': [],
+      /**
+       * The endpoint Provider has reset.  Usually due to another peer logging in with the same presence. 
+       * The event has a 'reason' property indicating why the EndpointProvider was reset.
+       *
+       * @event module:rtcomm.EndpointProvider#reset
+       * @property {module:reason}
+       *
+       */
+      'reset': []};
 
   /** init method
    *
@@ -3060,6 +3083,14 @@ var EndpointProvider =  function EndpointProvider() {
       if(message) {
         l('TRACE') && console.log("TODO:  Handle an incoming message ", message);
       }
+    });
+    endpointConnection.on('document_replaced', function(message) {
+      // 'reset' w/ a Reason?
+      l('TRACE') && console.log("Document Replaced event received", message);
+      endpointProvider.emit('reset', {'reason':'document_replaced'});
+      setTimeout(function() {
+        endpointProvider.destroy();
+      },500);
     });
     return endpointConnection; 
   }; // End of createEndpointConnection
@@ -3383,7 +3414,9 @@ var EndpointProvider =  function EndpointProvider() {
   this.listQueues = function() {
     return  this._.queues.list();
   };
-
+  this.getServices = function() {
+    return this._.services;
+  };
   /** Return the userID the EndpointProvider is using */
   this.getUserID= function() {
     return  this.config.userid;

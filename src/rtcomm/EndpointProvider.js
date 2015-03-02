@@ -35,8 +35,15 @@
 var EndpointProvider =  function EndpointProvider() {
   /** @lends module:rtcomm.EndpointProvider */
   /*global util:false*/
-  /*global connection:false*/
+  /*global getLogLevel:false*/
+  /*global setLogLevel:false*/
   /*global l:false*/
+
+  /*global connection:false*/
+  /*global applyConfig:false*/
+  /*global RtcommEndpoint:false*/
+  /*global MqttEndpoint:false*/
+  /*global PresenceMonitor:false*/
 
   var MISSING_DEPENDENCY = "RtcommEndpointProvider Missing Dependency: ";
   if (!util) { throw new Error(MISSING_DEPENDENCY+"rtcomm.util");}
@@ -79,7 +86,16 @@ var EndpointProvider =  function EndpointProvider() {
        * @property {module:rtcomm.Queues}
        *
        */
-      'queueupdate': []};
+      'queueupdate': [],
+      /**
+       * The endpoint Provider has reset.  Usually due to another peer logging in with the same presence. 
+       * The event has a 'reason' property indicating why the EndpointProvider was reset.
+       *
+       * @event module:rtcomm.EndpointProvider#reset
+       * @property {module:reason}
+       *
+       */
+      'reset': []};
 
   /** init method
    *
@@ -325,6 +341,14 @@ var EndpointProvider =  function EndpointProvider() {
       if(message) {
         l('TRACE') && console.log("TODO:  Handle an incoming message ", message);
       }
+    });
+    endpointConnection.on('document_replaced', function(message) {
+      // 'reset' w/ a Reason?
+      l('TRACE') && console.log("Document Replaced event received", message);
+      endpointProvider.emit('reset', {'reason':'document_replaced'});
+      setTimeout(function() {
+        endpointProvider.destroy();
+      },500);
     });
     return endpointConnection; 
   }; // End of createEndpointConnection
@@ -648,7 +672,9 @@ var EndpointProvider =  function EndpointProvider() {
   this.listQueues = function() {
     return  this._.queues.list();
   };
-
+  this.getServices = function() {
+    return this._.services;
+  };
   /** Return the userID the EndpointProvider is using */
   this.getUserID= function() {
     return  this.config.userid;
