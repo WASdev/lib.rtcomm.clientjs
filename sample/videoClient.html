@@ -370,7 +370,7 @@ The primary logic for this HTML Page
 
   function uiUnregister() {
     $('#displayNameStr').html('Please Register');
-    updateMessage('Unregistered');
+//    updateMessage('Unregistered');
     $('#btnConnect').prop('disabled', true);
     $('#btnRegister').text('Register');
     registered = false;
@@ -466,7 +466,6 @@ The primary logic for this HTML Page
     console.log('Updating statusMessge with ', message);
     $('#statusMessage').css('color:red');
     $('#statusMessage').html(message);
-    //$('#alertMessage').show();
   }
 
   function updateConfig(obj1, obj2) {

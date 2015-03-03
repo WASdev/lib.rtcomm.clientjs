@@ -23,6 +23,7 @@
  * @param {object}  config   - Config object
  * @param {string}  config.server -  MQ Server for mqtt.
  * @param {integer} [config.port=1883] -  Server Port
+ * @param {boolean} [config.useSSL=true] -  Server Port
  * @param {string}  [config.userid] -  Unique user id representing user
  * @param {string}  [config.managementTopicName] - Default topic to register with ibmrtc Server
  * @param {string}  [config.rtcommTopicPath]
@@ -241,7 +242,7 @@ var EndpointConnection = function EndpointConnection(config) {
       connectorTopicName: 'string',
       userid: 'string', 
       appContext: 'string', 
-      secure: 'boolean', 
+      useSSL: 'boolean', 
       publishPresence: 'boolean', 
       presence: 'object'
     },
@@ -250,6 +251,7 @@ var EndpointConnection = function EndpointConnection(config) {
       managementTopicName: 'management', 
       connectorTopicName : "connector",
       publishPresence: 'false', 
+      useSSL: false, 
       presence: { 
         rootTopic: rtcommTopicPath + 'sphere/',
         topic: '/', // Same as rootTopic by default
@@ -267,6 +269,7 @@ var EndpointConnection = function EndpointConnection(config) {
   this.id = this.userid = this.config.userid || null;
   var mqttConfig = { server: this.config.server,
                      port: this.config.port,
+                     useSSL: this.config.useSSL,
                      rtcommTopicPath: this.config.rtcommTopicPath ,
                      credentials: this.config.credentials || null,
                      myTopic: this.config.myTopic || null };
@@ -559,7 +562,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             l('DEBUG') && console.log('EndpointConnection.connect() Success, calling callback - service:', service);
             cbSuccess(service);
           };
+
           var onFailure = function(error) {
+            console.log('FAILURE! - ',error);
+
             this.connected = false;
             cbFailure(error);
           };
