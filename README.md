@@ -141,7 +141,7 @@ The following shows how to configure and instantiate the EndpointProvider. You n
 
 The instantiation example above automatically registers with the 'rtcomm server' and creates a RtcommEndpoint which is assigned to the 'rtcommEndpoint' variable. However, the developer can choose to decouple this behavior and specifically init and getRtcommEndpoint.   The 'rtcommEndpoint' can now be used to create connections(calls) to other Endpoints.
 
-Further information on the RtcommEndpoint API is located [here](https://github.com/WASdev/lib.rtcomm.clientjs/wiki/module-rtcomm.EndpointProvider.API) 
+Further information on the EndpointProvider API is located [here](https://github.com/WASdev/lib.rtcomm.clientjs/wiki/module-rtcomm.EndpointProvider.API) 
 
 ####Using the rtcommEndpoint object
 

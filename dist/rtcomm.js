@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.10 02-03-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.10 02-03-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.10 03-03-2015 */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.10 03-03-2015');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -449,6 +449,19 @@ var RtcommBaseObject = {
 
 exports.RtcommBaseObject = RtcommBaseObject;
 
+var RtcommError = function RtcommError(/*string*/ message, /*array*/ subs) {
+  this.name = "RtcommError";
+  this.message = message || "RTCOMM: Default error message";
+
+};
+
+RtcommError.prototype = Object.create(Error.prototype);
+RtcommError.prototype.constructor = RtcommError;
+/*globals exports:false*/
+exports.RtcommError = RtcommError;
+
+
+
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -643,6 +656,7 @@ var logging = new util.Log(),
  * @param {object}  config   - Config object
  * @param {string}  config.server -  MQ Server for mqtt.
  * @param {integer} [config.port=1883] -  Server Port
+ * @param {boolean} [config.useSSL=true] -  Server Port
  * @param {string}  [config.userid] -  Unique user id representing user
  * @param {string}  [config.managementTopicName] - Default topic to register with ibmrtc Server
  * @param {string}  [config.rtcommTopicPath]
@@ -861,7 +875,7 @@ var EndpointConnection = function EndpointConnection(config) {
       connectorTopicName: 'string',
       userid: 'string', 
       appContext: 'string', 
-      secure: 'boolean', 
+      useSSL: 'boolean', 
       publishPresence: 'boolean', 
       presence: 'object'
     },
@@ -870,6 +884,7 @@ var EndpointConnection = function EndpointConnection(config) {
       managementTopicName: 'management', 
       connectorTopicName : "connector",
       publishPresence: 'false', 
+      useSSL: false, 
       presence: { 
         rootTopic: rtcommTopicPath + 'sphere/',
         topic: '/', // Same as rootTopic by default
@@ -887,6 +902,7 @@ var EndpointConnection = function EndpointConnection(config) {
   this.id = this.userid = this.config.userid || null;
   var mqttConfig = { server: this.config.server,
                      port: this.config.port,
+                     useSSL: this.config.useSSL,
                      rtcommTopicPath: this.config.rtcommTopicPath ,
                      credentials: this.config.credentials || null,
                      myTopic: this.config.myTopic || null };
@@ -1179,7 +1195,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             l('DEBUG') && console.log('EndpointConnection.connect() Success, calling callback - service:', service);
             cbSuccess(service);
           };
+
           var onFailure = function(error) {
+            console.log('FAILURE! - ',error);
+
             this.connected = false;
             cbFailure(error);
           };
@@ -1641,7 +1660,6 @@ exports.MessageFactory = MessageFactory;
 
 var MqttConnection = function MqttConnection(config) {
   /* Class Globals */
-
   /*
    * generateClientID - Generates a random 23 byte String for clientID if not passed.
    * The main idea here is that for mqtt, our ID can only be 23 characters and contain
@@ -1704,6 +1722,9 @@ var MqttConnection = function MqttConnection(config) {
     return msg;
   };
 
+  this.ERRORS = {
+    SSL: {msg:'useSSL is enabled, but failure occurred connecting to server.  Check server certificate by going to: '},
+  };
   // Our required properties
   this.objName = 'MqttConnection';
   this.dependencies = {};
@@ -1717,7 +1738,7 @@ var MqttConnection = function MqttConnection(config) {
   //config items that are required and must be the correct type or an error will be thrown
   var configDefinition = { 
     required: { server: 'string',port: 'number',  rtcommTopicPath: 'string'},
-    optional: { credentials : 'object', myTopic: 'string', defaultTopic: 'string'},
+    optional: { credentials : 'object', myTopic: 'string', defaultTopic: 'string',useSSL: 'boolean'},
   };
   // the configuration for MqttConnection
   if (config) {
@@ -1811,6 +1832,8 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           }
         }
 
+        mqttConnectOptions.useSSL = (typeof this.config.useSSL === 'boolean') ? this.config.useSSL : false ;
+
         if (presenceTopic ) {
           mqttConnectOptions.willMessage = createMqttMessage(willMessage);
           mqttConnectOptions.willMessage.destinationName= presenceTopic;
@@ -1854,16 +1877,26 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
 
         mqttConnectOptions.onFailure = function(response) {
           l('DEBUG') && console.log(this+'.onFailure: MqttConnection.connect.onFailure - Connection Failed... ', response);
+          /*
+           * response contains:
+           *    errorCode: integer
+           *    errorMessage: some string
+           */
+          var error = new util.RtcommError(response.errorMessage);
+          if (response.errorCode === 7 && this.config.useSSL) {
+            error = new util.RtcommError(this.ERRORS.SSL.msg + 'https://'+this.config.server+":"+this.config.port);
+            error.src = response.errorMessage;
+          }
           if (typeof onFailure === 'function') {
             // When shutting down, this might get called, catch any failures. if we were ready
             // this is unexpected.
             try {
-              if (this.ready) { onFailure(response) ;}
+              if (!this.ready) { onFailure(error) ;}
             } catch(e) {
               console.error(e);
             }
           } else {
-            console.error(response);
+            console.error(error);
           }
         }.bind(this);
         mqttClient.connect(mqttConnectOptions);
@@ -2854,6 +2887,7 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.userid] User ID or Identity
    * @param {string} [config.appContext=rtcomm] App Context for EndpointProvider
    * @param {string} [config.port=1883] MQTT Server Port
+   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection (Most likely use a different port)
    * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
@@ -2905,6 +2939,7 @@ var EndpointProvider =  function EndpointProvider() {
           managementTopicName: 'string',
           presence: 'object',
           userid: 'string',
+          useSSL: 'boolean',
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
@@ -2915,7 +2950,9 @@ var EndpointProvider =  function EndpointProvider() {
             rootTopic: 'sphere/',
             topic: '/', // Same as rootTopic by default
           },
+          useSSL: false,
           appContext: 'rtcomm',
+          // Note, if SSL is true then use 8883
           port: 1883,
           createEndpoint: false }
       };

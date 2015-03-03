@@ -109,6 +109,7 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.userid] User ID or Identity
    * @param {string} [config.appContext=rtcomm] App Context for EndpointProvider
    * @param {string} [config.port=1883] MQTT Server Port
+   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection (Most likely use a different port)
    * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
@@ -160,6 +161,7 @@ var EndpointProvider =  function EndpointProvider() {
           managementTopicName: 'string',
           presence: 'object',
           userid: 'string',
+          useSSL: 'boolean',
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
@@ -170,7 +172,9 @@ var EndpointProvider =  function EndpointProvider() {
             rootTopic: 'sphere/',
             topic: '/', // Same as rootTopic by default
           },
+          useSSL: false,
           appContext: 'rtcomm',
+          // Note, if SSL is true then use 8883
           port: 1883,
           createEndpoint: false }
       };
