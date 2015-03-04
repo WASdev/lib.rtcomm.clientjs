@@ -90,7 +90,8 @@ http://tools.ietf.org/id/draft-nandakumar-rtcweb-sdp-01.html.
 |  Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 |   member        | JSON object defining the member related action   |
-|   status        | "group status message"                          |
+|   status        | Group status message string                                      |
+|   id            | Group Endpoint ID. Need when recieving a referred START_SESSION.  |
 
 Member JSON object:
 
