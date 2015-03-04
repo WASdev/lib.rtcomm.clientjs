@@ -312,6 +312,29 @@ define([
             success = false;
             nc.disconnect();
           });
+      },
+      "RTCOMM_SIP_CONNECTOR_SERVICE(sip:alice@192.168.1.4:7777)": function() {
+          var nc = new connection.EndpointConnection(config1);
+          nc.setLogLevel('TRACE');
+          var success = false;
+          var dfd = this.async(T1);
+          var sess1 = null;
+          var RTCOMM_SIP_CONNECTOR_SERVICE = {
+            topic:"/rtcommscott/sip",
+            schemes:['sip', 'sips', 'tel']
+          };
+          nc.connect(dfd.callback(function() {
+            nc.services.RTCOMM_SIP_CONNECTOR_SERVICE  = RTCOMM_SIP_CONNECTOR_SERVICE;
+            sess1 = nc.createSession({'remoteEndpointID': 'sip:alice@192.168.1.4:7777'});
+            console.log('sess1:',sess1);
+            assert.equal(sess1.toTopic, nc.normalizeTopic("/rtcommscott/sip"));
+            nc.disconnect();
+          }), 
+          function() {
+            console.log('CONNECT FAILURE!');
+            success = false;
+            nc.disconnect();
+          });
       }
 
   }); // end of suite

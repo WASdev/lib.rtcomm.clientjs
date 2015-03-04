@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.10 03-03-2015 */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.10 03-03-2015');
+/*! lib.rtcomm.clientjs 1.0.0-beta.10 04-03-2015 14:41:01 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.10 04-03-2015 14:41:01 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -597,15 +597,20 @@ var logging = new util.Log(),
           route:null ,
           userid: null
         };
-        var a = userid.split(':');
-        if (a.length === 1) {
-          returnObj.userid = userid;
-        } else if (a.length === 2) {
-          returnObj.route= a[0];
-          returnObj.userid = a[1];
+        // Matches a WORD for the route and a NON-SPACE for the userid
+        var r = new RegExp(/(\w+)\:(\S+)/);
+        var a = r.exec(userid);
+        if (a) {
+          if (a.length === 3) {
+            // We matched correctly
+            returnObj.route= a[1];
+            returnObj.userid = a[2];
+          } else {
+            throw new Error('Unable to process userid: '+ userid);
+          }
         } else {
-          throw new Error('Unable to process userid: '+ userid);
-        }  
+          returnObj.userid = a;
+        }
         l('TRACE') && console.log('uidRoute returning ',returnObj);
         return returnObj;
       };
