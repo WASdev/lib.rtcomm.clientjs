@@ -89,16 +89,11 @@ http://tools.ietf.org/id/draft-nandakumar-rtcweb-sdp-01.html.
 
 |  Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
-|   member        | JSON object defining the member related action   |
-|   status        | Group status message string                                      |
-|   id            | Group Endpoint ID. Need when recieving a referred START_SESSION.  |
+|   action              |  "join", "leave", "add"                    |
+|   endpoints           | [array of endpoints to add]                |
+|   path                |  Path including the group name.            |
 
-Member JSON object:
-
-|  Key                   | Value                                     |
-| ----------------------|:-------------------------------------------|
-|   action          |  "add", "joined", "left", "list"                |
-|   list          | [array of member endpoint IDs]                  |
+Note:  Group is a service based protocol. Group endoints can be tracked by subscribing on a retained message located at the group path.
 
 ## Endpoint Registration
 
