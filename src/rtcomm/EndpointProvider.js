@@ -308,32 +308,42 @@ var EndpointProvider =  function EndpointProvider() {
        */
       if(session) {
         l('DEBUG') && console.log(endpointProvider+'-on.newsession Handle a new incoming session: ', session);
-        // Send it to the same id/appContext;
-        //
-        l('DEBUG') && console.log(endpointProvider+'-on.newsession endpointRegistry: ', endpointProvider._.endpointRegistry.list());
-        var endpoint = endpointProvider._.endpointRegistry.getOneAvailable(); 
-        if (endpoint) {
-          l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Existing Endpoint: ', endpoint);
-          endpoint.newSession(session);
-        } else if (endpointProvider.hasEventListener('newendpoint'))  {
-          // create an endpoint and send it to the listener.
-          endpoint = endpointProvider.getRtcommEndpoint();
-          l('DEBUG') && console.log(endpointProvider+'-on.newsession Created a NEW endpoint for session: ', endpoint);
-          endpoint.newSession(session);
-          endpointProvider.emit('newendpoint', endpoint);
+        // If this is a session created from a GROUP, we need to create a corresponding group and 
+        // pass the message to it.
+        if (/^group:/.test(session.remoteEndpointID)) {
+          l('DEBUG') && console.log(endpointProvider+'-on.newsession Inbound request to join a group '+session.remoteEndpointID);
+          var group = endpointProvider.getRtcommGroup(
+            {'name':session.remoteEndpointID, 
+             'protocols':session.protocols}
+          );
+          endpointProvider.emit('newgroup', group);
         } else {
-          // If there is no 'newendpoint' listener, we really only support 1 endpoint.  pass it to that one,
-          // it will need to respond if its busy.
-          var endpoints = endpointProvider._.endpointRegistry.list();
-          if (endpoints.length > 1) {
-            // Fail the session, we don't know where to send it.
-            session.start();
-            session.fail('Unable to accept inbound call: Busy');
-            console.error(endpointProvider+
-            '-on.newsession - Rejecting session, ambiguous enpdoint selection; add newendpoint callback? ');
+        // It is needs to go to an Endpoint
+          l('DEBUG') && console.log(endpointProvider+'-on.newsession endpointRegistry: ', endpointProvider._.endpointRegistry.list());
+          var endpoint = endpointProvider._.endpointRegistry.getOneAvailable(); 
+          if (endpoint) {
+            l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Existing Endpoint: ', endpoint);
+            endpoint.newSession(session);
+          } else if (endpointProvider.hasEventListener('newendpoint'))  {
+            // create an endpoint and send it to the listener.
+            endpoint = endpointProvider.getRtcommEndpoint();
+            l('DEBUG') && console.log(endpointProvider+'-on.newsession Created a NEW endpoint for session: ', endpoint);
+            endpoint.newSession(session);
+            endpointProvider.emit('newendpoint', endpoint);
           } else {
-            // Do not emit anything... 
-            endpoints[0].newSession(session);
+            // If there is no 'newendpoint' listener, we really only support 1 endpoint.  pass it to that one,
+            // it will need to respond if its busy.
+            var endpoints = endpointProvider._.endpointRegistry.list();
+            if (endpoints.length > 1) {
+              // Fail the session, we don't know where to send it.
+              session.start();
+              session.fail('Unable to accept inbound call: Busy');
+              console.error(endpointProvider+
+              '-on.newsession - Rejecting session, ambiguous enpdoint selection; add newendpoint callback? ');
+            } else {
+              // Do not emit anything... 
+              endpoints[0].newSession(session);
+            }
           }
         }
       } else {
@@ -479,8 +489,20 @@ var EndpointProvider =  function EndpointProvider() {
   /* deprecated */
   this.createRtcommEndpoint = this.getRtcommEndpoint;
 
+
+  /** Create Group (Multi-Way)
+   *
+   * @returns {module:rtcomm.Group}
+   */
+  this.getRtcommGroup = function getRtcommGroup() {
+    // TODO:  This will need more stuff... 
+    return new Group();
+  };
+
   /** Create Mqtt Endpoint 
-   * @returns {module:rtcomm.MqttEndpoint} */
+   *
+   * @returns {module:rtcomm.MqttEndpoint}
+   */
   this.getMqttEndpoint = function() {
     return new MqttEndpoint({connection: this.dependencies.endpointConnection});
   };

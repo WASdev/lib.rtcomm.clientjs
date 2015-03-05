@@ -150,6 +150,12 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
      * start must be called to send the first message.
      * options are:
      * 
+     * @param  {Object} config
+     * @param  {string} [config.remoteEndpointID] remote endpoint id to connect
+     * @param  {array} [config.protocols]  protocols supported by the session
+     * @param  {Object} [config.payload]   payload to be sent in start session
+     *
+     * 
      *  config = {remoteEndpointID: something, protocols:[]  }
      *
      */
