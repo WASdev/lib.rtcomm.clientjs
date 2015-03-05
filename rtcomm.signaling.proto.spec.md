@@ -89,11 +89,12 @@ http://tools.ietf.org/id/draft-nandakumar-rtcweb-sdp-01.html.
 
 |  Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
-|   action              |  "join", "leave", "add"                    |
-|   endpoints           | [array of endpoints to add]                |
-|   path                |  Path including the group name.            |
+|   add                 | [array of endpoints to add]                |
+|   topicPath           | Topic path that contains the group retained message.  |
 
-Note:  Group is a service based protocol. Group endoints can be tracked by subscribing on a retained message located at the group path.
+Note:  Group is a service based protocol. Group endoints can be tracked by subscribing the group path. Endpoints join a group by sending a START_SESSION to a group service with group content (join). All group endpoints are defined by a "group:" prefix. 
+
+Endpoints track participation in a group by the group presence document. Endpoints discover what topic to subscribe on through the topicPath either returned in the START_SESSION response on joining or in the START_SESSION received when being asked to join a group. See the DOCUMENT message below for details on the structure of the group presence document.
 
 ## Endpoint Registration
 
@@ -105,13 +106,14 @@ Here is an example of a DOCUMENT message:
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | DOCUMENT |
-| type					| ENDPOINT or SERVICE                        | 
+| type					| ENDPOINT, SERVICE, GROUP  | 
 | rtcommVer             | e.g.  v0.3.0          |
 | appContext            | application context associated with the registration   e.g. "XYZ video app"|
 | topic                 | topic that the endpoint is subscribed to. Typically the same as the from topic.   e.g.  /rtcomm/2123928217 |
-| state                 | String representing state of the endpoint [i.e. "busy", "available", etc..] |
-| alias					| Endpoint alias  (i.e. js@blah.com may be an ID, but the alias could be "John Smith")|
-| userDefines		    | **Completely** user defined Array of things that an endpoint would like to publish about itself |
+| state                 | OPTIONAL: String representing state of the endpoint [i.e. "busy", "available", etc..] |
+| alias					| OPTIONAL: Endpoint alias  (i.e. js@blah.com may be an ID, but the alias could be "John Smith")|
+| groupEndpoints        | OPTIONAL: [{endpointid : <value>, topic : <value>},...]    |
+| userDefines		    | OPTIONAL: **Completely** user defined Array of things that an endpoint would like to publish about itself |
 
 
 Note: appContext is used to differentiate between multiple applications a userid may be registered with on the same service. There can only be one registered topic name associated with a single endpointID/appContext.
