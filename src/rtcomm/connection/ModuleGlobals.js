@@ -91,15 +91,20 @@ var logging = new util.Log(),
           route:null ,
           userid: null
         };
-        var a = userid.split(':');
-        if (a.length === 1) {
-          returnObj.userid = userid;
-        } else if (a.length === 2) {
-          returnObj.route= a[0];
-          returnObj.userid = a[1];
+        // Matches a WORD for the route and a NON-SPACE for the userid
+        var r = new RegExp(/(\w+)\:(\S+)/);
+        var a = r.exec(userid);
+        if (a) {
+          if (a.length === 3) {
+            // We matched correctly
+            returnObj.route= a[1];
+            returnObj.userid = a[2];
+          } else {
+            throw new Error('Unable to process userid: '+ userid);
+          }
         } else {
-          throw new Error('Unable to process userid: '+ userid);
-        }  
+          returnObj.userid = a;
+        }
         l('TRACE') && console.log('uidRoute returning ',returnObj);
         return returnObj;
       };

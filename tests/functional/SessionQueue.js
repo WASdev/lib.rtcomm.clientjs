@@ -20,20 +20,20 @@ define([
     'intern!object',
     'intern/chai!assert',
     'intern/dojo/Deferred',
-    (typeof window === 'undefined' && global)
-      ?'intern/dojo/node!../support/mqttws31_shim':
-        'lib/mqttws31',
+    (typeof window === 'undefined' && global) ?'intern/dojo/node!../support/mqttws31_shim': 'lib/mqttws31',
     'support/config',
     'umd/rtcomm'
 ], function (registerSuite, assert, Deferred, globals,config, rtcomm) {
 
+    // endpointProvider
     var ep = null;
+    // Endpoint
     var rtcommEP = null;
     var mqtt = null;
     var cfg = config.clientConfig1();
 
     var START_SESSION = {
-        'rtcommVer': 'v0.1.0',
+        'rtcommVer': 'v0.3.0',
         'method': 'START_SESSION',
         'fromTopic': null,
         'protocols': ['chat'],
@@ -45,10 +45,9 @@ define([
     };
     function getPublishTopic(sharedTopic) {
       console.log('**********'+sharedTopic);
-      var match = /\$SharedSubscription\/.+\/(\/.+)\/#/.exec(sharedTopic);
-      return  match[1];
+      return sharedTopic.replace(/^\$SharedSubscription.+\/\//,'\/')
+        .replace(/\/#$/g,'\/');
     }
-    
     registerSuite({
         name: 'FVT - EndpointProvider SessionQueue', 
         setup: function() {
@@ -69,6 +68,7 @@ define([
           return dfd.promise;
         },
         beforeEach: function() {
+          // Destroy the endpoint.
           console.log('>>>>>>>>>>>> Reset the rtcommEP[New Test] <<<<<<<<<<<<<<<');
           rtcommEP && rtcommEP.destroy();
           rtcommEP = ep.createRtcommEndpoint({chat:true, webrtc: false});
@@ -80,14 +80,10 @@ define([
           ep.destroy();
           ep = null;
         },
-        'Init of rtcommEP creates Queues' : function() {
-          var dfd = this.async(3000);
-          ep.on('queueupdate',dfd.callback(function(){
-            console.log(ep.listQueues());
-            assert.ok(ep.listQueues().length > 0 , 'queues is defined');
-          }));
 
-//          this.skip();
+        'Init of EndpointProvider creates Queues' : function() {
+          console.log('queues: ', ep.listQueues());
+          assert.ok(ep.listQueues().length > 0 , 'queues is defined');
         },
 
         'Join bad queue throws exception': function () {

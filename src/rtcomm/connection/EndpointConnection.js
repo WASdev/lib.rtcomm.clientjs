@@ -23,6 +23,7 @@
  * @param {object}  config   - Config object
  * @param {string}  config.server -  MQ Server for mqtt.
  * @param {integer} [config.port=1883] -  Server Port
+ * @param {boolean} [config.useSSL=true] -  Server Port
  * @param {string}  [config.userid] -  Unique user id representing user
  * @param {string}  [config.managementTopicName] - Default topic to register with ibmrtc Server
  * @param {string}  [config.rtcommTopicPath]
@@ -181,6 +182,11 @@ var EndpointConnection = function EndpointConnection(config) {
     } else if (rtcommMessage && rtcommMessage.sigSessID) {
       // has a session ID, fire it to that.
       endpointConnection.emit(rtcommMessage.sigSessID, rtcommMessage);
+
+    } else if (rtcommMessage && rtcommMessage.method === 'DOCUMENT_REPLACED') {
+      // Our presence document has been replaced by another client, emit and destroy.
+      // We rely on the creator of this to clean it up...
+      endpointConnection.emit('document_replaced', rtcommMessage);
     } else if (message.topic) {
       // If there is a topic, but it wasn't a START_SESSION, emit the WHOLE original message.
        // This should be a raw mqtt type message for any subscription that matches.
@@ -210,6 +216,7 @@ var EndpointConnection = function EndpointConnection(config) {
   //Define events we support
   this.events = {
       'servicesupdate': [],
+      'document_replaced': [],
       'message': [],
       'newsession': []};
 
@@ -235,7 +242,7 @@ var EndpointConnection = function EndpointConnection(config) {
       connectorTopicName: 'string',
       userid: 'string', 
       appContext: 'string', 
-      secure: 'boolean', 
+      useSSL: 'boolean', 
       publishPresence: 'boolean', 
       presence: 'object'
     },
@@ -244,6 +251,7 @@ var EndpointConnection = function EndpointConnection(config) {
       managementTopicName: 'management', 
       connectorTopicName : "connector",
       publishPresence: 'false', 
+      useSSL: false, 
       presence: { 
         rootTopic: rtcommTopicPath + 'sphere/',
         topic: '/', // Same as rootTopic by default
@@ -261,6 +269,7 @@ var EndpointConnection = function EndpointConnection(config) {
   this.id = this.userid = this.config.userid || null;
   var mqttConfig = { server: this.config.server,
                      port: this.config.port,
+                     useSSL: this.config.useSSL,
                      rtcommTopicPath: this.config.rtcommTopicPath ,
                      credentials: this.config.credentials || null,
                      myTopic: this.config.myTopic || null };
@@ -276,12 +285,11 @@ var EndpointConnection = function EndpointConnection(config) {
   // Services Config.
 
   // Should be overwritten by the service_query
-
+  // We define and expect ONE service if the server exists and the query passed.
+  // Other services can be defined w/ a topic/schemes 
+  //
   this.services = {
-    RTCOMM_CONNECTOR_SERVICE : {},
-    RTCOMM_CALL_CONTROL_SERVICE : {},
-    RTCOMM_CALL_QUEUE_SERVICE : {},
-    SIP_CONNECTOR_SERVICE: {},
+    RTCOMM_CONNECTOR_SERVICE : {}
   }; 
 
   // LWT config 
@@ -342,25 +350,12 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
        *   ]}
        *  }
        */
-
       var parseServices = function parseServices(services, connection) {
         if (services) {
-          if (services.RTCOMM_CONNECTOR_SERVICE) {
-            connection.services.RTCOMM_CONNECTOR_SERVICE = services.RTCOMM_CONNECTOR_SERVICE;
-            connection.config.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic|| connection.config.connectorTopicName;
-          }
-          if (services.RTCOMM_CALL_CONTROL_SERVICE) {
-            connection.services.RTCOMM_CALL_CONTROL_SERVICE = services.RTCOMM_CALL_CONTROL_SERVICE;
-          }
-          if (services.RTCOMM_CALL_QUEUE_SERVICE) {
-            connection.services.RTCOMM_CALL_QUEUE_SERVICE = services.RTCOMM_CALL_QUEUE_SERVICE;
-          }
-          if (services.SIP_CONNECTOR_SERVICE) {
-            connection.services.SIP_CONNECTOR_SERVICE = services.SIP_CONNECTOR_SERVICE;
-          }
+          connection.services = services;
+          connection.config.connectorTopicName = services.RTCOMM_CONNECTOR_SERVICE.topic|| connection.config.connectorTopicName;
         }
       };
-
       var  createGuestUserID = function createGuestUserID() {
           /* global generateRandomBytes: false */
           var prefix = "GUEST";
@@ -484,6 +479,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           // createSession({message:rtcommMessage, fromEndpointID: fromEndpointID}));
           // if message & fromEndpointID -- we are inbound..
           //  ALWAYS use a configure toTopic as an override.
+          /*global routeLookup:false*/
+          /*global uidRoute:false*/
           if (config && config.remoteEndpointID) {
             config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
           }
@@ -565,7 +562,10 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             l('DEBUG') && console.log('EndpointConnection.connect() Success, calling callback - service:', service);
             cbSuccess(service);
           };
+
           var onFailure = function(error) {
+            console.log('FAILURE! - ',error);
+
             this.connected = false;
             cbFailure(error);
           };
@@ -579,10 +579,11 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           // Connect MQTT
           this.mqttConnection.connect(mqttConfig);
          },
-        disconnect : function() {
+        disconnect : function(clear_presence) {
+          clear_presence = (typeof clear_presence === 'boolean') ? clear_presence : true;
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
           l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
-          this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
+          clear_presence && this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
           this.sessions.clear();
           this.transactions.clear();
           this.clearEventListeners();
@@ -713,7 +714,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           return this.normalizeTopic(this.config.presence.rootTopic,false);
         },
         useLwt: function() {
-          if (this.services.RTCOMM_CONNECTOR_SERVICE.sphereTopic) {
+          if (this.services.RTCOMM_CONNECTOR_SERVICE && this.services.RTCOMM_CONNECTOR_SERVICE.sphereTopic) {
             return true;
           } else {
             return false;

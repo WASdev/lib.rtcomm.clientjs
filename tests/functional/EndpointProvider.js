@@ -42,6 +42,8 @@ define([
     var T2 = T1 + 3000; // How long we wait to check results
     var T3 = T2 +3000;  // How long we wait to timeout test.
 
+    var tearDown = {};
+
     var endpointProvider = null;
 
     registerSuite({
@@ -58,6 +60,11 @@ define([
             endpointProvider = null;
             console.log('Finished destroying 1');
           }
+          Object.keys(tearDown).forEach(function(key) {
+            tearDown[key].destroy();
+            delete tearDown[key];
+          });
+
       },
       beforeEach: function() {
         console.log("***************************** NEW TEST ***************************");
@@ -240,26 +247,6 @@ define([
            });
            endpointProvider.init(config1,finish, finish);
      },
-     "Got Queues from server": function() {
-       this.skip();
-           console.log('********** Run Test ************');
-           var deferred = new doh.Deferred();
-           var initObj = null;
-           var failure = false;
-           config1.userid = 'testuser';
-           endpointProvider.on('queueupdate', dfd.callback(function(queues){
-              console.log('TEST -> Queues: ' + endpointProvider.listQueues());
-              assert.ok(endpointProvider.listQueues().length > 0);
-           }));
-           endpointProvider.init(config1,
-                function(obj) {
-                  initObj = obj;
-                },
-                function(error) {
-                  failure = true;
-                }
-               );
-     },
 
      "Presence": function() {
        var dfd = this.async(5000);
@@ -267,7 +254,6 @@ define([
        testConfig.presence = {topic: 'test'};
        testConfig.userid = 'testuser';
        var presenceMonitor = endpointProvider.getPresenceMonitor();
-
        var finish = dfd.callback(function(object) {
           console.log('************ Finish called w/ OBJECT: ',object);
           console.log('************ Current Presence Data? : ',presenceMonitor.getPresenceData());
@@ -286,6 +272,74 @@ define([
          function(error){
          });
 
+     },
+     "[No Server] generate reset on DOCUMENT_REPLACED": function() {
+       var dfd = this.async(5000);
+       var testConfig = config.clientConfig();
+       testConfig.presence = {topic: 'test'};
+       testConfig.userid = 'testuser';
+
+
+
+       var finish = dfd.callback(function(object) {
+          console.log('************ Finish called w/ OBJECT: ',object);
+          assert.equal('document_replaced', object.reason, 'Reset because of document_replaced');
+       });
+       // This is our FINISH
+       endpointProvider.on('reset', finish);
+
+       endpointProvider.init(testConfig, 
+         function(obj){
+          // Create another EP
+          var mq = endpointProvider.getMqttEndpoint();
+           var msg = endpointProvider.dependencies.endpointConnection.createMessage('DOCUMENT_REPLACED');
+           msg.fromEndpoint = 'SERVER';
+           var toTopic = endpointProvider.dependencies.endpointConnection.getMyTopic();
+           mq.publish(toTopic+"/SERVER", msg);
+         },
+         function(error){
+
+         });
+     },
+     "Second presence generates reset event": function() {
+       var dfd = this.async(5000);
+       var testConfig = config.clientConfig();
+       testConfig.presence = {topic: 'test'};
+       testConfig.userid = 'testuser';
+
+       // Create another EP
+       var EP2 = new rtcomm();
+       EP2.setAppContext('test');
+       tearDown.EP2 = EP2;
+
+       var finish = dfd.callback(function(object) {
+          console.log('************ Finish called w/ OBJECT: ',object);
+          assert.notOk(ep2_reset, 'reset on 2nd endpointProvider not called');
+          assert.notOk(EP2.ready, '2nd EndpointProvider correctly cleaned up.');
+       });
+
+       // Should not turn true.
+       var ep2_reset = false;
+       var ep1_reset = false;
+       EP2.on('reset', function(event) {
+          ep2_reset = true;
+       });
+       // This is our FINISH
+       endpointProvider.on('reset', function(event){
+         // We have to have a timeout here because we are waiting for the endpointprovider to cleanup.
+         assert.equal('document_replaced', event.reason, 'Reset because of document_replaced');
+         ep1_reset = true;
+         setTimeout(finish,1000);
+       });
+
+       endpointProvider.init(testConfig, 
+         function(obj){
+           // Once we have successfully init'ed our first ep, init the second, which should reset this one.
+           EP2.init(testConfig);
+         },
+         function(error){
+
+         });
      }
 
     });

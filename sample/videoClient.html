@@ -159,6 +159,10 @@ The primary logic for this HTML Page
   // Define the RtcommEndpointProvider globabl variable
   var ibmep = new rtcomm.EndpointProvider();
 
+  ibmep.on('reset', function(event_object) {
+    updateMessage("Connection was reset - reason: "+event_object.reason);
+  });
+
   // Change the loglevel - default is 'INFO', possibilities are:
   // 'MESSAGES' --> Just log sent/received messages in console.
   // 'DEBUG' -- > log most everything
@@ -366,7 +370,7 @@ The primary logic for this HTML Page
 
   function uiUnregister() {
     $('#displayNameStr').html('Please Register');
-    updateMessage('Unregistered');
+//    updateMessage('Unregistered');
     $('#btnConnect').prop('disabled', true);
     $('#btnRegister').text('Register');
     registered = false;
@@ -462,7 +466,6 @@ The primary logic for this HTML Page
     console.log('Updating statusMessge with ', message);
     $('#statusMessage').css('color:red');
     $('#statusMessage').html(message);
-    //$('#alertMessage').show();
   }
 
   function updateConfig(obj1, obj2) {

@@ -9,7 +9,7 @@ module.exports = function(grunt) {
       },
       rtcomm_final: {
         options: {
-            banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %> */\nconsole.log(\'<%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %>\');\n',
+          banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("UTC:dd-mm-yyyy HH:MM:ss Z") %> */\nconsole.log(\'<%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("UTC:dd-mm-yyyy HH:MM:ss Z") %>\');\n'
         },
         src: ['dist/umd/rtcomm/util.js', 'dist/umd/rtcomm/connection.js','dist/umd/rtcomm.js'],
         dest: 'dist/rtcomm.js' 
@@ -75,7 +75,7 @@ module.exports = function(grunt) {
 
     uglify: {
       options: {
-        banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("dd-mm-yyyy") %> */\n'
+        banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("UTC:dd-mm-yyyy HH:MM:ss Z") %> */\n'
       },
       dist: {
         files: {

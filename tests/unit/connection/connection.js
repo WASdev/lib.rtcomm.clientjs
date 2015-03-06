@@ -143,7 +143,7 @@ define([
      try {
        var rtcsvc = new connection.MqttConnection(validconfig);
       } catch(e) {
-     assert.equal('junk is an invalid property for {"server":"a","port":1,"rtcommTopicPath":"/rtcomm/","credentials":null,"myTopic":null,"defaultTopic":null}', e.message);
+     assert.equal('junk is an invalid property for {"server":"a","port":1,"rtcommTopicPath":"/rtcomm/","credentials":null,"myTopic":null,"defaultTopic":null,"useSSL":null}', e.message);
       }
     },
     "valid but incorrect config throws an error": function(){

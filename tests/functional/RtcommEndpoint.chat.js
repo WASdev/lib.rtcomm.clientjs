@@ -227,11 +227,18 @@ define([
         },
 
         'connect 2 chat clients via 3PCC':function() {
+          var ccTopic = null;
+          if (EP1.getServices().RTCOMM_CALL_CONTROL_SERVICE) {
+            ccTopic = EP1.getServices().RTCOMM_CALL_CONTROL_SERVICE.topic;
+          } else {
+            this.skip('Call Control is not configured on the server');
+          }
+
           var dfd = this.async(10000);
           var refer = false;
           var alerted = false;
           chat1.on('chat:message', function(message){
-            console.log('****************************MESSAGE ***', message)
+            console.log('****************************MESSAGE ***', message);
           });
           chat1.on('session:refer', function(){
             // If we get a refer, connect!
@@ -265,7 +272,7 @@ define([
           mq.subscribe("/"+ThirdPCC+ "/#");
           mq.on('message', finish);
 
-          mq.publish("/rtcommscott/callControl", ThirdPCCMessage);
+          mq.publish(ccTopic, ThirdPCCMessage);
         //  chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         },
     });

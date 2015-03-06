@@ -38,7 +38,6 @@
 
 var MqttConnection = function MqttConnection(config) {
   /* Class Globals */
-
   /*
    * generateClientID - Generates a random 23 byte String for clientID if not passed.
    * The main idea here is that for mqtt, our ID can only be 23 characters and contain
@@ -101,6 +100,9 @@ var MqttConnection = function MqttConnection(config) {
     return msg;
   };
 
+  this.ERRORS = {
+    SSL: {msg:'useSSL is enabled, but failure occurred connecting to server.  Check server certificate by going to: '},
+  };
   // Our required properties
   this.objName = 'MqttConnection';
   this.dependencies = {};
@@ -114,7 +116,7 @@ var MqttConnection = function MqttConnection(config) {
   //config items that are required and must be the correct type or an error will be thrown
   var configDefinition = { 
     required: { server: 'string',port: 'number',  rtcommTopicPath: 'string'},
-    optional: { credentials : 'object', myTopic: 'string', defaultTopic: 'string'},
+    optional: { credentials : 'object', myTopic: 'string', defaultTopic: 'string',useSSL: 'boolean'},
   };
   // the configuration for MqttConnection
   if (config) {
@@ -208,6 +210,8 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           }
         }
 
+        mqttConnectOptions.useSSL = (typeof this.config.useSSL === 'boolean') ? this.config.useSSL : false ;
+
         if (presenceTopic ) {
           mqttConnectOptions.willMessage = createMqttMessage(willMessage);
           mqttConnectOptions.willMessage.destinationName= presenceTopic;
@@ -251,16 +255,26 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
 
         mqttConnectOptions.onFailure = function(response) {
           l('DEBUG') && console.log(this+'.onFailure: MqttConnection.connect.onFailure - Connection Failed... ', response);
+          /*
+           * response contains:
+           *    errorCode: integer
+           *    errorMessage: some string
+           */
+          var error = new util.RtcommError(response.errorMessage);
+          if (response.errorCode === 7 && this.config.useSSL) {
+            error = new util.RtcommError(this.ERRORS.SSL.msg + 'https://'+this.config.server+":"+this.config.port);
+            error.src = response.errorMessage;
+          }
           if (typeof onFailure === 'function') {
             // When shutting down, this might get called, catch any failures. if we were ready
             // this is unexpected.
             try {
-              if (this.ready) { onFailure(response) ;}
+              if (!this.ready) { onFailure(error) ;}
             } catch(e) {
               console.error(e);
             }
           } else {
-            console.error(response);
+            console.error(error);
           }
         }.bind(this);
         mqttClient.connect(mqttConnectOptions);
