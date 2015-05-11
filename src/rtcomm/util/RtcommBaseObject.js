@@ -76,7 +76,6 @@ var RtcommBaseObject = {
     hasEventListener: function(event){
      return (event in this.events) && (this.events[event].length > 0);
     },
-
     /** Establish a listener for an event */
     on : function(event,callback) {
       //console.log('on -- this.events is: '+ JSON.stringify(this.events));
@@ -89,6 +88,13 @@ var RtcommBaseObject = {
         throw new Error("on() requires an events property listing the events. this.events["+event+"] = [];");
       }   
     },  
+    // Clear callbacks for a particular event.
+    off : function(event) {
+      if (this.events && this.events[event]) {
+        l('EVENT', this) && console.log(this+' Removing listeners for event['+event+']');
+        this.events[event] = [];
+      }
+    },
     /** emit an event from the object */
     emit : function(event, object) {
       var self = this;
