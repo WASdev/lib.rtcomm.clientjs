@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.11 06-03-2015 14:49:36 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.11 06-03-2015 14:49:36 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.11 11-05-2015 20:36:05 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.11 11-05-2015 20:36:05 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -377,7 +377,6 @@ var RtcommBaseObject = {
     hasEventListener: function(event){
      return (event in this.events) && (this.events[event].length > 0);
     },
-
     /** Establish a listener for an event */
     on : function(event,callback) {
       //console.log('on -- this.events is: '+ JSON.stringify(this.events));
@@ -390,6 +389,13 @@ var RtcommBaseObject = {
         throw new Error("on() requires an events property listing the events. this.events["+event+"] = [];");
       }   
     },  
+    // Clear callbacks for a particular event.
+    off : function(event) {
+      if (this.events && this.events[event]) {
+        l('EVENT', this) && console.log(this+' Removing listeners for event['+event+']');
+        this.events[event] = [];
+      }
+    },
     /** emit an event from the object */
     emit : function(event, object) {
       var self = this;
@@ -5820,6 +5826,8 @@ var WebRTCConnection = (function invocation() {
       iceServers: [],
       mediaIn: null,
       mediaOut: null,
+      lazyAV: true,
+      trickleICE: true,
       broadcast: {
         audio: true,
         video: true 
@@ -5843,7 +5851,8 @@ var WebRTCConnection = (function invocation() {
       'ringing': [],
       'trying': [],
       'connected': [],
-      'disconnected': []
+      'disconnected': [],
+      '_notrickle':[]
     };
     this.pc = null;
     this.onEnabledMessage = null;
@@ -5856,10 +5865,6 @@ var WebRTCConnection = (function invocation() {
   WebRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.WebRTCConnection.prototype */
     return {
-    /*
-     */
-    // Same as options for creating a PeerConnection(and offer/answer)
-    // include UI elements here.
     /**
      * enable webrtc
      * <p>
@@ -5877,6 +5882,7 @@ var WebRTCConnection = (function invocation() {
      * @param {object} [config.RTCOfferConstraints] RTCPeerConnection specific config {@link http://w3c.github.io/webrtc-pc/} 
      * @param {object} [config.RTCConfiguration] RTCPeerConnection specific {@link http://w3c.github.io/webrtc-pc/} 
      * @param {object} [config.RTCConfiguration.peerIdentity] 
+     * @param {boolean} [config.trickleICE=true] Enable/disable ice trickling 
      * @param {boolean} [config.lazyAV=true]  Enable AV lazily [upon connect/accept] rather than during
      * right away
      * @param {boolean} [config.connect=true] Internal, do not use.
@@ -5889,22 +5895,24 @@ var WebRTCConnection = (function invocation() {
       var parent = self.dependencies.parent;
       /*global l:false*/
       l('DEBUG') && console.log(self+'.enable()  --- entry ---');
-
-      var RTCConfiguration = (config && config.RTCConfiguration) ?  config.RTCConfiguration : this.config.RTCConfiguration;
-
+      if (typeof config === 'function') {
+        callback = config;
+        config = null;
+      } else {
+        console.log("REMOVEME: ",self.config);
+        console.log("REMOVEME: ",config);
+        util.applyConfig(config, self.config);
+        callback  = callback || function(success, message) {
+          l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
+        };
+      }
       // Load Ice Servers...
-      RTCConfiguration.iceServers = RTCConfiguration.iceServers || this.getIceServers();
-      var RTCConstraints= (config && config.RTCConstraints) ? config.RTCConstraints : this.config.RTCConstraints;
-      this.config.RTCOfferConstraints= (config && config.RTCOfferConstraints) ? config.RTCOfferConstraints: this.config.RTCOfferConstraints;
-
+      this.config.RTCConfiguration.iceServers = this.config.RTCConfiguration.iceServers || this.getIceServers();
       var connect = (config && typeof config.connect === 'boolean') ? config.connect : parent.sessionStarted();
       var lazyAV = (config && typeof config.lazyAV === 'boolean') ? config.lazyAV : true;
 
       l('DEBUG') && console.log(self+'.enable() config created, defining callback');
 
-      callback = callback || ((typeof config === 'function') ? config :  function(success, message) {
-        l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
-      });
       // When Enable is called we have a couple of options:
       // 1.  If parent is connected, enable will createofffer and send it.
       // 2.  if parent is NOT CONNECTED. enable will create offer and STORE it for sending by _connect.
@@ -5923,7 +5931,7 @@ var WebRTCConnection = (function invocation() {
       } else {
         l('DEBUG') && console.log(self+'.enable() connect if possible? '+connect);
         try {
-          this.pc = createPeerConnection(RTCConfiguration, RTCConstraints, this);
+          this.pc = createPeerConnection(this.config.RTCConfiguration, this.config.RTCConstraints, this);
         } catch (error) {
           // No PeerConnection support, cannot enable.
           throw new Error(error);
@@ -5974,7 +5982,6 @@ var WebRTCConnection = (function invocation() {
      */
     _connect: function(sendMethod,callback) {
       var self = this;
-
       sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
       callback = callback ||function(success, message) {
         l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
@@ -5985,12 +5992,22 @@ var WebRTCConnection = (function invocation() {
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
+              if (self.config.trickleICE) {
                 sendMethod({payload: self.createMessage(offersdp)});
-                self._setState('trying');
-                self.pc.setLocalDescription(offersdp, function(){
-                  l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
+              } else {
+                self.on('_notrickle', function(obj) {
+                  l('DEBUG') && console.log(self+'.doOffer _notrickle called: Sending offer here. ');
+                  sendMethod({payload: self.createMessage(self.pc.localDescription)});
+                  // turn it off once it fires.
                   callback(true);
-                }, function(error) { callback(false, error);});
+                  self.off('_notrickle');
+                });
+              }
+              self._setState('trying');
+              self.pc.setLocalDescription(offersdp, function(){
+                l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
+                self.config.trickleICE && callback(true);
+              }, function(error) { callback(false, error);});
             },
             function(error) {
               console.error('webrtc._connect failed: ', error);
@@ -6203,7 +6220,6 @@ var WebRTCConnection = (function invocation() {
   _gotAnswer :  function(desc) {
 
     l('DEBUG') && console.log(this+'.createAnswer answer created:  ', desc);
-
     var answer = null;
     var pcSigState = this.pc.signalingState;
     var session = this.dependencies.parent._.activeSession;
@@ -6214,10 +6230,23 @@ var WebRTCConnection = (function invocation() {
     var message = this.createMessage(desc);
     l('DEBUG') && console.log(this+'.createAnswer._gotAnswer: pcSigState: '+pcSigState+' SIGSESSION STATE: '+ sessionState);
     if (RESPOND) {
-      l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
       //console.log(this+'.createAnswer sending answer as a RESPONSE', message);
-      session.respond(true, message);
-      this._setState('connected');
+      if (this.config.trickleICE) {
+        l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
+        session.respond(true, message);
+        this._setState('connected');
+      } else {
+        this.on('_notrickle', function(message) {
+          l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE[notrickle]');
+          if (this.pc.localDescription) {
+            session.respond(true, this.createMessage(this.pc.localDescription));
+            this._setState('connected');
+          } else {
+            l('DEBUG') && console.log(this+'.createAnswer localDescription not set.');
+          }
+          this.off('_notrickle');
+        }.bind(this));
+      }
     } else if (PRANSWER){
       l('DEBUG') && console.log(this+'.createAnswer sending PRANSWER');
       this._setState('alerting');
@@ -6539,11 +6568,20 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
 
     //attach callbacks
     peerConnection.onicecandidate = function (evt) {
-      l('DEBUG') && console.log(this+'onicecandidate Event',evt);
+      l('DEBUG') && console.log(this+'.onicecandidate Event',evt);
       if (evt.candidate) {
-          l('DEBUG') && console.log(this+'onicecandidate Sending Ice Candidate');
+        if (this.config.trickleICE) {
+          l('DEBUG') && console.log(this+'.onicecandidate Sending Ice Candidate');
           var msg = {'type': evt.type,'candidate': evt.candidate};
           this.send(msg);
+        }
+      } else {
+        // it is null, if trickleICE is false, then emit an event to send it...
+        l('DEBUG') && console.log(this+'.onicecandidate NULL Candidate.  trickleICE IS: '+this.config.trickleICE);
+        if (!this.config.trickleICE) {
+          l('DEBUG') && console.log(this+'.onicecandidate Calling _notrickle callback');
+          this.emit('_notrickle');
+        }
       }
     }.bind(context);  // End of onicecandidate
 
@@ -6570,12 +6608,12 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
       l('TRACE') && console.log("TRACE onaddstream AUDIO", evt.stream.getAudioTracks());
       l('TRACE') && console.log("TRACE onaddstream Video", evt.stream.getVideoTracks());
       // This isn't really used, may remove
-      if (evt.stream.getAudioTracks().length > 0) {
+      // if (evt.stream.getAudioTracks().length > 0) {
        // this.audio = true;
-      }
-      if (evt.stream.getVideoTracks().length > 0) {
+      //}
+      //if (evt.stream.getVideoTracks().length > 0) {
        // this.video = true;
-      }
+     // }
       /*
        * At this point, we now know what streams are requested
        * we should see what component we have (if we do) and see which one
