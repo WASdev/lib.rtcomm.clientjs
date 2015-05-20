@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.11 11-05-2015 20:36:05 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.11 11-05-2015 20:36:05 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.11 20-05-2015 02:41:53 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.11 20-05-2015 02:41:53 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5686,8 +5686,13 @@ return  {
   },
   /* used by the parent to assign the endpoint connection */
   setEndpointConnection: function(connection) {
-    this.webrtc && this.webrtc.setIceServers(connection.services.RTCOMM_CONNECTOR_SERVICE);
+    var webrtc = this.webrtc;
+    webrtc && webrtc.setIceServers(connection.services.RTCOMM_CONNECTOR_SERVICE);
     this.dependencies.endpointConnection = connection;
+    this.dependencies.endpointConnection.on('servicesupdate', function(services) {
+        l('DEBUG') && console.log('setEndpointConnection: resetting the ice servers to '+services.RTCOMM_CONNECTOR_SERVICE);
+        webrtc && webrtc.setIceServers(services.RTCOMM_CONNECTOR_SERVICE);
+    });
   },
 
   /** Return user id 

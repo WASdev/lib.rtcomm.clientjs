@@ -715,8 +715,13 @@ return  {
   },
   /* used by the parent to assign the endpoint connection */
   setEndpointConnection: function(connection) {
-    this.webrtc && this.webrtc.setIceServers(connection.services.RTCOMM_CONNECTOR_SERVICE);
+    var webrtc = this.webrtc;
+    webrtc && webrtc.setIceServers(connection.services.RTCOMM_CONNECTOR_SERVICE);
     this.dependencies.endpointConnection = connection;
+    this.dependencies.endpointConnection.on('servicesupdate', function(services) {
+        l('DEBUG') && console.log('setEndpointConnection: resetting the ice servers to '+services.RTCOMM_CONNECTOR_SERVICE);
+        webrtc && webrtc.setIceServers(services.RTCOMM_CONNECTOR_SERVICE);
+    });
   },
 
   /** Return user id 

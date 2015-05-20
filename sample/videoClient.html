@@ -202,7 +202,7 @@ The primary logic for this HTML Page
 
   /*  videoClient.html?regwithoutAV=true -- Do not enable AV when registering. 
       Will wait until a call is established */
-  var regwithAV = !(urlConfig.regwithoutAV === 'true');
+  var regwithAV = (urlConfig.regwithAV === 'true')? true : false;
   /*  videoClient.html?regOnload=true&userid=someuser -- Immediately register onLoad with userid passed */
   var regOnload = (urlConfig.regOnload === 'true')? true : false;
   var userid = urlConfig.userid || null;
