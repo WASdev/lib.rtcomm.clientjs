@@ -40,6 +40,7 @@ var WebRTCConnection = (function invocation() {
       mediaOut: null,
       lazyAV: true,
       trickleICE: true,
+      connect: null,
       broadcast: {
         audio: true,
         video: true 
@@ -111,17 +112,15 @@ var WebRTCConnection = (function invocation() {
         callback = config;
         config = null;
       } else {
-        console.log("REMOVEME: ",self.config);
-        console.log("REMOVEME: ",config);
         util.applyConfig(config, self.config);
         callback  = callback || function(success, message) {
           l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
         };
       }
-      // Load Ice Servers...
-      this.config.RTCConfiguration.iceServers = this.config.RTCConfiguration.iceServers || this.getIceServers();
       var connect = (config && typeof config.connect === 'boolean') ? config.connect : parent.sessionStarted();
       var lazyAV = (config && typeof config.lazyAV === 'boolean') ? config.lazyAV : true;
+      // Load Ice Servers...
+      this.config.RTCConfiguration.iceServers = this.config.RTCConfiguration.iceServers || this.getIceServers();
 
       l('DEBUG') && console.log(self+'.enable() config created, defining callback');
 
@@ -489,14 +488,14 @@ var WebRTCConnection = (function invocation() {
 
   createMessage: function(content) {
     if (content) {
-      if (content.type && content.content) {
+      if (content.webrtc) {
         // presumably OK, just return it
         return content;
       } else {
-        return {'type':'webrtc', 'content': content};
+        return {'webrtc': content};
       }
     } else {
-        return {'type':'webrtc', 'content': content};
+        return {'webrtc': content};
     }
   },
 
