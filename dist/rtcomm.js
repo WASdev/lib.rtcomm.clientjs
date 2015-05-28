@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.11 22-05-2015 19:56:18 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.11 22-05-2015 19:56:18 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.11 28-05-2015 18:49:57 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.11 28-05-2015 18:49:57 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -6053,6 +6053,9 @@ var WebRTCConnection = (function invocation() {
       }
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
+
+      // Stop broadcasting/release the camera.
+      this._.localStream && this._.localStream.stop();
       detachMediaStream(this.getMediaOut());
       if (this.getState() !== 'disconnected' && this.getState() !== 'alerting') {
         this._setState('disconnected');
@@ -6272,7 +6275,7 @@ var WebRTCConnection = (function invocation() {
       answer = {};
       answer.type = 'pranswer';
       answer.sdp = this.pranswer ? desc.sdp : '';
-      desc = answer;
+      desc = {"webrtc":answer};
       session.pranswer(this.createMessage(desc));
     } else if (this.getState() === 'connected' || this.getState() === 'alerting') {
       l('DEBUG') && console.log(this+'.createAnswer sending ANSWER (renegotiation?)');

@@ -245,6 +245,9 @@ var WebRTCConnection = (function invocation() {
       }
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
+
+      // Stop broadcasting/release the camera.
+      this._.localStream && this._.localStream.stop();
       detachMediaStream(this.getMediaOut());
       if (this.getState() !== 'disconnected' && this.getState() !== 'alerting') {
         this._setState('disconnected');
@@ -464,7 +467,7 @@ var WebRTCConnection = (function invocation() {
       answer = {};
       answer.type = 'pranswer';
       answer.sdp = this.pranswer ? desc.sdp : '';
-      desc = answer;
+      desc = {"webrtc":answer};
       session.pranswer(this.createMessage(desc));
     } else if (this.getState() === 'connected' || this.getState() === 'alerting') {
       l('DEBUG') && console.log(this+'.createAnswer sending ANSWER (renegotiation?)');
