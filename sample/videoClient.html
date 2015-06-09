@@ -202,12 +202,14 @@ The primary logic for this HTML Page
 
   /*  videoClient.html?regwithoutAV=true -- Do not enable AV when registering. 
       Will wait until a call is established */
-  var regwithAV = !(urlConfig.regwithoutAV === 'true');
+  var regwithAV = (urlConfig.regwithAV === 'true')? true : false;
   /*  videoClient.html?regOnload=true&userid=someuser -- Immediately register onLoad with userid passed */
   var regOnload = (urlConfig.regOnload === 'true')? true : false;
   var userid = urlConfig.userid || null;
   /*  videoClient.html?autoAnswer=true -- inbound call will be automatically answered.  Good for testing. */
   var autoAnswer = (urlConfig.autoAnswer === 'true')? true : false;
+  /* Trickle ICE */
+  var trickleICE = (urlConfig.trickleICE === 'false')? false: true;
   var BROADCAST = (urlConfig.broadcast === 'false')? false: true;
   // This uses any params passed on URL to override config.
   updateConfig(epConfig, urlConfig);
@@ -264,7 +266,7 @@ The primary logic for this HTML Page
                   console.log('** videoClient.html ** Enabling Webrtc...');
                   //NOTE:  lazyAV means we will enable when we have too, in this case, the UI wants
                   // To enable it right away.  
-                  rtcommEndpoint.webrtc.enable({lazyAV: false}, function() {
+                  rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE, lazyAV: false}, function() {
                     console.log('>>>>>>>>>>>>>>SUCCESS ENABLED WEBRTC CALLBACK');
                   });
                 }
@@ -286,6 +288,7 @@ The primary logic for this HTML Page
   ibmep.setRtcommEndpointConfig({
       // Our endpoints will be setup to broadcast Audio and Video 
       // BROADCAST is set at the top
+      
       broadcast:  { audio: BROADCAST, video: BROADCAST},
       // Fired when webrtc is connected 
       'webrtc:connected': function(event_object) {
@@ -448,7 +451,7 @@ The primary logic for this HTML Page
     } else {
       updateMessage('Connecting to '+remoteid);
       // This is only necessary if you want to enable/connect in same motion. 
-      rtcommEndpoint.webrtc.enable(function(success, message) {
+      rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE}, function(success, message) {
         console.log('Enable Completed: '+ success);
         if (success) {
           rtcommEndpoint.connect(remoteid);

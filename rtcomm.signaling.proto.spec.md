@@ -30,7 +30,7 @@ In the message definitions below, there are many references to various EndpointI
 When an Rtcomm message is sent to a remote topic, the sender publishes to a topic name that is a combination of the remote topic name being subscribed on by the receiver + the senders endpoint ID. For example, if the topic name subscribed on by the receiver is "/rtcomm/connector", the sender publishes to "/rtcomm/connector/"sender's endpoint ID".  This is done in order to propagate endpoint IDs in a secure manner. 
 MQTT message brokers can be securely configured to only allow endpoints with proper credentials to publish to MQTT topics that include an appended endpoint ID. Endpoint IDs are sent in this manner to insure the ID is not spoofed. Because of this you never see the senders endpoint ID includes in an Rtcomm message definition.
 
-### Protocolos Definition
+### Protocols Definition
 As you'll see in the various signaling messages below, some messages contain a header key named "protocols" which contains a JSON array that includes a list of protocols supported by the endpoint:
 
 | Key                   | Value                                     |
@@ -170,7 +170,7 @@ This is the first message sent from the endpoint to start a new signaling sessio
 | toEndpointID          | callee endpoint ID.   e.g. johnDoe |
 | appContext            | application context associated with the application (optional)   e.g. "XYZ video app"|
 | sigSessID             | Globally unique ID associated with this session   e.g. 553eebdc-6884-47e4-a656-fd89a920bb68 |
-| payload               | Typically includes the SDP offer for this session. e.g. {"type": "webrtc", "content": {"type":"offer","sdp":...}}|
+| payload               | Typically includes the SDP offer for this session. e.g. {"webrtc": {"type":"offer","sdp":...}}|
 
 Note:    sigSessID should be a UUID to insure it is globally unique.
 
@@ -186,7 +186,7 @@ In response to the START_SESSION message, the callee responds may respond with a
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/2123928217 |
 | sigSessID             | unique ID associated with this session.   e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
-| payload               | May include SDP information or ICE candidates.  e.g.{"type": "webrtc", "content": {"type":"pranswer","sdp":...}}|
+| payload               | May include SDP information or ICE candidates.  e.g.{"webrtc": {"type":"pranswer","sdp":...}}|
 | holdTimeout           | May include hold timeout value (in seconds).   This tells the call originator how long to wait for the call to be established. |
 | queuePosition           | May include queue position.   This tells the call originator where the call stands in the queue.    If this is 0, the call is actively being connected.
 
@@ -200,7 +200,7 @@ The caller and/or callee endpoint(s) may also send out another message which spe
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/2123928217 |
 | sigSessID             | unique ID associated with this session.  e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
-| payload               | includes SDP information about the session.   e.g.  {"type":"webrtc", "content": {"type":"icecandidate","candidate":{"sdpMLineIndex":0,"sdpMid":"audio","candidate":"a=candidate:3013953624 1 udp 2122260223 192.168.1.100 56617 typ host generation 0\r\n"}}}|
+| payload               | includes SDP information about the session.   e.g.  {"webrtc": {"type":"icecandidate","candidate":{"sdpMLineIndex":0,"sdpMid":"audio","candidate":"a=candidate:3013953624 1 udp 2122260223 192.168.1.100 56617 typ host generation 0\r\n"}}}|
 
 The callee endpoint will eventually respond to the START_SESSION:
 
@@ -213,7 +213,7 @@ The callee endpoint will eventually respond to the START_SESSION:
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/116396706 |
 | sigSessID             | unique ID associated with this session.   e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
-| payload               | May include SDP information with an answer.  e.g.{"type": "webrtc", "content": {"type":"answer","sdp":...}}|
+| payload               | May include SDP information with an answer.  e.g.{"webrtc": {"type":"answer","sdp":...}}|
 | result                | result of operation    e.g. SUCCESS or FAILURE |
 | reason				| Optionally included if FAILURE is the result. String explaining why the request failed |
 
@@ -226,7 +226,7 @@ Either the caller or callee can send an in session message at any time. This mes
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/116396706 |
 | sigSessID             | unique ID associated with this session.   e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
-| payload               | Content associated with the message   e.g.{"type": "webrtc", "content": {"type":"answer","sdp":...}}|
+| payload               | Content associated with the message   e.g.{"webrtc": {"type":"answer","sdp":...}}|
 
 At the end of the session, one of the endpoints will termiante the session by sending this message to the remote endpoint:
 

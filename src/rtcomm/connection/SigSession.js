@@ -373,7 +373,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         payload = (payload.payload) ? payload.payload : payload;
       }
 
-      if (payload && payload.type && payload.content) {
+      if (payload) {
         // Its a good message, can be added to the message
         message.payload= payload;
       } 

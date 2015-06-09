@@ -31,7 +31,7 @@ var RtcommEndpoint = (function invocation(){
   var Chat = function Chat(parent) {
     // Does this matter?
     var createChatMessage = function(message) {
-      return {'type': 'chat', 'content': {'message': message, 'from': parent.userid}};
+      return {'chat':{'message': message, 'from': parent.userid}};
     };
     var chat = this;
     this._ = {};
@@ -109,7 +109,7 @@ var RtcommEndpoint = (function invocation(){
      */
     this.send = function(message) {
       message = (message && message.payload) ? message.payload: message;
-      message = (message && message.type === 'chat') ? message : createChatMessage(message);
+      message = (message && message.chat)  ? message : createChatMessage(message);
       if (parent._.activeSession) {
         parent._.activeSession.send(message);
       }
@@ -550,43 +550,56 @@ return  {
   },
   _processMessage: function(payload) {
 
-    // Content should be {type: blah, content: blah};
+    var self = this;
+    /*
+     * payload will be a key:object map where key is 'webrtc' or 'chat' for example
+     * and the object is the 'content' that should be routed to that object.
+     */
     // but may be {protocols: [], payload: {}}
     // basically a protocol router...
     var protocols;
-    if (payload.protocols) {
+    if (payload && payload.protocols) {
       protocols = payload.protocols;
       payload = payload.payload;
     }
-    var self = this;
     if (payload) {
-      if (payload.type === 'chat') { 
-      // It is a chat this will change to something different later on...
-        if (this.config.chat) { 
-          this.chat._processMessage(payload.content);
-          //this.emit('chat:message', payload.userdata);
-        } else {
-          console.error('Received chat message, but chat not supported!',payload);
-        }
-      } else if (payload.type === 'webrtc') {
-        if (this.config.webrtc && this.webrtc) { 
-          // calling enable will enable if not already enabled... 
-          if (this.webrtc.enabled()) {
-            self.webrtc._processMessage(payload.content);
-          } else {
-            // This should only occur on inbound. don't connect, that is for outbound.
-            this.webrtc.enable({connect: false}, function(success){
-              if (success) {
-                self.webrtc._processMessage(payload.content);
+      for (var type in payload) {
+        if (payload.hasOwnProperty(type)){
+          switch(type) {
+            case 'chat': 
+              // It is a chat this will change to something different later on...
+              if (this.config.chat) { 
+                this.chat._processMessage(payload[type]);
+                //this.emit('chat:message', payload.userdata);
+              } else {
+                console.error('Received chat message, but chat not supported!',payload[type]);
               }
-            });
-          }
+              break;
+            case 'webrtc':
+              if (this.config.webrtc && this.webrtc) { 
+                // calling enable will enable if not already enabled... 
+                if (this.webrtc.enabled()) {
+                  self.webrtc._processMessage(payload[type]);
+                } else {
+                  // This should only occur on inbound. don't connect, that is for outbound.
+                  this.webrtc.enable({connect: false}, function(success){
+                    if (success) {
+                      self.webrtc._processMessage(payload[type]);
+                    }
+                  });
+                }
+              } else {
+                console.error('Received chat message, but chat not supported!',payload[type]);
+              }
+              break;
+            case 'otm':
+              this.emit('onetimemessage', {'onetimemessage': payload[type]});
+              break;
+            default:
+              console.error(this+' Received message, but unknown protocol: ', type);
+          } // end of switch
         }
-      } else if (payload.type === 'otm') {
-        this.emit('onetimemessage', {'onetimemessage': payload.content});
-      } else {
-        console.error(this+' Received message, but unknown protocol: ', payload);
-      }
+      } // end of for
    } else {
      l('DEBUG') && console.log(this+' Received message, but nothing to do with it', payload);
    }
@@ -700,10 +713,12 @@ return  {
   },
 
   sendOneTimeMessage: function(message){
+    // Sending message:
+    l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending '+message);
     var msg = {};
     if (this.sessionStarted()) {
-      msg.type = 'otm';
-      msg.content = (typeof message === 'object') ? message : {'message':message};
+      msg.otm = (typeof message === 'object') ? message : {'message':message};
+      l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending ',msg);
       this._.activeSession.send(msg);
     } else {
       throw new Error('Unable to send onetimemessage.  Session not started');
@@ -715,8 +730,13 @@ return  {
   },
   /* used by the parent to assign the endpoint connection */
   setEndpointConnection: function(connection) {
-    this.webrtc && this.webrtc.setIceServers(connection.services.RTCOMM_CONNECTOR_SERVICE);
+    var webrtc = this.webrtc;
+    webrtc && webrtc.setIceServers(connection.services.RTCOMM_CONNECTOR_SERVICE);
     this.dependencies.endpointConnection = connection;
+    this.dependencies.endpointConnection.on('servicesupdate', function(services) {
+        l('DEBUG') && console.log('setEndpointConnection: resetting the ice servers to '+services.RTCOMM_CONNECTOR_SERVICE);
+        webrtc && webrtc.setIceServers(services.RTCOMM_CONNECTOR_SERVICE);
+    });
   },
 
   /** Return user id 

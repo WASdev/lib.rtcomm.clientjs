@@ -44,14 +44,15 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
   flatten: function() {
     // return array of all 'records' (dropping the hierarchy)
     var flat = [];
+    var new_flat = [];
     this.nodes.forEach(function(node){
       if (node.record) {
         flat.push(node);
       } else {
-        flat.concat(node.flatten());
+        new_flat = flat.concat(node.flatten());
       } 
     });
-    return flat;
+    return (new_flat.length > 0) ? new_flat: flat;
   },
   /** 
    * Return the presenceNode Object matching this topic
@@ -280,6 +281,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
          presence.removePresence(topic, endpointID);
       }
       this.emit('updated', this.getPresenceData());
+      // UPdate the flat presence object just in case...
     } else {
       // No Root Node
       l('DEBUG') && console.error('No Root node... dropping presence message');
@@ -361,7 +363,6 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       return this._.presenceData;
 //      return this._.presenceData[0].nodes;
     },
-
     getRootNode: function getRootNode() {
       return this._.rootNode;
     },
