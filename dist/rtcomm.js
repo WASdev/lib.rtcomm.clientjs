@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.12 11-06-2015 16:07:55 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.12 11-06-2015 16:07:55 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.12 11-06-2015 21:22:35 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.12 11-06-2015 21:22:35 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -502,6 +502,7 @@ var Sound = function Sound(url) {
   this.playing = null;
 };
 
+/* global l:false */ 
 Sound.prototype = (function () {
 
   var load = function load(callback) {
@@ -513,12 +514,12 @@ Sound.prototype = (function () {
       request.onload = function() {
         self.context.decodeAudioData(request.response, 
           function(buffer) {
+            console.log('Sound: successfully loaded buffer '+ self.url);
             self.buffer = buffer;
-            console.log('successfully loaded buffer '+ self.url);
             callback && callback();
           }, 
           function(error) { /* onError */
-            console.log('Unable to load the url: ', error);
+            console.error('Unable to load the url: ', error);
           });
       };
       request.send();
@@ -529,28 +530,35 @@ Sound.prototype = (function () {
   var play = function play() {
     var self = this;
     var _play = function _play() {
-      var sound = self.context.createBufferSource();
-      sound.buffer = self.buffer;
-      sound.connect(self.context.destination);
-      sound.loop= true;
-      sound.start(0);
-      self.playing = sound;
+      if (!self.playing) {
+        var sound = self.context.createBufferSource();
+        sound.buffer = self.buffer;
+        sound.connect(self.context.destination);
+        sound.loop= true;
+        sound.start(0);
+        self.playing = sound;
+      } else {
+        console.log('Already playing...');
+      }
     };
 
     if (self.buffer) {
       _play();
     } else {
-      load(_play);
+      // Try again in 500 milliseconds
+      l('DEBUG') && console.log('Sound: Unable to play, Load is not complete -- will try 1 time in .5 seconds:',self);
+      setTimeout(_play, 500);
     }
     return self;
   };
 
   var stop= function stop() {
+    console.log('Sound.stop() stop called, are we playing?', this.playing);
     if (this.playing) {
       this.playing.stop();
       this.playing = null;
     } else {
-      console.log('Nothing playing');
+      console.log('Sound.stop() -- Nothing playing');
     }
     return this;
   };
@@ -5269,19 +5277,28 @@ var RtcommEndpoint = (function invocation(){
       webrtc = new WebRTCConnection(parent);
     }
     webrtc.on('ringing', function(event_obj) {
-      parent._.ringbackTone && parent._.ringbackTone.play();
-      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
+     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     parent._playRingback();
+     (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
+    });
+
+    webrtc.on('trying', function(event_obj) {
+     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     parent._playRingback();
+     (parent.lastEvent !== 'session:trying') && parent.emit('session:trying');
     });
     webrtc.on('alerting', function(event_obj) {
-      parent._.ringTone && parent._.ringTone.play();
+      parent._playRingtone();
       parent.emit('session:alerting', {protocols: 'webrtc'});
     });
     webrtc.on('connected', function(event_obj) {
-      parent._.ringbackTone && parent._.ringbackTone.playing && parent._.ringbackTone.stop();
-      parent._.ringTone && parent._.ringTone.playing && parent._.ringTone.stop();
+      console.log('SHould stop ring now...');
+      parent._stopRing();
       parent.emit('webrtc:connected');
     });
     webrtc.on('disconnected', function(event_obj) {
+      console.log('SHould stop ring now...');
+      parent._stopRing();
       parent.emit('webrtc:disconnected');
     });
     return webrtc;
@@ -5352,6 +5369,8 @@ var RtcommEndpoint = (function invocation(){
     this.config.chat && this._.protocols.push('chat');
 
     //load the sounds 
+    console.log('REMOVE ME: ringtone: '+this.config.ringtone);
+    console.log('REMOVE ME: ringbacktone: '+this.config.ringbacktone);
     this._.ringTone = (this.config.ringtone) ? util.Sound(this.config.ringtone).load(): null;
     this._.ringbackTone= (this.config.ringbacktone) ? util.Sound(this.config.ringbacktone).load() : null;
 
@@ -5583,6 +5602,18 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
   }
 /** @lends module:rtcomm.RtcommEndpoint.prototype */
 return  {
+  _playRingtone: function() {
+    this._.ringTone && this._.ringTone.play();
+  },
+  _playRingback: function() {
+    this._.ringbackTone && this._.ringbackTone.play();
+  },
+  _stopRing: function() {
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
+    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
+    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
+  },
   getAppContext:function() {return this.config.appContext;},
   newSession: function(session) {
       var event = null;
@@ -5792,6 +5823,7 @@ return  {
    */
   reject: function() {
       l('DEBUG') && console.log(this + ".reject() invoked ");
+      this._stopRing();
       this.webrtc.reject();
       this.chat.reject();
       this._.activeSession && this._.activeSession.fail("The user rejected the call");
@@ -6173,8 +6205,9 @@ var WebRTCConnection = (function invocation() {
 
       // Stop broadcasting/release the camera.
       this._.localStream && this._.localStream.stop();
+      this._.localStream = null;
       detachMediaStream(this.getMediaOut());
-      if (this.getState() !== 'disconnected' && this.getState() !== 'alerting') {
+      if (this.getState() !== 'disconnected') {
         this._setState('disconnected');
       }
       return this;
@@ -6491,7 +6524,7 @@ var WebRTCConnection = (function invocation() {
              /*onSuccess*/ function() {
                l('DEBUG') && console.log(this+' PRANSWER in processMessage for offer()');
                 if (!self.dependencies.parent.sessionStarted()) { 
-                  self.dependencies.parent._.activeSession.pranswer({'type': 'pranswer', 'sdp':''});
+                  self.dependencies.parent._.activeSession.pranswer({'webrtc': {'type': 'pranswer', 'sdp':''}});
                 }
                 this._setState('alerting');
                }.bind(self),

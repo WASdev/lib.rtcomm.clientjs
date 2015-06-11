@@ -57,19 +57,28 @@ var RtcommEndpoint = (function invocation(){
       webrtc = new WebRTCConnection(parent);
     }
     webrtc.on('ringing', function(event_obj) {
-      parent._.ringbackTone && parent._.ringbackTone.play();
-      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
+     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     parent._playRingback();
+     (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
+    });
+
+    webrtc.on('trying', function(event_obj) {
+     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     parent._playRingback();
+     (parent.lastEvent !== 'session:trying') && parent.emit('session:trying');
     });
     webrtc.on('alerting', function(event_obj) {
-      parent._.ringTone && parent._.ringTone.play();
+      parent._playRingtone();
       parent.emit('session:alerting', {protocols: 'webrtc'});
     });
     webrtc.on('connected', function(event_obj) {
-      parent._.ringbackTone && parent._.ringbackTone.playing && parent._.ringbackTone.stop();
-      parent._.ringTone && parent._.ringTone.playing && parent._.ringTone.stop();
+      console.log('SHould stop ring now...');
+      parent._stopRing();
       parent.emit('webrtc:connected');
     });
     webrtc.on('disconnected', function(event_obj) {
+      console.log('SHould stop ring now...');
+      parent._stopRing();
       parent.emit('webrtc:disconnected');
     });
     return webrtc;
@@ -140,6 +149,8 @@ var RtcommEndpoint = (function invocation(){
     this.config.chat && this._.protocols.push('chat');
 
     //load the sounds 
+    console.log('REMOVE ME: ringtone: '+this.config.ringtone);
+    console.log('REMOVE ME: ringbacktone: '+this.config.ringbacktone);
     this._.ringTone = (this.config.ringtone) ? util.Sound(this.config.ringtone).load(): null;
     this._.ringbackTone= (this.config.ringbacktone) ? util.Sound(this.config.ringbacktone).load() : null;
 
@@ -371,6 +382,18 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
   }
 /** @lends module:rtcomm.RtcommEndpoint.prototype */
 return  {
+  _playRingtone: function() {
+    this._.ringTone && this._.ringTone.play();
+  },
+  _playRingback: function() {
+    this._.ringbackTone && this._.ringbackTone.play();
+  },
+  _stopRing: function() {
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
+    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
+    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
+  },
   getAppContext:function() {return this.config.appContext;},
   newSession: function(session) {
       var event = null;
@@ -580,6 +603,7 @@ return  {
    */
   reject: function() {
       l('DEBUG') && console.log(this + ".reject() invoked ");
+      this._stopRing();
       this.webrtc.reject();
       this.chat.reject();
       this._.activeSession && this._.activeSession.fail("The user rejected the call");

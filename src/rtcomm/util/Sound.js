@@ -23,8 +23,8 @@ Sound.prototype = (function () {
       request.onload = function() {
         self.context.decodeAudioData(request.response, 
           function(buffer) {
+            console.log('Sound: successfully loaded buffer '+ self.url);
             self.buffer = buffer;
-            l('DEBUG') && console.log('Sound: successfully loaded buffer '+ self.url);
             callback && callback();
           }, 
           function(error) { /* onError */
@@ -39,28 +39,35 @@ Sound.prototype = (function () {
   var play = function play() {
     var self = this;
     var _play = function _play() {
-      var sound = self.context.createBufferSource();
-      sound.buffer = self.buffer;
-      sound.connect(self.context.destination);
-      sound.loop= true;
-      sound.start(0);
-      self.playing = sound;
+      if (!self.playing) {
+        var sound = self.context.createBufferSource();
+        sound.buffer = self.buffer;
+        sound.connect(self.context.destination);
+        sound.loop= true;
+        sound.start(0);
+        self.playing = sound;
+      } else {
+        console.log('Already playing...');
+      }
     };
 
     if (self.buffer) {
       _play();
     } else {
-      load(_play);
+      // Try again in 500 milliseconds
+      l('DEBUG') && console.log('Sound: Unable to play, Load is not complete -- will try 1 time in .5 seconds:',self);
+      setTimeout(_play, 500);
     }
     return self;
   };
 
   var stop= function stop() {
+    console.log('Sound.stop() stop called, are we playing?', this.playing);
     if (this.playing) {
       this.playing.stop();
       this.playing = null;
     } else {
-      l('DEBUG') && console.log('Sound.stop() -- Nothing playing');
+      console.log('Sound.stop() -- Nothing playing');
     }
     return this;
   };
