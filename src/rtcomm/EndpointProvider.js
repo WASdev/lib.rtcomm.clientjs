@@ -430,6 +430,8 @@ var EndpointProvider =  function EndpointProvider() {
         this._.rtcommEndpointConfig.chat : objConfig.chat;
       objConfig.webrtc = (typeof this._.rtcommEndpointConfig.webrtc === 'boolean') ? 
         this._.rtcommEndpointConfig.webrtc : objConfig.webrtc;
+      objConfig.ringtone = (this._.rtcommEndpointConfig.ringtone) ?  this._.rtcommEndpointConfig.ringtone: null; 
+      objConfig.ringbacktone = (this._.rtcommEndpointConfig.ringbacktone) ?  this._.rtcommEndpointConfig.ringbacktone: null; 
     }
 
     if (typeof this.config.appContext === 'undefined') {

@@ -19,145 +19,9 @@
 
 var RtcommEndpoint = (function invocation(){
 
-  /**
-   * @memberof module:rtcomm.RtcommEndpoint
-   *
-   * @description 
-   * A Chat is a connection from one peer to another to pass text back and forth
-   *
-   *  @constructor
-   *  @extends  module:rtcomm.util.RtcommBaseObject
-   */
-  var Chat = function Chat(parent) {
-    // Does this matter?
-    var createChatMessage = function(message) {
-      return {'chat':{'message': message, 'from': parent.userid}};
-    };
-    var chat = this;
-    this._ = {};
-    this._.objName = 'Chat';
-    this.id = parent.id;
-    this._.parentConnected = false;
-    this._.enabled = false;
-    this.onEnabledMessage = null;
-    this.onDisabledMessage = null;
-    this.state = 'disconnected';
-
-    this.events = {
-      'message': [],
-      'ringing': [],
-      'connected': [],
-      'alerting': [],
-      'disconnected': []
-    };
-    /**
-     * Send a message if connected, otherwise, 
-     * enables chat for subsequent RtcommEndpoint.connect();
-     * @param {string} message  Message to send when enabled.
-     */  
-    this.enable =  function(message) {
-      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
-
-      this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
-      // Don't need much, just set enabled to true.
-      // Default message
-      this._.enabled = true;
-      
-      if (parent.sessionStarted()) {
-        l('DEBUG') && console.log(this+'.enable() - Session Started, connecting chat');
-        this._connect();
-      } else { 
-        l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
-        parent._.activeSession && parent._.activeSession.respond();
-        this._connect();
-      }
-      return this;
-    };
-    /**
-     * Accept an inbound connection  
-     */
-    this.accept = function(message) {
-      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
-      if (this.state === 'alerting') {
-        this.enable(message || 'Accepting chat connection');
-        return true;
-      } else {
-        return false;
-      }
-    };
-    /**
-     * Reject an inbound session
-     */
-    this.reject = function() {
-      // Does nothing.
-    };
-    /**
-     * disable chat
-     */
-    this.disable = function(message) {
-      if (this._.enabled) { 
-        this._.enabled = false;
-        this.onDisabledMessage = message|| createChatMessage(parent.userid + ' has left the chat');
-        this.send(this.onDisabledMessage);
-        this._setState('disconnected');
-      }
-      return null;
-    };
-    /**
-     * send a chat message
-     * @param {string} message  Message to send
-     */
-    this.send = function(message) {
-      message = (message && message.payload) ? message.payload: message;
-      message = (message && message.chat)  ? message : createChatMessage(message);
-      if (parent._.activeSession) {
-        parent._.activeSession.send(message);
-      }
-    };
-    this._connect = function(sendMethod) {
-      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
-      if (this._.enabled) {
-        this.onEnabledMessage && sendMethod({'payload': this.onEnabledMessage});
-        this._setState('connected');
-        return true;
-      } else {
-        l('DEBUG') && console.log(this+ '_connect() !!!!! not enabled, skipping...'); 
-        return false;
-      }
-    };
-    // Message should be in the format:
-    // {payload content... }
-    // {'message': message, 'from':from}
-    //
-    this._processMessage = function(message) {
-      // If we are connected, emit the message
-      if (this.state === 'connected') {
-        this.emit('message', message);
-      } else {
-        if (!parent.sessionStopped()) {
-          parent._.activeSession && parent._.activeSession.pranswer();
-          this._setState('alerting', message);
-        }
-      }
-      return this;
-    };
-    this._setState = function(state, object) {
-     l('DEBUG') && console.log(this+'._setState() setting state to: '+ state); 
-      var currentState = this.state;
-      try {
-        this.state = state;
-        this.emit(state, object);
-      } catch(error) {
-        console.error(error);
-        console.error(this+'._setState() unsupported state: '+state );
-        this.state = currentState;
-      }
-    };
-
-  };
-  Chat.prototype = util.RtcommBaseObject.extend({});
 
   var createChat = function createChat(parent) {
+    /* globals Chat:false */
     var chat = new Chat(parent);
     chat.on('ringing', function(event_obj) {
       (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
@@ -193,12 +57,16 @@ var RtcommEndpoint = (function invocation(){
       webrtc = new WebRTCConnection(parent);
     }
     webrtc.on('ringing', function(event_obj) {
+      parent._.ringbackTone && parent._.ringbackTone.play();
       (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
     });
     webrtc.on('alerting', function(event_obj) {
+      parent._.ringTone && parent._.ringTone.play();
       parent.emit('session:alerting', {protocols: 'webrtc'});
     });
     webrtc.on('connected', function(event_obj) {
+      parent._.ringbackTone && parent._.ringbackTone.playing && parent._.ringbackTone.stop();
+      parent._.ringTone && parent._.ringTone.playing && parent._.ringTone.stop();
       parent.emit('webrtc:connected');
     });
     webrtc.on('disconnected', function(event_obj) {
@@ -232,6 +100,8 @@ var RtcommEndpoint = (function invocation(){
       ignoreAppContext: true,
       appContext : null,
       userid: null,
+      ringtone: null,
+      ringbacktone: null,
       chat: true,
       webrtc: true
     };
@@ -251,12 +121,14 @@ var RtcommEndpoint = (function invocation(){
       inboundMedia: null,
       attachMedia: false,
       localStream : null,
+      ringTone : null,
+      ringbackTone : null,
       media : { In : null,
                Out: null},
     };
     // Used to store the last event emitted;
     this.lastEvent = null;
-    // Used to store the last event emitted;
+    // Used to store the last event emitted
     //
     this.state = 'session:stopped';
     var self = this;
@@ -266,6 +138,10 @@ var RtcommEndpoint = (function invocation(){
 
     this.config.webrtc && this._.protocols.push('webrtc');
     this.config.chat && this._.protocols.push('chat');
+
+    //load the sounds 
+    this._.ringTone = (this.config.ringtone) ? util.Sound(this.config.ringtone).load(): null;
+    this._.ringbackTone= (this.config.ringbacktone) ? util.Sound(this.config.ringbacktone).load() : null;
 
     // expose the ID
     this.id = this._.uuid;
