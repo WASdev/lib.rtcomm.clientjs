@@ -11,6 +11,7 @@ var Sound = function Sound(url) {
   this.playing = null;
 };
 
+/* global l:false */ 
 Sound.prototype = (function () {
 
   var load = function load(callback) {
@@ -23,11 +24,11 @@ Sound.prototype = (function () {
         self.context.decodeAudioData(request.response, 
           function(buffer) {
             self.buffer = buffer;
-            console.log('successfully loaded buffer '+ self.url);
+            l('DEBUG') && console.log('Sound: successfully loaded buffer '+ self.url);
             callback && callback();
           }, 
           function(error) { /* onError */
-            console.log('Unable to load the url: ', error);
+            console.error('Unable to load the url: ', error);
           });
       };
       request.send();
@@ -59,7 +60,7 @@ Sound.prototype = (function () {
       this.playing.stop();
       this.playing = null;
     } else {
-      console.log('Nothing playing');
+      l('DEBUG') && console.log('Sound.stop() -- Nothing playing');
     }
     return this;
   };
