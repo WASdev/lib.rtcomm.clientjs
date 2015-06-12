@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.12 11-06-2015 21:22:35 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.12 11-06-2015 21:22:35 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.12 12-06-2015 16:38:53 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.12 12-06-2015 16:38:53 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -489,14 +489,18 @@ var RtcommEvent = function RtcommEvent() {
   this.object = "";
 };
 
-var Sound = function Sound(url) {
+var Sound = (function invocation(url) {
+
+  /* global AudioContext:false */ 
+  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+  var context = context || new AudioContext();
+
+  var Sound = function Sound(url) {
   if (!(this instanceof Sound)) {
     return new Sound(url);
   }
-  /* global AudioContext:false */ 
-  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+  this.context = context;
   this.url = url;
-  this.context = new AudioContext();
   this.buffer = null;
   this.loaded = false;
   this.playing = null;
@@ -567,6 +571,9 @@ Sound.prototype = (function () {
       play: play,
       stop: stop
     };
+})();
+
+return Sound;
 })();
 
 /*globals exports:false*/

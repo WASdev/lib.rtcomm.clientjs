@@ -1,11 +1,15 @@
-var Sound = function Sound(url) {
+var Sound = (function invocation(url) {
+
+  /* global AudioContext:false */ 
+  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+  var context = context || new AudioContext();
+
+  var Sound = function Sound(url) {
   if (!(this instanceof Sound)) {
     return new Sound(url);
   }
-  /* global AudioContext:false */ 
-  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+  this.context = context;
   this.url = url;
-  this.context = new AudioContext();
   this.buffer = null;
   this.loaded = false;
   this.playing = null;
@@ -76,6 +80,9 @@ Sound.prototype = (function () {
       play: play,
       stop: stop
     };
+})();
+
+return Sound;
 })();
 
 /*globals exports:false*/
