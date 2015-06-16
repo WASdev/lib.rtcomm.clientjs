@@ -21,7 +21,7 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'umd/rtcomm'
+    'umd/rtcomm/EndpointProvider'
 ], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
   var badconfig = {
       server: 1,

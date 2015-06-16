@@ -21,8 +21,8 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'umd/rtcomm'
-], function (registerSuite, assert, Deferred,globals,config, rtcomm) {
+    'umd/rtcomm/EndpointProvider'
+], function (registerSuite, assert, Deferred,globals,config, EndpointProvider) {
  /*   if (typeof window === 'undefined' && global) {
       require(['intern/dojo/node!./tests_intern/mock/mqttws31_shim'], function(globals) {
         console.log('********** Paho should now be defined **********');
@@ -79,7 +79,7 @@ define([
           console.log('*************setup!**************');
           cfg.userid = 'scott';
           /* init the EndpointProvider */
-          ep = new rtcomm();
+          ep = new EndpointProvider();
           ep.setLogLevel('DEBUG');
           ep.init(cfg, function(obj) {
             console.log('*** Creating MqttEndpoints ***');

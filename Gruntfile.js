@@ -11,7 +11,7 @@ module.exports = function(grunt) {
         options: {
           banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("UTC:dd-mm-yyyy HH:MM:ss Z") %> */\nconsole.log(\'<%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("UTC:dd-mm-yyyy HH:MM:ss Z") %>\');\n'
         },
-        src: ['dist/umd/rtcomm/util.js', 'dist/umd/rtcomm/connection.js','dist/umd/rtcomm.js'],
+        src: ['dist/umd/rtcomm/util.js', 'dist/umd/rtcomm/connection.js','dist/umd/rtcomm/EndpointProvider.js','dist/umd/rtcomm.js'],
         dest: 'dist/rtcomm.js' 
        }
     },
@@ -19,13 +19,26 @@ module.exports = function(grunt) {
       rtcomm: {
         options: {
           src: 'dist/umd/rtcomm.js',
+          globalAlias: 'rtcomm',
+          template: 'build_resources/umd.hbs',
+          deps: { 
+            'default': ['EndpointProvider', 'connection','util'],
+            amd: ['./rtcomm/EndpointProvider', './rtcomm/connection','./rtcomm/util'],
+            cjs: ['./rtcomm/EndpointProvider', './rtcomm/connection','./rtcomm/util'],
+            global: ['rtcomm.EndpointProvider', 'rtcomm.connection','rtcomm.util']
+          }
+        }
+      },
+      endpoint_provider: {
+        options: {
+          src: 'dist/umd/rtcomm/EndpointProvider.js',
           objectToExport: 'EndpointProvider',
           globalAlias: 'rtcomm',
           template: 'build_resources/umd.hbs',
           deps: { 
             'default': ['connection','util'],
-            amd: ['./rtcomm/connection','./rtcomm/util'],
-            cjs: ['./rtcomm/connection','./rtcomm/util'],
+            amd: ['./connection','./util'],
+            cjs: ['./connection','./util'],
             global: ['rtcomm.connection','rtcomm.util']
           }
         }
