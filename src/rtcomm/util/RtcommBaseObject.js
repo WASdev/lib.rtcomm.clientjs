@@ -80,14 +80,39 @@ var RtcommBaseObject = {
     on : function(event,callback) {
       //console.log('on -- this.events is: '+ JSON.stringify(this.events));
       // This function requires an events object on whatever object is attached to. and event needs to be defined there.
-      if (this.events && this.events[event] && Array.isArray(this.events[event])) {
-        l('EVENT', this) && console.log(this+' Adding a listener callback for event['+event+']');
-        l('TRACE', this) && console.log(this+' Callback for event['+event+'] is', callback);
-        this.events[event].push(callback);
+      if (this.events) {
+        if(typeof event === 'object') {
+          // this is an object of events: 
+          for (var key in event) { 
+            if (event.hasOwnProperty(key)) {
+              if (this.events[key] && Array.isArray(this.events[key])) {
+                 l('EVENT', this) && console.log(this+' Adding a listener callback for event['+key+']');
+                 l('TRACE', this) && console.log(this+' Callback for event['+key+'] is', event[key]);
+                 this.events[key].push(event[key]);
+              }
+            }
+          }
+        } else { 
+          if (this.events[event] && Array.isArray(this.events[event])) {
+            l('EVENT', this) && console.log(this+' Adding a listener callback for event['+event+']');
+            l('TRACE', this) && console.log(this+' Callback for event['+event+'] is', callback);
+            this.events[event].push(callback);
+          }
+        }
       } else {
         throw new Error("on() requires an events property listing the events. this.events["+event+"] = [];");
-      }   
-    },  
+      }
+    },
+    /** attach a callback to ALL events */
+    bubble : function(callback) {
+      if (this.events) {
+        for(var event in this.events) {
+          if (this.events.hasOwnProperty(event) ) {
+            this.events[event].push(callback);
+          }
+        }
+      }
+    },
     // Clear callbacks for a particular event.
     off : function(event) {
       if (this.events && this.events[event]) {
@@ -97,11 +122,14 @@ var RtcommBaseObject = {
     },
     /** emit an event from the object */
     emit : function(event, object) {
+      var event_object = object || {};
       var self = this;
       // We have an event format specified, normalize the event before emitting.
       if (this._Event && typeof this._Event === 'function') { 
-        object = this._Event(event, object);
+        event_object = this._Event(event, event_object);
       }
+      // Add the event name to the object we emit
+      event_object.name = (event_object.name) ? event_object.name : event;
       if (this.events && this.events[event] ) {
      //   console.log('>>>>>>>> Firing event '+event);
         l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);
@@ -114,7 +142,7 @@ var RtcommBaseObject = {
             if (typeof callback === 'function') {
               l('EVENT', self) && console.log(self+".emit()  executing callback for event["+event+"]");
               try {
-                callback(object);
+                callback(event_object);
               } catch(e) {
                 var m = 'Event['+event+'] callback failed with message: '+e.message;
                 throw new Error(m);

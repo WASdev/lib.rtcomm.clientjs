@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.12 16-06-2015 18:20:56 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.12 16-06-2015 18:20:56 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.12 22-06-2015 19:08:06 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.12 22-06-2015 19:08:06 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -381,14 +381,39 @@ var RtcommBaseObject = {
     on : function(event,callback) {
       //console.log('on -- this.events is: '+ JSON.stringify(this.events));
       // This function requires an events object on whatever object is attached to. and event needs to be defined there.
-      if (this.events && this.events[event] && Array.isArray(this.events[event])) {
-        l('EVENT', this) && console.log(this+' Adding a listener callback for event['+event+']');
-        l('TRACE', this) && console.log(this+' Callback for event['+event+'] is', callback);
-        this.events[event].push(callback);
+      if (this.events) {
+        if(typeof event === 'object') {
+          // this is an object of events: 
+          for (var key in event) { 
+            if (event.hasOwnProperty(key)) {
+              if (this.events[key] && Array.isArray(this.events[key])) {
+                 l('EVENT', this) && console.log(this+' Adding a listener callback for event['+key+']');
+                 l('TRACE', this) && console.log(this+' Callback for event['+key+'] is', event[key]);
+                 this.events[key].push(event[key]);
+              }
+            }
+          }
+        } else { 
+          if (this.events[event] && Array.isArray(this.events[event])) {
+            l('EVENT', this) && console.log(this+' Adding a listener callback for event['+event+']');
+            l('TRACE', this) && console.log(this+' Callback for event['+event+'] is', callback);
+            this.events[event].push(callback);
+          }
+        }
       } else {
         throw new Error("on() requires an events property listing the events. this.events["+event+"] = [];");
-      }   
-    },  
+      }
+    },
+    /** attach a callback to ALL events */
+    bubble : function(callback) {
+      if (this.events) {
+        for(var event in this.events) {
+          if (this.events.hasOwnProperty(event) ) {
+            this.events[event].push(callback);
+          }
+        }
+      }
+    },
     // Clear callbacks for a particular event.
     off : function(event) {
       if (this.events && this.events[event]) {
@@ -398,11 +423,14 @@ var RtcommBaseObject = {
     },
     /** emit an event from the object */
     emit : function(event, object) {
+      var event_object = object || {};
       var self = this;
       // We have an event format specified, normalize the event before emitting.
       if (this._Event && typeof this._Event === 'function') { 
-        object = this._Event(event, object);
+        event_object = this._Event(event, event_object);
       }
+      // Add the event name to the object we emit
+      event_object.name = (event_object.name) ? event_object.name : event;
       if (this.events && this.events[event] ) {
      //   console.log('>>>>>>>> Firing event '+event);
         l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);
@@ -415,7 +443,7 @@ var RtcommBaseObject = {
             if (typeof callback === 'function') {
               l('EVENT', self) && console.log(self+".emit()  executing callback for event["+event+"]");
               try {
-                callback(object);
+                callback(event_object);
               } catch(e) {
                 var m = 'Event['+event+'] callback failed with message: '+e.message;
                 throw new Error(m);
@@ -1724,6 +1752,172 @@ var MessageFactory = (function (){
 
 exports.MessageFactory = MessageFactory;
 
+
+/*
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */ 
+/**
+ * @class 
+ * @memberof module:rtcomm.connector
+ * @classdesc
+ *
+ * Low level service used to create the MqttConnection which connects
+ * via mqtt over WebSockets to a server passed via the config object.
+ *
+ * @param {object}  config   - Config object for MqttConnection
+ * @param {string}  config.server -  MQ Server for mqtt.
+ * @param {integer} [config.port=1883] -  Server Port
+ * @param {string}  [config.defaultTopic] - Default topic to publish to with ibmrtc Server
+ * @param {string}  [config.myTopic] - Optional myTopic, defaults to a hash from userid
+ * @param {object}  [config.credentials] - Optional Credentials for mqtt server.
+ *
+ * @param {function} config.on  - Called when an inbound message needs
+ *    'message' --> {'fromEndpointID': 'string', content: 'string'}
+ * 
+ * @throws {string} - Throws new Error Exception if invalid arguments.
+ * 
+ * @private
+ */
+
+// We want this to be GLOBAL
+//  but if already defined, use the one we have...
+
+/*global mockMqtt:false*/
+
+mockMqtt = (typeof mockMqtt !== 'undefined' ) ? mockMqtt : (function () {
+
+      // This is a fake to make sure everythign is logged
+      var l = function(level) {
+        return true;
+      };
+
+      /* build a regular expression to match the topic */
+      var buildTopicRegex= function(topic) {
+        // If it starts w/ a $ its a Shared subscription.  Essentially:
+        // $SharedSubscription/something//<publishTopic>
+        // We need to Remove the $-> //
+        // /^\$.+\/\//, ''
+        var regex = topic.replace(/^\$SharedSubscription.+\/\//, '\\/')
+                    .replace(/\/\+/g,'\\/.+')
+                    .replace(/\/#$/g,'($|\\/.+$)')
+                    .replace(/(\\)?\//g, function($0, $1){
+                      return $1 ? $0 : '\\/';
+                    });
+
+        // The ^ at the beginning in the return ensures that it STARTS w/ the topic passed.
+        return new RegExp('^'+regex+'$');
+      };
+
+  var MockMqttClient = function MockMqttClient(id) {
+    console.log('***************** Using a Mock MQTT Client *****************');
+    this.events = {
+      'message': []
+    };
+
+    this.onMessageArrived = function(message) {
+      console.log('Not Defined', message);
+    };
+  };
+
+  /*global util:false */
+  MockMqttClient.prototype  = util.RtcommBaseObject.extend((function() {
+
+    function connect(options){
+      l('DEBUG') && console.log('MockMqttClient.connect()', options);
+      var self = this;
+      var onSuccess = (options && options.onSuccess) ? options.onSuccess : function(){ console.log('MockMqttClient.connect onSuccess not defined');};
+      var onFailure = (options && options.onFailure) ? options.onFailure: function(){ console.log('MockMqttClient.connect onFailure not defined');};
+      self.on('message', self.onMessageArrived);
+      onSuccess();
+    };
+
+    function send(message) {
+      l('DEBUG') && console.log('MockMqttClient.send()', message);
+      mockMqtt.send(message);
+    };
+
+    function subscribe(topic) {
+      l('DEBUG') && console.log('MockMqttClient.subscribe()', topic);
+      var self = this;
+      mockMqtt.subscribe(topic, self);
+    };
+
+    function unsubscribe(topic) {
+      l('DEBUG') && console.log('MockMqttClient.unsubscribe()', topic);
+
+    };
+
+    function disconnect(topic) {
+      l('DEBUG') && console.log('MockMqttClient.disconnect()', topic);
+    };
+
+    return {
+      /* global setLogLevel:false */
+      setLogLevel: setLogLevel,
+      /* global getLogLevel:false */
+      getLogLevel: getLogLevel,
+      connect: connect,
+      subscribe: subscribe,
+      unsubscribe: unsubscribe,
+      send: send,
+      disconnect: disconnect
+    };
+  })());
+
+  var mqtt_clients = {};
+  var topics = {};
+
+  var findTopic = function(topic) {
+    for (var t in topics) {
+      //console.log('findTopic looking for '+topic+' against :'+t);
+      if (buildTopicRegex(t).test(topic)){
+       // console.log('returning : ',t);
+        return t;
+      }
+    }
+  };
+  return {
+    add : function(server, port, clientid) {
+      mqtt_clients[clientid] = new MockMqttClient(clientid);
+      return mqtt_clients[clientid];
+    },
+    subscribe : function(topic, mqttClient) {
+    // only one client is subscribed to a topic in this case... which is wrong... 
+      topics[topic] = mqttClient;
+    },
+    send : function(message) {
+      var topic = message.destinationName;
+      console.log('mockMqtt.send() topic: '+topic +' message: '+ message);
+      var matchedTopic = findTopic(topic);
+      if (matchedTopic) {
+        //console.log('mockMqtt.send() emitting on ', topics[matchedTopic]);
+       // console.log('mockMqtt.send() message is', message);
+        topics[matchedTopic].emit('message', message);
+      }
+    },
+    _getClients : function() {
+      return mqtt_clients;
+    },
+    _getSubscriptions : function () {
+      return topics;
+    }
+
+  };
+
+})();
+
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -1787,7 +1981,8 @@ var MqttConnection = function MqttConnection(config) {
     /* global Paho.MQTT: false */
     /* global l: false */
     var mqtt = null;
-    if (typeof Paho.MQTT === 'object') {
+
+    if ((typeof Paho !== 'undefined' ) && (typeof Paho.MQTT === 'object')) {
       l('DEBUG') && console.log('MqttConnection createMqttClient using config: ', config);
       mqtt = new Paho.MQTT.Client(config.server,config.port,config.clientID);
       /* if a connection is lost, this callback is called, reconnect */
@@ -1797,6 +1992,9 @@ var MqttConnection = function MqttConnection(config) {
         }
       };
 
+    } else if (mockMqtt) {
+      l('INFO') && console.log('****** MqttConnection using mockMqtt ******');
+      mqtt = mockMqtt.add(config.server, config.port, config.clientID);
     } else {
       throw new Error("MqttConnection depends on 'Paho.MQTT' being loaded via mqttws31.js.");
     }
@@ -1862,17 +2060,20 @@ var MqttConnection = function MqttConnection(config) {
 
   // Create our MQTT Client.
   var mqttClient = this.dependencies.mqttClient = createMqttClient(this.config);
+  var mqttConnection = this;
   mqttClient.onMessageArrived = function (message) {
     l('TRACE') && console.log('MQTT Raw message, ', message);
     /* mqttMessage we emit */
-    var mqttMessage= convertMessage(message,this.config.myTopic);
+    var mqttMessage= convertMessage(message,mqttConnection.config.myTopic);
     try {
-      l('MESSAGE') && console.log(this+' Received message: '+JSON.stringify(mqttMessage));
-      this.emit('message',mqttMessage);
+      console.log(mqttConnection+' Received message: '+JSON.stringify(mqttMessage));
+      l('DEBUG') && console.log(mqttConnection+' Received message: '+JSON.stringify(mqttMessage));
+      console.log('mqttConnection is: ',mqttConnection);
+      mqttConnection && mqttConnection.emit('message',mqttMessage);
     } catch(e) {
       console.error('onMessageArrived callback chain failure:',e);
     }
-  }.bind(this);
+  };
 
   // Init has be executed.
   this._init = true;
@@ -1880,18 +2081,24 @@ var MqttConnection = function MqttConnection(config) {
 
 /* global util: false */
 MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
-
   var createMqttMessage = function(message) {
     l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Creating message > ', message);
     var messageToSend = null;
-    if (message && typeof message === 'object') {
-      messageToSend = new Paho.MQTT.Message(JSON.stringify(message));
-    } else if (typeof message === 'string' ) {
-      // If its just a string, we support sending it still, though no practical purpose for htis.
-      messageToSend = new Paho.MQTT.Message(message);
+    if ((typeof Paho !== 'undefined' )&& (typeof Paho.MQTT === 'object')) {
+      if (message && typeof message === 'object') {
+        messageToSend = new Paho.MQTT.Message(JSON.stringify(message));
+      } else if (typeof message === 'string' ) {
+        // If its just a string, we support sending it still, though no practical purpose for htis.
+        messageToSend = new Paho.MQTT.Message(message);
+      } else {
+        // Return an empty message
+        messageToSend = new Paho.MQTT.Message('');
+      }
+    } else if (mockMqtt) {
+      // If its a Mock effort, we don't do anything to it, just format it straight up:
+      messageToSend = {destinationName: null, payloadString: message};
     } else {
-      // Return an empty message
-      messageToSend = new Paho.MQTT.Message('');
+      console.error('MqttConnection createMessage, No Paho Client defined');
     }
     l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Created message > ',messageToSend);
     return messageToSend;
@@ -3381,6 +3588,10 @@ var EndpointProvider =  function EndpointProvider() {
             console.error('Invalid event in rtcommEndpointConfig: '+key);
           }
         });
+      }
+      if (this._.rtcommEndpointConfig.bubble && (typeof this._.rtcommEndpointConfig.bubble === 'function')) {
+        // Attach the bubble event
+        endpoint.bubble(this._.rtcommEndpointConfig.bubble);
       }
       // If broadcast needs to be set
       if(this._.rtcommEndpointConfig.broadcast) {
@@ -7031,6 +7242,77 @@ return EndpointProvider;
 }(this, function (EndpointProvider, connection, util) {
 
 /*
+ * This is a Mock Rtcomm Server for testing purposes only.  It ONLY handles registration and
+ * forwarding messages to another user.  It does not fail gracefully yet.  
+ *
+ */
+
+var MockRtcommServer = (function MockRtcommServer() {
+
+    var rtcommTopicPath = "/rtcomm/";
+    var topics = {
+    // Just the SERVICE_QUERY topic
+    management: "",
+    // The presence Topic
+    sphere: "",
+    // The main topic (connector)
+    connector: ""
+    //
+    };
+    var registry = {};
+    var conn = null;
+
+    function setTopics(rootTopic) {
+      for (var key in topics) {
+        topics[key] = rootTopic + key + "/#";
+      }
+    }
+  return { 
+
+    /**
+     * config.rtcommTopicPath is only option
+     */
+
+    init : function init(config) {
+      console.log('********** Using a Mock Rtcomm Server ****************');
+      rtcommTopicPath = (config && config.rtcommTopicPath) ? config.rtcommTopicPath : rtcommTopicPath;
+      setTopics(rtcommTopicPath);
+      conn = new connection.MqttConnection({server:'localhost', port: 1883,  'rtcommTopicPath': rtcommTopicPath});
+      conn.setLogLevel('DEBUG');
+      conn.connect();
+      conn.subscribe(topics.management);
+      conn.subscribe(topics.sphere);
+      conn.subscribe(topics.connector);
+      conn.on('message', function(message) {
+       console.log('MockRtcommServer --> Received a message!', message);
+       if (message) {
+         var rtcommMessage = message.content;
+         switch(rtcommMessage.method) {
+           case 'DOCUMENT': 
+             console.log('DOCUMENT received');
+             registry[message.fromEndpointID] = rtcommMessage.addressTopic;
+             break;
+           case 'SERVICE_QUERY':
+             console.log('SERVICE QUERY!');
+             break;
+           default:
+             if(rtcommMessage.toEndpointID in registry) {
+              conn.publish(registry[rtcommMessage.toEndpointID] +'/'+message.fromEndpointID, rtcommMessage);
+             } else {
+               console.error('Send a Failure response');
+             }
+             break;
+        }
+       }
+      });
+    },
+    getRegistry: function() {
+      return registry;
+    }
+  };
+})();
+
+/*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -7064,34 +7346,157 @@ return EndpointProvider;
  * @requires {@link mqttws31.js}
  *
  */
- var rtcomm= (function rtcomm() {
+/*global l:false*/
+var rtcomm= (function rtcomm() {
 
    var endpointProvider = null;
 
+   var events = {
+        /**
+         * A signaling session to a peer has been established
+         * @event module:rtcomm.RtcommEndpoint#session:started
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        "session:started": [],
+        /**
+         * An inbound request to establish a call via 
+         * 3PCC was initiated
+         *
+         * @event module:rtcomm.RtcommEndpoint#session:refer
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         *
+         */
+        "session:refer": [],
+        /**
+         * A peer has been reached, but not connected (inbound/outound)
+         * @event module:rtcomm.RtcommEndpoint#session:ringing
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        "session:trying": [],
+        /**
+         * A Queue has been contacted and we are waiting for a response.
+         * @event module:rtcomm.RtcommEndpoint#session:queued
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        "session:queued": [],
+        /**
+         * A peer has been reached, but not connected (inbound/outound)
+         * @event module:rtcomm.RtcommEndpoint#session:ringing
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        "session:ringing": [],
+        /**
+         * An inbound connection is being requested.
+         * @event module:rtcomm.RtcommEndpoint#session:alerting
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        "session:alerting": [],
+        /**
+         * A failure occurred establishing the session (check reason)
+         * @event module:rtcomm.RtcommEndpoint#session:failed
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        "session:failed": [],
+        /**
+         * The session has stopped
+         * @event module:rtcomm.RtcommEndpoint#session:stopped
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         *
+         */
+        "session:stopped": [],
+        /**
+         * A PeerConnection to a peer has been established
+         * @event module:rtcomm.RtcommEndpoint#webrtc:connected
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        "webrtc:connected": [],
+        /**
+         * The connection to a peer has been closed
+         * @event module:rtcomm.RtcommEndpoint#webrtc:disconnected
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         *
+         */
+        "webrtc:disconnected": [],
+        /**
+         * Creating the connection to a peer failed
+         * @event module:rtcomm.RtcommEndpoint#webrtc:failed
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        'webrtc:failed': [],
+        /**
+         * A message has arrived from a peer
+         * @event module:rtcomm.RtcommEndpoint#chat:message
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        'chat:message': [],
+        /**
+         * A chat session to a  peer has been established
+         * @event module:rtcomm.RtcommEndpoint#chat:connected
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        'chat:connected': [],
+        /**
+         * The connection to a peer has been closed
+         * @event module:rtcomm.RtcommEndpoint#chat:disconnected
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         */
+        'chat:disconnected':[],
+        /**
+         * The endpoint has destroyed itself, clean it up.
+         * @event module:rtcomm.RtcommEndpoint#destroyed
+         * @property {module:rtcomm.RtcommEndpoint}
+         */
+        'destroyed': [],
+        /**
+         * The endpoint received a 'onetimemessage'. The content of the message
+         * should be in the 'otm' header
+         * @event module:rtcomm.RtcommEndpoint#onetimemessage
+         * @property {module:rtcomm.RtcommEndpoint}
+         */
+        'onetimemessage': [],
+        'newendpoint': [],
+        'queueupdate': [],
+        'ready': [],
+        'reset': []
+   };
+
    /* Defaults */
-   var epConfig = {
+   var providerConfig = {
      server : window.document.location.hostname,
      port : window.document.location.port,
      managementTopicName : "management",
      appContext: "default",
      rtcommTopicPath: "/rtcomm/",
-     presence: {topic: 'defaultRoom'},
-     mediaIn: null,
-     mediaOut: null
+     presence: {topic: 'defaultRoom'}
    };
 
-   var rtcommCallback = function rtcommCallback(event_object) {
-     // handle an EndpointEvent.
-   };
 
    var init = function init(config) {
 
      // Merge Config w/ epConfig
-     if (endpointProvider) {
+     var epConfig = util.combineObjects(config, providerConfig);
 
+     var self = this;
+
+     var endpointConfig = {
+       mediaIn: epConfig.mediaIn,
+       mediaOut: epConfig.mediaOut,
+       ringback: epConfig.ringback,
+       ringbacktone: epConfig.ringbacktone
+     };
+
+     delete epConfig.mediaIn;
+     delete epConfig.mediaOut;
+     delete epConfig.ringbacktone;
+     delete epConfig.ringtone;
+
+     console.log(epConfig);
+     if (endpointProvider) {
+       console.log('EndpointProvider is ',endpointProvider);
      } else {
-       endpointProvider = new rtcomm.EndpointProvider();
+       endpointProvider = new EndpointProvider();
      }
+
      endpointProvider.init(
        epConfig,
        /* onSuccess for init() will pass an object:
@@ -7100,11 +7505,18 @@ return EndpointProvider;
          *     registered: boolean}        <-- Register completed.
          */
         function(object) { 
-          l('DEBUG') && console.log('EndpointProvider initialized', object);
+          console.log('EndpointProvider initialized', object);
+          self.emit('ready', object);
           //TODO: Emit an event here...
         }, function(error) { //onFailure
           console.error('init failed: ', error);
      });
+
+   var rtcommCallback = function rtcommCallback(event_object) {
+     // handle an EndpointEvent.
+     console.log('Received the event ',event_object);
+     self.emit(event_object.name, event_object);
+   };
     /*
      * Assign the callbacks
      * 
@@ -7112,50 +7524,46 @@ return EndpointProvider;
      *  all RtcommEndpoints created by the EndpointProvider.
      */
     endpointProvider.setRtcommEndpointConfig({
-        broadcast:  { audio: broadcast.audio, video: broadcast.video},
+        broadcast:  { audio: true,video: true},
         // Played when call is going out
         ringbacktone: 'resources/ringbacktone.wav',
         // played when inbound call occurrs
         ringtone: 'resources/ringtone.wav',
-        // Fired when webrtc is connected 
-        'webrtc:connected': rtcommCallback,
-        // Fired when webrtc is disconnected 
-        'webrtc:disconnected': rtcommCallback,
-        // An outbound call is starting and the target user has been reached.
-        'session:ringing': rtcommCallback,
-        // An inbound call was received.
-        'session:alerting': rtcommCallback,
-        // Establishing the session failed, display a message, cleanup.
-        'session:failed': rtcommCallback,
-        // An inbound Refer was received.  
-        'session:refer': rtcommCallback
+        // Fired when any event is triggered
+        bubble : rtcommCallback
     });
+    endpointProvider.bubble(rtcommCallback);
 
-
-
+    // Establish a presence monitor on the default topic we are published to
+   // endpointProvider.getPresenceMonitor(presence.topic).on('updated', rtcommCallback);;
    };
-
-   var connect = function connect() {
-
+   var connect = function connect(user) {
+     // create an endpoint and connect it.
+     return endpointProvider.getRtcommEndpoint().connect(user);
    };
    var answer = function answer() {
-
+     return endpointProvider.getRtcommEndpoint().connect();
+     // take an inbound enpdoint and answer?
    };
+
    var disconnect = function disconnect() {
-
+     return endpointProvider.getRtcommEndpoint().disconnect();
+     // disconnect/reject 
    };
 
-
-   return {
-     init: init,
-     connect: connect,
-     answer: answer,
-     disconnect: disconnect,
-     EndpointProvider: EndpointProvider,
-     connection: connection,
-     util: util
+   var Rtcomm = function Rtcomm() {
+     this.events=events;
+     this.init=init;
+     this.connect=connect;
+     this.answer=answer;
+     this.disconnect= disconnect;
+     this.EndpointProvider= EndpointProvider;
+     this._MockRtcommServer = MockRtcommServer;
+     this.connection= connection;
+     this.util= util;
    };
-
+   Rtcomm.prototype = util.RtcommBaseObject.extend({});
+   return new Rtcomm();
  })();
 
 
