@@ -1,4 +1,4 @@
-#Rtcomm Signalling Protocol Specification: v0.3.0 
+#Rtcomm Signalling Protocol Specification: v0.4.0 
 
 
 ## Abstract
