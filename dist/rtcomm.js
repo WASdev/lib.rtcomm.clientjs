@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.12 22-06-2015 19:08:06 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.12 22-06-2015 19:08:06 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.12 23-06-2015 21:19:07 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.12 23-06-2015 21:19:07 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -1752,172 +1752,6 @@ var MessageFactory = (function (){
 
 exports.MessageFactory = MessageFactory;
 
-
-/*
- * Copyright 2014 IBM Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */ 
-/**
- * @class 
- * @memberof module:rtcomm.connector
- * @classdesc
- *
- * Low level service used to create the MqttConnection which connects
- * via mqtt over WebSockets to a server passed via the config object.
- *
- * @param {object}  config   - Config object for MqttConnection
- * @param {string}  config.server -  MQ Server for mqtt.
- * @param {integer} [config.port=1883] -  Server Port
- * @param {string}  [config.defaultTopic] - Default topic to publish to with ibmrtc Server
- * @param {string}  [config.myTopic] - Optional myTopic, defaults to a hash from userid
- * @param {object}  [config.credentials] - Optional Credentials for mqtt server.
- *
- * @param {function} config.on  - Called when an inbound message needs
- *    'message' --> {'fromEndpointID': 'string', content: 'string'}
- * 
- * @throws {string} - Throws new Error Exception if invalid arguments.
- * 
- * @private
- */
-
-// We want this to be GLOBAL
-//  but if already defined, use the one we have...
-
-/*global mockMqtt:false*/
-
-mockMqtt = (typeof mockMqtt !== 'undefined' ) ? mockMqtt : (function () {
-
-      // This is a fake to make sure everythign is logged
-      var l = function(level) {
-        return true;
-      };
-
-      /* build a regular expression to match the topic */
-      var buildTopicRegex= function(topic) {
-        // If it starts w/ a $ its a Shared subscription.  Essentially:
-        // $SharedSubscription/something//<publishTopic>
-        // We need to Remove the $-> //
-        // /^\$.+\/\//, ''
-        var regex = topic.replace(/^\$SharedSubscription.+\/\//, '\\/')
-                    .replace(/\/\+/g,'\\/.+')
-                    .replace(/\/#$/g,'($|\\/.+$)')
-                    .replace(/(\\)?\//g, function($0, $1){
-                      return $1 ? $0 : '\\/';
-                    });
-
-        // The ^ at the beginning in the return ensures that it STARTS w/ the topic passed.
-        return new RegExp('^'+regex+'$');
-      };
-
-  var MockMqttClient = function MockMqttClient(id) {
-    console.log('***************** Using a Mock MQTT Client *****************');
-    this.events = {
-      'message': []
-    };
-
-    this.onMessageArrived = function(message) {
-      console.log('Not Defined', message);
-    };
-  };
-
-  /*global util:false */
-  MockMqttClient.prototype  = util.RtcommBaseObject.extend((function() {
-
-    function connect(options){
-      l('DEBUG') && console.log('MockMqttClient.connect()', options);
-      var self = this;
-      var onSuccess = (options && options.onSuccess) ? options.onSuccess : function(){ console.log('MockMqttClient.connect onSuccess not defined');};
-      var onFailure = (options && options.onFailure) ? options.onFailure: function(){ console.log('MockMqttClient.connect onFailure not defined');};
-      self.on('message', self.onMessageArrived);
-      onSuccess();
-    };
-
-    function send(message) {
-      l('DEBUG') && console.log('MockMqttClient.send()', message);
-      mockMqtt.send(message);
-    };
-
-    function subscribe(topic) {
-      l('DEBUG') && console.log('MockMqttClient.subscribe()', topic);
-      var self = this;
-      mockMqtt.subscribe(topic, self);
-    };
-
-    function unsubscribe(topic) {
-      l('DEBUG') && console.log('MockMqttClient.unsubscribe()', topic);
-
-    };
-
-    function disconnect(topic) {
-      l('DEBUG') && console.log('MockMqttClient.disconnect()', topic);
-    };
-
-    return {
-      /* global setLogLevel:false */
-      setLogLevel: setLogLevel,
-      /* global getLogLevel:false */
-      getLogLevel: getLogLevel,
-      connect: connect,
-      subscribe: subscribe,
-      unsubscribe: unsubscribe,
-      send: send,
-      disconnect: disconnect
-    };
-  })());
-
-  var mqtt_clients = {};
-  var topics = {};
-
-  var findTopic = function(topic) {
-    for (var t in topics) {
-      //console.log('findTopic looking for '+topic+' against :'+t);
-      if (buildTopicRegex(t).test(topic)){
-       // console.log('returning : ',t);
-        return t;
-      }
-    }
-  };
-  return {
-    add : function(server, port, clientid) {
-      mqtt_clients[clientid] = new MockMqttClient(clientid);
-      return mqtt_clients[clientid];
-    },
-    subscribe : function(topic, mqttClient) {
-    // only one client is subscribed to a topic in this case... which is wrong... 
-      topics[topic] = mqttClient;
-    },
-    send : function(message) {
-      var topic = message.destinationName;
-      console.log('mockMqtt.send() topic: '+topic +' message: '+ message);
-      var matchedTopic = findTopic(topic);
-      if (matchedTopic) {
-        //console.log('mockMqtt.send() emitting on ', topics[matchedTopic]);
-       // console.log('mockMqtt.send() message is', message);
-        topics[matchedTopic].emit('message', message);
-      }
-    },
-    _getClients : function() {
-      return mqtt_clients;
-    },
-    _getSubscriptions : function () {
-      return topics;
-    }
-
-  };
-
-})();
-
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -1992,9 +1826,6 @@ var MqttConnection = function MqttConnection(config) {
         }
       };
 
-    } else if (mockMqtt) {
-      l('INFO') && console.log('****** MqttConnection using mockMqtt ******');
-      mqtt = mockMqtt.add(config.server, config.port, config.clientID);
     } else {
       throw new Error("MqttConnection depends on 'Paho.MQTT' being loaded via mqttws31.js.");
     }
@@ -2094,9 +1925,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         // Return an empty message
         messageToSend = new Paho.MQTT.Message('');
       }
-    } else if (mockMqtt) {
-      // If its a Mock effort, we don't do anything to it, just format it straight up:
-      messageToSend = {destinationName: null, payloadString: message};
     } else {
       console.error('MqttConnection createMessage, No Paho Client defined');
     }
@@ -7242,77 +7070,6 @@ return EndpointProvider;
 }(this, function (EndpointProvider, connection, util) {
 
 /*
- * This is a Mock Rtcomm Server for testing purposes only.  It ONLY handles registration and
- * forwarding messages to another user.  It does not fail gracefully yet.  
- *
- */
-
-var MockRtcommServer = (function MockRtcommServer() {
-
-    var rtcommTopicPath = "/rtcomm/";
-    var topics = {
-    // Just the SERVICE_QUERY topic
-    management: "",
-    // The presence Topic
-    sphere: "",
-    // The main topic (connector)
-    connector: ""
-    //
-    };
-    var registry = {};
-    var conn = null;
-
-    function setTopics(rootTopic) {
-      for (var key in topics) {
-        topics[key] = rootTopic + key + "/#";
-      }
-    }
-  return { 
-
-    /**
-     * config.rtcommTopicPath is only option
-     */
-
-    init : function init(config) {
-      console.log('********** Using a Mock Rtcomm Server ****************');
-      rtcommTopicPath = (config && config.rtcommTopicPath) ? config.rtcommTopicPath : rtcommTopicPath;
-      setTopics(rtcommTopicPath);
-      conn = new connection.MqttConnection({server:'localhost', port: 1883,  'rtcommTopicPath': rtcommTopicPath});
-      conn.setLogLevel('DEBUG');
-      conn.connect();
-      conn.subscribe(topics.management);
-      conn.subscribe(topics.sphere);
-      conn.subscribe(topics.connector);
-      conn.on('message', function(message) {
-       console.log('MockRtcommServer --> Received a message!', message);
-       if (message) {
-         var rtcommMessage = message.content;
-         switch(rtcommMessage.method) {
-           case 'DOCUMENT': 
-             console.log('DOCUMENT received');
-             registry[message.fromEndpointID] = rtcommMessage.addressTopic;
-             break;
-           case 'SERVICE_QUERY':
-             console.log('SERVICE QUERY!');
-             break;
-           default:
-             if(rtcommMessage.toEndpointID in registry) {
-              conn.publish(registry[rtcommMessage.toEndpointID] +'/'+message.fromEndpointID, rtcommMessage);
-             } else {
-               console.error('Send a Failure response');
-             }
-             break;
-        }
-       }
-      });
-    },
-    getRegistry: function() {
-      return registry;
-    }
-  };
-})();
-
-/*
  * Copyright 2014 IBM Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -7558,7 +7315,6 @@ var rtcomm= (function rtcomm() {
      this.answer=answer;
      this.disconnect= disconnect;
      this.EndpointProvider= EndpointProvider;
-     this._MockRtcommServer = MockRtcommServer;
      this.connection= connection;
      this.util= util;
    };

@@ -244,7 +244,6 @@ var rtcomm= (function rtcomm() {
      this.answer=answer;
      this.disconnect= disconnect;
      this.EndpointProvider= EndpointProvider;
-     this._MockRtcommServer = MockRtcommServer;
      this.connection= connection;
      this.util= util;
    };

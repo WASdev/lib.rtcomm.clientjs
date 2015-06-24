@@ -7,6 +7,10 @@ module.exports = function(grunt) {
         src: 'src/rtcomm/*.js',
         dest: 'dist/umd/rtcomm.js' 
       },
+      mocks: {
+        src: 'src/mock/*.js',
+        dest:'dist/umd/mockMqtt.js'
+      },
       rtcomm_final: {
         options: {
           banner: '/*! <%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("UTC:dd-mm-yyyy HH:MM:ss Z") %> */\nconsole.log(\'<%= pkg.name %> <%= pkg.version %> <%= grunt.template.today("UTC:dd-mm-yyyy HH:MM:ss Z") %>\');\n'
@@ -26,6 +30,19 @@ module.exports = function(grunt) {
             amd: ['./rtcomm/EndpointProvider', './rtcomm/connection','./rtcomm/util'],
             cjs: ['./rtcomm/EndpointProvider', './rtcomm/connection','./rtcomm/util'],
             global: ['rtcomm.EndpointProvider', 'rtcomm.connection','rtcomm.util']
+          }
+        }
+      },
+      mock: {
+        options: {
+          src: 'dist/umd/mockMqtt.js',
+          globalAlias: 'Paho',
+          objectToExport: 'Paho',
+          deps: { 
+            'default': ['connection','util'],
+            amd: ['./rtcomm/connection','./rtcomm/util'],
+            cjs: ['./rtcomm/connection','./rtcomm/util'],
+            global: ['rtcomm.connection','rtcomm.util']
           }
         }
       },

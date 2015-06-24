@@ -17,12 +17,17 @@ define([
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
-    (typeof window === 'undefined' && global)
+    /* Use the Mock (in browser mqtt) */
+    'umd/mockMqtt',
+   /* (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../../support/mqttws31_shim':
-        'lib/mqttws31',
+        'lib/mqttws31',*/
     'support/config',
     'umd/rtcomm/connection'
-], function (registerSuite, assert, Deferred, globals,config, connection) {
+], function (registerSuite, assert, Deferred, Paho, config, connection) {
+
+//  console.log('Mocks?', mocks);
+
   var optionalHeaders = {
       'sigSessID':null,
       'transID':null,

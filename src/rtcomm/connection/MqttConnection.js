@@ -72,9 +72,6 @@ var MqttConnection = function MqttConnection(config) {
         }
       };
 
-    } else if (mockMqtt) {
-      l('INFO') && console.log('****** MqttConnection using mockMqtt ******');
-      mqtt = mockMqtt.add(config.server, config.port, config.clientID);
     } else {
       throw new Error("MqttConnection depends on 'Paho.MQTT' being loaded via mqttws31.js.");
     }
@@ -174,9 +171,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         // Return an empty message
         messageToSend = new Paho.MQTT.Message('');
       }
-    } else if (mockMqtt) {
-      // If its a Mock effort, we don't do anything to it, just format it straight up:
-      messageToSend = {destinationName: null, payloadString: message};
     } else {
       console.error('MqttConnection createMessage, No Paho Client defined');
     }
