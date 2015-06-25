@@ -1,33 +1,36 @@
 var Sound = (function invocation(url) {
 
   /* global AudioContext:false */ 
-  window.AudioContext = window.AudioContext || window.webkitAudioContext;
-  var context = context || new AudioContext();
+  var context = null;
+
+  if (typeof navigator !== 'undefined' && typeof window !== 'undefined') {
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    context = context || (window.AudioContext) ? new AudioContext(): null;
+  }
 
   var Sound = function Sound(url) {
-  if (!(this instanceof Sound)) {
-    return new Sound(url);
-  }
-  this.context = context;
-  this.url = url;
-  this.buffer = null;
-  this.loaded = false;
-  this.playing = null;
-};
+    if (!(this instanceof Sound)) {
+      return new Sound(url);
+    }
+    this.context = context;
+    this.url = url;
+    this.buffer = null;
+    this.loaded = false;
+    this.playing = null;
+  };
 
 /* global l:false */ 
 Sound.prototype = (function () {
-
   var load = function load(callback) {
     var self = this;
-    if (self.url) {
+    if (self.url && self.context) {
       var request = new XMLHttpRequest();
       request.open('GET', self.url, true);
       request.responseType= 'arraybuffer';
       request.onload = function() {
         self.context.decodeAudioData(request.response, 
           function(buffer) {
-            console.log('Sound: successfully loaded buffer '+ self.url);
+            l('DEBUG') && console.log('Sound: successfully loaded buffer '+ self.url);
             self.buffer = buffer;
             callback && callback();
           }, 
@@ -36,22 +39,27 @@ Sound.prototype = (function () {
           });
       };
       request.send();
+    } else {
+      l('DEBUG') && console.log('Sound.play() Unsupported in this environment');
     }
     return self;
   };
-
   var play = function play() {
     var self = this;
     var _play = function _play() {
-      if (!self.playing) {
-        var sound = self.context.createBufferSource();
-        sound.buffer = self.buffer;
-        sound.connect(self.context.destination);
-        sound.loop= true;
-        sound.start(0);
-        self.playing = sound;
+      if (self.context) {
+        if (!self.playing) {
+          var sound = self.context.createBufferSource();
+          sound.buffer = self.buffer;
+          sound.connect(self.context.destination);
+          sound.loop= true;
+          sound.start(0);
+          self.playing = sound;
+        } else {
+          l('DEBUG') && console.log('Sound.play() Already playing...');
+        }
       } else {
-        console.log('Already playing...');
+        l('DEBUG') && console.log('Sound.play() Unsupported in this environment');
       }
     };
 
