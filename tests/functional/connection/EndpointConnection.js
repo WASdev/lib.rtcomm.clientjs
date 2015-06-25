@@ -86,7 +86,7 @@ define([
        assert.ok(epc2.connected);
     },
     'Transaction pollution': function() {
-      this.skip();
+      //this.skip();
        var test = this;
        // kind of working... let's see what happens tonight.
         epc1.createTransaction();
@@ -99,7 +99,7 @@ define([
         assert.ok(epc2.connected);
      },
      'Start Session - Initial Timeout[flakey, try again if fails]': function() {
-      this.skip();
+      //this.skip();
            console.log('************* Running Test *********');
            var test = this;
            var sess1 = null;
@@ -127,7 +127,7 @@ define([
            console.log('********* After Start of session **************');
       },
       'Start Session - final Timeout[flakey, try again if fails]': function() {
-      this.skip();
+      //this.skip();
            console.log('************* Running Test *********');
            var test = this;
            var sess1 = null;
@@ -165,7 +165,7 @@ define([
            console.log('********* After Start of session **************');
       },
       'Start Session test...': function() {
-      this.skip();
+      //this.skip();
         console.log('******* Running Test ***********');
         var test = this;
         var sess1 = null;
@@ -224,7 +224,7 @@ define([
       },
 
     "Connection Test - using Server": function() {
-          this.skip();
+          //this.skip();
           var nc = new connection.EndpointConnection(config1);
           nc.setLogLevel('DEBUG');
           var success = false;
@@ -272,7 +272,7 @@ define([
           });
       },
       "Service Query Test (no userid)" : function() {
-          this.skip();
+          //this.skip();
           var cfg = config.clientConfig1();
           delete cfg.userid;
           var nc = new connection.EndpointConnection(cfg);
@@ -300,7 +300,7 @@ define([
           });
       },
       "RTCOMM_SIP_CONNECTOR_SERVICE": function() {
-          this.skip();
+          //this.skip();
           var nc = new connection.EndpointConnection(config1);
           nc.setLogLevel('TRACE');
           var success = false;
@@ -324,7 +324,7 @@ define([
           });
       },
       "RTCOMM_SIP_CONNECTOR_SERVICE(sip:alice@192.168.1.4:7777)": function() {
-          this.skip();
+          //this.skip();
           var nc = new connection.EndpointConnection(config1);
           nc.setLogLevel('TRACE');
           var success = false;
