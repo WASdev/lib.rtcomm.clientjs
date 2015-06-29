@@ -21,8 +21,8 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'umd/rtcomm'
-], function (registerSuite, assert, Deferred,globals, config, rtcomm) {
+    'umd/rtcomm/EndpointProvider'
+], function (registerSuite, assert, Deferred,globals, config, EndpointProvider) {
 
     /*
      * EndpointProvider FVT -- This runs the following tests:
@@ -72,14 +72,13 @@ define([
           endpointProvider.destroy();
           endpointProvider = null;
         }
-        endpointProvider = new rtcomm();
+        endpointProvider = new EndpointProvider();
         endpointProvider.setAppContext('test');
         endpointProvider.setLogLevel('DEBUG');
       },
       'constructorTest': function() {
-            console.log('rtcomm: ', rtcomm);
             console.log('ep', endpointProvider);
-            assert.ok(endpointProvider instanceof rtcomm);
+            assert.ok(endpointProvider instanceof EndpointProvider);
             assert.notOk(endpointProvider.ready);
       },
       /**
@@ -308,7 +307,7 @@ define([
        testConfig.userid = 'testuser';
 
        // Create another EP
-       var EP2 = new rtcomm();
+       var EP2 = new EndpointProvider();
        EP2.setAppContext('test');
        tearDown.EP2 = EP2;
 

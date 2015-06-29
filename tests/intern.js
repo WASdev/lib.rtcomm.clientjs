@@ -52,6 +52,7 @@ define({
 		packages: [ { name: 'umd', location: 'dist/umd'},
                 { name: 'unit', location: 'tests/unit'},
                 { name: 'functional', location: 'tests/functional'},
+                {name : 'mock', location: 'dist/mock'},
                 { name: 'support', location: 'tests/support'}],
     shim: { 'lib/mqttws31': {
               exports: 'Paho'

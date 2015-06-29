@@ -14,14 +14,21 @@
       {{#if objectToExport}}
         root['{{{globalAlias}}}'] = root['{{{globalAlias}}}']  || {};
         root['{{{globalAlias}}}']['{{{objectToExport}}}'] = factory({{{globalDependencies.normal}}});
+      {{ else }} 
+        root['{{{globalAlias}}}'] = root['{{{globalAlias}}}']  || {};
+        root['{{{globalAlias}}}'] = factory({{{globalDependencies.normal}}});
       {{/if}}
-    {{/if}}
+   {{/if}}
   }
 }(this, function ({{dependencies}}) {
 
 {{{code}}}
+
+{{! If there isn't an object to export, we will export the globalAlias and presume the <code> set it correctly }}
 {{#if objectToExport}}
 {{indent}}return {{{objectToExport}}};
+{{else}}
+{{indent}} return {{{globalAlias}}};
 {{/if}}
 
 }));

@@ -21,8 +21,8 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'umd/rtcomm'
-], function (registerSuite, assert, Deferred,globals, config, rtcomm) {
+    'umd/rtcomm/EndpointProvider'
+], function (registerSuite, assert, Deferred,globals, config, EndpointProvider) {
 
     var SKIP_ALL=false;
     // anything in here will get destroyed (but not recreated) in beforeEach;
@@ -68,7 +68,7 @@ define([
             endpointProvider = null;
           }
           console.log("***************************** NEW TEST ***************************");
-          endpointProvider = new rtcomm();
+          endpointProvider = new EndpointProvider();
           endpointProvider.setAppContext('test');
           endpointProvider.setLogLevel('TRACE');
         },
@@ -126,7 +126,7 @@ define([
         },
      "in Browser A calls B": function() {
          SKIP_ALL && this.skip(false);
-         var endpointProvider2 = new rtcomm();
+         var endpointProvider2 = new EndpointProvider();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
@@ -189,7 +189,7 @@ define([
          },
      "in Browser A calls B(disconnect while ringing)": function() {
          //SKIP_ALL && this.skip(false);
-         var endpointProvider2 = new rtcomm();
+         var endpointProvider2 = new EndpointProvider();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
@@ -264,7 +264,7 @@ define([
          },
      "in Browser A calls B (sendOneTimeMessage)": function() {
           SKIP_ALL && this.skip(SKIP_ALL);
-         var endpointProvider2 = new rtcomm();
+         var endpointProvider2 = new EndpointProvider();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
@@ -332,7 +332,7 @@ define([
          },
      "in Browser A calls B(nested presence)": function() {
           SKIP_ALL && this.skip(SKIP_ALL);
-         var endpointProvider2 = new rtcomm();
+         var endpointProvider2 = new EndpointProvider();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
@@ -401,9 +401,9 @@ define([
          },
      "in Browser A calls B, neither accept call from C": function() {
           SKIP_ALL && this.skip(SKIP_ALL);
-         var endpointProvider2 = new rtcomm();
+         var endpointProvider2 = new EndpointProvider();
          endpointProvider2.setAppContext('test');
-         var endpointProvider3 = new rtcomm();
+         var endpointProvider3 = new EndpointProvider();
          endpointProvider3.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
@@ -484,7 +484,7 @@ define([
          },
      "Customer A calls Queue[Toys], establish session": function() {
           SKIP_ALL && this.skip(SKIP_ALL);
-           var endpointProvider2 = new rtcomm();
+           var endpointProvider2 = new EndpointProvider();
            endpointProvider2.setAppContext('test');
            // mark for destroy;
            g.endpointProvider2 = endpointProvider2;
@@ -558,11 +558,11 @@ define([
          this.skip();
          // mark for destroy;
          var config1 = config.clientConfig();
-         var endpointProvider2 = g.endpointProvider2 = new rtcomm();
+         var endpointProvider2 = g.endpointProvider2 = new EndpointProvider();
          var config2 = config.clientConfig();
-         var endpointProvider3 = g.endpointProvider3 = new rtcomm();
+         var endpointProvider3 = g.endpointProvider3 = new EndpointProvider();
          var config3 = config.clientConfig();
-         var endpointProvider4 = g.endpointProvider4 = new rtcomm();
+         var endpointProvider4 = g.endpointProvider4 = new EndpointProvider();
          var config4 = config.clientConfig();
 
          endpointProvider2.setAppContext('test');
