@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.13 29-06-2015 15:16:47 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.13 29-06-2015 15:16:47 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.13 29-06-2015 16:11:35 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.13 29-06-2015 16:11:35 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -429,8 +429,7 @@ var RtcommBaseObject = {
       if (this._Event && typeof this._Event === 'function') { 
         event_object = this._Event(event, event_object);
       }
-      // Add the event name to the object we emit
-      event_object.name = (event_object.name) ? event_object.name : event;
+      // event_object.name = (event_object.name) ? event_object.name : event;
       if (this.events && this.events[event] ) {
      //   console.log('>>>>>>>> Firing event '+event);
         l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);

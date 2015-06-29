@@ -126,7 +126,7 @@ var Paho = (function(){
   };
 
   /*global util:false */
-  MockMqttClient.prototype  = rtcomm.util.RtcommBaseObject.extend({});
+  MockMqttClient.prototype  = util.RtcommBaseObject.extend({});
 
   var MockMqttMessage = function MockMqttMessage(message) {
      return  {destinationName: null, payloadString: message};
@@ -162,7 +162,7 @@ var MockRtcommServer = (function MockRtcommServer() {
       console.log('********** Using a Mock Rtcomm Server ****************');
       rtcommTopicPath = (config && config.rtcommTopicPath) ? config.rtcommTopicPath : rtcommTopicPath;
       setTopics(rtcommTopicPath);
-      conn = new rtcomm.connection.MqttConnection({server:'localhost', port: 1883,  'rtcommTopicPath': rtcommTopicPath});
+      conn = new connection.MqttConnection({server:'localhost', port: 1883,  'rtcommTopicPath': rtcommTopicPath});
       conn.setLogLevel('DEBUG');
       conn.connect();
       conn.subscribe(topics.management);
