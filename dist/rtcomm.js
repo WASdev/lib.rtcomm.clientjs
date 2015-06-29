@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.13 24-06-2015 14:04:45 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.13 24-06-2015 14:04:45 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.13 25-06-2015 20:55:05 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.13 25-06-2015 20:55:05 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -492,33 +492,36 @@ var RtcommEvent = function RtcommEvent() {
 var Sound = (function invocation(url) {
 
   /* global AudioContext:false */ 
-  window.AudioContext = window.AudioContext || window.webkitAudioContext;
-  var context = context || new AudioContext();
+  var context = null;
+
+  if (typeof navigator !== 'undefined' && typeof window !== 'undefined') {
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    context = context || (window.AudioContext) ? new AudioContext(): null;
+  }
 
   var Sound = function Sound(url) {
-  if (!(this instanceof Sound)) {
-    return new Sound(url);
-  }
-  this.context = context;
-  this.url = url;
-  this.buffer = null;
-  this.loaded = false;
-  this.playing = null;
-};
+    if (!(this instanceof Sound)) {
+      return new Sound(url);
+    }
+    this.context = context;
+    this.url = url;
+    this.buffer = null;
+    this.loaded = false;
+    this.playing = null;
+  };
 
 /* global l:false */ 
 Sound.prototype = (function () {
-
   var load = function load(callback) {
     var self = this;
-    if (self.url) {
+    if (self.url && self.context) {
       var request = new XMLHttpRequest();
       request.open('GET', self.url, true);
       request.responseType= 'arraybuffer';
       request.onload = function() {
         self.context.decodeAudioData(request.response, 
           function(buffer) {
-            console.log('Sound: successfully loaded buffer '+ self.url);
+            l('DEBUG') && console.log('Sound: successfully loaded buffer '+ self.url);
             self.buffer = buffer;
             callback && callback();
           }, 
@@ -527,22 +530,27 @@ Sound.prototype = (function () {
           });
       };
       request.send();
+    } else {
+      l('DEBUG') && console.log('Sound.play() Unsupported in this environment');
     }
     return self;
   };
-
   var play = function play() {
     var self = this;
     var _play = function _play() {
-      if (!self.playing) {
-        var sound = self.context.createBufferSource();
-        sound.buffer = self.buffer;
-        sound.connect(self.context.destination);
-        sound.loop= true;
-        sound.start(0);
-        self.playing = sound;
+      if (self.context) {
+        if (!self.playing) {
+          var sound = self.context.createBufferSource();
+          sound.buffer = self.buffer;
+          sound.connect(self.context.destination);
+          sound.loop= true;
+          sound.start(0);
+          self.playing = sound;
+        } else {
+          l('DEBUG') && console.log('Sound.play() Already playing...');
+        }
       } else {
-        console.log('Already playing...');
+        l('DEBUG') && console.log('Sound.play() Unsupported in this environment');
       }
     };
 
@@ -785,6 +793,7 @@ var EndpointConnection = function EndpointConnection(config) {
     timer = timer || false;
     var registry = {};
     var defaultTimeout = 5000;
+    var self = this;
 
     var addTimer = function addTimer(item){
       if(item.timer) {
@@ -802,11 +811,20 @@ var EndpointConnection = function EndpointConnection(config) {
             } else {
               l('DEBUG') && console.log(errorMsg);
             }
-            delete registry[item.id];
+            remove(item);
           }
         },
         timerTimeout);
       l('DEBUG') && console.log(item+' Timer: Setting Timer: '+item.timer + 'item.timeout: '+timerTimeout);
+      };
+
+    var remove =  function remove(item) {
+        if (item.id in registry) {
+          item.clearEventListeners();
+          item.timer && clearTimeout(item.timer);
+          l('DEBUG') && console.log('EndpointConnection  Removing item from registry: ', item);
+          delete registry[item.id];
+        }
       };
 
     var add = function(item) {
@@ -828,18 +846,12 @@ var EndpointConnection = function EndpointConnection(config) {
 
     return {
       add: add,
+      remove: remove ,
       clear: function() {
         var self = this;
         Object.keys(registry).forEach(function(item) {
           self.remove(registry[item]);
         });
-      },
-      remove: function(item) {
-        if (item.id in registry) {
-          item.timer && clearTimeout(item.timer);
-          l('DEBUG') && console.log('EndpointConnection  Removing item from registry: ', item);
-          delete registry[item.id];
-        }
       },
       list: function() {
         return Object.keys(registry);
@@ -1250,10 +1262,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             }
           };
           var onFailure = function(query_response) {
+            l('DEBUG') && console.log('Query Failed: ', query_response);
             if (cbFailure && typeof cbFailure === 'function') {
-              if (query_response && query_response.failureReason) {
-                cbFailure(query_response.failureReason);
-              }
+              cbFailure((query_response)? query_response.failureReason : "Service Query failed for Unknown reason");
             } else {
               console.error('query failed:', query_response);
             }
