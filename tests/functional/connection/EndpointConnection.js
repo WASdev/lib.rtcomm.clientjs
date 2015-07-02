@@ -23,7 +23,7 @@ define([
     'support/config',
     'umd/rtcomm/connection'
 ], function (registerSuite, assert, Deferred,globals, config, connection) {
-    var T1 = 2000;  // How long we wait to setup, before sending messages.
+    var T1 = 10000;  // How long we wait to setup, before sending messages.
     var T2 = T1 + 2000; // How long we wait to check results
     var T3 = T2 +2000;  // How long we wait to timeout test.
     var T4 = T3 +2000;
@@ -86,6 +86,7 @@ define([
        assert.ok(epc2.connected);
     },
     'Transaction pollution': function() {
+      //this.skip();
        var test = this;
        // kind of working... let's see what happens tonight.
         epc1.createTransaction();
@@ -98,6 +99,7 @@ define([
         assert.ok(epc2.connected);
      },
      'Start Session - Initial Timeout[flakey, try again if fails]': function() {
+      //this.skip();
            console.log('************* Running Test *********');
            var test = this;
            var sess1 = null;
@@ -125,6 +127,7 @@ define([
            console.log('********* After Start of session **************');
       },
       'Start Session - final Timeout[flakey, try again if fails]': function() {
+      //this.skip();
            console.log('************* Running Test *********');
            var test = this;
            var sess1 = null;
@@ -162,6 +165,7 @@ define([
            console.log('********* After Start of session **************');
       },
       'Start Session test...': function() {
+      //this.skip();
         console.log('******* Running Test ***********');
         var test = this;
         var sess1 = null;
@@ -220,6 +224,7 @@ define([
       },
 
     "Connection Test - using Server": function() {
+          //this.skip();
           var nc = new connection.EndpointConnection(config1);
           nc.setLogLevel('DEBUG');
           var success = false;
@@ -242,29 +247,32 @@ define([
           var dfd = this.async(T1);
           nc.connect(function() {
             console.log('CONNECT SUCCESS!');
-            nc.serviceQuery(dfd.callback(function(info){
-              console.log('Service_QuerySuccess: ',info);
-              assert.ok(nc.services.RTCOMM_CONNECTOR_SERVICE.topic, 'The Default service and topic is there');
-              assert.ok(nc.services.RTCOMM_CONNECTOR_SERVICE.sphereTopic, 'The Default sphereTopic is there');
-              success = true;
-              console.log('nc.ready', nc.ready);
-              console.log(nc);
-              assert.ok(success, 'service Query success');
-              nc.disconnect();
+            nc.serviceQuery(
+              dfd.callback(function(info){
+                console.log('Service_QuerySuccess: ',info);
+                assert.ok(nc.services.RTCOMM_CONNECTOR_SERVICE.topic, 'The Default service and topic is there');
+                assert.ok(nc.services.RTCOMM_CONNECTOR_SERVICE.sphereTopic, 'The Default sphereTopic is there');
+                success = true;
+                console.log('nc.ready', nc.ready);
+                console.log(nc);
+                assert.ok(success, 'service Query success');
+                nc.disconnect();
             }), dfd.callback(function(error){
               console.error(error);
               console.log('nc.ready', nc.ready);
-              assert.ok(success, 'service Query success');
-              console.log(nc);
+              console.log('Connection?', nc);
               nc.disconnect();
+              assert.ok(success, 'service Query success');
             }));
           }, 
           function() {
             console.log('CONNECT FAILURE!');
             success = false;
+            nc.disconnect();
           });
       },
       "Service Query Test (no userid)" : function() {
+          //this.skip();
           var cfg = config.clientConfig1();
           delete cfg.userid;
           var nc = new connection.EndpointConnection(cfg);
@@ -276,6 +284,7 @@ define([
             nc.serviceQuery(function(info){
               console.log('Service_QuerySuccess: ',info);
               success = true;
+              nc.disconnect();
             }, dfd.callback(function(error){
               console.error(error);
               failure=true;
@@ -291,6 +300,7 @@ define([
           });
       },
       "RTCOMM_SIP_CONNECTOR_SERVICE": function() {
+          //this.skip();
           var nc = new connection.EndpointConnection(config1);
           nc.setLogLevel('TRACE');
           var success = false;
@@ -314,6 +324,7 @@ define([
           });
       },
       "RTCOMM_SIP_CONNECTOR_SERVICE(sip:alice@192.168.1.4:7777)": function() {
+          //this.skip();
           var nc = new connection.EndpointConnection(config1);
           nc.setLogLevel('TRACE');
           var success = false;

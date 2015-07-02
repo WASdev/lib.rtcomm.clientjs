@@ -468,6 +468,10 @@ var EndpointProvider =  function EndpointProvider() {
           }
         });
       }
+      if (this._.rtcommEndpointConfig.bubble && (typeof this._.rtcommEndpointConfig.bubble === 'function')) {
+        // Attach the bubble event
+        endpoint.bubble(this._.rtcommEndpointConfig.bubble);
+      }
       // If broadcast needs to be set
       if(this._.rtcommEndpointConfig.broadcast) {
         endpoint.webrtc && endpoint.webrtc.setBroadcast(this._.rtcommEndpointConfig.broadcast);

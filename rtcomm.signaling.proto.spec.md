@@ -1,8 +1,8 @@
-#Rtcomm Signalling Protocol Specification: v0.3.0 
+#Rtcomm Signalling Protocol Specification: v0.4.0 
 
 
 ## Abstract
-This specification defines version v0.3.0 of the Rtcomm signaling protocol . All Rtcomm protocols are JSON based and built on top of MQTT. The protocol can be broken down into the following two parts:
+This specification defines version v0.4.0 of the Rtcomm signaling protocol . All Rtcomm protocols are JSON based and built on top of MQTT. The protocol can be broken down into the following two parts:
 
 1. Signaling protocol for connecting WebRTC endpoints into media sessions.
 2. Service protocol for things like third party call control and event monitoring.    See [**rtcomm.service.proto.spec.md**](https://github.com/WASdev/lib.rtcomm.node/blob/master/rtcomm.service.proto.spec.md) for details

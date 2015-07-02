@@ -61,7 +61,8 @@ var MqttConnection = function MqttConnection(config) {
     /* global Paho.MQTT: false */
     /* global l: false */
     var mqtt = null;
-    if (typeof Paho.MQTT === 'object') {
+
+    if ((typeof Paho !== 'undefined' ) && (typeof Paho.MQTT === 'object')) {
       l('DEBUG') && console.log('MqttConnection createMqttClient using config: ', config);
       mqtt = new Paho.MQTT.Client(config.server,config.port,config.clientID);
       /* if a connection is lost, this callback is called, reconnect */
@@ -136,17 +137,20 @@ var MqttConnection = function MqttConnection(config) {
 
   // Create our MQTT Client.
   var mqttClient = this.dependencies.mqttClient = createMqttClient(this.config);
+  var mqttConnection = this;
   mqttClient.onMessageArrived = function (message) {
     l('TRACE') && console.log('MQTT Raw message, ', message);
     /* mqttMessage we emit */
-    var mqttMessage= convertMessage(message,this.config.myTopic);
+    var mqttMessage= convertMessage(message,mqttConnection.config.myTopic);
     try {
-      l('MESSAGE') && console.log(this+' Received message: '+JSON.stringify(mqttMessage));
-      this.emit('message',mqttMessage);
+      console.log(mqttConnection+' Received message: '+JSON.stringify(mqttMessage));
+      l('DEBUG') && console.log(mqttConnection+' Received message: '+JSON.stringify(mqttMessage));
+      console.log('mqttConnection is: ',mqttConnection);
+      mqttConnection && mqttConnection.emit('message',mqttMessage);
     } catch(e) {
       console.error('onMessageArrived callback chain failure:',e);
     }
-  }.bind(this);
+  };
 
   // Init has be executed.
   this._init = true;
@@ -154,18 +158,21 @@ var MqttConnection = function MqttConnection(config) {
 
 /* global util: false */
 MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
-
   var createMqttMessage = function(message) {
     l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Creating message > ', message);
     var messageToSend = null;
-    if (message && typeof message === 'object') {
-      messageToSend = new Paho.MQTT.Message(JSON.stringify(message));
-    } else if (typeof message === 'string' ) {
-      // If its just a string, we support sending it still, though no practical purpose for htis.
-      messageToSend = new Paho.MQTT.Message(message);
+    if ((typeof Paho !== 'undefined' )&& (typeof Paho.MQTT === 'object')) {
+      if (message && typeof message === 'object') {
+        messageToSend = new Paho.MQTT.Message(JSON.stringify(message));
+      } else if (typeof message === 'string' ) {
+        // If its just a string, we support sending it still, though no practical purpose for htis.
+        messageToSend = new Paho.MQTT.Message(message);
+      } else {
+        // Return an empty message
+        messageToSend = new Paho.MQTT.Message('');
+      }
     } else {
-      // Return an empty message
-      messageToSend = new Paho.MQTT.Message('');
+      console.error('MqttConnection createMessage, No Paho Client defined');
     }
     l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Created message > ',messageToSend);
     return messageToSend;
