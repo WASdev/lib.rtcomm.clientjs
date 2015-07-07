@@ -143,9 +143,7 @@ var MqttConnection = function MqttConnection(config) {
     /* mqttMessage we emit */
     var mqttMessage= convertMessage(message,mqttConnection.config.myTopic);
     try {
-      console.log(mqttConnection+' Received message: '+JSON.stringify(mqttMessage));
       l('DEBUG') && console.log(mqttConnection+' Received message: '+JSON.stringify(mqttMessage));
-      console.log('mqttConnection is: ',mqttConnection);
       mqttConnection && mqttConnection.emit('message',mqttMessage);
     } catch(e) {
       console.error('onMessageArrived callback chain failure:',e);

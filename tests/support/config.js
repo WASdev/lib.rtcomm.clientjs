@@ -19,9 +19,24 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
     managementTopicName= configdata.managementTopicName,
     rtcommTopicPath= configdata.rtcommTopicPath;
   
+  var generateRandomBytes = function(pattern) {
+    var d = new Date().getTime();
+    var bytes = pattern.replace(/[xy]/g, function(c) {
+        // Take the date + a random number times 16 (so it will be between 0 & 16), get modulus
+        // we then get the remainder of dividing by 16 (modulus) and the | 0 converts to an integer.
+        // r will be between 0 & 16 (0000 & 1111)
+        var r = (d + Math.random()*16)%16 | 0;
+        d = Math.floor(d/16);
+        // if it is x, just return the random number (0 to 16)
+        // if it is not x, then return a value between 8 & 16 (mainly to ctonrol values in a UUID);
+        return (c==='x' ? r : (r&0x7|0x8)).toString(16);
+    });
+    return bytes;
+  };
+
   function randomID() {
-    var num = Math.floor(Math.random()*10000);
-    return "rtc"+num+"@us.ibm.com";
+    var id = generateRandomBytes("xxxxxxxxxxxxx");
+    return id+"@us.ibm.com";
   };
   return {
     // Not used yet...
