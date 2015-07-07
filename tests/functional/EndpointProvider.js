@@ -314,17 +314,19 @@ define([
        var finish = dfd.callback(function(object) {
           console.log('************ Finish called w/ OBJECT: ',object);
           assert.notOk(ep2_reset, 'reset on 2nd endpointProvider not called');
-          assert.notOk(EP2.ready, '2nd EndpointProvider correctly cleaned up.');
+          assert.notOk(endpointProvider.ready, 'First EndpointProvider correctly cleaned up.');
        });
-
        // Should not turn true.
        var ep2_reset = false;
+
        var ep1_reset = false;
+
        EP2.on('reset', function(event) {
           ep2_reset = true;
        });
        // This is our FINISH
        endpointProvider.on('reset', function(event){
+          console.log('************ Reset Called: called w/ event: ',event);
          // We have to have a timeout here because we are waiting for the endpointprovider to cleanup.
          assert.equal('document_replaced', event.reason, 'Reset because of document_replaced');
          ep1_reset = true;
@@ -333,7 +335,7 @@ define([
 
        endpointProvider.init(testConfig, 
          function(obj){
-           // Once we have successfully init'ed our first ep, init the second, which should reset this one.
+           // Once we have successfully init'ed our first ep, init the second, which should reset the first one.
            EP2.init(testConfig);
          },
          function(error){

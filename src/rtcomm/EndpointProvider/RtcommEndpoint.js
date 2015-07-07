@@ -149,8 +149,6 @@ var RtcommEndpoint = (function invocation(){
     this.config.chat && this._.protocols.push('chat');
 
     //load the sounds 
-    console.log('REMOVE ME: ringtone: '+this.config.ringtone);
-    console.log('REMOVE ME: ringbacktone: '+this.config.ringbacktone);
     this._.ringTone = (this.config.ringtone) ? util.Sound(this.config.ringtone).load(): null;
     this._.ringbackTone= (this.config.ringbacktone) ? util.Sound(this.config.ringbacktone).load() : null;
 

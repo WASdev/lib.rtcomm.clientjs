@@ -51,6 +51,7 @@ define({
 		// Packages that should be registered with the loader in each testing environment
 		packages: [ { name: 'umd', location: 'dist/umd'},
                 { name: 'unit', location: 'tests/unit'},
+                { name: 'stress', location: 'tests/stress'},
                 { name: 'functional', location: 'tests/functional'},
                 { name: 'mock', location: 'dist/mock'},
                 { name: 'support', location: 'tests/support'}],
@@ -65,16 +66,7 @@ define({
 	},
 
 	// Non-functional test suite(s) to run in each browser
-	suites: [ 'unit/connection/connection.js',
-            'unit/util/util.js',
-            'unit/EndpointProvider.js',
-            'functional/connection/MqttConnection.js',
-            'functional/connection/EndpointConnection.js',
-            'functional/EndpointProvider.js',
-            'functional/RtcommEndpoint.js',
-            'functional/RtcommEndpoint.chat.js',
-            'functional/MqttEndpoint.js',
-            'functional/SessionQueue.js'
+	suites: [ 'stress/stressTest.js',
   ],
 	//suites: [ ],
 

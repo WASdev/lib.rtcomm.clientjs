@@ -24,6 +24,9 @@ define([
     'umd/rtcomm/EndpointProvider'
 ], function (registerSuite, assert, Deferred,globals, config, EndpointProvider) {
 
+    console.log('GLOBALS?', globals);
+    console.log('Paho?', Paho);
+
     var SKIP_ALL=false;
     // anything in here will get destroyed (but not recreated) in beforeEach;
     var g ={};
