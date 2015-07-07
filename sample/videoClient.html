@@ -288,8 +288,12 @@ The primary logic for this HTML Page
   ibmep.setRtcommEndpointConfig({
       // Our endpoints will be setup to broadcast Audio and Video 
       // BROADCAST is set at the top
-      
       broadcast:  { audio: BROADCAST, video: BROADCAST},
+
+      // Played when call is going out
+      ringbacktone: 'resources/ringbacktone.wav',
+      // played when inbound call occurrs
+      ringtone: 'resources/ringtone.wav',
       // Fired when webrtc is connected 
       'webrtc:connected': function(event_object) {
         uiConnect("Connected to "+event_object.endpoint.getRemoteEndpointID());

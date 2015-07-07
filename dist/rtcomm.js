@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.12 09-06-2015 18:44:11 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.12 09-06-2015 18:44:11 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.13 07-07-2015 19:02:52 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.13 07-07-2015 19:02:52 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -381,14 +381,39 @@ var RtcommBaseObject = {
     on : function(event,callback) {
       //console.log('on -- this.events is: '+ JSON.stringify(this.events));
       // This function requires an events object on whatever object is attached to. and event needs to be defined there.
-      if (this.events && this.events[event] && Array.isArray(this.events[event])) {
-        l('EVENT', this) && console.log(this+' Adding a listener callback for event['+event+']');
-        l('TRACE', this) && console.log(this+' Callback for event['+event+'] is', callback);
-        this.events[event].push(callback);
+      if (this.events) {
+        if(typeof event === 'object') {
+          // this is an object of events: 
+          for (var key in event) { 
+            if (event.hasOwnProperty(key)) {
+              if (this.events[key] && Array.isArray(this.events[key])) {
+                 l('EVENT', this) && console.log(this+' Adding a listener callback for event['+key+']');
+                 l('TRACE', this) && console.log(this+' Callback for event['+key+'] is', event[key]);
+                 this.events[key].push(event[key]);
+              }
+            }
+          }
+        } else { 
+          if (this.events[event] && Array.isArray(this.events[event])) {
+            l('EVENT', this) && console.log(this+' Adding a listener callback for event['+event+']');
+            l('TRACE', this) && console.log(this+' Callback for event['+event+'] is', callback);
+            this.events[event].push(callback);
+          }
+        }
       } else {
         throw new Error("on() requires an events property listing the events. this.events["+event+"] = [];");
-      }   
-    },  
+      }
+    },
+    /** attach a callback to ALL events */
+    bubble : function(callback) {
+      if (this.events) {
+        for(var event in this.events) {
+          if (this.events.hasOwnProperty(event) ) {
+            this.events[event].push(callback);
+          }
+        }
+      }
+    },
     // Clear callbacks for a particular event.
     off : function(event) {
       if (this.events && this.events[event]) {
@@ -398,11 +423,13 @@ var RtcommBaseObject = {
     },
     /** emit an event from the object */
     emit : function(event, object) {
+      var event_object = object || {};
       var self = this;
       // We have an event format specified, normalize the event before emitting.
       if (this._Event && typeof this._Event === 'function') { 
-        object = this._Event(event, object);
+        event_object = this._Event(event, event_object);
       }
+      // event_object.name = (event_object.name) ? event_object.name : event;
       if (this.events && this.events[event] ) {
      //   console.log('>>>>>>>> Firing event '+event);
         l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);
@@ -415,7 +442,7 @@ var RtcommBaseObject = {
             if (typeof callback === 'function') {
               l('EVENT', self) && console.log(self+".emit()  executing callback for event["+event+"]");
               try {
-                callback(object);
+                callback(event_object);
               } catch(e) {
                 var m = 'Event['+event+'] callback failed with message: '+e.message;
                 throw new Error(m);
@@ -488,6 +515,107 @@ var RtcommEvent = function RtcommEvent() {
   this.message = "";
   this.object = "";
 };
+
+var Sound = (function invocation(url) {
+
+  /* global AudioContext:false */ 
+  var context = null;
+
+  if (typeof navigator !== 'undefined' && typeof window !== 'undefined') {
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    context = context || (window.AudioContext) ? new AudioContext(): null;
+  }
+
+  var Sound = function Sound(url) {
+    if (!(this instanceof Sound)) {
+      return new Sound(url);
+    }
+    this.context = context;
+    this.url = url;
+    this.buffer = null;
+    this.loaded = false;
+    this.playing = null;
+  };
+
+/* global l:false */ 
+Sound.prototype = (function () {
+  var load = function load(callback) {
+    var self = this;
+    if (self.url && self.context) {
+      var request = new XMLHttpRequest();
+      request.open('GET', self.url, true);
+      request.responseType= 'arraybuffer';
+      request.onload = function() {
+        self.context.decodeAudioData(request.response, 
+          function(buffer) {
+            l('DEBUG') && console.log('Sound: successfully loaded buffer '+ self.url);
+            self.buffer = buffer;
+            callback && callback();
+          }, 
+          function(error) { /* onError */
+            console.error('Unable to load the url: ', error);
+          });
+      };
+      request.send();
+    } else {
+      l('DEBUG') && console.log('Sound.play() Unsupported in this environment');
+    }
+    return self;
+  };
+  var play = function play() {
+    var self = this;
+    var _play = function _play() {
+      if (self.context) {
+        if (!self.playing) {
+          var sound = self.context.createBufferSource();
+          sound.buffer = self.buffer;
+          sound.connect(self.context.destination);
+          sound.loop= true;
+          sound.start(0);
+          self.playing = sound;
+        } else {
+          l('DEBUG') && console.log('Sound.play() Already playing...');
+        }
+      } else {
+        l('DEBUG') && console.log('Sound.play() Unsupported in this environment');
+      }
+    };
+
+    if (self.buffer) {
+      _play();
+    } else {
+      // Try again in 500 milliseconds
+      l('DEBUG') && console.log('Sound: Unable to play, Load is not complete -- will try 1 time in .5 seconds:',self);
+      setTimeout(_play, 500);
+    }
+    return self;
+  };
+
+  var stop= function stop() {
+    console.log('Sound.stop() stop called, are we playing?', this.playing);
+    if (this.playing) {
+      this.playing.stop();
+      this.playing = null;
+    } else {
+      console.log('Sound.stop() -- Nothing playing');
+    }
+    return this;
+  };
+    return {
+      load: load,
+      play: play,
+      stop: stop
+    };
+})();
+
+return Sound;
+})();
+
+/*globals exports:false*/
+exports.Sound= Sound;
+
+
+
 
 return util;
 
@@ -693,6 +821,7 @@ var EndpointConnection = function EndpointConnection(config) {
     timer = timer || false;
     var registry = {};
     var defaultTimeout = 5000;
+    var self = this;
 
     var addTimer = function addTimer(item){
       if(item.timer) {
@@ -710,11 +839,20 @@ var EndpointConnection = function EndpointConnection(config) {
             } else {
               l('DEBUG') && console.log(errorMsg);
             }
-            delete registry[item.id];
+            remove(item);
           }
         },
         timerTimeout);
       l('DEBUG') && console.log(item+' Timer: Setting Timer: '+item.timer + 'item.timeout: '+timerTimeout);
+      };
+
+    var remove =  function remove(item) {
+        if (item.id in registry) {
+          item.clearEventListeners();
+          item.timer && clearTimeout(item.timer);
+          l('DEBUG') && console.log('EndpointConnection  Removing item from registry: ', item);
+          delete registry[item.id];
+        }
       };
 
     var add = function(item) {
@@ -736,18 +874,12 @@ var EndpointConnection = function EndpointConnection(config) {
 
     return {
       add: add,
+      remove: remove ,
       clear: function() {
         var self = this;
         Object.keys(registry).forEach(function(item) {
           self.remove(registry[item]);
         });
-      },
-      remove: function(item) {
-        if (item.id in registry) {
-          item.timer && clearTimeout(item.timer);
-          l('DEBUG') && console.log('EndpointConnection  Removing item from registry: ', item);
-          delete registry[item.id];
-        }
       },
       list: function() {
         return Object.keys(registry);
@@ -1158,10 +1290,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             }
           };
           var onFailure = function(query_response) {
+            l('DEBUG') && console.log('Query Failed: ', query_response);
             if (cbFailure && typeof cbFailure === 'function') {
-              if (query_response && query_response.failureReason) {
-                cbFailure(query_response.failureReason);
-              }
+              cbFailure((query_response)? query_response.failureReason : "Service Query failed for Unknown reason");
             } else {
               console.error('query failed:', query_response);
             }
@@ -1394,7 +1525,7 @@ exports.EndpointConnection = EndpointConnection;
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.3.0',
+      'rtcommVer': 'v0.4.0',
        'method' : null,
        'fromTopic': null
   };
@@ -1694,7 +1825,8 @@ var MqttConnection = function MqttConnection(config) {
     /* global Paho.MQTT: false */
     /* global l: false */
     var mqtt = null;
-    if (typeof Paho.MQTT === 'object') {
+
+    if ((typeof Paho !== 'undefined' ) && (typeof Paho.MQTT === 'object')) {
       l('DEBUG') && console.log('MqttConnection createMqttClient using config: ', config);
       mqtt = new Paho.MQTT.Client(config.server,config.port,config.clientID);
       /* if a connection is lost, this callback is called, reconnect */
@@ -1769,17 +1901,18 @@ var MqttConnection = function MqttConnection(config) {
 
   // Create our MQTT Client.
   var mqttClient = this.dependencies.mqttClient = createMqttClient(this.config);
+  var mqttConnection = this;
   mqttClient.onMessageArrived = function (message) {
     l('TRACE') && console.log('MQTT Raw message, ', message);
     /* mqttMessage we emit */
-    var mqttMessage= convertMessage(message,this.config.myTopic);
+    var mqttMessage= convertMessage(message,mqttConnection.config.myTopic);
     try {
-      l('MESSAGE') && console.log(this+' Received message: '+JSON.stringify(mqttMessage));
-      this.emit('message',mqttMessage);
+      l('DEBUG') && console.log(mqttConnection+' Received message: '+JSON.stringify(mqttMessage));
+      mqttConnection && mqttConnection.emit('message',mqttMessage);
     } catch(e) {
       console.error('onMessageArrived callback chain failure:',e);
     }
-  }.bind(this);
+  };
 
   // Init has be executed.
   this._init = true;
@@ -1787,18 +1920,21 @@ var MqttConnection = function MqttConnection(config) {
 
 /* global util: false */
 MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
-
   var createMqttMessage = function(message) {
     l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Creating message > ', message);
     var messageToSend = null;
-    if (message && typeof message === 'object') {
-      messageToSend = new Paho.MQTT.Message(JSON.stringify(message));
-    } else if (typeof message === 'string' ) {
-      // If its just a string, we support sending it still, though no practical purpose for htis.
-      messageToSend = new Paho.MQTT.Message(message);
+    if ((typeof Paho !== 'undefined' )&& (typeof Paho.MQTT === 'object')) {
+      if (message && typeof message === 'object') {
+        messageToSend = new Paho.MQTT.Message(JSON.stringify(message));
+      } else if (typeof message === 'string' ) {
+        // If its just a string, we support sending it still, though no practical purpose for htis.
+        messageToSend = new Paho.MQTT.Message(message);
+      } else {
+        // Return an empty message
+        messageToSend = new Paho.MQTT.Message('');
+      }
     } else {
-      // Return an empty message
-      messageToSend = new Paho.MQTT.Message('');
+      console.error('MqttConnection createMessage, No Paho Client defined');
     }
     l('TRACE') && console.log('MqttConnection: >>>>>>>>>>>> Created message > ',messageToSend);
     return messageToSend;
@@ -2606,6 +2742,7 @@ Transaction.prototype = util.RtcommBaseObject.extend(
   }
 });
 
+
 return connection;
 
 }));
@@ -2613,179 +2750,210 @@ return connection;
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
-    define(["./rtcomm/connection","./rtcomm/util"], function (connection, util) {
+    define(["./connection","./util"], function (connection, util) {
       return (root.returnExportsGlobal = factory(connection, util));
     });
   } else if (typeof exports === 'object') {
     // Node. Does not work with strict CommonJS, but
     // only CommonJS-like enviroments that support module.exports,
     // like Node.
-    module.exports = factory(require("./rtcomm/connection"),require("./rtcomm/util"));
+    module.exports = factory(require("./connection"),require("./util"));
   } else {
         root['rtcomm'] = root['rtcomm']  || {};
         root['rtcomm']['EndpointProvider'] = factory(rtcomm.connection,rtcomm.util);
   }
 }(this, function (connection, util) {
 
-var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
-  // Presuming you creat an object based on this one, 
-  // you must override the session event handler and
-  // then augment newSession object.
-  this.config = {
-    protocols: protocols || null
-  };
-  this.dependencies = {
-    endpointConnection: null,
-  };
-  // Private info.
-  this._ = {
-    referralSession: null,
-    activeSession: null,
-    appContext: null,
-    available: true
-  };
-  protocols && Object.keys(protocols).forEach(function(key) {
-    this.config[key] = protocols[key];
-  });
-};
-/*globals util:false*/
-/*globals l:false*/
-BaseSessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
-  function createSignalingSession(remoteEndpointID, context) {
-    l('DEBUG') && console.log("createSignalingSession context: ", context);
-    var sessid = null;
-    var toTopic = null;
-    if (context._.referralSession) {
-      var details = context._.referralSession.referralDetails;
-      sessid =  (details && details.sessionID) ? details.sessionID : null;
-      remoteEndpointID =  (details && details.remoteEndpointID) ? details.remoteEndpointID : null;
-      toTopic =  (details && details.toTopic) ? details.toTopic : null;
-    }
-    if (!remoteEndpointID) {
-      throw new Error('toEndpointID must be set');
-    }
-    var session = context.dependencies.endpointConnection.createSession({
-      id : sessid,
-      toTopic : toTopic,
-      remoteEndpointID: remoteEndpointID,
-      appContext: context._.appContext
-    });
-    console.log('session: ', session);
-    return session;
-  }
-  // Protocol Specific handling of the session content. 
-  //
-  function addSessionCallbacks(context, session) {
-     // Define our callbacks for the session.
-    session.on('pranswer', function(content){
-      context._.processMessage(content);
-    });
-    session.on('message', function(content){
-      l('DEBUG') && console.log('SigSession callback called to process content: ', content);
-      context._.processMessage(content);
-    });
-    session.on('started', function(content){
-      // Our Session is started!
-      content && context._.processMessage(content);
-      if (context._.referralSession) {
-        context._.referralSession.respond(true);
+/*
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/ 
+// rtcservice & util should be defined here:
+/*jshint -W030*/
+/*global util:false*/
+var logging = new util.Log(),
+    setLogLevel = logging.s,
+    getLogLevel = logging.g,
+    l = logging.l,
+    generateUUID = util.generateUUID,    
+    generateRandomBytes = util.generateRandomBytes,    
+    validateConfig = util.validateConfig,
+    applyConfig = util.applyConfig,
+    setConfig = util.setConfig,
+    /*global log: false */
+    log = logging.log;
+
+ /*
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/
+/*global l:false*/
+/*global util:false*/
+var Chat = (function invocation() {
+
+/**
+   * @memberof module:rtcomm.RtcommEndpoint
+   *
+   * @description 
+   * A Chat is a connection from one peer to another to pass text back and forth
+   *
+   *  @constructor
+   *  @extends  module:rtcomm.util.RtcommBaseObject
+   */
+  var Chat = function Chat(parent) {
+    // Does this matter?
+    var createChatMessage = function(message) {
+      return {'chat':{'message': message, 'from': parent.userid}};
+    };
+    var chat = this;
+    this._ = {};
+    this._.objName = 'Chat';
+    this.id = parent.id;
+    this._.parentConnected = false;
+    this._.enabled = false;
+    this.onEnabledMessage = null;
+    this.onDisabledMessage = null;
+    this.state = 'disconnected';
+
+    this.events = {
+      'message': [],
+      'ringing': [],
+      'connected': [],
+      'alerting': [],
+      'disconnected': []
+    };
+    /**
+     * Send a message if connected, otherwise, 
+     * enables chat for subsequent RtcommEndpoint.connect();
+     * @param {string} message  Message to send when enabled.
+     */  
+    this.enable =  function(message) {
+      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
+
+      this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
+      // Don't need much, just set enabled to true.
+      // Default message
+      this._.enabled = true;
+      
+      if (parent.sessionStarted()) {
+        l('DEBUG') && console.log(this+'.enable() - Session Started, connecting chat');
+        this._connect();
+      } else { 
+        l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
+        parent._.activeSession && parent._.activeSession.respond();
+        this._connect();
       }
-    });
-    session.on('stopped', function() {
-      console.log('Session Stopped');
-    });
-    session.on('starting', function() {
-      console.log('Session Started');
-    });
-    session.on('failed', function(message) {
-      console.log('Session FAILED');
-    });
-    l('DEBUG') && console.log('createSignalingSession created!', session);
-
-   // session.listEvents();
-    return true;
-  }
-
-return  {
-  getAppContext:function() {return this._.appContext;},
-  newSession: function(session) {
-      var event = null;
-      var msg = null;
-      // If there is a session.appContext, it must match unless this.ignoreAppContext is set 
-      if (this.ignoreAppContext || 
-         (session.appContext && (session.appContext === this.getAppContext())) || 
-         (typeof session.appContext === 'undefined' && session.type === 'refer')) {
-        // We match appContexts (or don't care)
-        if (this.available()){
-          // We are available (we can mark ourselves busy to not accept the call)
-          event = 'incoming';
-          if (session.type === 'refer') {
-            l('DEBUG') && console.log(this + '.newSession() REFER');
-            event = 'refer';
-          }
-         // Save the session and start it.
-         this._.activeSession = session;
-         session.start();
-         // Now, depending on the session.message (i.e its peerContent or future content) then do something. 
-         //  For an inbound session, we have several scenarios:
-         //
-         //  1. peerContent === webrtc 
-         //    -- we need to send a pranswer, create our webrtc endpoint, and 'answer'
-         //
-         //  2. peerContent === chat
-         //    -- it is chat content, emit it out, but respond and set up the session.
-         //
-         if (session.message && session.message.peerContent) {
-           // Emit this message, wait for something else?
-           session.pranswer();
-           console.log('Should send message now to someone else...');
-         } else {
-           session.respond();
-         }
-         //
-         //
-         // 
-         //    var conn = this.dependencies.webrtcConnection = this.createConnection();
-         //   conn.init({session:session});
-         this.available(false);
-         // this.emit(event, 'Something here...');
-        } else {
-          msg = 'Busy';
-          l('DEBUG') && console.log(this+'.newSession() '+msg);
-          session.fail('Busy');
-        }
+      return this;
+    };
+    /**
+     * Accept an inbound connection  
+     */
+    this.accept = function(message) {
+      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
+      if (this.state === 'alerting') {
+        this.enable(message || 'Accepting chat connection');
+        return true;
       } else {
-        msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.getAppContext()+')';
-        l('DEBUG') && console.log(this+'.newSession() '+msg);
-        session.fail(msg);
+        return false;
       }
-  },
-    available: function(a) {
-      if (a) {
-        if (typeof a === 'boolean') { 
-          this._.available = a;
-          return a;
-        } 
-      } else  {
-        return this._.available;
+    };
+    /**
+     * Reject an inbound session
+     */
+    this.reject = function() {
+      // Does nothing.
+    };
+    /**
+     * disable chat
+     */
+    this.disable = function(message) {
+      if (this._.enabled) { 
+        this._.enabled = false;
+        this.onDisabledMessage = message|| createChatMessage(parent.userid + ' has left the chat');
+        this.send(this.onDisabledMessage);
+        this._setState('disconnected');
       }
-    },
-  connect: function(endpointid) {
-    this._.activeSession = createSignalingSession(endpointid, this);
-    this._.activeSession.start();
-  },
-  disconnect: function() {
-    this._.activeSession.stop();
-  },
+      return null;
+    };
+    /**
+     * send a chat message
+     * @param {string} message  Message to send
+     */
+    this.send = function(message) {
+      message = (message && message.payload) ? message.payload: message;
+      message = (message && message.chat)  ? message : createChatMessage(message);
+      if (parent._.activeSession) {
+        parent._.activeSession.send(message);
+      }
+    };
+    this._connect = function(sendMethod) {
+      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
+      if (this._.enabled) {
+        this.onEnabledMessage && sendMethod({'payload': this.onEnabledMessage});
+        this._setState('connected');
+        return true;
+      } else {
+        l('DEBUG') && console.log(this+ '_connect() !!!!! not enabled, skipping...'); 
+        return false;
+      }
+    };
+    // Message should be in the format:
+    // {payload content... }
+    // {'message': message, 'from':from}
+    //
+    this._processMessage = function(message) {
+      // If we are connected, emit the message
+      if (this.state === 'connected') {
+        this.emit('message', message);
+      } else {
+        if (!parent.sessionStopped()) {
+          parent._.activeSession && parent._.activeSession.pranswer();
+          this._setState('alerting', message);
+        }
+      }
+      return this;
+    };
+    this._setState = function(state, object) {
+     l('DEBUG') && console.log(this+'._setState() setting state to: '+ state); 
+      var currentState = this.state;
+      try {
+        this.state = state;
+        this.emit(state, object);
+      } catch(error) {
+        console.error(error);
+        console.error(this+'._setState() unsupported state: '+state );
+        this.state = currentState;
+      }
+    };
 
-  reject: function() {
+  };
+  Chat.prototype = util.RtcommBaseObject.extend({});
 
-  }
-};
+  return Chat;
 
-})());
-
-
+})();
 
 /*
  * Copyright 2014 IBM Corp.
@@ -3219,6 +3387,8 @@ var EndpointProvider =  function EndpointProvider() {
         this._.rtcommEndpointConfig.chat : objConfig.chat;
       objConfig.webrtc = (typeof this._.rtcommEndpointConfig.webrtc === 'boolean') ? 
         this._.rtcommEndpointConfig.webrtc : objConfig.webrtc;
+      objConfig.ringtone = (this._.rtcommEndpointConfig.ringtone) ?  this._.rtcommEndpointConfig.ringtone: null; 
+      objConfig.ringbacktone = (this._.rtcommEndpointConfig.ringbacktone) ?  this._.rtcommEndpointConfig.ringbacktone: null; 
     }
 
     if (typeof this.config.appContext === 'undefined') {
@@ -3254,6 +3424,10 @@ var EndpointProvider =  function EndpointProvider() {
             console.error('Invalid event in rtcommEndpointConfig: '+key);
           }
         });
+      }
+      if (this._.rtcommEndpointConfig.bubble && (typeof this._.rtcommEndpointConfig.bubble === 'function')) {
+        // Attach the bubble event
+        endpoint.bubble(this._.rtcommEndpointConfig.bubble);
       }
       // If broadcast needs to be set
       if(this._.rtcommEndpointConfig.broadcast) {
@@ -3697,36 +3871,6 @@ var EndpointRegistry = function EndpointRegistry(options) {
   };
 
 };
-
-/*
- * Copyright 2014 IBM Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **/ 
-// rtcservice & util should be defined here:
-/*jshint -W030*/
-/*global util:false*/
-var logging = new util.Log(),
-    setLogLevel = logging.s,
-    getLogLevel = logging.g,
-    l = logging.l,
-    generateUUID = util.generateUUID,    
-    generateRandomBytes = util.generateRandomBytes,    
-    validateConfig = util.validateConfig,
-    applyConfig = util.applyConfig,
-    setConfig = util.setConfig,
-    /*global log: false */
-    log = logging.log;
 
 var MqttEndpoint = function MqttEndpoint(config) {
 
@@ -4991,145 +5135,9 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
 
 var RtcommEndpoint = (function invocation(){
 
-  /**
-   * @memberof module:rtcomm.RtcommEndpoint
-   *
-   * @description 
-   * A Chat is a connection from one peer to another to pass text back and forth
-   *
-   *  @constructor
-   *  @extends  module:rtcomm.util.RtcommBaseObject
-   */
-  var Chat = function Chat(parent) {
-    // Does this matter?
-    var createChatMessage = function(message) {
-      return {'chat':{'message': message, 'from': parent.userid}};
-    };
-    var chat = this;
-    this._ = {};
-    this._.objName = 'Chat';
-    this.id = parent.id;
-    this._.parentConnected = false;
-    this._.enabled = false;
-    this.onEnabledMessage = null;
-    this.onDisabledMessage = null;
-    this.state = 'disconnected';
-
-    this.events = {
-      'message': [],
-      'ringing': [],
-      'connected': [],
-      'alerting': [],
-      'disconnected': []
-    };
-    /**
-     * Send a message if connected, otherwise, 
-     * enables chat for subsequent RtcommEndpoint.connect();
-     * @param {string} message  Message to send when enabled.
-     */  
-    this.enable =  function(message) {
-      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
-
-      this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
-      // Don't need much, just set enabled to true.
-      // Default message
-      this._.enabled = true;
-      
-      if (parent.sessionStarted()) {
-        l('DEBUG') && console.log(this+'.enable() - Session Started, connecting chat');
-        this._connect();
-      } else { 
-        l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
-        parent._.activeSession && parent._.activeSession.respond();
-        this._connect();
-      }
-      return this;
-    };
-    /**
-     * Accept an inbound connection  
-     */
-    this.accept = function(message) {
-      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
-      if (this.state === 'alerting') {
-        this.enable(message || 'Accepting chat connection');
-        return true;
-      } else {
-        return false;
-      }
-    };
-    /**
-     * Reject an inbound session
-     */
-    this.reject = function() {
-      // Does nothing.
-    };
-    /**
-     * disable chat
-     */
-    this.disable = function(message) {
-      if (this._.enabled) { 
-        this._.enabled = false;
-        this.onDisabledMessage = message|| createChatMessage(parent.userid + ' has left the chat');
-        this.send(this.onDisabledMessage);
-        this._setState('disconnected');
-      }
-      return null;
-    };
-    /**
-     * send a chat message
-     * @param {string} message  Message to send
-     */
-    this.send = function(message) {
-      message = (message && message.payload) ? message.payload: message;
-      message = (message && message.chat)  ? message : createChatMessage(message);
-      if (parent._.activeSession) {
-        parent._.activeSession.send(message);
-      }
-    };
-    this._connect = function(sendMethod) {
-      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
-      if (this._.enabled) {
-        this.onEnabledMessage && sendMethod({'payload': this.onEnabledMessage});
-        this._setState('connected');
-        return true;
-      } else {
-        l('DEBUG') && console.log(this+ '_connect() !!!!! not enabled, skipping...'); 
-        return false;
-      }
-    };
-    // Message should be in the format:
-    // {payload content... }
-    // {'message': message, 'from':from}
-    //
-    this._processMessage = function(message) {
-      // If we are connected, emit the message
-      if (this.state === 'connected') {
-        this.emit('message', message);
-      } else {
-        if (!parent.sessionStopped()) {
-          parent._.activeSession && parent._.activeSession.pranswer();
-          this._setState('alerting', message);
-        }
-      }
-      return this;
-    };
-    this._setState = function(state, object) {
-     l('DEBUG') && console.log(this+'._setState() setting state to: '+ state); 
-      var currentState = this.state;
-      try {
-        this.state = state;
-        this.emit(state, object);
-      } catch(error) {
-        console.error(error);
-        console.error(this+'._setState() unsupported state: '+state );
-        this.state = currentState;
-      }
-    };
-
-  };
-  Chat.prototype = util.RtcommBaseObject.extend({});
 
   var createChat = function createChat(parent) {
+    /* globals Chat:false */
     var chat = new Chat(parent);
     chat.on('ringing', function(event_obj) {
       (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
@@ -5165,15 +5173,28 @@ var RtcommEndpoint = (function invocation(){
       webrtc = new WebRTCConnection(parent);
     }
     webrtc.on('ringing', function(event_obj) {
-      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
+     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     parent._playRingback();
+     (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
+    });
+
+    webrtc.on('trying', function(event_obj) {
+     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     parent._playRingback();
+     (parent.lastEvent !== 'session:trying') && parent.emit('session:trying');
     });
     webrtc.on('alerting', function(event_obj) {
+      parent._playRingtone();
       parent.emit('session:alerting', {protocols: 'webrtc'});
     });
     webrtc.on('connected', function(event_obj) {
+      console.log('SHould stop ring now...');
+      parent._stopRing();
       parent.emit('webrtc:connected');
     });
     webrtc.on('disconnected', function(event_obj) {
+      console.log('SHould stop ring now...');
+      parent._stopRing();
       parent.emit('webrtc:disconnected');
     });
     return webrtc;
@@ -5204,6 +5225,8 @@ var RtcommEndpoint = (function invocation(){
       ignoreAppContext: true,
       appContext : null,
       userid: null,
+      ringtone: null,
+      ringbacktone: null,
       chat: true,
       webrtc: true
     };
@@ -5223,12 +5246,14 @@ var RtcommEndpoint = (function invocation(){
       inboundMedia: null,
       attachMedia: false,
       localStream : null,
+      ringTone : null,
+      ringbackTone : null,
       media : { In : null,
                Out: null},
     };
     // Used to store the last event emitted;
     this.lastEvent = null;
-    // Used to store the last event emitted;
+    // Used to store the last event emitted
     //
     this.state = 'session:stopped';
     var self = this;
@@ -5238,6 +5263,10 @@ var RtcommEndpoint = (function invocation(){
 
     this.config.webrtc && this._.protocols.push('webrtc');
     this.config.chat && this._.protocols.push('chat');
+
+    //load the sounds 
+    this._.ringTone = (this.config.ringtone) ? util.Sound(this.config.ringtone).load(): null;
+    this._.ringbackTone= (this.config.ringbacktone) ? util.Sound(this.config.ringbacktone).load() : null;
 
     // expose the ID
     this.id = this._.uuid;
@@ -5467,6 +5496,18 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
   }
 /** @lends module:rtcomm.RtcommEndpoint.prototype */
 return  {
+  _playRingtone: function() {
+    this._.ringTone && this._.ringTone.play();
+  },
+  _playRingback: function() {
+    this._.ringbackTone && this._.ringbackTone.play();
+  },
+  _stopRing: function() {
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
+    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
+    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
+  },
   getAppContext:function() {return this.config.appContext;},
   newSession: function(session) {
       var event = null;
@@ -5676,6 +5717,7 @@ return  {
    */
   reject: function() {
       l('DEBUG') && console.log(this + ".reject() invoked ");
+      this._stopRing();
       this.webrtc.reject();
       this.chat.reject();
       this._.activeSession && this._.activeSession.fail("The user rejected the call");
@@ -6057,8 +6099,9 @@ var WebRTCConnection = (function invocation() {
 
       // Stop broadcasting/release the camera.
       this._.localStream && this._.localStream.stop();
+      this._.localStream = null;
       detachMediaStream(this.getMediaOut());
-      if (this.getState() !== 'disconnected' && this.getState() !== 'alerting') {
+      if (this.getState() !== 'disconnected') {
         this._setState('disconnected');
       }
       return this;
@@ -6375,7 +6418,7 @@ var WebRTCConnection = (function invocation() {
              /*onSuccess*/ function() {
                l('DEBUG') && console.log(this+' PRANSWER in processMessage for offer()');
                 if (!self.dependencies.parent.sessionStarted()) { 
-                  self.dependencies.parent._.activeSession.pranswer({'type': 'pranswer', 'sdp':''});
+                  self.dependencies.parent._.activeSession.pranswer({'webrtc': {'type': 'pranswer', 'sdp':''}});
                 }
                 this._setState('alerting');
                }.bind(self),
@@ -6837,7 +6880,7 @@ var getUserMedia, attachMediaStream,detachMediaStream;
 } else {
   console.error("Browser does not appear to be WebRTC-capable");
   var skip = function skip() {
-    console.error("Function not supported in browser");
+    if (typeof global === 'undefined') { console.error("Function not supported in browser")};
   };
   getUserMedia = skip;
   attachMediaStream = skip;
@@ -6850,6 +6893,237 @@ return WebRTCConnection;
 
 
 
+var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
+  // Presuming you creat an object based on this one, 
+  // you must override the session event handler and
+  // then augment newSession object.
+  this.config = {
+    protocols: protocols || null
+  };
+  this.dependencies = {
+    endpointConnection: null,
+  };
+  // Private info.
+  this._ = {
+    referralSession: null,
+    activeSession: null,
+    appContext: null,
+    available: true
+  };
+  protocols && Object.keys(protocols).forEach(function(key) {
+    this.config[key] = protocols[key];
+  });
+};
+/*globals util:false*/
+/*globals l:false*/
+BaseSessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
+  function createSignalingSession(remoteEndpointID, context) {
+    l('DEBUG') && console.log("createSignalingSession context: ", context);
+    var sessid = null;
+    var toTopic = null;
+    if (context._.referralSession) {
+      var details = context._.referralSession.referralDetails;
+      sessid =  (details && details.sessionID) ? details.sessionID : null;
+      remoteEndpointID =  (details && details.remoteEndpointID) ? details.remoteEndpointID : null;
+      toTopic =  (details && details.toTopic) ? details.toTopic : null;
+    }
+    if (!remoteEndpointID) {
+      throw new Error('toEndpointID must be set');
+    }
+    var session = context.dependencies.endpointConnection.createSession({
+      id : sessid,
+      toTopic : toTopic,
+      remoteEndpointID: remoteEndpointID,
+      appContext: context._.appContext
+    });
+    console.log('session: ', session);
+    return session;
+  }
+  // Protocol Specific handling of the session content. 
+  //
+  function addSessionCallbacks(context, session) {
+     // Define our callbacks for the session.
+    session.on('pranswer', function(content){
+      context._.processMessage(content);
+    });
+    session.on('message', function(content){
+      l('DEBUG') && console.log('SigSession callback called to process content: ', content);
+      context._.processMessage(content);
+    });
+    session.on('started', function(content){
+      // Our Session is started!
+      content && context._.processMessage(content);
+      if (context._.referralSession) {
+        context._.referralSession.respond(true);
+      }
+    });
+    session.on('stopped', function() {
+      console.log('Session Stopped');
+    });
+    session.on('starting', function() {
+      console.log('Session Started');
+    });
+    session.on('failed', function(message) {
+      console.log('Session FAILED');
+    });
+    l('DEBUG') && console.log('createSignalingSession created!', session);
+
+   // session.listEvents();
+    return true;
+  }
+
+return  {
+  getAppContext:function() {return this._.appContext;},
+  newSession: function(session) {
+      var event = null;
+      var msg = null;
+      // If there is a session.appContext, it must match unless this.ignoreAppContext is set 
+      if (this.ignoreAppContext || 
+         (session.appContext && (session.appContext === this.getAppContext())) || 
+         (typeof session.appContext === 'undefined' && session.type === 'refer')) {
+        // We match appContexts (or don't care)
+        if (this.available()){
+          // We are available (we can mark ourselves busy to not accept the call)
+          event = 'incoming';
+          if (session.type === 'refer') {
+            l('DEBUG') && console.log(this + '.newSession() REFER');
+            event = 'refer';
+          }
+         // Save the session and start it.
+         this._.activeSession = session;
+         session.start();
+         // Now, depending on the session.message (i.e its peerContent or future content) then do something. 
+         //  For an inbound session, we have several scenarios:
+         //
+         //  1. peerContent === webrtc 
+         //    -- we need to send a pranswer, create our webrtc endpoint, and 'answer'
+         //
+         //  2. peerContent === chat
+         //    -- it is chat content, emit it out, but respond and set up the session.
+         //
+         if (session.message && session.message.peerContent) {
+           // Emit this message, wait for something else?
+           session.pranswer();
+           console.log('Should send message now to someone else...');
+         } else {
+           session.respond();
+         }
+         //
+         //
+         // 
+         //    var conn = this.dependencies.webrtcConnection = this.createConnection();
+         //   conn.init({session:session});
+         this.available(false);
+         // this.emit(event, 'Something here...');
+        } else {
+          msg = 'Busy';
+          l('DEBUG') && console.log(this+'.newSession() '+msg);
+          session.fail('Busy');
+        }
+      } else {
+        msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.getAppContext()+')';
+        l('DEBUG') && console.log(this+'.newSession() '+msg);
+        session.fail(msg);
+      }
+  },
+    available: function(a) {
+      if (a) {
+        if (typeof a === 'boolean') { 
+          this._.available = a;
+          return a;
+        } 
+      } else  {
+        return this._.available;
+      }
+    },
+  connect: function(endpointid) {
+    this._.activeSession = createSignalingSession(endpointid, this);
+    this._.activeSession.start();
+  },
+  disconnect: function() {
+    this._.activeSession.stop();
+  },
+
+  reject: function() {
+
+  }
+};
+
+})());
+
+
+
+
 return EndpointProvider;
+
+}));
+
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    // AMD. Register as an anonymous module.
+    define(["./rtcomm/EndpointProvider","./rtcomm/connection","./rtcomm/util"], function (EndpointProvider, connection, util) {
+      return (root.returnExportsGlobal = factory(EndpointProvider, connection, util));
+    });
+  } else if (typeof exports === 'object') {
+    // Node. Does not work with strict CommonJS, but
+    // only CommonJS-like enviroments that support module.exports,
+    // like Node.
+    module.exports = factory(require("./rtcomm/EndpointProvider"),require("./rtcomm/connection"),require("./rtcomm/util"));
+  } else {
+        root['rtcomm'] = root['rtcomm']  || {};
+        root['rtcomm'] = factory(rtcomm.EndpointProvider,rtcomm.connection,rtcomm.util);
+  }
+}(this, function (EndpointProvider, connection, util) {
+
+/*
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * @class
+ * @memberof module:rtcomm
+ * @classdesc
+ * Provides Services to register a user and create Endpoints (RtcommEndpoints & MqttEndpoints)
+ * <p>
+ * This programming interface lets a JavaScript client application use 
+ * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
+ * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
+ * & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
+ * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
+ * that is used to receive inbound communication.
+ * <p>
+ * See the example in {@link module:rtcomm.EndpointProvider#init|EndpointProvider.init()}
+ * <p>
+ *
+ * @requires {@link mqttws31.js}
+ *
+ */
+/*global l:false*/
+var rtcomm= (function rtcomm() {
+
+   var Rtcomm = function Rtcomm() {
+     this.EndpointProvider= EndpointProvider;
+     this.connection= connection;
+     this.util= util;
+   };
+   Rtcomm.prototype = util.RtcommBaseObject.extend({});
+   return new Rtcomm();
+ })();
+
+
+
+
+ return rtcomm;
 
 }));

@@ -248,8 +248,9 @@ var WebRTCConnection = (function invocation() {
 
       // Stop broadcasting/release the camera.
       this._.localStream && this._.localStream.stop();
+      this._.localStream = null;
       detachMediaStream(this.getMediaOut());
-      if (this.getState() !== 'disconnected' && this.getState() !== 'alerting') {
+      if (this.getState() !== 'disconnected') {
         this._setState('disconnected');
       }
       return this;
@@ -566,7 +567,7 @@ var WebRTCConnection = (function invocation() {
              /*onSuccess*/ function() {
                l('DEBUG') && console.log(this+' PRANSWER in processMessage for offer()');
                 if (!self.dependencies.parent.sessionStarted()) { 
-                  self.dependencies.parent._.activeSession.pranswer({'type': 'pranswer', 'sdp':''});
+                  self.dependencies.parent._.activeSession.pranswer({'webrtc': {'type': 'pranswer', 'sdp':''}});
                 }
                 this._setState('alerting');
                }.bind(self),
@@ -1028,7 +1029,7 @@ var getUserMedia, attachMediaStream,detachMediaStream;
 } else {
   console.error("Browser does not appear to be WebRTC-capable");
   var skip = function skip() {
-    console.error("Function not supported in browser");
+    if (typeof global === 'undefined') { console.error("Function not supported in browser")};
   };
   getUserMedia = skip;
   attachMediaStream = skip;

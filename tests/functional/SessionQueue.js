@@ -19,11 +19,11 @@ var cfg= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcom
 define([
     'intern!object',
     'intern/chai!assert',
-    'intern/dojo/Deferred',
+    'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global) ?'intern/dojo/node!../support/mqttws31_shim': 'lib/mqttws31',
     'support/config',
-    'umd/rtcomm'
-], function (registerSuite, assert, Deferred, globals,config, rtcomm) {
+    'umd/rtcomm/EndpointProvider'
+], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
 
     // endpointProvider
     var ep = null;
@@ -32,8 +32,9 @@ define([
     var mqtt = null;
     var cfg = config.clientConfig1();
 
+    var noQueuesConfigured = true;
     var START_SESSION = {
-        'rtcommVer': 'v0.3.0',
+        'rtcommVer': 'v0.4.0',
         'method': 'START_SESSION',
         'fromTopic': null,
         'protocols': ['chat'],
@@ -52,19 +53,29 @@ define([
         name: 'FVT - EndpointProvider SessionQueue', 
         setup: function() {
           var dfd = new Deferred();
-          ep = new rtcomm();
+          ep = new EndpointProvider();
           ep.setLogLevel('DEBUG');
           cfg.userid = 'intern';
           cfg.appContext = 'rtcommTest';
           ep.init(cfg, 
                   function() {
                     console.log('***** Setup Complete *****');
-                    dfd.resolve();
                   },
                   function(error){
                     console.log('**** Setup Failed *****', error);
                     dfd.reject(error);
                   });
+          ep.on('queueupdate', function(queues) {
+            noQueuesConfigured = false;
+            console.log('*******QUEUES!', queues);
+            clearTimeout(timer);
+            dfd.resolve();
+          });
+
+          var timer = setTimeout(function(){
+            console.log('******* Resolving -- no Queues Configured');
+            dfd.resolve();
+          },5000);
           return dfd.promise;
         },
         beforeEach: function() {
@@ -82,12 +93,12 @@ define([
         },
 
         'Init of EndpointProvider creates Queues' : function() {
+          noQueuesConfigured && this.skip();
           console.log('queues: ', ep.listQueues());
           assert.ok(ep.listQueues().length > 0 , 'queues is defined');
         },
 
         'Join bad queue throws exception': function () {
- //         this.skip();
           var error;
           try { 
             ep.joinQueue('/TestTopic/#');
@@ -98,7 +109,7 @@ define([
           assert.isDefined(error, 'An error was thrown correctly');
         },
         'Send a start session to a queue': function () {
-
+          noQueuesConfigured && this.skip();
           var dfd = this.async(5000);
           var error;
           var queue = ep.getAllQueues()[ep.listQueues()[0]];

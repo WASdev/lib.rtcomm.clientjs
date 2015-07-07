@@ -21,8 +21,8 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'umd/rtcomm'
-], function (registerSuite, assert, Deferred,globals, config, rtcomm) {
+    'umd/rtcomm/EndpointProvider'
+], function (registerSuite, assert, Deferred,globals, config, EndpointProvider) {
 
     /*
      * EndpointProvider FVT -- This runs the following tests:
@@ -72,14 +72,13 @@ define([
           endpointProvider.destroy();
           endpointProvider = null;
         }
-        endpointProvider = new rtcomm();
+        endpointProvider = new EndpointProvider();
         endpointProvider.setAppContext('test');
         endpointProvider.setLogLevel('DEBUG');
       },
       'constructorTest': function() {
-            console.log('rtcomm: ', rtcomm);
             console.log('ep', endpointProvider);
-            assert.ok(endpointProvider instanceof rtcomm);
+            assert.ok(endpointProvider instanceof EndpointProvider);
             assert.notOk(endpointProvider.ready);
       },
       /**
@@ -308,24 +307,26 @@ define([
        testConfig.userid = 'testuser';
 
        // Create another EP
-       var EP2 = new rtcomm();
+       var EP2 = new EndpointProvider();
        EP2.setAppContext('test');
        tearDown.EP2 = EP2;
 
        var finish = dfd.callback(function(object) {
           console.log('************ Finish called w/ OBJECT: ',object);
           assert.notOk(ep2_reset, 'reset on 2nd endpointProvider not called');
-          assert.notOk(EP2.ready, '2nd EndpointProvider correctly cleaned up.');
+          assert.notOk(endpointProvider.ready, 'First EndpointProvider correctly cleaned up.');
        });
-
        // Should not turn true.
        var ep2_reset = false;
+
        var ep1_reset = false;
+
        EP2.on('reset', function(event) {
           ep2_reset = true;
        });
        // This is our FINISH
        endpointProvider.on('reset', function(event){
+          console.log('************ Reset Called: called w/ event: ',event);
          // We have to have a timeout here because we are waiting for the endpointprovider to cleanup.
          assert.equal('document_replaced', event.reason, 'Reset because of document_replaced');
          ep1_reset = true;
@@ -334,7 +335,7 @@ define([
 
        endpointProvider.init(testConfig, 
          function(obj){
-           // Once we have successfully init'ed our first ep, init the second, which should reset this one.
+           // Once we have successfully init'ed our first ep, init the second, which should reset the first one.
            EP2.init(testConfig);
          },
          function(error){

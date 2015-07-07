@@ -23,12 +23,12 @@ define([
       ?'intern/dojo/node!../support/mqttws31_shim':
         'lib/mqttws31',
     'support/config',
-    'umd/rtcomm'
-], function (registerSuite, assert, Deferred, globals,config, rtcomm) {
+    'umd/rtcomm/EndpointProvider'
+], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
 
     var createProvider = function createProvider(userid,appContext) {
       var dfd = new Deferred();
-      var EP = new rtcomm();
+      var EP = new EndpointProvider();
       EP.setLogLevel('DEBUG');
       EP.setUserID(userid);
       EP.setAppContext(appContext);
@@ -58,13 +58,14 @@ define([
 
     var EP1 = null;
     var EP2 = null;
+    var EP3 = null;
 
     var cfg= config.clientConfig1();
     delete cfg.userid;
     var uid1 = 'client1';
     var uid2 = 'client2';
     var appContext = 'internChatTest';
-    var chat1, chat2;
+    var chat1, chat2, chat3;
     registerSuite({
         name: 'RtcommEndpoint - chat',
         setup: function() {
@@ -85,10 +86,18 @@ define([
           return setupDfd.promise;
         },
         teardown: function() {
-          EP1.destroy();
-          EP2.destroy();
+          chat1 && chat1.destroy();
+          chat2 && chat2.destroy();
+          chat3 && chat3.destroy();
+          EP1 && EP1.destroy();
+          EP2 && EP2.destroy();
+          EP3 && EP3.destroy();
           EP1 = null;
           EP2 = null;
+          EP3 = null;
+          chat1 = null;
+          chat2 = null;
+          chat3 = null;
         },
         beforeEach: function() {
           chat1 && chat1.destroy();
@@ -121,12 +130,12 @@ define([
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         },
         'Issue 33:  Busy connect 2 sessions[No Liberty]':function() {
+          //this.skip()
           /* chat1 calls chat2 which accepts.  
            * chat3 calls chat2 -- should get 'BUSY'
            */
           var dfd = this.async(10000);
           // We have a 3rd endpoint here...
-          var chat3, EP3;
           chat1.on('chat:message', function(message){
             console.log('****************************MESSAGE ***', message)
           });
@@ -142,9 +151,11 @@ define([
             assert.equal('Busy', obj.reason, 'Session Failed correctly!');
             assert.isNull(chat3._.activeSession, 'No ActiveSession (GOOD)!');
           });   
+          
           chat1.on('session:started',function() {
             // Now create a 3rd endpoint
-            EP3 = createProvider('client3','internChatTest').then(function(EP){
+            createProvider('client3','internChatTest').then(function(EP){
+              EP3 = EP;
               chat3 = EP.createRtcommEndpoint();
               chat3.on('session:failed',finish);
               chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
@@ -196,10 +207,6 @@ define([
             console.log(' TEST >>>>>> Chat 1Session Started Event --> Sending messages');
             chat1.chat.send(c1Toc2Msg);
             chat2.chat.send(c2Toc1Msg);
-            setTimeout(function(){
-              console.log(' TEST >>>>>> Chat1 DISCONNECTING ');
-              chat1.disconnect();
-            },2000);
           }));
           chat1.on('chat:message', function(event){
             console.log('Received a Chat message...', event);

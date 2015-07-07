@@ -49,6 +49,7 @@ var EndpointConnection = function EndpointConnection(config) {
     timer = timer || false;
     var registry = {};
     var defaultTimeout = 5000;
+    var self = this;
 
     var addTimer = function addTimer(item){
       if(item.timer) {
@@ -66,11 +67,20 @@ var EndpointConnection = function EndpointConnection(config) {
             } else {
               l('DEBUG') && console.log(errorMsg);
             }
-            delete registry[item.id];
+            remove(item);
           }
         },
         timerTimeout);
       l('DEBUG') && console.log(item+' Timer: Setting Timer: '+item.timer + 'item.timeout: '+timerTimeout);
+      };
+
+    var remove =  function remove(item) {
+        if (item.id in registry) {
+          item.clearEventListeners();
+          item.timer && clearTimeout(item.timer);
+          l('DEBUG') && console.log('EndpointConnection  Removing item from registry: ', item);
+          delete registry[item.id];
+        }
       };
 
     var add = function(item) {
@@ -92,18 +102,12 @@ var EndpointConnection = function EndpointConnection(config) {
 
     return {
       add: add,
+      remove: remove ,
       clear: function() {
         var self = this;
         Object.keys(registry).forEach(function(item) {
           self.remove(registry[item]);
         });
-      },
-      remove: function(item) {
-        if (item.id in registry) {
-          item.timer && clearTimeout(item.timer);
-          l('DEBUG') && console.log('EndpointConnection  Removing item from registry: ', item);
-          delete registry[item.id];
-        }
       },
       list: function() {
         return Object.keys(registry);
@@ -514,10 +518,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             }
           };
           var onFailure = function(query_response) {
+            l('DEBUG') && console.log('Query Failed: ', query_response);
             if (cbFailure && typeof cbFailure === 'function') {
-              if (query_response && query_response.failureReason) {
-                cbFailure(query_response.failureReason);
-              }
+              cbFailure((query_response)? query_response.failureReason : "Service Query failed for Unknown reason");
             } else {
               console.error('query failed:', query_response);
             }
