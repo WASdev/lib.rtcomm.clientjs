@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.13 07-07-2015 18:12:07 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.13 07-07-2015 18:12:07 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.13 07-07-2015 19:02:52 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.13 07-07-2015 19:02:52 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -6880,7 +6880,7 @@ var getUserMedia, attachMediaStream,detachMediaStream;
 } else {
   console.error("Browser does not appear to be WebRTC-capable");
   var skip = function skip() {
-    console.error("Function not supported in browser");
+    if (typeof global === 'undefined') { console.error("Function not supported in browser")};
   };
   getUserMedia = skip;
   attachMediaStream = skip;

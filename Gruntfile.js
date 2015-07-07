@@ -190,6 +190,18 @@ module.exports = function(grunt) {
           ]
         }
       },
+      stress: {
+        options: {
+          // for other available options, see:
+          // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
+          config: 'tests/intern_stress',
+          runner: 'client',
+          reporters: [ 'console', 'lcov', 'junit' ],
+          suites: [
+          'stress/stressTest.js'
+          ]
+        }
+      },
       fat: {
         options: {
           // for other available options, see:
