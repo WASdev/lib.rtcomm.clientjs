@@ -16,6 +16,7 @@
 
 
 define([
+    'intern', 
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
@@ -24,7 +25,11 @@ define([
         'lib/mqttws31',
     'support/config',
     'umd/rtcomm/EndpointProvider'
-], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+
+
+    var MAX_CONNS = parseInt(intern.args.MAX_CONNS) || 50;
+    var duration = parseInt(intern.args.duration) || 20000;
 
     var createProvider = function createProvider(cfg,appContext) {
       var dfd = new Deferred();
@@ -81,11 +86,10 @@ define([
 
     var cfg= config.clientConfig1();
     var appContext = 'internChatTest';
-    var MAX_CLIENTS= 50;
     var callers= {};
     var callees= {};
     registerSuite({
-        name: 'Stress Test - '+MAX_CLIENTS,
+        name: 'Stress Test - '+MAX_CONNS,
         setup: function() {
           console.log('*************setup!**************');
           var setupDfd = new Deferred();
@@ -93,18 +97,20 @@ define([
           var resolved = 0;
 
           function resolve() {
-            if (resolved === 2*MAX_CLIENTS) {
+            if (resolved === 2*MAX_CONNS) {
               console.log('******** Finished Setup '+resolved);
-              if (Object.keys(callers).length === MAX_CLIENTS &&
-                  Object.keys(callees).length === MAX_CLIENTS ) {
+              if (Object.keys(callers).length === MAX_CONNS &&
+                  Object.keys(callees).length === MAX_CONNS ) {
                   setupDfd.resolve();
               } else {
+                console.log('CALLERS? '+Object.keys(callers).length);
+                console.log('CALLEES? '+Object.keys(callees).length);
                 setupDfd.reject("All Callers & Clients not actually created");
               }
             }
           }
 
-          for(var i=0; i<MAX_CLIENTS; i++) {
+          for(var i=0; i<MAX_CONNS; i++) {
             var cfgCaller = config.clientConfig();
             var cfgCallee = config.clientConfig();
             createProvider(cfgCaller, appContext).then(
@@ -142,7 +148,6 @@ define([
         beforeEach: function() {
         },
         'stress Test ': function() {
-          var duration = 20000;
           var callee_ids = Object.keys(callees);
           var i = 0;
           var dfd= new Deferred(duration+5000);
@@ -156,7 +161,7 @@ define([
               dfd.reject();
             }
             // We are done.
-            if (resolved === MAX_CLIENTS) {
+            if (resolved === MAX_CONNS) {
               assert.ok('Passed', 'Everything resolved correctly');
               dfd.resolve();
             } 

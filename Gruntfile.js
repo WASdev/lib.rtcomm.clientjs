@@ -173,7 +173,11 @@ module.exports = function(grunt) {
           // for other available options, see:
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
-          reporters: [ 'console', 'lcov', 'junit' ]
+          reporters: [ 
+            {id:'Pretty' },
+            {id: 'Lcov', filename: 'test_results/lcov.info'},
+            { id: 'JUnit', filename: 'test_results/report.xml'}
+          ]
         }
       },
       unit: {
@@ -182,7 +186,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: [ 'console', 'lcov', 'junit' ],
+          reporters: [ 'Pretty'],
           suites: [
           'unit/connection/connection.js',
             'unit/util/util.js',
@@ -196,7 +200,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern_stress',
           runner: 'client',
-          reporters: [ 'console', 'lcov', 'junit' ],
+          reporters: [ 'Pretty'],
           suites: [
           'stress/stressTest.js'
           ]
@@ -208,7 +212,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: [ 'console', 'lcov', 'junit' ],
+          reporters: [ 'Pretty'],
           suites: [
             'functional/connection/MqttConnection.js',
             'functional/connection/EndpointConnection.js',
