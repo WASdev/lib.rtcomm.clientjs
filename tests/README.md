@@ -31,7 +31,7 @@ npm install
 grunt lite
 ```
 
-These tests can be run in two ways:
+These tests can be run in several ways:
 
 1.  Via a Browser:  With an http server pointing at the project directory, access the link http://localhost:<port>/node_modules/intern/client.html?config=tests/intern  via a Browser.  This will run the tests and display the results in the browser.
 
@@ -51,4 +51,35 @@ cd lib.rtcomm.clientjs
 # run the tests [ run them all]
 grunt test
 ```
+
+* Additional Tests & options
+
+    ** Run just the unit tests:
+    ```
+    grunt intern:unit
+    ```
+    ** Run just the functional tests:
+    ``` 
+    grunt intern:fat
+    ```
+    ** Run the Stress Test:
+    ```
+    grunt intern:stress
+    ```
+    For the Stress test, you can also run it via the browser:
+
+    http://localhost:3000/node_modules/intern/client.html?config=tests/intern&suites=tests/stress/stressTest
+    
+    At the end of the above, you can specify MAX_CONNS & duration as follows:
+
+    http://localhost:3000/node_modules/intern/client.html?config=tests/intern&suites=tests/stress/stressTest&MAX_CONNS=50&duration=30000
+
+    MAX_CONNS defaults to 50
+    duration defaults to 20000 (20 Seconds)
+    
+    These can be configured by running intern as follows:
+    ```
+    $ node_modules/intern/bin/intern-client.js config=tests/intern suites=tests/stress/stressTest MAX_CLIENTS=1 duration=10000
+    ```
+
 
