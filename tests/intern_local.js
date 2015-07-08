@@ -52,16 +52,15 @@ define({
 		packages: [ { name: 'umd', location: 'dist/umd'},
                 { name: 'unit', location: 'tests/unit'},
                 { name: 'functional', location: 'tests/functional'},
-                { name: 'mock', location: 'dist/mock'},
+                {name : 'mock', location: 'dist/mock'},
                 { name: 'support', location: 'tests/support'}],
-    shim: { 
-          'lib/mqttws31': {
+    map: {
+        '*' : { 'lib/mqttws31' : 'mock/mockMqtt'}
+    },
+    shim: { 'mock/mockMqtt': {
               exports: 'Paho'
-          },
-          'mock/mockMqtt': {
-            exports: 'Paho'
           }
-      }
+    }
 	},
 
 	// Non-functional test suite(s) to run in each browser

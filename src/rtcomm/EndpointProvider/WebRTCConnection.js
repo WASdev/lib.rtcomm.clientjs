@@ -1029,7 +1029,7 @@ var getUserMedia, attachMediaStream,detachMediaStream;
 } else {
   console.error("Browser does not appear to be WebRTC-capable");
   var skip = function skip() {
-    console.error("Function not supported in browser");
+    if (typeof global === 'undefined') { console.error("Function not supported in browser")};
   };
   getUserMedia = skip;
   attachMediaStream = skip;

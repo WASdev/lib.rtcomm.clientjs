@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.12 23-06-2015 21:19:07 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.12 23-06-2015 21:19:07 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.13 08-07-2015 18:50:16 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.13 08-07-2015 18:50:16 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -429,8 +429,7 @@ var RtcommBaseObject = {
       if (this._Event && typeof this._Event === 'function') { 
         event_object = this._Event(event, event_object);
       }
-      // Add the event name to the object we emit
-      event_object.name = (event_object.name) ? event_object.name : event;
+      // event_object.name = (event_object.name) ? event_object.name : event;
       if (this.events && this.events[event] ) {
      //   console.log('>>>>>>>> Firing event '+event);
         l('EVENT', this) && console.log(this+".emit()  for event["+event+"]", self.events[event].length);
@@ -520,33 +519,36 @@ var RtcommEvent = function RtcommEvent() {
 var Sound = (function invocation(url) {
 
   /* global AudioContext:false */ 
-  window.AudioContext = window.AudioContext || window.webkitAudioContext;
-  var context = context || new AudioContext();
+  var context = null;
+
+  if (typeof navigator !== 'undefined' && typeof window !== 'undefined') {
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    context = context || (window.AudioContext) ? new AudioContext(): null;
+  }
 
   var Sound = function Sound(url) {
-  if (!(this instanceof Sound)) {
-    return new Sound(url);
-  }
-  this.context = context;
-  this.url = url;
-  this.buffer = null;
-  this.loaded = false;
-  this.playing = null;
-};
+    if (!(this instanceof Sound)) {
+      return new Sound(url);
+    }
+    this.context = context;
+    this.url = url;
+    this.buffer = null;
+    this.loaded = false;
+    this.playing = null;
+  };
 
 /* global l:false */ 
 Sound.prototype = (function () {
-
   var load = function load(callback) {
     var self = this;
-    if (self.url) {
+    if (self.url && self.context) {
       var request = new XMLHttpRequest();
       request.open('GET', self.url, true);
       request.responseType= 'arraybuffer';
       request.onload = function() {
         self.context.decodeAudioData(request.response, 
           function(buffer) {
-            console.log('Sound: successfully loaded buffer '+ self.url);
+            l('DEBUG') && console.log('Sound: successfully loaded buffer '+ self.url);
             self.buffer = buffer;
             callback && callback();
           }, 
@@ -555,22 +557,27 @@ Sound.prototype = (function () {
           });
       };
       request.send();
+    } else {
+      l('DEBUG') && console.log('Sound.play() Unsupported in this environment');
     }
     return self;
   };
-
   var play = function play() {
     var self = this;
     var _play = function _play() {
-      if (!self.playing) {
-        var sound = self.context.createBufferSource();
-        sound.buffer = self.buffer;
-        sound.connect(self.context.destination);
-        sound.loop= true;
-        sound.start(0);
-        self.playing = sound;
+      if (self.context) {
+        if (!self.playing) {
+          var sound = self.context.createBufferSource();
+          sound.buffer = self.buffer;
+          sound.connect(self.context.destination);
+          sound.loop= true;
+          sound.start(0);
+          self.playing = sound;
+        } else {
+          l('DEBUG') && console.log('Sound.play() Already playing...');
+        }
       } else {
-        console.log('Already playing...');
+        l('DEBUG') && console.log('Sound.play() Unsupported in this environment');
       }
     };
 
@@ -814,6 +821,7 @@ var EndpointConnection = function EndpointConnection(config) {
     timer = timer || false;
     var registry = {};
     var defaultTimeout = 5000;
+    var self = this;
 
     var addTimer = function addTimer(item){
       if(item.timer) {
@@ -831,11 +839,20 @@ var EndpointConnection = function EndpointConnection(config) {
             } else {
               l('DEBUG') && console.log(errorMsg);
             }
-            delete registry[item.id];
+            remove(item);
           }
         },
         timerTimeout);
       l('DEBUG') && console.log(item+' Timer: Setting Timer: '+item.timer + 'item.timeout: '+timerTimeout);
+      };
+
+    var remove =  function remove(item) {
+        if (item.id in registry) {
+          item.clearEventListeners();
+          item.timer && clearTimeout(item.timer);
+          l('DEBUG') && console.log('EndpointConnection  Removing item from registry: ', item);
+          delete registry[item.id];
+        }
       };
 
     var add = function(item) {
@@ -857,18 +874,12 @@ var EndpointConnection = function EndpointConnection(config) {
 
     return {
       add: add,
+      remove: remove ,
       clear: function() {
         var self = this;
         Object.keys(registry).forEach(function(item) {
           self.remove(registry[item]);
         });
-      },
-      remove: function(item) {
-        if (item.id in registry) {
-          item.timer && clearTimeout(item.timer);
-          l('DEBUG') && console.log('EndpointConnection  Removing item from registry: ', item);
-          delete registry[item.id];
-        }
       },
       list: function() {
         return Object.keys(registry);
@@ -1279,10 +1290,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             }
           };
           var onFailure = function(query_response) {
+            l('DEBUG') && console.log('Query Failed: ', query_response);
             if (cbFailure && typeof cbFailure === 'function') {
-              if (query_response && query_response.failureReason) {
-                cbFailure(query_response.failureReason);
-              }
+              cbFailure((query_response)? query_response.failureReason : "Service Query failed for Unknown reason");
             } else {
               console.error('query failed:', query_response);
             }
@@ -1515,7 +1525,7 @@ exports.EndpointConnection = EndpointConnection;
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.3.0',
+      'rtcommVer': 'v0.4.0',
        'method' : null,
        'fromTopic': null
   };
@@ -1897,9 +1907,7 @@ var MqttConnection = function MqttConnection(config) {
     /* mqttMessage we emit */
     var mqttMessage= convertMessage(message,mqttConnection.config.myTopic);
     try {
-      console.log(mqttConnection+' Received message: '+JSON.stringify(mqttMessage));
       l('DEBUG') && console.log(mqttConnection+' Received message: '+JSON.stringify(mqttMessage));
-      console.log('mqttConnection is: ',mqttConnection);
       mqttConnection && mqttConnection.emit('message',mqttMessage);
     } catch(e) {
       console.error('onMessageArrived callback chain failure:',e);
@@ -5257,8 +5265,6 @@ var RtcommEndpoint = (function invocation(){
     this.config.chat && this._.protocols.push('chat');
 
     //load the sounds 
-    console.log('REMOVE ME: ringtone: '+this.config.ringtone);
-    console.log('REMOVE ME: ringbacktone: '+this.config.ringbacktone);
     this._.ringTone = (this.config.ringtone) ? util.Sound(this.config.ringtone).load(): null;
     this._.ringbackTone= (this.config.ringbacktone) ? util.Sound(this.config.ringbacktone).load() : null;
 
@@ -6874,7 +6880,7 @@ var getUserMedia, attachMediaStream,detachMediaStream;
 } else {
   console.error("Browser does not appear to be WebRTC-capable");
   var skip = function skip() {
-    console.error("Function not supported in browser");
+    if (typeof global === 'undefined') { console.error("Function not supported in browser")};
   };
   getUserMedia = skip;
   attachMediaStream = skip;
@@ -7106,214 +7112,7 @@ return EndpointProvider;
 /*global l:false*/
 var rtcomm= (function rtcomm() {
 
-   var endpointProvider = null;
-
-   var events = {
-        /**
-         * A signaling session to a peer has been established
-         * @event module:rtcomm.RtcommEndpoint#session:started
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:started": [],
-        /**
-         * An inbound request to establish a call via 
-         * 3PCC was initiated
-         *
-         * @event module:rtcomm.RtcommEndpoint#session:refer
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         *
-         */
-        "session:refer": [],
-        /**
-         * A peer has been reached, but not connected (inbound/outound)
-         * @event module:rtcomm.RtcommEndpoint#session:ringing
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:trying": [],
-        /**
-         * A Queue has been contacted and we are waiting for a response.
-         * @event module:rtcomm.RtcommEndpoint#session:queued
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:queued": [],
-        /**
-         * A peer has been reached, but not connected (inbound/outound)
-         * @event module:rtcomm.RtcommEndpoint#session:ringing
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:ringing": [],
-        /**
-         * An inbound connection is being requested.
-         * @event module:rtcomm.RtcommEndpoint#session:alerting
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:alerting": [],
-        /**
-         * A failure occurred establishing the session (check reason)
-         * @event module:rtcomm.RtcommEndpoint#session:failed
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:failed": [],
-        /**
-         * The session has stopped
-         * @event module:rtcomm.RtcommEndpoint#session:stopped
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         *
-         */
-        "session:stopped": [],
-        /**
-         * A PeerConnection to a peer has been established
-         * @event module:rtcomm.RtcommEndpoint#webrtc:connected
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "webrtc:connected": [],
-        /**
-         * The connection to a peer has been closed
-         * @event module:rtcomm.RtcommEndpoint#webrtc:disconnected
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         *
-         */
-        "webrtc:disconnected": [],
-        /**
-         * Creating the connection to a peer failed
-         * @event module:rtcomm.RtcommEndpoint#webrtc:failed
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        'webrtc:failed': [],
-        /**
-         * A message has arrived from a peer
-         * @event module:rtcomm.RtcommEndpoint#chat:message
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        'chat:message': [],
-        /**
-         * A chat session to a  peer has been established
-         * @event module:rtcomm.RtcommEndpoint#chat:connected
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        'chat:connected': [],
-        /**
-         * The connection to a peer has been closed
-         * @event module:rtcomm.RtcommEndpoint#chat:disconnected
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        'chat:disconnected':[],
-        /**
-         * The endpoint has destroyed itself, clean it up.
-         * @event module:rtcomm.RtcommEndpoint#destroyed
-         * @property {module:rtcomm.RtcommEndpoint}
-         */
-        'destroyed': [],
-        /**
-         * The endpoint received a 'onetimemessage'. The content of the message
-         * should be in the 'otm' header
-         * @event module:rtcomm.RtcommEndpoint#onetimemessage
-         * @property {module:rtcomm.RtcommEndpoint}
-         */
-        'onetimemessage': [],
-        'newendpoint': [],
-        'queueupdate': [],
-        'ready': [],
-        'reset': []
-   };
-
-   /* Defaults */
-   var providerConfig = {
-     server : window.document.location.hostname,
-     port : window.document.location.port,
-     managementTopicName : "management",
-     appContext: "default",
-     rtcommTopicPath: "/rtcomm/",
-     presence: {topic: 'defaultRoom'}
-   };
-
-
-   var init = function init(config) {
-
-     // Merge Config w/ epConfig
-     var epConfig = util.combineObjects(config, providerConfig);
-
-     var self = this;
-
-     var endpointConfig = {
-       mediaIn: epConfig.mediaIn,
-       mediaOut: epConfig.mediaOut,
-       ringback: epConfig.ringback,
-       ringbacktone: epConfig.ringbacktone
-     };
-
-     delete epConfig.mediaIn;
-     delete epConfig.mediaOut;
-     delete epConfig.ringbacktone;
-     delete epConfig.ringtone;
-
-     console.log(epConfig);
-     if (endpointProvider) {
-       console.log('EndpointProvider is ',endpointProvider);
-     } else {
-       endpointProvider = new EndpointProvider();
-     }
-
-     endpointProvider.init(
-       epConfig,
-       /* onSuccess for init() will pass an object:
-         *  { endpoint: RtcommEndpoint ,   <-- RtcommEndpoint Object if created
-         *     ready: boolean,             <-- We are ready to proceed.
-         *     registered: boolean}        <-- Register completed.
-         */
-        function(object) { 
-          console.log('EndpointProvider initialized', object);
-          self.emit('ready', object);
-          //TODO: Emit an event here...
-        }, function(error) { //onFailure
-          console.error('init failed: ', error);
-     });
-
-   var rtcommCallback = function rtcommCallback(event_object) {
-     // handle an EndpointEvent.
-     console.log('Received the event ',event_object);
-     self.emit(event_object.name, event_object);
-   };
-    /*
-     * Assign the callbacks
-     * 
-     *  This happens prior to the doRegister above and defines the default callbacks to use for 
-     *  all RtcommEndpoints created by the EndpointProvider.
-     */
-    endpointProvider.setRtcommEndpointConfig({
-        broadcast:  { audio: true,video: true},
-        // Played when call is going out
-        ringbacktone: 'resources/ringbacktone.wav',
-        // played when inbound call occurrs
-        ringtone: 'resources/ringtone.wav',
-        // Fired when any event is triggered
-        bubble : rtcommCallback
-    });
-    endpointProvider.bubble(rtcommCallback);
-
-    // Establish a presence monitor on the default topic we are published to
-   // endpointProvider.getPresenceMonitor(presence.topic).on('updated', rtcommCallback);;
-   };
-   var connect = function connect(user) {
-     // create an endpoint and connect it.
-     return endpointProvider.getRtcommEndpoint().connect(user);
-   };
-   var answer = function answer() {
-     return endpointProvider.getRtcommEndpoint().connect();
-     // take an inbound enpdoint and answer?
-   };
-
-   var disconnect = function disconnect() {
-     return endpointProvider.getRtcommEndpoint().disconnect();
-     // disconnect/reject 
-   };
-
    var Rtcomm = function Rtcomm() {
-     this.events=events;
-     this.init=init;
-     this.connect=connect;
-     this.answer=answer;
-     this.disconnect= disconnect;
      this.EndpointProvider= EndpointProvider;
      this.connection= connection;
      this.util= util;

@@ -9,7 +9,7 @@ module.exports = function(grunt) {
       },
       mocks: {
         src: 'src/mock/*.js',
-        dest:'dist/umd/mockMqtt.js'
+        dest:'dist/mock/mockMqtt.js'
       },
       rtcomm_final: {
         options: {
@@ -35,13 +35,13 @@ module.exports = function(grunt) {
       },
       mock: {
         options: {
-          src: 'dist/umd/mockMqtt.js',
+          src: 'dist/mock/mockMqtt.js',
           globalAlias: 'Paho',
           objectToExport: 'Paho',
           deps: { 
             'default': ['connection','util'],
-            amd: ['./rtcomm/connection','./rtcomm/util'],
-            cjs: ['./rtcomm/connection','./rtcomm/util'],
+            amd: ['../umd/rtcomm/connection','../umd/rtcomm/util'],
+            cjs: ['../umd/rtcomm/connection','../umd/rtcomm/util'],
             global: ['rtcomm.connection','rtcomm.util']
           }
         }
@@ -173,6 +173,7 @@ module.exports = function(grunt) {
           // for other available options, see:
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
+          runner: 'client',
           reporters: [ 'console', 'lcov', 'junit' ]
         }
       },
@@ -182,11 +183,23 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: [ 'console', 'lcov', 'junit' ],
+          reporters: [ 'pretty'],
           suites: [
           'unit/connection/connection.js',
             'unit/util/util.js',
             'unit/EndpointProvider.js'
+          ]
+        }
+      },
+      stress: {
+        options: {
+          // for other available options, see:
+          // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
+          config: 'tests/intern_stress',
+          runner: 'client',
+          reporters: [ 'pretty'],
+          suites: [
+          'stress/stressTest.js'
           ]
         }
       },
@@ -196,7 +209,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: [ 'console', 'lcov', 'junit' ],
+          reporters: [ 'Pretty'],
           suites: [
             'functional/connection/MqttConnection.js',
             'functional/connection/EndpointConnection.js',
