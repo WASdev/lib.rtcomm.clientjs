@@ -189,6 +189,7 @@ The primary logic for this HTML Page
     appContext: "default",
     rtcommTopicPath: "/rtcomm/",
     createEndpoint : true,
+    useSSL: false,
     presence: {topic: 'defaultRoom'} 
   };
 
@@ -211,6 +212,8 @@ The primary logic for this HTML Page
   /* Trickle ICE */
   var trickleICE = (urlConfig.trickleICE === 'false')? false: true;
   var BROADCAST = (urlConfig.broadcast === 'false')? false: true;
+  // Update to boolean
+  urlConfig.useSSL = (urlConfig.useSSL === 'true')? true: false;
   // This uses any params passed on URL to override config.
   updateConfig(epConfig, urlConfig);
 
