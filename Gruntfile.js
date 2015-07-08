@@ -183,7 +183,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: [ 'Pretty'],
+          reporters: [ 'pretty'],
           suites: [
           'unit/connection/connection.js',
             'unit/util/util.js',
@@ -197,7 +197,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern_stress',
           runner: 'client',
-          reporters: [ 'Pretty'],
+          reporters: [ 'pretty'],
           suites: [
           'stress/stressTest.js'
           ]
