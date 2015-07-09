@@ -35,6 +35,9 @@
   <div id="videoContainer">
     <div id='selfViewContainer'>
       <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
+      <button id="btnToggleBroadcast" type="button" class="btn btn-default" aria-label="Left Align">
+        <span class="glyphicon glyphicon-pause" aria-hidden="true"></span>
+      </button>
     </div>
     
     <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
@@ -445,8 +448,13 @@ The primary logic for this HTML Page
   });
 
   $('#btnToggleBroadcast').on('click', function() {
+    console.log('TOGGLE pressed :'+connected, rtcommEndpoint);
     if (connected) {
-      rtcommEndpoint.webrtc.pauseBroadcast();
+      if (rtcommEndpoint.webrtc.isPaused()) {
+        rtcommEndpoint.webrtc.resumeBroadcast();
+      } else {
+        rtcommEndpoint.webrtc.pauseBroadcast();
+      }
     } 
   });
 

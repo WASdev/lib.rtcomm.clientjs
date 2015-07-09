@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.14pre 09-07-2015 17:14:13 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.14pre 09-07-2015 17:14:13 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.14pre 09-07-2015 20:43:14 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.14pre 09-07-2015 20:43:14 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5905,6 +5905,7 @@ var WebRTCConnection = (function invocation() {
       state: 'disconnected',
       objName:'WebRTCConnection',
       parentConnected : false,
+      paused: false,
       enabled : false
     };
     this.id = parent.id;
@@ -6195,13 +6196,18 @@ var WebRTCConnection = (function invocation() {
       if (this._.localStream) {
         this._.localStream.getVideoTracks()[0].enabled = false;
         this._.localStream.getAudioTracks()[0].enabled = false;
+        this._.paused = true;
       }
     },
     resumeBroadcast: function() {
       if (this._.localStream) {
         this._.localStream.getVideoTracks()[0].enabled = true;
         this._.localStream.getAudioTracks()[0].enabled = true;
-      }
+        this._.paused = false;
+      } 
+    },
+    isPaused: function() {
+      return this._.paused;
     },
     getMediaIn: function() {
       return this.config.mediaIn;

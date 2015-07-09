@@ -54,6 +54,7 @@ var WebRTCConnection = (function invocation() {
       state: 'disconnected',
       objName:'WebRTCConnection',
       parentConnected : false,
+      paused: false,
       enabled : false
     };
     this.id = parent.id;
@@ -344,13 +345,18 @@ var WebRTCConnection = (function invocation() {
       if (this._.localStream) {
         this._.localStream.getVideoTracks()[0].enabled = false;
         this._.localStream.getAudioTracks()[0].enabled = false;
+        this._.paused = true;
       }
     },
     resumeBroadcast: function() {
       if (this._.localStream) {
         this._.localStream.getVideoTracks()[0].enabled = true;
         this._.localStream.getAudioTracks()[0].enabled = true;
-      }
+        this._.paused = false;
+      } 
+    },
+    isPaused: function() {
+      return this._.paused;
     },
     getMediaIn: function() {
       return this.config.mediaIn;
