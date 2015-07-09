@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.13 08-07-2015 19:43:35 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.13 08-07-2015 19:43:35 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.13 09-07-2015 16:42:43 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.13 09-07-2015 16:42:43 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -1525,7 +1525,7 @@ exports.EndpointConnection = EndpointConnection;
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.4.0',
+      'rtcommVer': 'v1.0.0',
        'method' : null,
        'fromTopic': null
   };
