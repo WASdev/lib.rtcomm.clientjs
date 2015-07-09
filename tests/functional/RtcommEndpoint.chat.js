@@ -16,6 +16,7 @@
 
 
 define([
+    'intern',
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
@@ -24,12 +25,13 @@ define([
         'lib/mqttws31',
     'support/config',
     'umd/rtcomm/EndpointProvider'
-], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred, globals,config, EndpointProvider) {
 
+    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     var createProvider = function createProvider(userid,appContext) {
       var dfd = new Deferred();
       var EP = new EndpointProvider();
-      EP.setLogLevel('DEBUG');
+      DEBUG && EP.setLogLevel('DEBUG');
       EP.setUserID(userid);
       EP.setAppContext(appContext);
       EP.init(cfg,

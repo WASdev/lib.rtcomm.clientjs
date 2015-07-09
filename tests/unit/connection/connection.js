@@ -14,6 +14,7 @@
  * limitations under the License.
  **/
 define([
+    'intern',
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
@@ -23,8 +24,9 @@ define([
         'lib/mqttws31',
     'support/config',
     'umd/rtcomm/connection'
-], function (registerSuite, assert, Deferred, globals, config, connection) {
+], function (intern, registerSuite, assert, Deferred, globals, config, connection) {
   console.log('Paho!', Paho);
+  var DEBUG = (intern.args.DEBUG === 'true')? true: false;
   var optionalHeaders = {
       'sigSessID':null,
       'transID':null,
