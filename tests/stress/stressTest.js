@@ -27,6 +27,7 @@ define([
     'umd/rtcomm/EndpointProvider'
 ], function (intern, registerSuite, assert, Deferred, globals,config, EndpointProvider) {
 
+    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
 
     var MAX_CONNS = parseInt(intern.args.MAX_CONNS) || 50;
     var duration = parseInt(intern.args.duration) || 20000;
@@ -34,7 +35,7 @@ define([
     var createProvider = function createProvider(cfg,appContext) {
       var dfd = new Deferred();
       var EP = new EndpointProvider();
-      //EP.setLogLevel('DEBUG');
+      DEBUG && EP.setLogLevel('DEBUG');
       EP.setAppContext(appContext);
       EP.init(cfg,
         function(message) { 

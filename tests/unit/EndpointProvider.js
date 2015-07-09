@@ -14,6 +14,7 @@
  * limitations under the License.
  **/
 define([
+    'intern', 
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
@@ -23,7 +24,8 @@ define([
         'lib/mqttws31',
     'support/config',
     'umd/rtcomm/EndpointProvider'
-], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+  var DEBUG = (intern.args.DEBUG === 'true')? true: false;
   var badconfig = {
       server: 1,
       port: "a",
