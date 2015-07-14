@@ -36,7 +36,7 @@
     <div id='selfViewContainer'>
       <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
       <button id="btnToggleBroadcast" type="button" class="btn btn-default" aria-label="Left Align">
-        <span class="glyphicon glyphicon-pause" aria-hidden="true"></span>
+        <span id="toggleIcon" class="glyphicon glyphicon-pause" aria-hidden="true"></span>
       </button>
     </div>
     
@@ -350,7 +350,28 @@ The primary logic for this HTML Page
         $('#answerDialog .modal-body').html(
             "[3PCC] Initiate call to " + conn.toEndpointID);
         $('#answerDialog').modal('show');
-      }
+      }, 
+      'webrtc:remotemuted': function(event_object) {
+        // Should have audio/video set to true/false on whether its enabled/disabled.
+        // If you want to change what is shown... 
+        var msg = 'The remote user ';
+        if (event_object.audio) {
+          if (event_object.video) {
+            msg = msg + ' resumed their broadcast'; 
+          } else {
+            msg = msg + ' muted their audio broadcast'; 
+          }
+        } else {
+          if (event_object.video) {
+            // audio false, video true
+            msg = msg + ' muted their audio broadcast'; 
+          } else {
+            // both false
+            msg = msg + ' muted their broadcast'; 
+          }
+        }
+       updateMessage(msg);
+     }
   });
 
   /*****************************************************************
@@ -405,6 +426,7 @@ The primary logic for this HTML Page
     rtcommEndpoint.reject();
   });
 
+
   $('#btnReset').on('click', function() {
     rtcommEndpoint && rtcommEndpoint.reset();
     rtcommEndpoint = null;
@@ -450,10 +472,12 @@ The primary logic for this HTML Page
   $('#btnToggleBroadcast').on('click', function() {
     console.log('TOGGLE pressed :'+connected, rtcommEndpoint);
     if (connected) {
-      if (rtcommEndpoint.webrtc.isPaused()) {
-        rtcommEndpoint.webrtc.resumeBroadcast();
+      if (rtcommEndpoint.webrtc.isMuted()) {
+        rtcommEndpoint.webrtc.unmute();
+        $('#toggleIcon').removeClass('glyphicon-play').addClass('glyphicon-pause');
       } else {
-        rtcommEndpoint.webrtc.pauseBroadcast();
+        rtcommEndpoint.webrtc.mute();
+        $('#toggleIcon').removeClass('glyphicon-pause').addClass('glyphicon-play');
       }
     } 
   });
