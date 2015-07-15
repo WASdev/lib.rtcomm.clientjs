@@ -66,7 +66,7 @@ define([
       var ep2 = createAutoConnectEP(EP2);
 
       function failure(message) {
-        console.log('>>>> FAILURE '+message);
+        console.log('>>>> createConnection FAILURE '+message);
         dfd.reject(false);
       }
 
@@ -102,7 +102,10 @@ define([
               console.log('******** Finished Setup '+resolved);
               if (Object.keys(callers).length === MAX_CONNS &&
                   Object.keys(callees).length === MAX_CONNS ) {
-                  setupDfd.resolve();
+                  // Wait 5 seconds to ensure everything is completed.
+                  setTimeout(function() {
+                    setupDfd.resolve()
+                  },5000);;
               } else {
                 console.log('CALLERS? '+Object.keys(callers).length);
                 console.log('CALLEES? '+Object.keys(callees).length);
@@ -112,8 +115,8 @@ define([
           }
 
           for(var i=0; i<MAX_CONNS; i++) {
-            var cfgCaller = config.clientConfig();
-            var cfgCallee = config.clientConfig();
+            var cfgCaller = config.clientConfig("xxxx-caller-"+i);
+            var cfgCallee = config.clientConfig("xxxx-callee-"+i);
             createProvider(cfgCaller, appContext).then(
               function(EP){
                 callers[EP.getUserID()] = EP;
