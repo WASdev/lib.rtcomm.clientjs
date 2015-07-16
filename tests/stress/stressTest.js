@@ -154,7 +154,7 @@ define([
         'stress Test ': function() {
           var callee_ids = Object.keys(callees);
           var i = 0;
-          var dfd= new Deferred(duration+5000);
+          var dfd= this.async(duration+5000);
           var resolved = 0;
 
           function resolve(success){
