@@ -178,10 +178,13 @@ var WebRTCConnection = (function invocation() {
      */
     disable: function() {
       this.onEnabledMessage = null;
-      this._.enabled = false;
-      this._disconnect();
-      if (this.pc) {
-        this.pc = null;
+      if (this._.enabled) {
+        l('DEBUG') && console.log(this+'.disable() disabling webrtc');
+        this._.enabled = false;
+        this._disconnect();
+        if (this.pc) {
+          this.pc = null;
+        }
       }
       return this;
     },
@@ -246,9 +249,10 @@ var WebRTCConnection = (function invocation() {
     },
 
     _disconnect: function() {
+      l('DEBUG') && console.log(this+'._disconnect() Signaling State is: '+this.pc.signalingState);
       if (this.pc && this.pc.signalingState !== 'closed') {
         l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
-       this.pc.close();
+        this.pc.close();
       }
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
@@ -440,7 +444,7 @@ var WebRTCConnection = (function invocation() {
      */
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
-        if (this._.remoteStream) {
+        if (typeof this._.remoteStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaIn && this.config.mediaIn !== value) {
             detachMediaStream(this.config.mediaIn);
@@ -467,7 +471,7 @@ var WebRTCConnection = (function invocation() {
       if(validMediaElement(value) ) {
         // No matter WHAT (I believe) the outbound media element should be muted.
         value.muted = true; 
-        if (this._.localStream) {
+        if (typeof this._.localStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaOut && this.config.mediaOut !== value) {
             detachMediaStream(this.config.mediaOut);
@@ -788,7 +792,12 @@ var WebRTCConnection = (function invocation() {
     }
 
     var attachLocalStream = function attachLocalStream(stream){
-      self.getMediaOut() && attachMediaStream(self.getMediaOut(),stream);
+      // If we have a media out, attach the local stream
+      if (self.getMediaOut() ) {
+        if (typeof stream !== 'undefined') {
+          attachMediaStream(self.getMediaOut(),stream);
+        }
+      }
       if (self.pc) {
         if (self.pc.getLocalStreams()[0] === stream) {
           // Do nothing, already attached
@@ -1011,13 +1020,13 @@ var detachMediaStream = function(element) {
     var nullStream = null;
     if (element) {
       if (typeof element.srcObject !== 'undefined') {
-        element.srcObject = nullStream;
+        element.srcObject = null;
       } else if (typeof element.mozSrcObject !== 'undefined') {
-        element.mozSrcObject = nullStream;
+        element.mozSrcObject = null;
       } else if (typeof element.src !== 'undefined') {
-        element.src = nullStream;
+        element.src = '';
       } else {
-        console.error('Error attaching stream to element.');
+        console.error('Error detaching stream from element.');
       }
     }
   };
@@ -1041,7 +1050,6 @@ var hasTrack = function(direction,media,context) {
         for (var i=0;i< streams.length; i++) {
           var stream = streams[i];
           var tracks = mediaTypes[media](stream);
-          console.log('>>>> tracks length: '+  tracks.length);
           for (var j = 0; j< tracks.length; j++) {
             // go through, and OR it...
             returnValue = returnValue || tracks[j].enabled;

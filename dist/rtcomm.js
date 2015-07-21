@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.14pre 16-07-2015 20:01:05 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.14pre 16-07-2015 20:01:05 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.14pre 21-07-2015 18:07:50 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.14pre 21-07-2015 18:07:50 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -337,8 +337,12 @@ var RtcommBaseObject = {
      */
     setState : function(value, object) {
       if (typeof this.state !== 'undefined') {
-        this.state = value;
-        this.emit(value,object);
+        if (this.state !== value) {
+          this.state = value;
+          this.emit(value,object);
+        } else {
+          l('DEBUG') && console.log(this + '.setState():  State already set, ignoring '+value );
+        }
       } else {
         this.emit(value,object);
       }
@@ -5173,13 +5177,13 @@ var RtcommEndpoint = (function invocation(){
       webrtc = new WebRTCConnection(parent);
     }
     webrtc.on('ringing', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on ringing - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
     });
 
     webrtc.on('trying', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on trying - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:trying') && parent.emit('session:trying');
     });
@@ -5188,17 +5192,16 @@ var RtcommEndpoint = (function invocation(){
       parent.emit('session:alerting', {protocols: 'webrtc'});
     });
     webrtc.on('connected', function(event_obj) {
-      console.log('SHould stop ring now...');
+     l('DEBUG') && console.log("on connected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:connected');
     });
     webrtc.on('disconnected', function(event_obj) {
-      console.log('SHould stop ring now...');
+      l('DEBUG') && console.log("on disconnected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:disconnected');
     });
     webrtc.on('remotemuted', function(event_obj) {
-      console.log('REMOVE ME... remotemuted: ', event_obj);
       parent.emit('webrtc:remotemuted', event_obj);
     });
     return webrtc;
@@ -5245,6 +5248,7 @@ var RtcommEndpoint = (function invocation(){
       /*global generateUUID:false */
       uuid: generateUUID(),
       initialized : false,
+      disconnecting: false,
       protocols : [],
       // webrtc Only 
       inboundMedia: null,
@@ -5494,9 +5498,13 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
       context.setState('session:started');
     });
     session.on('stopped', function(message) {
-      // In this case, we should disconnect();
-      context.setState('session:stopped');
-      context.disconnect();
+      // We could already be stopped, ignore it in that case.
+      l('DEBUG') && console.log('SigSession callback called to process STOPPED: ' + context.getState());
+      if (context.getState() !== 'session:stopped') {
+        // In this case, we should disconnect();
+        context.setState('session:stopped');
+        context.disconnect();
+      }
     });
     session.on('starting', function() {
       context.setState('session:trying');
@@ -5667,6 +5675,7 @@ return  {
   connect: function(endpoint) {
     if (this.ready()) {
       this.available(false);
+      this._.disconnecting = false;
       if (!this._.activeSession ) { 
         this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
@@ -5692,16 +5701,20 @@ return  {
    * Disconnect the endpoint from a remote endpoint.
    */
   disconnect: function() {
-    this.webrtc && this.webrtc.disable();
-    this.chat && this.chat.disable();
-    if (!this.sessionStopped()) {
-      this._.activeSession.stop();
-      this._.activeSession = null;
-      this.setState('session:stopped');
-    } else {
-      this._.activeSession=null;
+    if (!this._.disconnecting) {
+      // Not in progress, move along
+      this._.disconnecting = true;
+      this.webrtc && this.webrtc.disable();
+      this.chat && this.chat.disable();
+      if (!this.sessionStopped()) {
+        this._.activeSession.stop();
+        this._.activeSession = null;
+        this.setState('session:stopped');
+      } else {
+        this._.activeSession=null;
+      }
+      this.available(true);
     }
-    this.available(true);
     return this;
   },
   /**
@@ -6044,10 +6057,13 @@ var WebRTCConnection = (function invocation() {
      */
     disable: function() {
       this.onEnabledMessage = null;
-      this._.enabled = false;
-      this._disconnect();
-      if (this.pc) {
-        this.pc = null;
+      if (this._.enabled) {
+        l('DEBUG') && console.log(this+'.disable() disabling webrtc');
+        this._.enabled = false;
+        this._disconnect();
+        if (this.pc) {
+          this.pc = null;
+        }
       }
       return this;
     },
@@ -6112,9 +6128,10 @@ var WebRTCConnection = (function invocation() {
     },
 
     _disconnect: function() {
+      l('DEBUG') && console.log(this+'._disconnect() Signaling State is: '+this.pc.signalingState);
       if (this.pc && this.pc.signalingState !== 'closed') {
         l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
-       this.pc.close();
+        this.pc.close();
       }
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
@@ -6306,7 +6323,7 @@ var WebRTCConnection = (function invocation() {
      */
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
-        if (this._.remoteStream) {
+        if (typeof this._.remoteStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaIn && this.config.mediaIn !== value) {
             detachMediaStream(this.config.mediaIn);
@@ -6333,7 +6350,7 @@ var WebRTCConnection = (function invocation() {
       if(validMediaElement(value) ) {
         // No matter WHAT (I believe) the outbound media element should be muted.
         value.muted = true; 
-        if (this._.localStream) {
+        if (typeof this._.localStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaOut && this.config.mediaOut !== value) {
             detachMediaStream(this.config.mediaOut);
@@ -6654,7 +6671,12 @@ var WebRTCConnection = (function invocation() {
     }
 
     var attachLocalStream = function attachLocalStream(stream){
-      self.getMediaOut() && attachMediaStream(self.getMediaOut(),stream);
+      // If we have a media out, attach the local stream
+      if (self.getMediaOut() ) {
+        if (typeof stream !== 'undefined') {
+          attachMediaStream(self.getMediaOut(),stream);
+        }
+      }
       if (self.pc) {
         if (self.pc.getLocalStreams()[0] === stream) {
           // Do nothing, already attached
@@ -6877,13 +6899,13 @@ var detachMediaStream = function(element) {
     var nullStream = null;
     if (element) {
       if (typeof element.srcObject !== 'undefined') {
-        element.srcObject = nullStream;
+        element.srcObject = null;
       } else if (typeof element.mozSrcObject !== 'undefined') {
-        element.mozSrcObject = nullStream;
+        element.mozSrcObject = null;
       } else if (typeof element.src !== 'undefined') {
-        element.src = nullStream;
+        element.src = '';
       } else {
-        console.error('Error attaching stream to element.');
+        console.error('Error detaching stream from element.');
       }
     }
   };
@@ -6907,7 +6929,6 @@ var hasTrack = function(direction,media,context) {
         for (var i=0;i< streams.length; i++) {
           var stream = streams[i];
           var tracks = mediaTypes[media](stream);
-          console.log('>>>> tracks length: '+  tracks.length);
           for (var j = 0; j< tracks.length; j++) {
             // go through, and OR it...
             returnValue = returnValue || tracks[j].enabled;

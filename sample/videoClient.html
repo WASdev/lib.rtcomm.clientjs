@@ -308,7 +308,6 @@ The primary logic for this HTML Page
       // Fired when webrtc is disconnected 
       'webrtc:disconnected': function(event_object) {
          // Reset the UI
-         document.querySelector('#remoteView').src = undefined;
          uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
          try {
            event_object.endpoint.disconnect();

@@ -36,8 +36,12 @@ var RtcommBaseObject = {
      */
     setState : function(value, object) {
       if (typeof this.state !== 'undefined') {
-        this.state = value;
-        this.emit(value,object);
+        if (this.state !== value) {
+          this.state = value;
+          this.emit(value,object);
+        } else {
+          l('DEBUG') && console.log(this + '.setState():  State already set, ignoring '+value );
+        }
       } else {
         this.emit(value,object);
       }
