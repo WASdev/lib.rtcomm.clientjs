@@ -1,8 +1,8 @@
-#Rtcomm Signalling Protocol Specification: v0.4.0 
+#Rtcomm Signalling Protocol Specification: v1.0.0 
 
 
 ## Abstract
-This specification defines version v0.4.0 of the Rtcomm signaling protocol . All Rtcomm protocols are JSON based and built on top of MQTT. The protocol can be broken down into the following two parts:
+This specification defines version v1.0.0 of the Rtcomm signaling protocol . All Rtcomm protocols are JSON based and built on top of MQTT. The protocol can be broken down into the following two parts:
 
 1. Signaling protocol for connecting WebRTC endpoints into media sessions.
 2. Service protocol for things like third party call control and event monitoring.    See [**rtcomm.service.proto.spec.md**](https://github.com/WASdev/lib.rtcomm.node/blob/master/rtcomm.service.proto.spec.md) for details
@@ -94,7 +94,7 @@ Here is an example of a DOCUMENT message:
 | ----------------------|:-------------------------------------------|
 | method                | DOCUMENT |
 | type					| ENDPOINT or SERVICE                        | 
-| rtcommVer             | e.g.  v0.3.0          |
+| rtcommVer             | e.g.  v1.0.0          |
 | appContext            | application context associated with the registration   e.g. "XYZ video app"|
 | topic                 | topic that the endpoint is subscribed to. Typically the same as the from topic.   e.g.  /rtcomm/2123928217 |
 | state                 | String representing state of the endpoint [i.e. "busy", "available", etc..] |
@@ -113,7 +113,7 @@ Here is an example of a SERVICE_QUERY message sent to the service:
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | SERVICE_QUERY |
-| rtcommVer             | e.g.  v0.3.0         |
+| rtcommVer             | e.g.  v1.0.0         |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  b2a4247f-fafc-4d3c-a23b-822d02e8f08b |
 | fromTopic             | topic where the response must be published to.   e.g.  /rtcomm/2123928217 |
 <br/>
@@ -124,7 +124,7 @@ Here is an example of a SERVICE_QUERY response:
 | ----------------------|:-------------------------------------------|
 | method                | RESPONSE |
 | orig                  | SERVICE_QUERY |
-| rtcommVer             | e.g.  v0.3.0          |
+| rtcommVer             | e.g.  v1.0.0          |
 | transID               | transaction ID, this is a unique identifier associed with this transaction.   e.g.  b2a4247f-fafc-4d3c-a23b-822d02e8f08b |
 | services    	        | JSON object containing services available.  See **Note** below|
 | result    	        | result of the operation    e.g.  SUCCESS or FAILURE |
@@ -162,7 +162,7 @@ This is the first message sent from the endpoint to start a new signaling sessio
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | START_SESSION |
-| rtcommVer             | e.g.  v0.3.0          |
+| rtcommVer             | e.g.  v1.0.0          |
 | protocols				| Array of protocols supported by the Endpoint starting the session e.g. [ 'chat', 'webrtc'] |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | topic where the response must be published to.   e.g.  /rtcomm/2018097881 |
@@ -180,7 +180,7 @@ In response to the START_SESSION message, the callee responds may respond with a
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | PRANSWER |
-| rtcommVer             | e.g.  v0.3.0         |
+| rtcommVer             | e.g.  v1.0.0         |
 | protocols				| Array of protocols the callee has in **common** with the caller e.g. [ 'chat', 'webrtc'] |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/2123928217 |
@@ -195,7 +195,7 @@ The caller and/or callee endpoint(s) may also send out another message which spe
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | MESSAGE |
-| rtcommVer             | e.g.  v0.3.0          |
+| rtcommVer             | e.g.  v1.0.0          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/2123928217 |
 | sigSessID             | unique ID associated with this session.  e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
@@ -208,7 +208,7 @@ The callee endpoint will eventually respond to the START_SESSION:
 | method                | RESPONSE |
 | protocols				| Array of protocols the callee has in **common** with the caller e.g. [ 'chat', 'webrtc'] |
 | orig                  | Method type that started the transaction. In this case: START_SESSION |
-| rtcommVer             | e.g.  v0.3.0          |
+| rtcommVer             | e.g.  v1.0.0          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/116396706 |
 | sigSessID             | unique ID associated with this session.   e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
@@ -221,7 +221,7 @@ Either the caller or callee can send an in session message at any time. This mes
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | MESSAGE |
-| rtcommVer             | e.g.  v0.3.0          |
+| rtcommVer             | e.g.  v1.0.0          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | fromTopic             | Client topic where subsequent messages related to this session should be published.   e.g.  /rtcomm/116396706 |
 | sigSessID             | unique ID associated with this session.   e.g. 7246298a-4b2c-477b-b6cf-410e37074063 |
@@ -232,7 +232,7 @@ At the end of the session, one of the endpoints will termiante the session by se
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                | STOP_SESSION |
-| rtcommVer             | e.g.  v0.3.0          |
+| rtcommVer             | e.g.  v1.0.0          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  a57ffe3f-d964-4818-b32a-053c1303a1bb |
 | sigSessID             | unique ID associated with this session.  e.g. 553eebdc-6884-47e4-a656-fd89a920bb68 |
 | reason 				| Reason session is ending.  e.g. session terminated by endpoint |
@@ -250,7 +250,7 @@ This following defines a refer message.
 | Key                   | Value                                     |
 | ----------------------|:-------------------------------------------|
 | method                |REFER |
-| rtcommVer             | e.g.  v0.3.0        |
+| rtcommVer             | e.g.  v1.0.0        |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  b2a4247f-fafc-4d3c-a23b-822d02e8f08b |
 | fromTopic             | topic where the response must be published to.   e.g.  /rtcomm/116396706 |
 | toEndpointID          | callee endpoint ID   e.g. Danko Jones |
@@ -263,7 +263,7 @@ This following is the response to the refer:
 | ----------------------|:-------------------------------------------|
 | method                | RESPONSE |
 | orig                  | REFER |
-| rtcommVer             | e.g.  v0.3.0          |
+| rtcommVer             | e.g.  v1.0.0          |
 | transID               | transaction ID, this is a unique identifier associated with this transaction.   e.g.  b2a4247f-fafc-4d3c-a23b-822d02e8f08b |
 | fromTopic             | topic where the response must be published to.   e.g.  /rtcomm/2018097881 |
 | toEndpointID          | caller endpoint ID    e.g. Danko Jones |
