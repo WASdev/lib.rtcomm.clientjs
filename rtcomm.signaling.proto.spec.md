@@ -2,29 +2,32 @@
 
 
 ## Abstract
-This specification defines version v1.0.0 of the Rtcomm signaling protocol . All Rtcomm protocols are JSON based and built on top of MQTT. The protocol can be broken down into the following two parts:
+This specification defines version v1.0.0 of the Rtcomm signaling protocol . The Rtcomm protocol is JSON based and built on top of MQTT. The protocol can be broken down into the following two parts:
 
-1. Signaling protocol for connecting WebRTC endpoints into media sessions.
-2. Service protocol for things like third party call control and event monitoring.    See [**rtcomm.service.proto.spec.md**](https://github.com/WASdev/lib.rtcomm.node/blob/master/rtcomm.service.proto.spec.md) for details
+1. General protocol for real-time communications including media session signaling for WebRTC endpoints.
+2. Service protocol for things like third party call control.    See [**rtcomm.service.proto.spec.md**](https://github.com/WASdev/lib.rtcomm.node/blob/master/rtcomm.service.proto.spec.md) for details.
 
-This specification describes the signaling protocol that occurs between Rtcomm endpoints and Rtcomm connectors (which connect Rtcomm endpoints together). Examples of Rtcomm endpoints include:
-- Clients endpoints
-- multiway endpoints
-- record/playback endpoints.
-- basically any endpoint that terminates a signaling session.
+Rtcomm is a highly-scalable protocol that uses a minimal set of backend resources. In its most basic from, Rtcomm can be used to build a highly-scalable signaling plane for real-time media sessions that only relies on an MQTT message broker on the backend. Rtcomm is flexible enough to also allow backend services to plug into the MQTT broker for federation with other protocols, persistent chat rooms, etc. 
 
-This protocol supports all of the following capabilities:
+The protocol supports all of the following capabilities:
 
 1. Registration of Rtcomm endpoints with an Rtcomm service via a Presence message.
 2. Service function queries (event monitoring topic name, ICE configuration,...).
 3. Call signaling (WebRTC clients, media resources, gateways,...).
+4. One time messaging between clients.
     
+This specification describes the signaling protocol that occurs between Rtcomm endpoints. Examples of Rtcomm endpoints include:
+- Rtcomm client endpoints
+- Media processing endpoints
+- Federated SIP endpoints.
+- Basically any endpoint that can run a basic Rtcomm protocol stack.
+
 # Rtcomm Protocol Definition
 
-This protocol specification relies on the publish/subscribe semantics of the MQTT protocol for a transport. The Rtcomm endpoints and services normally subscribe to one or more topics at a Messaging Broker.    The endpoint communicates with the service by publishing messages to the service's topic name.    Services communicates with a particular endpoint by publishing messages to the endpoint's topic name.
+This protocol specification relies on the publish/subscribe semantics of the MQTT protocol. Rtcomm endpoints and services normally subscribe to one or more topics hosted by an MQTT message broker.    A typical client endpoint topic could look like this: /rtcomm/endpointID. Client endpoints communicate with backend services by publishing messages to the service's topic name.    A typical service topic name could look like this: /rtcomm/group. Services communicates with a particular endpoint by publishing messages to the endpoint's topic name.
 
 ### Endpoint ID Definiton
-In the message definitions below, there are many references to various EndpointIDs.  This can be any string that does not include a "/" which represents the Rtcomm endpoint. Its a fundamental building block in the Rtcomm protocol and relates directly to the credentials used to connect to the MQTT message broker. It can be a simple name (i.e. "Danko Jones") or it can be preceded by a protocol descriptor (i.e. "sip:dankojones@xyz.com").
+In the message definitions below, there are many references to various EndpointIDs.  This can be any string that does not include a "/" which represents the Rtcomm endpoint. Its a fundamental building block in the Rtcomm protocol and relates directly to the credentials used to connect to the MQTT message broker. It can be a simple name (i.e. "Danko Jones") or it can be preceded by a protocol descriptor (i.e. "sip:dankojones@xyz.com"). Typically, the MQTT broker would be configured to authorize subscriptions on topic names that include endpointIDs to only allow the subscription if a user was logged in with the proper credentials. This would prevent two different users from subscribing on the same endpointID topic.
 
 ### Identity Propogation
 When an Rtcomm message is sent to a remote topic, the sender publishes to a topic name that is a combination of the remote topic name being subscribed on by the receiver + the senders endpoint ID. For example, if the topic name subscribed on by the receiver is "/rtcomm/connector", the sender publishes to "/rtcomm/connector/"sender's endpoint ID".  This is done in order to propagate endpoint IDs in a secure manner. 
