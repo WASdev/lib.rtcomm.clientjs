@@ -610,7 +610,11 @@ var WebRTCConnection = (function invocation() {
         // Set our local description
         //  Only set state to ringing if we have a local offer...
         if (isPC && this.pc.signalingState === 'have-local-offer') {
-          isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          if (message.sdp !== "") { 
+              isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          } else {
+            l('DEBUG') && console.log(this+'._processMessage -- pranswer sdp is empty, not setting');
+          }
           this._setState('ringing');
         }
         break;
