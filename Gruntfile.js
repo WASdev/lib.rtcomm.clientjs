@@ -91,7 +91,6 @@ module.exports = function(grunt) {
         files: [ 
           {expand: true, cwd: 'dist/', src: ['*.js'], dest:'<%= pkg.name %>-<%=pkg.version %>/dist' },
           {expand: true, cwd: 'dist/jsdoc', src: ['**'], dest:'<%= pkg.name %>-<%=pkg.version %>/jsdoc' },
-          {src:['lib/**'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {expand: true, cwd: './build_resources/doc/',src:['index.html'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {src:['LICENCE'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {src:['README.md'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
@@ -251,7 +250,6 @@ module.exports = function(grunt) {
         grunt.config.set('concat', concat);
     });
 });
-
 
  require('load-grunt-tasks')(grunt);
   grunt.loadNpmTasks('intern');
