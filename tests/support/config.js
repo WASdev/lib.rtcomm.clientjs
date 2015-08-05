@@ -34,8 +34,9 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
     return bytes;
   };
 
-  function randomID() {
-    var id = generateRandomBytes("xxxxxxxxxxxxx");
+  function randomID(pattern) {
+    pattern = pattern || "xxxxxxxxxxxx";
+    var id = generateRandomBytes(pattern);
     return id+"@us.ibm.com";
   };
   return {
@@ -56,10 +57,10 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
         rtcommTopicPath:rtcommTopicPath 
       };
     },
-    clientConfig: function() {
+    clientConfig: function(pattern) {
          return new this._ServerConfig(
-           randomID()
-           );
+           randomID(pattern)
+         );
     },
     
     clientConfig1 : function() {

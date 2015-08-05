@@ -78,8 +78,9 @@ grunt test
     duration defaults to 20000 (20 Seconds)
     
     These can be configured by running intern as follows:
+
     ```
-    $ node_modules/intern/bin/intern-client.js config=tests/intern suites=tests/stress/stressTest MAX_CLIENTS=1 duration=10000
+    $ node_modules/intern/bin/intern-client.js config=tests/intern suites=tests/stress/stressTest MAX_CONNS=1 duration=10000
     ```
 
 * Turning on Debug
