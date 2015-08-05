@@ -36,7 +36,7 @@ define([
 
     var noQueuesConfigured = true;
     var START_SESSION = {
-        'rtcommVer': 'v0.4.0',
+        'rtcommVer': 'v1.0.0',
         'method': 'START_SESSION',
         'fromTopic': null,
         'protocols': ['chat'],

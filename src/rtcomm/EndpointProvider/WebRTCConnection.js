@@ -54,6 +54,7 @@ var WebRTCConnection = (function invocation() {
       state: 'disconnected',
       objName:'WebRTCConnection',
       parentConnected : false,
+      paused: false,
       enabled : false
     };
     this.id = parent.id;
@@ -65,6 +66,7 @@ var WebRTCConnection = (function invocation() {
       'trying': [],
       'connected': [],
       'disconnected': [],
+      'remotemuted':[],
       '_notrickle':[]
     };
     this.pc = null;
@@ -340,20 +342,91 @@ var WebRTCConnection = (function invocation() {
       */
       return this;
     },
-    pauseBroadcast: function() {
-      if (this._.localStream) {
-        this._.localStream.getVideoTracks()[0].enabled = false;
-        this._.localStream.getAudioTracks()[0].enabled = false;
+    /** Mute a broadcast  (audio or video or both)
+     *  @param {String}  [audio or video]  
+     *
+     *  By default, this will mute both audio and video if passed with no parameters.
+     */
+    mute: function(media) {
+      switch (media) {
+        case 'audio':
+          muteAudio(this._.localStream, this);
+          break;
+        case 'video': 
+          muteVideo(this._.localStream, this);
+          break;
+        default:
+          muteAudio(this._.localStream, this);
+          muteVideo(this._.localStream, this);
       }
+      // This seems odd, but by default we mute both.
+      // so the audio/video sent in the message is inferred
+      // based on what is sent in.  For example, if we are
+      // muting AUDIO, then video will NOT be muted(true). 
+      var msg = this.createMessage(
+        {type: 'stream',
+           stream: {
+             label: this._.localStream.label, 
+             audio: (media === 'video')? true: false,
+             video: (media === 'audio')? true:false 
+            }
+        });
+      this.send(msg);
+      this._.muted = true;
     },
-    resumeBroadcast: function() {
-      if (this._.localStream) {
-        this._.localStream.getVideoTracks()[0].enabled = true;
-        this._.localStream.getAudioTracks()[0].enabled = true;
+
+    /** UnMute a broadcast  (audio or video or both)
+     *  @param {String}  [audio or video]  
+     *
+     *  By default, this will Unmute both audio and video if passed with no parameters.
+     */
+    unmute: function(media) {
+      switch (media) {
+        case 'audio':
+          unmuteAudio(this._.localStream, this);
+          break;
+        case 'video': 
+          unmuteVideo(this._.localStream, this);
+          break;
+        default:
+          unmuteAudio(this._.localStream, this);
+          unmuteVideo(this._.localStream, this);
       }
+      // This seems odd, but by default we mute both.
+      // so the audio/video sent in the message is inferred
+      // based on what is sent in.  For example, if we are
+      // muting AUDIO, then video will NOT be muted(true). 
+
+      var msg = this.createMessage(
+        {type: 'stream',
+           stream: {
+             label: this._.localStream.label, 
+             audio: (media === 'video') ? false : true,
+             video: (media === 'audio') ? false : true
+            }
+        });
+
+      this.send(msg);
+      this._.muted = true;
+    },
+    isMuted: function() {
+      return this._.muted;
     },
     getMediaIn: function() {
       return this.config.mediaIn;
+    },
+    /* global hasTrack:false */
+    isReceivingAudio: function() {
+      return hasTrack("remote", "audio", this);
+    },
+    isReceivingVideo: function() {
+      return hasTrack("remote", "video", this);
+    },
+    isSendingAudio: function() {
+      return hasTrack("local", "audio", this);
+    },
+    isSendingVideo: function() {
+      return hasTrack("local", "video", this);
     },
     /**
      * DOM node to link the RtcommEndpoint inbound media stream to.
@@ -598,6 +671,33 @@ var WebRTCConnection = (function invocation() {
           isPC && this.pc.addIceCandidate(iceCandidate);
         } catch(err) {
           console.error('addIceCandidate threw an error', err);
+        }
+        break;
+      case 'stream': 
+        //  The remote peer has muted/unmuted audio or video (or both) on a stream
+        // Format { audio: boolean, video: boolean, label: 'labelstring' }
+        l('DEBUG') && console.log(this+'_processMessage Remote media disabled --> message:', message);
+        if (message.stream && message.stream.label) {
+          // This is the label of the stream disabled.
+          // Disable it, emit event.
+          var streams = this.pc.getRemoteStreams();
+          for (var i=0;i<streams.length;i++) {
+            if (streams[i].label === message.stream.label) {
+              var stream = streams[i];
+              // We found our stream, get tracks...
+              if (message.stream.audio) {
+                unmuteAudio(stream, this);
+              } else {
+                muteAudio(stream, this);
+              }
+              if (message.stream.video) {
+                unmuteVideo(stream, this);
+              } else {
+                muteVideo(stream, this);
+              }
+            }
+          }
+          this.emit('remotemuted', message.stream);
         }
         break;
       default:
@@ -944,6 +1044,71 @@ var MyRTCSessionDescription = (function() {
 
 l('DEBUG') && console.log("Setting RTCSessionDescription", MyRTCSessionDescription);
 
+var hasTrack = function(direction,media,context) {
+  var directions = { 'remote': function() { return context.pc.getRemoteStreams();},
+                     'local' : function() { return context.pc.getLocalStreams();}};
+  var mediaTypes = {
+    'audio' : function(stream) {
+      return stream.getAudioTracks();
+     },
+     'video': function(stream) {
+       return stream.getVideoTracks();
+     }
+  };
+  var returnValue = false;
+  if (context.pc) {
+    if (direction in directions) {
+      var streams=directions[direction]();
+      l('DEBUG') && console.log('hasTrack() streams -> ', streams);
+        for (var i=0;i< streams.length; i++) {
+          var stream = streams[i];
+          var tracks = mediaTypes[media](stream);
+          console.log('>>>> tracks length: '+  tracks.length);
+          for (var j = 0; j< tracks.length; j++) {
+            // go through, and OR it...
+            returnValue = returnValue || tracks[j].enabled;
+          }
+        }
+      }
+  }
+  return returnValue;
+};
+
+
+
+var toggleStream = function(stream, media, enabled , context) {
+  var mediaTypes = {
+    'audio' : function(stream) {
+      return stream.getAudioTracks();
+     },
+     'video': function(stream) {
+       return stream.getVideoTracks();
+     }
+  };
+  var tracks = mediaTypes[media](stream);
+  for (var i=0;i<tracks.length;i++) {
+    tracks[i].enabled = enabled;
+  }
+  //TODO: Emit an event that stream was muted.
+  return stream;
+};
+
+var muteAudio = function(stream, context) {
+  toggleStream(stream, 'audio', false, context);
+}
+
+var unmuteAudio = function(stream, context) {
+  toggleStream(stream,'audio', true, context);
+}
+
+var muteVideo = function(stream, context) {
+  toggleStream(stream, 'video', false, context);
+}
+
+var unmuteVideo = function(stream, context) {
+  toggleStream(stream,'video', true, context);
+  
+}
 
 var MyRTCIceCandidate = (function() {
   /*global mozRTCIceCandidate:false */
@@ -1029,7 +1194,7 @@ var getUserMedia, attachMediaStream,detachMediaStream;
 } else {
   console.error("Browser does not appear to be WebRTC-capable");
   var skip = function skip() {
-    if (typeof global === 'undefined') { console.error("Function not supported in browser")};
+    if (typeof global === 'undefined') { console.error("Function not supported in browser");}
   };
   getUserMedia = skip;
   attachMediaStream = skip;
