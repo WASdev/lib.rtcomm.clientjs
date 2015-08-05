@@ -895,7 +895,7 @@ var WebRTCConnection = (function invocation() {
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;
-  if (typeof MyRTCPeerConnection !== 'undefined'){
+  if (MyRTCPeerConnection) {
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
     peerConnection = new MyRTCPeerConnection(RTCConfiguration, RTCConstraints);
 
@@ -1015,9 +1015,9 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
 }  // end of createPeerConnection
 
 // Alias these to the globals
-var MyRTCPeerConnection =  RTCPeerConnection;
-var MyRTCSessionDescription = RTCSessionDescription;
-var MyRTCIceCandidate = RTCIceCandidate;
+var MyRTCPeerConnection =  (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
+var MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
+var MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
 
 
 var detachMediaStream = function(element) {

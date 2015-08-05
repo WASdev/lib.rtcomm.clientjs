@@ -1,6 +1,6 @@
 // File used for config of node.js to rtcomm and test it
 if (typeof window === 'undefined' && global) {
-    console.log('It is Node.js, applying shim  ************************');
+    console.log('************* It is Node.js, applying shim for mqttws31  ************************');
     var window = global;
     var navigator = null;
     // Setup WebSocket for mqtt

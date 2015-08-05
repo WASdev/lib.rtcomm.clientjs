@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 17:13:32 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 17:13:32 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 18:26:55 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 18:26:55 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -6774,7 +6774,7 @@ var WebRTCConnection = (function invocation() {
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;
-  if (typeof MyRTCPeerConnection !== 'undefined'){
+  if (MyRTCPeerConnection) {
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
     peerConnection = new MyRTCPeerConnection(RTCConfiguration, RTCConstraints);
 
@@ -6894,9 +6894,9 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
 }  // end of createPeerConnection
 
 // Alias these to the globals
-var MyRTCPeerConnection =  RTCPeerConnection;
-var MyRTCSessionDescription = RTCSessionDescription;
-var MyRTCIceCandidate = RTCIceCandidate;
+var MyRTCPeerConnection =  (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
+var MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
+var MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
 
 
 var detachMediaStream = function(element) {
