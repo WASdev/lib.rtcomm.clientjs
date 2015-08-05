@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 12:28:33 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 12:28:33 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 19:57:58 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 19:57:58 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -337,8 +337,12 @@ var RtcommBaseObject = {
      */
     setState : function(value, object) {
       if (typeof this.state !== 'undefined') {
-        this.state = value;
-        this.emit(value,object);
+        if (this.state !== value) {
+          this.state = value;
+          this.emit(value,object);
+        } else {
+          l('DEBUG') && console.log(this + '.setState():  State already set, ignoring '+value );
+        }
       } else {
         this.emit(value,object);
       }
@@ -5173,13 +5177,13 @@ var RtcommEndpoint = (function invocation(){
       webrtc = new WebRTCConnection(parent);
     }
     webrtc.on('ringing', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on ringing - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
     });
 
     webrtc.on('trying', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on trying - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:trying') && parent.emit('session:trying');
     });
@@ -5188,17 +5192,16 @@ var RtcommEndpoint = (function invocation(){
       parent.emit('session:alerting', {protocols: 'webrtc'});
     });
     webrtc.on('connected', function(event_obj) {
-      console.log('SHould stop ring now...');
+     l('DEBUG') && console.log("on connected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:connected');
     });
     webrtc.on('disconnected', function(event_obj) {
-      console.log('SHould stop ring now...');
+      l('DEBUG') && console.log("on disconnected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:disconnected');
     });
     webrtc.on('remotemuted', function(event_obj) {
-      console.log('REMOVE ME... remotemuted: ', event_obj);
       parent.emit('webrtc:remotemuted', event_obj);
     });
     return webrtc;
@@ -5245,6 +5248,7 @@ var RtcommEndpoint = (function invocation(){
       /*global generateUUID:false */
       uuid: generateUUID(),
       initialized : false,
+      disconnecting: false,
       protocols : [],
       // webrtc Only 
       inboundMedia: null,
@@ -5494,9 +5498,13 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
       context.setState('session:started');
     });
     session.on('stopped', function(message) {
-      // In this case, we should disconnect();
-      context.setState('session:stopped');
-      context.disconnect();
+      // We could already be stopped, ignore it in that case.
+      l('DEBUG') && console.log('SigSession callback called to process STOPPED: ' + context.getState());
+      if (context.getState() !== 'session:stopped') {
+        // In this case, we should disconnect();
+        context.setState('session:stopped');
+        context.disconnect();
+      }
     });
     session.on('starting', function() {
       context.setState('session:trying');
@@ -5667,6 +5675,7 @@ return  {
   connect: function(endpoint) {
     if (this.ready()) {
       this.available(false);
+      this._.disconnecting = false;
       if (!this._.activeSession ) { 
         this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
@@ -5692,16 +5701,20 @@ return  {
    * Disconnect the endpoint from a remote endpoint.
    */
   disconnect: function() {
-    this.webrtc && this.webrtc.disable();
-    this.chat && this.chat.disable();
-    if (!this.sessionStopped()) {
-      this._.activeSession.stop();
-      this._.activeSession = null;
-      this.setState('session:stopped');
-    } else {
-      this._.activeSession=null;
+    if (!this._.disconnecting) {
+      // Not in progress, move along
+      this._.disconnecting = true;
+      this.webrtc && this.webrtc.disable();
+      this.chat && this.chat.disable();
+      if (!this.sessionStopped()) {
+        this._.activeSession.stop();
+        this._.activeSession = null;
+        this.setState('session:stopped');
+      } else {
+        this._.activeSession=null;
+      }
+      this.available(true);
     }
-    this.available(true);
     return this;
   },
   /**
@@ -5891,6 +5904,11 @@ var WebRTCConnection = (function invocation() {
  *
  *  @extends  module:rtcomm.util.RtcommBaseObject
    */
+/* global RTCPeerConnection:false */
+/* global getUserMedia:false */
+/* global attachMediaStream:false */
+/* global reattachMediaStream:false */
+/* global RTCIceCandidate:false */
   var WebRTCConnection = function WebRTCConnection(parent) {
     var OfferConstraints = {'mandatory': {
       OfferToReceiveAudio: true, 
@@ -6039,10 +6057,13 @@ var WebRTCConnection = (function invocation() {
      */
     disable: function() {
       this.onEnabledMessage = null;
-      this._.enabled = false;
-      this._disconnect();
-      if (this.pc) {
-        this.pc = null;
+      if (this._.enabled) {
+        l('DEBUG') && console.log(this+'.disable() disabling webrtc');
+        this._.enabled = false;
+        this._disconnect();
+        if (this.pc) {
+          this.pc = null;
+        }
       }
       return this;
     },
@@ -6107,9 +6128,10 @@ var WebRTCConnection = (function invocation() {
     },
 
     _disconnect: function() {
+      l('DEBUG') && console.log(this+'._disconnect() Signaling State is: '+this.pc.signalingState);
       if (this.pc && this.pc.signalingState !== 'closed') {
         l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
-       this.pc.close();
+        this.pc.close();
       }
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
@@ -6301,7 +6323,7 @@ var WebRTCConnection = (function invocation() {
      */
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
-        if (this._.remoteStream) {
+        if (typeof this._.remoteStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaIn && this.config.mediaIn !== value) {
             detachMediaStream(this.config.mediaIn);
@@ -6328,7 +6350,7 @@ var WebRTCConnection = (function invocation() {
       if(validMediaElement(value) ) {
         // No matter WHAT (I believe) the outbound media element should be muted.
         value.muted = true; 
-        if (this._.localStream) {
+        if (typeof this._.localStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaOut && this.config.mediaOut !== value) {
             detachMediaStream(this.config.mediaOut);
@@ -6467,7 +6489,11 @@ var WebRTCConnection = (function invocation() {
         // Set our local description
         //  Only set state to ringing if we have a local offer...
         if (isPC && this.pc.signalingState === 'have-local-offer') {
-          isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          if (message.sdp !== "") { 
+              isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          } else {
+            l('DEBUG') && console.log(this+'._processMessage -- pranswer sdp is empty, not setting');
+          }
           this._setState('ringing');
         }
         break;
@@ -6649,7 +6675,12 @@ var WebRTCConnection = (function invocation() {
     }
 
     var attachLocalStream = function attachLocalStream(stream){
-      self.getMediaOut() && attachMediaStream(self.getMediaOut(),stream);
+      // If we have a media out, attach the local stream
+      if (self.getMediaOut() ) {
+        if (typeof stream !== 'undefined') {
+          attachMediaStream(self.getMediaOut(),stream);
+        }
+      }
       if (self.pc) {
         if (self.pc.getLocalStreams()[0] === stream) {
           // Do nothing, already attached
@@ -6696,12 +6727,12 @@ var WebRTCConnection = (function invocation() {
      var credential = matches[3] || null;
 
      var iceServer = {
-       'url': null,
+       'urls': null,
        'username': null,
        'credential': null
      };
      if (user && server && credential) {
-       iceServer.url = 'turn:'+server;
+       iceServer.urls = 'turn:'+server;
        iceServer.username= user;
        iceServer.credential= credential;
      } else {
@@ -6713,7 +6744,7 @@ var WebRTCConnection = (function invocation() {
    }
 
     // Returned object expected to look something like:
-    // {"iceServers":[{"url": "stun:host:port"}, {"url","turn:host:port"}] 
+    // {"iceServers":[{"urls": "stun:host:port"}, {"urls","turn:host:port"}] 
     var urls = [];
     if (service && service.iceURL)  {
         service.iceURL.split(',').forEach(function(url){
@@ -6722,7 +6753,7 @@ var WebRTCConnection = (function invocation() {
           var obj = null;
           if (/^stun:/.test(url)) {
             l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url);
-            obj = {'url': url};
+            obj = {'urls': url};
           } else if (/^turn:/.test(url)) {
             l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url);
             obj = buildTURNobject(url);
@@ -6743,7 +6774,7 @@ var WebRTCConnection = (function invocation() {
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;
-  if (typeof MyRTCPeerConnection !== 'undefined'){
+  if (MyRTCPeerConnection) {
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
     peerConnection = new MyRTCPeerConnection(RTCConfiguration, RTCConstraints);
 
@@ -6862,53 +6893,26 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
   return peerConnection;
 }  // end of createPeerConnection
 
-/*
- *  Following are used to handle different browser implementations of WebRTC
- */
-var getBrowser = function() {
-    if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-      // probably in node.js no browser support
-      return ('node.js','unknown');
-    } else  if (navigator && navigator.mozGetUserMedia) {
-      // firefox
-      return("firefox", parseInt(navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1], 10));
-    } else if (navigator && navigator.webkitGetUserMedia) {
-     return("chrome", parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10));
-    } else {
-      return("Unknown","Unknown");
+// Alias these to the globals
+var MyRTCPeerConnection =  (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
+var MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
+var MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
+
+
+var detachMediaStream = function(element) {
+    var nullStream = null;
+    if (element) {
+      if (typeof element.srcObject !== 'undefined') {
+        element.srcObject = null;
+      } else if (typeof element.mozSrcObject !== 'undefined') {
+        element.mozSrcObject = null;
+      } else if (typeof element.src !== 'undefined') {
+        element.src = '';
+      } else {
+        console.error('Error detaching stream from element.');
+      }
     }
   };
-
-var MyRTCPeerConnection = (function() {
-  /*global mozRTCPeerConnection:false */
-  /*global webkitRTCPeerConnection:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  } else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCPeerConnection;
-  } else if (navigator && navigator.webkitGetUserMedia) {
-    return webkitRTCPeerConnection;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
-  }
-})();
-
-var MyRTCSessionDescription = (function() {
-  /*global mozRTCSessionDescription:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  }  else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCSessionDescription;
-  } else if (typeof RTCSessionDescription !== 'undefined' ) {
-    return RTCSessionDescription;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
-  }
-})();
-
-l('DEBUG') && console.log("Setting RTCSessionDescription", MyRTCSessionDescription);
 
 var hasTrack = function(direction,media,context) {
   var directions = { 'remote': function() { return context.pc.getRemoteStreams();},
@@ -6929,7 +6933,6 @@ var hasTrack = function(direction,media,context) {
         for (var i=0;i< streams.length; i++) {
           var stream = streams[i];
           var tracks = mediaTypes[media](stream);
-          console.log('>>>> tracks length: '+  tracks.length);
           for (var j = 0; j< tracks.length; j++) {
             // go through, and OR it...
             returnValue = returnValue || tracks[j].enabled;
@@ -6939,8 +6942,6 @@ var hasTrack = function(direction,media,context) {
   }
   return returnValue;
 };
-
-
 
 var toggleStream = function(stream, media, enabled , context) {
   var mediaTypes = {
@@ -6961,37 +6962,20 @@ var toggleStream = function(stream, media, enabled , context) {
 
 var muteAudio = function(stream, context) {
   toggleStream(stream, 'audio', false, context);
-}
+};
 
 var unmuteAudio = function(stream, context) {
   toggleStream(stream,'audio', true, context);
-}
+};
 
 var muteVideo = function(stream, context) {
   toggleStream(stream, 'video', false, context);
-}
+};
 
 var unmuteVideo = function(stream, context) {
   toggleStream(stream,'video', true, context);
-  
-}
+};
 
-var MyRTCIceCandidate = (function() {
-  /*global mozRTCIceCandidate:false */
-  /*global RTCIceCandidate:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  } else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCIceCandidate;
-  } else if (typeof RTCIceCandidate !== 'undefined') {
-    return RTCIceCandidate;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
-  }
-})();
-
-l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
 
 var validMediaElement = function(element) {
   return( (typeof element.srcObject !== 'undefined') ||
@@ -6999,73 +6983,6 @@ var validMediaElement = function(element) {
       (typeof element.src !== 'undefined'));
 };
 
-/*
- * Assign getUserMedia, attachMediaStream as private class functions
- */
-var getUserMedia, attachMediaStream,detachMediaStream;
-/* globals URL:false */
-
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    getUserMedia = null;
-    attachMediaStream = null;
-    detachMediaStream = null;
-  // Creating methods for Firefox
-  } else if (navigator && navigator.mozGetUserMedia) {
-
-    getUserMedia = navigator.mozGetUserMedia.bind(navigator);
-    // Attach a media stream to an element.
-    attachMediaStream = function(element, stream) {
-      l('DEBUG') && console.log("FIREFOX --> Attaching media stream");
-      try { 
-        element.mozSrcObject = stream;
-    //    element.play();
-      } catch (e) {
-        console.error('Attach Media Stream failed in FIREFOX:  ', e);
-      }
-    };
-    detachMediaStream = function(element) {
-    l('DEBUG') && console.log("FIREFOX --> Detaching media stream");
-    if (element) {
-      element.mozSrcObject = null;
-    }
-  };
-
-} else if (navigator && navigator.webkitGetUserMedia) {
-  getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
-  attachMediaStream = function(element, stream) {
-    if (typeof element.srcObject !== 'undefined') {
-      element.srcObject = stream;
-    } else if (typeof element.mozSrcObject !== 'undefined') {
-      element.mozSrcObject = stream;
-    } else if (typeof element.src !== 'undefined') {
-      element.src = URL.createObjectURL(stream);
-    } else {
-      console.error('Error attaching stream to element.');
-    }
-  };
-  detachMediaStream = function(element) {
-    var nullStream = '';
-    if (element) {
-      if (typeof element.srcObject !== 'undefined') {
-        element.srcObject = nullStream;
-      } else if (typeof element.mozSrcObject !== 'undefined') {
-        element.mozSrcObject = nullStream;
-      } else if (typeof element.src !== 'undefined') {
-        element.src = nullStream;
-      } else {
-        console.error('Error attaching stream to element.');
-      }
-    }
-  };
-} else {
-  console.error("Browser does not appear to be WebRTC-capable");
-  var skip = function skip() {
-    if (typeof global === 'undefined') { console.error("Function not supported in browser");}
-  };
-  getUserMedia = skip;
-  attachMediaStream = skip;
-  detachMediaStream = skip;
-}
 
 return WebRTCConnection;
 

@@ -57,13 +57,13 @@ var RtcommEndpoint = (function invocation(){
       webrtc = new WebRTCConnection(parent);
     }
     webrtc.on('ringing', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on ringing - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
     });
 
     webrtc.on('trying', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on trying - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:trying') && parent.emit('session:trying');
     });
@@ -72,17 +72,16 @@ var RtcommEndpoint = (function invocation(){
       parent.emit('session:alerting', {protocols: 'webrtc'});
     });
     webrtc.on('connected', function(event_obj) {
-      console.log('SHould stop ring now...');
+     l('DEBUG') && console.log("on connected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:connected');
     });
     webrtc.on('disconnected', function(event_obj) {
-      console.log('SHould stop ring now...');
+      l('DEBUG') && console.log("on disconnected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:disconnected');
     });
     webrtc.on('remotemuted', function(event_obj) {
-      console.log('REMOVE ME... remotemuted: ', event_obj);
       parent.emit('webrtc:remotemuted', event_obj);
     });
     return webrtc;
@@ -129,6 +128,7 @@ var RtcommEndpoint = (function invocation(){
       /*global generateUUID:false */
       uuid: generateUUID(),
       initialized : false,
+      disconnecting: false,
       protocols : [],
       // webrtc Only 
       inboundMedia: null,
@@ -378,9 +378,13 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
       context.setState('session:started');
     });
     session.on('stopped', function(message) {
-      // In this case, we should disconnect();
-      context.setState('session:stopped');
-      context.disconnect();
+      // We could already be stopped, ignore it in that case.
+      l('DEBUG') && console.log('SigSession callback called to process STOPPED: ' + context.getState());
+      if (context.getState() !== 'session:stopped') {
+        // In this case, we should disconnect();
+        context.setState('session:stopped');
+        context.disconnect();
+      }
     });
     session.on('starting', function() {
       context.setState('session:trying');
@@ -551,6 +555,7 @@ return  {
   connect: function(endpoint) {
     if (this.ready()) {
       this.available(false);
+      this._.disconnecting = false;
       if (!this._.activeSession ) { 
         this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
@@ -576,16 +581,20 @@ return  {
    * Disconnect the endpoint from a remote endpoint.
    */
   disconnect: function() {
-    this.webrtc && this.webrtc.disable();
-    this.chat && this.chat.disable();
-    if (!this.sessionStopped()) {
-      this._.activeSession.stop();
-      this._.activeSession = null;
-      this.setState('session:stopped');
-    } else {
-      this._.activeSession=null;
+    if (!this._.disconnecting) {
+      // Not in progress, move along
+      this._.disconnecting = true;
+      this.webrtc && this.webrtc.disable();
+      this.chat && this.chat.disable();
+      if (!this.sessionStopped()) {
+        this._.activeSession.stop();
+        this._.activeSession = null;
+        this.setState('session:stopped');
+      } else {
+        this._.activeSession=null;
+      }
+      this.available(true);
     }
-    this.available(true);
     return this;
   },
   /**

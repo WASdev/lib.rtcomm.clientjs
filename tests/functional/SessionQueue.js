@@ -21,10 +21,13 @@ define([
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
-    (typeof window === 'undefined' && global) ?'intern/dojo/node!../support/mqttws31_shim': 'lib/mqttws31',
+    (typeof window === 'undefined' && global) ? 
+      'intern/dojo/node!../support/mqttws31_shim': 
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
+    'bower_components/webrtc-adapter/adapter',
     'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred, globals,config, adapter, EndpointProvider) {
 
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     // endpointProvider

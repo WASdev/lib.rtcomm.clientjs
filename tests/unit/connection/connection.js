@@ -21,7 +21,7 @@ define([
     /* Use the Mock (in browser mqtt) */
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../../support/mqttws31_shim':
-        'lib/mqttws31',
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'umd/rtcomm/connection'
 ], function (intern, registerSuite, assert, Deferred, globals, config, connection) {

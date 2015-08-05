@@ -38,6 +38,7 @@
     "tests"
   ],
   "dependencies": {
-    "bower-mqttws": "~1.0.0"
+    "bower-mqttws": "~1.0.0",
+    "webrtc-adapter": "~0.1.6"
   }
 }
