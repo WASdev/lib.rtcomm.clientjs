@@ -81,6 +81,10 @@ var RtcommEndpoint = (function invocation(){
       parent._stopRing();
       parent.emit('webrtc:disconnected');
     });
+    webrtc.on('remotemuted', function(event_obj) {
+      console.log('REMOVE ME... remotemuted: ', event_obj);
+      parent.emit('webrtc:remotemuted', event_obj);
+    });
     return webrtc;
   };
 
@@ -253,6 +257,17 @@ var RtcommEndpoint = (function invocation(){
          *
          */
         "webrtc:disconnected": [],
+        /**
+         * The remote peer muted their stream
+         * @event module:rtcomm.RtcommEndpoint#webrtc:remotemuted
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         *
+         * Additional properties of the Event Object:
+         *  label: label of the stream
+         *  audio: boolean indicating muted(false) or not(true)
+         *  video: boolean indicating muted(false) or not(true)
+         */
+        "webrtc:remotemuted": [],
         /**
          * Creating the connection to a peer failed
          * @event module:rtcomm.RtcommEndpoint#webrtc:failed

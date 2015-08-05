@@ -14,6 +14,7 @@
  * limitations under the License.
  **/
 define([
+    'intern', 
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
@@ -22,8 +23,9 @@ define([
         'lib/mqttws31',
     'support/config',
     'umd/rtcomm/EndpointProvider'
-], function (registerSuite, assert, Deferred,globals, config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred,globals, config, EndpointProvider) {
 
+    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     /*
      * EndpointProvider FVT -- This runs the following tests:
      *
@@ -74,7 +76,7 @@ define([
         }
         endpointProvider = new EndpointProvider();
         endpointProvider.setAppContext('test');
-        endpointProvider.setLogLevel('DEBUG');
+        DEBUG && endpointProvider.setLogLevel('DEBUG');
       },
       'constructorTest': function() {
             console.log('ep', endpointProvider);
@@ -90,7 +92,7 @@ define([
            var dfd = this.async(T1);
            var initObj = null;
            var failure = false;
-           endpointProvider.setLogLevel('DEBUG');
+           DEBUG && endpointProvider.setLogLevel('DEBUG');
            var finish = dfd.callback(function(object) {
              console.log('************ Finish called w/ OBJECT: ',object);
              console.log("*** Asserting *** ", endpointProvider.ready);
@@ -111,7 +113,7 @@ define([
            var dfd = this.async(T1);
            var initObj = null;
            var failure = false;
-           endpointProvider.setLogLevel('DEBUG');
+           DEBUG && endpointProvider.setLogLevel('DEBUG');
            var finish = dfd.callback(function(object) {
              console.log('************ Finish called w/ OBJECT: ',object);
              console.log("*** Asserting *** ", endpointProvider.ready);

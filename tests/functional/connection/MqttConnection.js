@@ -14,6 +14,7 @@
  * limitations under the License.
  **/
 define([
+    'intern',
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
@@ -22,8 +23,9 @@ define([
         'lib/mqttws31',
     'support/config',
     'umd/rtcomm/connection'
-], function (registerSuite, assert, Deferred,globals, config, connection) {
+], function (intern, registerSuite, assert, Deferred,globals, config, connection) {
 
+    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
   // MQTT ServerConfig
   // client1 Config
     var config1 = config.clientConfig1();
@@ -49,8 +51,8 @@ define([
          var dfd = new Deferred();
          client1 = new connection.MqttConnection(config1);
          client2 = new connection.MqttConnection(config2);
-         client1.setLogLevel('DEBUG');
-         client2.setLogLevel('DEBUG');
+         DEBUG && client1.setLogLevel('DEBUG');
+         DEBUG && client2.setLogLevel('DEBUG');
          client1.connect({
           onSuccess:   function(){
              client2.connect({ 

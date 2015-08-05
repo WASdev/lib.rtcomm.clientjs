@@ -17,14 +17,16 @@
 var cfg= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommscott/' };
 
 define([
+    'intern', 
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global) ?'intern/dojo/node!../support/mqttws31_shim': 'lib/mqttws31',
     'support/config',
     'umd/rtcomm/EndpointProvider'
-], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred, globals,config, EndpointProvider) {
 
+    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     // endpointProvider
     var ep = null;
     // Endpoint
@@ -34,7 +36,7 @@ define([
 
     var noQueuesConfigured = true;
     var START_SESSION = {
-        'rtcommVer': 'v0.4.0',
+        'rtcommVer': 'v1.0.0',
         'method': 'START_SESSION',
         'fromTopic': null,
         'protocols': ['chat'],
@@ -54,7 +56,7 @@ define([
         setup: function() {
           var dfd = new Deferred();
           ep = new EndpointProvider();
-          ep.setLogLevel('DEBUG');
+          DEBUG && ep.setLogLevel('DEBUG');
           cfg.userid = 'intern';
           cfg.appContext = 'rtcommTest';
           ep.init(cfg, 
