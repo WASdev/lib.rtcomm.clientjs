@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 20:33:38 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.14 05-08-2015 20:33:38 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 06-08-2015 12:42:45 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 06-08-2015 12:42:45 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
