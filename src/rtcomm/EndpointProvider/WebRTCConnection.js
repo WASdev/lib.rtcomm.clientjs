@@ -1019,16 +1019,14 @@ var MyRTCPeerConnection =  (typeof RTCPeerConnection !== 'undefined') ? RTCPeerC
 var MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
 var MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
 
-
 var detachMediaStream = function(element) {
-    var nullStream = null;
-    if (element) {
-      if (typeof element.srcObject !== 'undefined') {
-        element.srcObject = null;
-      } else if (typeof element.mozSrcObject !== 'undefined') {
-        element.mozSrcObject = null;
-      } else if (typeof element.src !== 'undefined') {
+   if (element) {
+      if (typeof element.src !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting srcObject to empty string');
         element.src = '';
+      } else if (typeof element.mozSrcObject !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting to null');
+        element.mozSrcObject = null;
       } else {
         console.error('Error detaching stream from element.');
       }

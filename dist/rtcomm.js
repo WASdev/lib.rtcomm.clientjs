@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 06-08-2015 12:42:45 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 06-08-2015 12:42:45 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 06-08-2015 19:03:30 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 06-08-2015 19:03:30 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5701,8 +5701,10 @@ return  {
    * Disconnect the endpoint from a remote endpoint.
    */
   disconnect: function() {
+    l('DEBUG') && console.log(this+'.disconnect() Entry');
     if (!this._.disconnecting) {
       // Not in progress, move along
+      l('DEBUG') && console.log(this+'.disconnect() Starting disconnect process');
       this._.disconnecting = true;
       this.webrtc && this.webrtc.disable();
       this.chat && this.chat.disable();
@@ -5713,8 +5715,13 @@ return  {
       } else {
         this._.activeSession=null;
       }
+
+      this._.disconnecting = false;
       this.available(true);
+    } else {
+      l('DEBUG') && console.log(this+'.disconnect() in progress, cannot disconnect again');
     }
+    l('DEBUG') && console.log(this+'.disconnect() Exit');
     return this;
   },
   /**
@@ -6898,16 +6905,14 @@ var MyRTCPeerConnection =  (typeof RTCPeerConnection !== 'undefined') ? RTCPeerC
 var MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
 var MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
 
-
 var detachMediaStream = function(element) {
-    var nullStream = null;
-    if (element) {
-      if (typeof element.srcObject !== 'undefined') {
-        element.srcObject = null;
-      } else if (typeof element.mozSrcObject !== 'undefined') {
-        element.mozSrcObject = null;
-      } else if (typeof element.src !== 'undefined') {
+   if (element) {
+      if (typeof element.src !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting srcObject to empty string');
         element.src = '';
+      } else if (typeof element.mozSrcObject !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting to null');
+        element.mozSrcObject = null;
       } else {
         console.error('Error detaching stream from element.');
       }

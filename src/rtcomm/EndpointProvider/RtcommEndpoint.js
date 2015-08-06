@@ -581,8 +581,10 @@ return  {
    * Disconnect the endpoint from a remote endpoint.
    */
   disconnect: function() {
+    l('DEBUG') && console.log(this+'.disconnect() Entry');
     if (!this._.disconnecting) {
       // Not in progress, move along
+      l('DEBUG') && console.log(this+'.disconnect() Starting disconnect process');
       this._.disconnecting = true;
       this.webrtc && this.webrtc.disable();
       this.chat && this.chat.disable();
@@ -593,8 +595,13 @@ return  {
       } else {
         this._.activeSession=null;
       }
+
+      this._.disconnecting = false;
       this.available(true);
+    } else {
+      l('DEBUG') && console.log(this+'.disconnect() in progress, cannot disconnect again');
     }
+    l('DEBUG') && console.log(this+'.disconnect() Exit');
     return this;
   },
   /**
