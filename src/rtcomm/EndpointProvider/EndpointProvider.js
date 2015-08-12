@@ -153,6 +153,9 @@ var EndpointProvider =  function EndpointProvider() {
     // Used to set up config for endpoint connection;
     var config = null;
     var rtcommTopicPath = '/rtcomm/';
+    // If we are served over SSL, use SSL is needed.
+    //
+    var useSSL = (location && location.protocol === 'https:') ? true : false;
     var configDefinition = {
         required: { server: 'string', port: 'number'},
         optional: {
@@ -172,10 +175,10 @@ var EndpointProvider =  function EndpointProvider() {
             rootTopic: 'sphere/',
             topic: '/', // Same as rootTopic by default
           },
-          useSSL: false,
+          useSSL: useSSL,
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
-          port: 1883,
+          port: useSSL ? 8883: 1883,
           createEndpoint: false }
       };
     // the configuration for Endpoint Provider
