@@ -275,6 +275,8 @@ The primary logic for this HTML Page
                   rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE, lazyAV: false}, function() {
                     console.log('>>>>>>>>>>>>>>SUCCESS ENABLED WEBRTC CALLBACK');
                   });
+                } else {
+                  rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE});
                 }
               }, function(error) { //onFailure
                 console.error('init failed: ', error);
@@ -348,7 +350,7 @@ The primary logic for this HTML Page
       // An inbound Refer was received.  
       'session:refer': function(conn) {
         $('#answerDialog .modal-body').html(
-            "[3PCC] Initiate call to " + conn.toEndpointID);
+            "[3PCC] Initiate call to " + conn.endpoint.getRemoteEndpointID());
         $('#answerDialog').modal('show');
       }, 
       'webrtc:remotemuted': function(event_object) {
