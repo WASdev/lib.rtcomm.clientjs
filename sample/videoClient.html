@@ -310,9 +310,8 @@ The primary logic for this HTML Page
       'webrtc:disconnected': function(event_object) {
          // Reset the UI
          document.querySelector('#remoteView').src = undefined;
-         uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
          try {
-           event_object.endpoint.disconnect();
+           uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
          } catch (e) {
            console.error(e);
          }
@@ -390,9 +389,24 @@ The primary logic for this HTML Page
   };
 
   function uiDisconnect(message) {
-      $('#btnConnect').text('Connect');
-      updateMessage(message || 'Unknown');
-      connected = false;
+      if (connected) {
+        connected = false;
+        rtcommEndpoint.disconnect();
+        /* Since this is using the same endpoint, a disconnect
+         * needs to re-enable the endpoint so it can receive/make new
+         * calls. 
+         * The timeout is necessary for the time being because 
+         * the disconnect() may take a bit and does not provide a callback.
+         * 
+         * This will be resolved in the future.
+         */
+        setTimeout(function(){
+          console.log('**** Renabling after disconnect ***');
+          $('#btnConnect').text('Connect');
+          updateMessage(message || 'Unknown');
+          rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE});
+        },1000);
+      }
   };
 
   function uiRegister(id) {
@@ -424,7 +438,7 @@ The primary logic for this HTML Page
 
   $('#answerNo').on('click', function() {
     $("#answerDialog").modal("hide");
-    state='disconnected';
+    connected=false;
     rtcommEndpoint.reject();
   });
 
@@ -464,7 +478,6 @@ The primary logic for this HTML Page
   $('#btnConnect').on('click', function() {
     console.log('CONNECT BUTTON: connected: '+connected, rtcommEndpoint);
     if (connected) {
-      rtcommEndpoint.disconnect();
       uiDisconnect("Disconnected");
     } else {
       $('#connectModal').modal('show');
