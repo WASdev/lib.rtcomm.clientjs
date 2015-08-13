@@ -819,15 +819,21 @@ var WebRTCConnection = (function invocation() {
     
     if (audio || video ) { 
       if (this._.localStream) {
-        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattching stream');
+        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattaching stream');
         callback(attachLocalStream(this._.localStream));
       } else {
         getUserMedia({'audio': audio, 'video': video},
           /* onSuccess */ function(stream) {
+            if (streamHasAudio(stream) !== audio) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested audio:'+audio+' but got audio: '+streamHasAudio(stream));
+            }
+            if (streamHasVideo(stream) !== video) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested video:'+video+' but got video: '+streamHasVideo(stream));
+            }
             callback(attachLocalStream(stream));
           },
         /* onFailure */ function(error) {
-          callback(false, "getUserMedia failed");
+          callback(false, "getUserMedia failed - User denied permissions for camera/microphone");
         });
       }
     } else {
@@ -1077,6 +1083,14 @@ var toggleStream = function(stream, media, enabled , context) {
   }
   //TODO: Emit an event that stream was muted.
   return stream;
+};
+
+var streamHasAudio = function(stream) {
+   return (stream.getAudioTracks().length > 0);
+};
+
+var streamHasVideo= function(stream) {
+   return (stream.getVideoTracks().length > 0);
 };
 
 var muteAudio = function(stream, context) {

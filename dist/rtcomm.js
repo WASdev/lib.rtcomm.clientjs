@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 12-08-2015 14:16:10 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 12-08-2015 14:16:10 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 13-08-2015 16:28:44 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 13-08-2015 16:28:44 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -3069,8 +3069,8 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} config.server MQTT Server
    * @param {string} [config.userid] User ID or Identity
    * @param {string} [config.appContext=rtcomm] App Context for EndpointProvider
-   * @param {string} [config.port=1883] MQTT Server Port
-   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection (Most likely use a different port)
+   * @param {string} [config.port=1883] MQTT Server Port.  Defaults to 8883 if served over https
+   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection. Defaults to true if served over https. 
    * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
@@ -6708,15 +6708,21 @@ var WebRTCConnection = (function invocation() {
     
     if (audio || video ) { 
       if (this._.localStream) {
-        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattching stream');
+        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattaching stream');
         callback(attachLocalStream(this._.localStream));
       } else {
         getUserMedia({'audio': audio, 'video': video},
           /* onSuccess */ function(stream) {
+            if (streamHasAudio(stream) !== audio) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested audio:'+audio+' but got audio: '+streamHasAudio(stream));
+            }
+            if (streamHasVideo(stream) !== video) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested video:'+video+' but got video: '+streamHasVideo(stream));
+            }
             callback(attachLocalStream(stream));
           },
         /* onFailure */ function(error) {
-          callback(false, "getUserMedia failed");
+          callback(false, "getUserMedia failed - User denied permissions for camera/microphone");
         });
       }
     } else {
@@ -6966,6 +6972,14 @@ var toggleStream = function(stream, media, enabled , context) {
   }
   //TODO: Emit an event that stream was muted.
   return stream;
+};
+
+var streamHasAudio = function(stream) {
+   return (stream.getAudioTracks().length > 0);
+};
+
+var streamHasVideo= function(stream) {
+   return (stream.getVideoTracks().length > 0);
 };
 
 var muteAudio = function(stream, context) {
