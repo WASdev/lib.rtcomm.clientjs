@@ -272,7 +272,7 @@ define([
           var mq = EP1.getMqttEndpoint();
           var ThirdPCC = "3PCCTestNode";
           var ThirdPCCMessage = { 
-            'rtcommVer' : 'v0.0.1',
+            'rtcommVer' : 'v1.0.0',
             'method': '3PCC_PLACE_CALL',
             'callerEndpoint': EP1.getUserID(),
             'calleeEndpoint': EP2.getUserID(),
