@@ -267,14 +267,18 @@ The primary logic for this HTML Page
                     mediaOut: document.querySelector('#selfView'),
                     mediaIn: document.querySelector('#remoteView'),
                   });
+
                 if (regwithAV) {
                   // Enable Audio Video here.
-                  console.log('** videoClient.html ** Enabling Webrtc...');
+                  console.log('** videoClient.html ** Enabling Webrtc without lazyAV');
                   //NOTE:  lazyAV means we will enable when we have too, in this case, the UI wants
                   // To enable it right away.  
                   rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE, lazyAV: false}, function() {
                     console.log('>>>>>>>>>>>>>>SUCCESS ENABLED WEBRTC CALLBACK');
                   });
+                } else {
+                  console.log('** videoClient.html ** Enabling Webrtc...');
+                  rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE});
                 }
               }, function(error) { //onFailure
                 console.error('init failed: ', error);
@@ -307,9 +311,8 @@ The primary logic for this HTML Page
       // Fired when webrtc is disconnected 
       'webrtc:disconnected': function(event_object) {
          // Reset the UI
-         uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
          try {
-           event_object.endpoint.disconnect();
+           uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
          } catch (e) {
            console.error(e);
          }
@@ -346,8 +349,9 @@ The primary logic for this HTML Page
       },
       // An inbound Refer was received.  
       'session:refer': function(conn) {
+        console.log(conn);
         $('#answerDialog .modal-body').html(
-            "[3PCC] Initiate call to " + conn.toEndpointID);
+            "[3PCC] Initiate call to " + conn.endpoint.getRemoteEndpointID());
         $('#answerDialog').modal('show');
       }, 
       'webrtc:remotemuted': function(event_object) {
@@ -387,9 +391,17 @@ The primary logic for this HTML Page
   };
 
   function uiDisconnect(message) {
-      $('#btnConnect').text('Connect');
-      updateMessage(message || 'Unknown');
-      connected = false;
+      if (connected) {
+        connected = false;
+        rtcommEndpoint.disconnect();
+
+        // TODO: Move this into a callback for disconnect. (Issue #61)
+        setTimeout(function() {
+          $('#btnConnect').text('Connect');
+          updateMessage(message || 'Unknown');
+          rtcommEndpoint.webrtc.enable({'trickleICE':trickleICE});
+          }, 1000);
+      }
   };
 
   function uiRegister(id) {
@@ -461,7 +473,6 @@ The primary logic for this HTML Page
   $('#btnConnect').on('click', function() {
     console.log('CONNECT BUTTON: connected: '+connected, rtcommEndpoint);
     if (connected) {
-      rtcommEndpoint.disconnect();
       uiDisconnect("Disconnected");
     } else {
       $('#connectModal').modal('show');
