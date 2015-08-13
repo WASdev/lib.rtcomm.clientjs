@@ -14,6 +14,7 @@
  * limitations under the License.
  **/
 define([
+    'intern', 
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
@@ -22,7 +23,9 @@ define([
         'lib/mqttws31',
     'support/config',
     'umd/rtcomm/connection'
-], function (registerSuite, assert, Deferred,globals, config, connection) {
+], function (intern, registerSuite, assert, Deferred,globals, config, connection) {
+
+    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     var T1 = 10000;  // How long we wait to setup, before sending messages.
     var T2 = T1 + 2000; // How long we wait to check results
     var T3 = T2 +2000;  // How long we wait to timeout test.
@@ -77,7 +80,7 @@ define([
        var self = this;
        epc1.setLogLevel('MESSAGE');
        var ll1 = epc1.getLogLevel();
-       epc2.setLogLevel('DEBUG');
+       DEBUG && epc2.setLogLevel('DEBUG');
        var ll2 = epc2.getLogLevel();
        console.log('ll1: '+ll1+ ' ll2: '+ll2);
        console.log('conn1 connected? ', epc1.connected);
@@ -92,7 +95,7 @@ define([
         epc1.createTransaction();
         console.log('1'+epc1.transactions.list());
         console.log('2'+ epc2.transactions.list());
-        epc2.setLogLevel('DEBUG');
+        DEBUG && epc2.setLogLevel('DEBUG');
         console.log('conn1 connected? ', epc1.connected);
         console.log('conn2 connected? ', epc2.connected);
         assert.ok(epc1.connected);
@@ -226,7 +229,7 @@ define([
     "Connection Test - using Server": function() {
           //this.skip();
           var nc = new connection.EndpointConnection(config1);
-          nc.setLogLevel('DEBUG');
+          DEBUG && nc.setLogLevel('DEBUG');
           var success = false;
           var dfd = this.async(T1);
           nc.connect(dfd.callback(function() {

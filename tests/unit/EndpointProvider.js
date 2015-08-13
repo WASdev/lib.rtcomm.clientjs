@@ -14,16 +14,19 @@
  * limitations under the License.
  **/
 define([
+    'intern', 
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
     /* Use the Mock (in browser mqtt) */
    (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../../support/mqttws31_shim':
-        'lib/mqttws31',
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
+    'bower_components/webrtc-adapter/adapter',
     'umd/rtcomm/EndpointProvider'
-], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred, globals,config, adapter, EndpointProvider) {
+  var DEBUG = (intern.args.DEBUG === 'true')? true: false;
   var badconfig = {
       server: 1,
       port: "a",

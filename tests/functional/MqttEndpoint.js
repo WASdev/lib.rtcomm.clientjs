@@ -14,15 +14,18 @@
  * limitations under the License.
  **/
 define([
+    'intern',
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../support/mqttws31_shim':
-        'lib/mqttws31',
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
+    'bower_components/webrtc-adapter/adapter',
     'umd/rtcomm/EndpointProvider'
-], function (registerSuite, assert, Deferred,globals,config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred,globals,config, adapter, EndpointProvider) {
+    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
  /*   if (typeof window === 'undefined' && global) {
       require(['intern/dojo/node!./tests_intern/mock/mqttws31_shim'], function(globals) {
         console.log('********** Paho should now be defined **********');
@@ -80,7 +83,7 @@ define([
           cfg.userid = 'scott';
           /* init the EndpointProvider */
           ep = new EndpointProvider();
-          ep.setLogLevel('DEBUG');
+          DEBUG && ep.setLogLevel('DEBUG');
           ep.init(cfg, function(obj) {
             console.log('*** Creating MqttEndpoints ***');
             mq1 = ep.getMqttEndpoint();

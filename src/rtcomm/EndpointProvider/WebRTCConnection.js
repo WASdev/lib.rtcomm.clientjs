@@ -25,6 +25,11 @@ var WebRTCConnection = (function invocation() {
  *
  *  @extends  module:rtcomm.util.RtcommBaseObject
    */
+/* global RTCPeerConnection:false */
+/* global getUserMedia:false */
+/* global attachMediaStream:false */
+/* global reattachMediaStream:false */
+/* global RTCIceCandidate:false */
   var WebRTCConnection = function WebRTCConnection(parent) {
     var OfferConstraints = {'mandatory': {
       OfferToReceiveAudio: true, 
@@ -54,6 +59,7 @@ var WebRTCConnection = (function invocation() {
       state: 'disconnected',
       objName:'WebRTCConnection',
       parentConnected : false,
+      paused: false,
       enabled : false
     };
     this.id = parent.id;
@@ -65,6 +71,7 @@ var WebRTCConnection = (function invocation() {
       'trying': [],
       'connected': [],
       'disconnected': [],
+      'remotemuted':[],
       '_notrickle':[]
     };
     this.pc = null;
@@ -171,10 +178,13 @@ var WebRTCConnection = (function invocation() {
      */
     disable: function() {
       this.onEnabledMessage = null;
-      this._.enabled = false;
-      this._disconnect();
-      if (this.pc) {
-        this.pc = null;
+      if (this._.enabled) {
+        l('DEBUG') && console.log(this+'.disable() disabling webrtc');
+        this._.enabled = false;
+        this._disconnect();
+        if (this.pc) {
+          this.pc = null;
+        }
       }
       return this;
     },
@@ -239,9 +249,10 @@ var WebRTCConnection = (function invocation() {
     },
 
     _disconnect: function() {
+      l('DEBUG') && console.log(this+'._disconnect() Signaling State is: '+this.pc.signalingState);
       if (this.pc && this.pc.signalingState !== 'closed') {
         l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
-       this.pc.close();
+        this.pc.close();
       }
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
@@ -340,20 +351,91 @@ var WebRTCConnection = (function invocation() {
       */
       return this;
     },
-    pauseBroadcast: function() {
-      if (this._.localStream) {
-        this._.localStream.getVideoTracks()[0].enabled = false;
-        this._.localStream.getAudioTracks()[0].enabled = false;
+    /** Mute a broadcast  (audio or video or both)
+     *  @param {String}  [audio or video]  
+     *
+     *  By default, this will mute both audio and video if passed with no parameters.
+     */
+    mute: function(media) {
+      switch (media) {
+        case 'audio':
+          muteAudio(this._.localStream, this);
+          break;
+        case 'video': 
+          muteVideo(this._.localStream, this);
+          break;
+        default:
+          muteAudio(this._.localStream, this);
+          muteVideo(this._.localStream, this);
       }
+      // This seems odd, but by default we mute both.
+      // so the audio/video sent in the message is inferred
+      // based on what is sent in.  For example, if we are
+      // muting AUDIO, then video will NOT be muted(true). 
+      var msg = this.createMessage(
+        {type: 'stream',
+           stream: {
+             label: this._.localStream.label, 
+             audio: (media === 'video')? true: false,
+             video: (media === 'audio')? true:false 
+            }
+        });
+      this.send(msg);
+      this._.muted = true;
     },
-    resumeBroadcast: function() {
-      if (this._.localStream) {
-        this._.localStream.getVideoTracks()[0].enabled = true;
-        this._.localStream.getAudioTracks()[0].enabled = true;
+
+    /** UnMute a broadcast  (audio or video or both)
+     *  @param {String}  [audio or video]  
+     *
+     *  By default, this will Unmute both audio and video if passed with no parameters.
+     */
+    unmute: function(media) {
+      switch (media) {
+        case 'audio':
+          unmuteAudio(this._.localStream, this);
+          break;
+        case 'video': 
+          unmuteVideo(this._.localStream, this);
+          break;
+        default:
+          unmuteAudio(this._.localStream, this);
+          unmuteVideo(this._.localStream, this);
       }
+      // This seems odd, but by default we mute both.
+      // so the audio/video sent in the message is inferred
+      // based on what is sent in.  For example, if we are
+      // muting AUDIO, then video will NOT be muted(true). 
+
+      var msg = this.createMessage(
+        {type: 'stream',
+           stream: {
+             label: this._.localStream.label, 
+             audio: (media === 'video') ? false : true,
+             video: (media === 'audio') ? false : true
+            }
+        });
+
+      this.send(msg);
+      this._.muted = true;
+    },
+    isMuted: function() {
+      return this._.muted;
     },
     getMediaIn: function() {
       return this.config.mediaIn;
+    },
+    /* global hasTrack:false */
+    isReceivingAudio: function() {
+      return hasTrack("remote", "audio", this);
+    },
+    isReceivingVideo: function() {
+      return hasTrack("remote", "video", this);
+    },
+    isSendingAudio: function() {
+      return hasTrack("local", "audio", this);
+    },
+    isSendingVideo: function() {
+      return hasTrack("local", "video", this);
     },
     /**
      * DOM node to link the RtcommEndpoint inbound media stream to.
@@ -362,7 +444,7 @@ var WebRTCConnection = (function invocation() {
      */
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
-        if (this._.remoteStream) {
+        if (typeof this._.remoteStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaIn && this.config.mediaIn !== value) {
             detachMediaStream(this.config.mediaIn);
@@ -389,7 +471,7 @@ var WebRTCConnection = (function invocation() {
       if(validMediaElement(value) ) {
         // No matter WHAT (I believe) the outbound media element should be muted.
         value.muted = true; 
-        if (this._.localStream) {
+        if (typeof this._.localStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaOut && this.config.mediaOut !== value) {
             detachMediaStream(this.config.mediaOut);
@@ -528,7 +610,11 @@ var WebRTCConnection = (function invocation() {
         // Set our local description
         //  Only set state to ringing if we have a local offer...
         if (isPC && this.pc.signalingState === 'have-local-offer') {
-          isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          if (message.sdp !== "") { 
+              isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          } else {
+            l('DEBUG') && console.log(this+'._processMessage -- pranswer sdp is empty, not setting');
+          }
           this._setState('ringing');
         }
         break;
@@ -598,6 +684,33 @@ var WebRTCConnection = (function invocation() {
           isPC && this.pc.addIceCandidate(iceCandidate);
         } catch(err) {
           console.error('addIceCandidate threw an error', err);
+        }
+        break;
+      case 'stream': 
+        //  The remote peer has muted/unmuted audio or video (or both) on a stream
+        // Format { audio: boolean, video: boolean, label: 'labelstring' }
+        l('DEBUG') && console.log(this+'_processMessage Remote media disabled --> message:', message);
+        if (message.stream && message.stream.label) {
+          // This is the label of the stream disabled.
+          // Disable it, emit event.
+          var streams = this.pc.getRemoteStreams();
+          for (var i=0;i<streams.length;i++) {
+            if (streams[i].label === message.stream.label) {
+              var stream = streams[i];
+              // We found our stream, get tracks...
+              if (message.stream.audio) {
+                unmuteAudio(stream, this);
+              } else {
+                muteAudio(stream, this);
+              }
+              if (message.stream.video) {
+                unmuteVideo(stream, this);
+              } else {
+                muteVideo(stream, this);
+              }
+            }
+          }
+          this.emit('remotemuted', message.stream);
         }
         break;
       default:
@@ -683,7 +796,12 @@ var WebRTCConnection = (function invocation() {
     }
 
     var attachLocalStream = function attachLocalStream(stream){
-      self.getMediaOut() && attachMediaStream(self.getMediaOut(),stream);
+      // If we have a media out, attach the local stream
+      if (self.getMediaOut() ) {
+        if (typeof stream !== 'undefined') {
+          attachMediaStream(self.getMediaOut(),stream);
+        }
+      }
       if (self.pc) {
         if (self.pc.getLocalStreams()[0] === stream) {
           // Do nothing, already attached
@@ -701,15 +819,21 @@ var WebRTCConnection = (function invocation() {
     
     if (audio || video ) { 
       if (this._.localStream) {
-        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattching stream');
+        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattaching stream');
         callback(attachLocalStream(this._.localStream));
       } else {
         getUserMedia({'audio': audio, 'video': video},
           /* onSuccess */ function(stream) {
+            if (streamHasAudio(stream) !== audio) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested audio:'+audio+' but got audio: '+streamHasAudio(stream));
+            }
+            if (streamHasVideo(stream) !== video) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested video:'+video+' but got video: '+streamHasVideo(stream));
+            }
             callback(attachLocalStream(stream));
           },
         /* onFailure */ function(error) {
-          callback(false, "getUserMedia failed");
+          callback(false, "getUserMedia failed - User denied permissions for camera/microphone");
         });
       }
     } else {
@@ -730,12 +854,12 @@ var WebRTCConnection = (function invocation() {
      var credential = matches[3] || null;
 
      var iceServer = {
-       'url': null,
+       'urls': null,
        'username': null,
        'credential': null
      };
      if (user && server && credential) {
-       iceServer.url = 'turn:'+server;
+       iceServer.urls = 'turn:'+server;
        iceServer.username= user;
        iceServer.credential= credential;
      } else {
@@ -747,7 +871,7 @@ var WebRTCConnection = (function invocation() {
    }
 
     // Returned object expected to look something like:
-    // {"iceServers":[{"url": "stun:host:port"}, {"url","turn:host:port"}] 
+    // {"iceServers":[{"urls": "stun:host:port"}, {"urls","turn:host:port"}] 
     var urls = [];
     if (service && service.iceURL)  {
         service.iceURL.split(',').forEach(function(url){
@@ -756,7 +880,7 @@ var WebRTCConnection = (function invocation() {
           var obj = null;
           if (/^stun:/.test(url)) {
             l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url);
-            obj = {'url': url};
+            obj = {'urls': url};
           } else if (/^turn:/.test(url)) {
             l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url);
             obj = buildTURNobject(url);
@@ -777,7 +901,7 @@ var WebRTCConnection = (function invocation() {
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;
-  if (typeof MyRTCPeerConnection !== 'undefined'){
+  if (MyRTCPeerConnection) {
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
     peerConnection = new MyRTCPeerConnection(RTCConfiguration, RTCConstraints);
 
@@ -896,71 +1020,95 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
   return peerConnection;
 }  // end of createPeerConnection
 
-/*
- *  Following are used to handle different browser implementations of WebRTC
- */
-var getBrowser = function() {
-    if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-      // probably in node.js no browser support
-      return ('node.js','unknown');
-    } else  if (navigator && navigator.mozGetUserMedia) {
-      // firefox
-      return("firefox", parseInt(navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1], 10));
-    } else if (navigator && navigator.webkitGetUserMedia) {
-     return("chrome", parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10));
-    } else {
-      return("Unknown","Unknown");
+// Alias these to the globals
+var MyRTCPeerConnection =  (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
+var MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
+var MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
+
+var detachMediaStream = function(element) {
+   if (element) {
+      if (typeof element.src !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting srcObject to empty string');
+        element.src = '';
+      } else if (typeof element.mozSrcObject !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting to null');
+        element.mozSrcObject = null;
+      } else {
+        console.error('Error detaching stream from element.');
+      }
     }
   };
 
-var MyRTCPeerConnection = (function() {
-  /*global mozRTCPeerConnection:false */
-  /*global webkitRTCPeerConnection:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  } else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCPeerConnection;
-  } else if (navigator && navigator.webkitGetUserMedia) {
-    return webkitRTCPeerConnection;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
+var hasTrack = function(direction,media,context) {
+  var directions = { 'remote': function() { return context.pc.getRemoteStreams();},
+                     'local' : function() { return context.pc.getLocalStreams();}};
+  var mediaTypes = {
+    'audio' : function(stream) {
+      return stream.getAudioTracks();
+     },
+     'video': function(stream) {
+       return stream.getVideoTracks();
+     }
+  };
+  var returnValue = false;
+  if (context.pc) {
+    if (direction in directions) {
+      var streams=directions[direction]();
+      l('DEBUG') && console.log('hasTrack() streams -> ', streams);
+        for (var i=0;i< streams.length; i++) {
+          var stream = streams[i];
+          var tracks = mediaTypes[media](stream);
+          for (var j = 0; j< tracks.length; j++) {
+            // go through, and OR it...
+            returnValue = returnValue || tracks[j].enabled;
+          }
+        }
+      }
   }
-})();
+  return returnValue;
+};
 
-var MyRTCSessionDescription = (function() {
-  /*global mozRTCSessionDescription:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  }  else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCSessionDescription;
-  } else if (typeof RTCSessionDescription !== 'undefined' ) {
-    return RTCSessionDescription;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
+var toggleStream = function(stream, media, enabled , context) {
+  var mediaTypes = {
+    'audio' : function(stream) {
+      return stream.getAudioTracks();
+     },
+     'video': function(stream) {
+       return stream.getVideoTracks();
+     }
+  };
+  var tracks = mediaTypes[media](stream);
+  for (var i=0;i<tracks.length;i++) {
+    tracks[i].enabled = enabled;
   }
-})();
+  //TODO: Emit an event that stream was muted.
+  return stream;
+};
 
-l('DEBUG') && console.log("Setting RTCSessionDescription", MyRTCSessionDescription);
+var streamHasAudio = function(stream) {
+   return (stream.getAudioTracks().length > 0);
+};
 
+var streamHasVideo= function(stream) {
+   return (stream.getVideoTracks().length > 0);
+};
 
-var MyRTCIceCandidate = (function() {
-  /*global mozRTCIceCandidate:false */
-  /*global RTCIceCandidate:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  } else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCIceCandidate;
-  } else if (typeof RTCIceCandidate !== 'undefined') {
-    return RTCIceCandidate;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
-  }
-})();
+var muteAudio = function(stream, context) {
+  toggleStream(stream, 'audio', false, context);
+};
 
-l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
+var unmuteAudio = function(stream, context) {
+  toggleStream(stream,'audio', true, context);
+};
+
+var muteVideo = function(stream, context) {
+  toggleStream(stream, 'video', false, context);
+};
+
+var unmuteVideo = function(stream, context) {
+  toggleStream(stream,'video', true, context);
+};
+
 
 var validMediaElement = function(element) {
   return( (typeof element.srcObject !== 'undefined') ||
@@ -968,73 +1116,6 @@ var validMediaElement = function(element) {
       (typeof element.src !== 'undefined'));
 };
 
-/*
- * Assign getUserMedia, attachMediaStream as private class functions
- */
-var getUserMedia, attachMediaStream,detachMediaStream;
-/* globals URL:false */
-
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    getUserMedia = null;
-    attachMediaStream = null;
-    detachMediaStream = null;
-  // Creating methods for Firefox
-  } else if (navigator && navigator.mozGetUserMedia) {
-
-    getUserMedia = navigator.mozGetUserMedia.bind(navigator);
-    // Attach a media stream to an element.
-    attachMediaStream = function(element, stream) {
-      l('DEBUG') && console.log("FIREFOX --> Attaching media stream");
-      try { 
-        element.mozSrcObject = stream;
-    //    element.play();
-      } catch (e) {
-        console.error('Attach Media Stream failed in FIREFOX:  ', e);
-      }
-    };
-    detachMediaStream = function(element) {
-    l('DEBUG') && console.log("FIREFOX --> Detaching media stream");
-    if (element) {
-      element.mozSrcObject = null;
-    }
-  };
-
-} else if (navigator && navigator.webkitGetUserMedia) {
-  getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
-  attachMediaStream = function(element, stream) {
-    if (typeof element.srcObject !== 'undefined') {
-      element.srcObject = stream;
-    } else if (typeof element.mozSrcObject !== 'undefined') {
-      element.mozSrcObject = stream;
-    } else if (typeof element.src !== 'undefined') {
-      element.src = URL.createObjectURL(stream);
-    } else {
-      console.error('Error attaching stream to element.');
-    }
-  };
-  detachMediaStream = function(element) {
-    var nullStream = '';
-    if (element) {
-      if (typeof element.srcObject !== 'undefined') {
-        element.srcObject = nullStream;
-      } else if (typeof element.mozSrcObject !== 'undefined') {
-        element.mozSrcObject = nullStream;
-      } else if (typeof element.src !== 'undefined') {
-        element.src = nullStream;
-      } else {
-        console.error('Error attaching stream to element.');
-      }
-    }
-  };
-} else {
-  console.error("Browser does not appear to be WebRTC-capable");
-  var skip = function skip() {
-    if (typeof global === 'undefined') { console.error("Function not supported in browser")};
-  };
-  getUserMedia = skip;
-  attachMediaStream = skip;
-  detachMediaStream = skip;
-}
 
 return WebRTCConnection;
 

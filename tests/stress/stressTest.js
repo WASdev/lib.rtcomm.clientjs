@@ -27,6 +27,7 @@ define([
     'umd/rtcomm/EndpointProvider'
 ], function (intern, registerSuite, assert, Deferred, globals,config, EndpointProvider) {
 
+    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
 
     var MAX_CONNS = parseInt(intern.args.MAX_CONNS) || 50;
     var duration = parseInt(intern.args.duration) || 20000;
@@ -34,7 +35,7 @@ define([
     var createProvider = function createProvider(cfg,appContext) {
       var dfd = new Deferred();
       var EP = new EndpointProvider();
-      //EP.setLogLevel('DEBUG');
+      DEBUG && EP.setLogLevel('DEBUG');
       EP.setAppContext(appContext);
       EP.init(cfg,
         function(message) { 
@@ -65,7 +66,7 @@ define([
       var ep2 = createAutoConnectEP(EP2);
 
       function failure(message) {
-        console.log('>>>> FAILURE '+message);
+        console.log('>>>> createConnection FAILURE '+message);
         dfd.reject(false);
       }
 
@@ -101,7 +102,10 @@ define([
               console.log('******** Finished Setup '+resolved);
               if (Object.keys(callers).length === MAX_CONNS &&
                   Object.keys(callees).length === MAX_CONNS ) {
-                  setupDfd.resolve();
+                  // Wait 5 seconds to ensure everything is completed.
+                  setTimeout(function() {
+                    setupDfd.resolve()
+                  },5000);;
               } else {
                 console.log('CALLERS? '+Object.keys(callers).length);
                 console.log('CALLEES? '+Object.keys(callees).length);
@@ -111,8 +115,8 @@ define([
           }
 
           for(var i=0; i<MAX_CONNS; i++) {
-            var cfgCaller = config.clientConfig();
-            var cfgCallee = config.clientConfig();
+            var cfgCaller = config.clientConfig("xxxx-caller-"+i);
+            var cfgCallee = config.clientConfig("xxxx-callee-"+i);
             createProvider(cfgCaller, appContext).then(
               function(EP){
                 callers[EP.getUserID()] = EP;
@@ -150,7 +154,7 @@ define([
         'stress Test ': function() {
           var callee_ids = Object.keys(callees);
           var i = 0;
-          var dfd= new Deferred(duration+5000);
+          var dfd= this.async(duration+5000);
           var resolved = 0;
 
           function resolve(success){

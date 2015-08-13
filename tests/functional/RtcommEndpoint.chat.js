@@ -16,20 +16,23 @@
 
 
 define([
+    'intern',
     'intern!object',
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../support/mqttws31_shim':
-        'lib/mqttws31',
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
+    'bower_components/webrtc-adapter/adapter',
     'umd/rtcomm/EndpointProvider'
-], function (registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred, globals, config, adapter, EndpointProvider) {
 
+    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     var createProvider = function createProvider(userid,appContext) {
       var dfd = new Deferred();
       var EP = new EndpointProvider();
-      EP.setLogLevel('DEBUG');
+      DEBUG && EP.setLogLevel('DEBUG');
       EP.setUserID(userid);
       EP.setAppContext(appContext);
       EP.init(cfg,
@@ -269,7 +272,7 @@ define([
           var mq = EP1.getMqttEndpoint();
           var ThirdPCC = "3PCCTestNode";
           var ThirdPCCMessage = { 
-            'rtcommVer' : 'v0.0.1',
+            'rtcommVer' : 'v1.0.0',
             'method': '3PCC_PLACE_CALL',
             'callerEndpoint': EP1.getUserID(),
             'calleeEndpoint': EP2.getUserID(),

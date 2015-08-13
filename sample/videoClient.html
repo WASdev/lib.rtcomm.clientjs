@@ -17,8 +17,8 @@
 <meta charset="utf-8">
 <title>IBM WebRTC Demo</title>
 <!-- Load the CSS -->
-<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
-<link href="resources/css/video.css" rel="stylesheet">
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet"/>
+<link href="resources/css/video.css" rel="stylesheet"/>
 </head>
 
 <body>
@@ -35,6 +35,9 @@
   <div id="videoContainer">
     <div id='selfViewContainer'>
       <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
+      <button id="btnToggleBroadcast" type="button" class="btn btn-default" aria-label="Left Align">
+        <span id="toggleIcon" class="glyphicon glyphicon-pause" aria-hidden="true"></span>
+      </button>
     </div>
     
     <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
@@ -88,13 +91,12 @@
         </div>
           It is necessary to register before doing anything. The ID used here
           is the ID that another registered user can use to <b>Connect</b>
-          <br>
-          <br>
+          <br/>
+          <br/>
           <div>
- 
         <div class="input-group">
           <span class="input-group-addon">ID:</span>
-          <input id="userid" class="form-control" type="text"  placeholder="userid to register">
+          <input id="userid" class="form-control" type="text"  placeholder="userid to register"/>
         </div>
        </div>
       </div>
@@ -119,13 +121,12 @@
         A UserID is required to Connect to
         </div>
          Enter the User ID to connect to.  They must be registered with the same server.
-          <br>
-          <br>
+          <br/>
+          <br/>
           <div>
-        
         <div class="input-group">
           <span class="input-group-addon">ID:</span>
-          <input id="remoteid" class="form-control" type="text"  placeholder="userid to connect to">
+          <input id="remoteid" class="form-control" type="text"  placeholder="userid to connect to"/>
         </div>
        </div>
       </div>
@@ -145,7 +146,9 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 
 <!-- The following paths may need to be modified depending on the location of this script. -->
-<script src="../lib/mqttws31.js"></script>
+<script src="../bower_components/bower-mqttws/mqttws31.js"></script>
+<script src="../bower_components/webrtc-adapter/adapter.js"></script>
+
 <script src="../dist/rtcomm.js"></script>
 
 <!-- 
@@ -264,14 +267,18 @@ The primary logic for this HTML Page
                     mediaOut: document.querySelector('#selfView'),
                     mediaIn: document.querySelector('#remoteView'),
                   });
+
                 if (regwithAV) {
                   // Enable Audio Video here.
-                  console.log('** videoClient.html ** Enabling Webrtc...');
+                  console.log('** videoClient.html ** Enabling Webrtc without lazyAV');
                   //NOTE:  lazyAV means we will enable when we have too, in this case, the UI wants
                   // To enable it right away.  
                   rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE, lazyAV: false}, function() {
                     console.log('>>>>>>>>>>>>>>SUCCESS ENABLED WEBRTC CALLBACK');
                   });
+                } else {
+                  console.log('** videoClient.html ** Enabling Webrtc...');
+                  rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE});
                 }
               }, function(error) { //onFailure
                 console.error('init failed: ', error);
@@ -304,10 +311,8 @@ The primary logic for this HTML Page
       // Fired when webrtc is disconnected 
       'webrtc:disconnected': function(event_object) {
          // Reset the UI
-         document.querySelector('#remoteView').src = undefined;
-         uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
          try {
-           event_object.endpoint.disconnect();
+           uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
          } catch (e) {
            console.error(e);
          }
@@ -344,10 +349,32 @@ The primary logic for this HTML Page
       },
       // An inbound Refer was received.  
       'session:refer': function(conn) {
+        console.log(conn);
         $('#answerDialog .modal-body').html(
-            "[3PCC] Initiate call to " + conn.toEndpointID);
+            "[3PCC] Initiate call to " + conn.endpoint.getRemoteEndpointID());
         $('#answerDialog').modal('show');
-      }
+      }, 
+      'webrtc:remotemuted': function(event_object) {
+        // Should have audio/video set to true/false on whether its enabled/disabled.
+        // If you want to change what is shown... 
+        var msg = 'The remote user ';
+        if (event_object.audio) {
+          if (event_object.video) {
+            msg = msg + ' resumed their broadcast'; 
+          } else {
+            msg = msg + ' muted their audio broadcast'; 
+          }
+        } else {
+          if (event_object.video) {
+            // audio false, video true
+            msg = msg + ' muted their audio broadcast'; 
+          } else {
+            // both false
+            msg = msg + ' muted their broadcast'; 
+          }
+        }
+       updateMessage(msg);
+     }
   });
 
   /*****************************************************************
@@ -364,9 +391,17 @@ The primary logic for this HTML Page
   };
 
   function uiDisconnect(message) {
-      $('#btnConnect').text('Connect');
-      updateMessage(message || 'Unknown');
-      connected = false;
+      if (connected) {
+        connected = false;
+        rtcommEndpoint.disconnect();
+
+        // TODO: Move this into a callback for disconnect. (Issue #61)
+        setTimeout(function() {
+          $('#btnConnect').text('Connect');
+          updateMessage(message || 'Unknown');
+          rtcommEndpoint.webrtc.enable({'trickleICE':trickleICE});
+          }, 1000);
+      }
   };
 
   function uiRegister(id) {
@@ -401,6 +436,7 @@ The primary logic for this HTML Page
     state='disconnected';
     rtcommEndpoint.reject();
   });
+
 
   $('#btnReset').on('click', function() {
     rtcommEndpoint && rtcommEndpoint.reset();
@@ -437,7 +473,6 @@ The primary logic for this HTML Page
   $('#btnConnect').on('click', function() {
     console.log('CONNECT BUTTON: connected: '+connected, rtcommEndpoint);
     if (connected) {
-      rtcommEndpoint.disconnect();
       uiDisconnect("Disconnected");
     } else {
       $('#connectModal').modal('show');
@@ -445,8 +480,15 @@ The primary logic for this HTML Page
   });
 
   $('#btnToggleBroadcast').on('click', function() {
+    console.log('TOGGLE pressed :'+connected, rtcommEndpoint);
     if (connected) {
-      rtcommEndpoint.webrtc.pauseBroadcast();
+      if (rtcommEndpoint.webrtc.isMuted()) {
+        rtcommEndpoint.webrtc.unmute();
+        $('#toggleIcon').removeClass('glyphicon-play').addClass('glyphicon-pause');
+      } else {
+        rtcommEndpoint.webrtc.mute();
+        $('#toggleIcon').removeClass('glyphicon-pause').addClass('glyphicon-play');
+      }
     } 
   });
 

@@ -78,8 +78,20 @@ grunt test
     duration defaults to 20000 (20 Seconds)
     
     These can be configured by running intern as follows:
+
     ```
-    $ node_modules/intern/bin/intern-client.js config=tests/intern suites=tests/stress/stressTest MAX_CLIENTS=1 duration=10000
+    $ node_modules/intern/bin/intern-client.js config=tests/intern suites=tests/stress/stressTest MAX_CONNS=1 duration=10000
     ```
+
+* Turning on Debug
+    You can turn on debug logging for rtcomm for all tests when run from the command line or from the browser:
+
+    http://localhost:3000/node_modules/intern/client.html?config=tests/intern&DEBUG=true
+
+    ```
+    $ node_modules/intern/bin/intern-client.js config=tests/intern DEBUG=true 
+    ```
+
+    At the moment, I don't know how to do it via grunt
 
 

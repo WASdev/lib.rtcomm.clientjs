@@ -108,8 +108,8 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} config.server MQTT Server
    * @param {string} [config.userid] User ID or Identity
    * @param {string} [config.appContext=rtcomm] App Context for EndpointProvider
-   * @param {string} [config.port=1883] MQTT Server Port
-   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection (Most likely use a different port)
+   * @param {string} [config.port=1883] MQTT Server Port.  Defaults to 8883 if served over https
+   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection. Defaults to true if served over https. 
    * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
@@ -153,6 +153,9 @@ var EndpointProvider =  function EndpointProvider() {
     // Used to set up config for endpoint connection;
     var config = null;
     var rtcommTopicPath = '/rtcomm/';
+    // If we are served over SSL, use SSL is needed.
+    //
+    var useSSL = (location && location.protocol === 'https:') ? true : false;
     var configDefinition = {
         required: { server: 'string', port: 'number'},
         optional: {
@@ -172,10 +175,10 @@ var EndpointProvider =  function EndpointProvider() {
             rootTopic: 'sphere/',
             topic: '/', // Same as rootTopic by default
           },
-          useSSL: false,
+          useSSL: useSSL,
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
-          port: 1883,
+          port: useSSL ? 8883: 1883,
           createEndpoint: false }
       };
     // the configuration for Endpoint Provider
@@ -262,7 +265,12 @@ var EndpointProvider =  function EndpointProvider() {
      */
     var onFailure = function(error) {
       this.ready = false;
-      cbFailure(error);
+      if (error.name === 'CONNLOST') {
+        // we need to emit this rather than call the callback
+        this.reset('Connection Lost');
+      } else { 
+        cbFailure(error);
+      }
     };
     // Connect!
     endpointConnection.connect(onSuccess.bind(this), onFailure.bind(this));
@@ -272,6 +280,13 @@ var EndpointProvider =  function EndpointProvider() {
 
   this.stop = this.destroy;
   this.start = this.init;
+  this.reset = function reset(reason) {
+     var endpointProvider = this;
+      endpointProvider.emit('reset', {'reason':reason});
+      setTimeout(function() {
+        endpointProvider.destroy();
+      },500);
+  };
 
   /*
    * Create the endpoint connection to the MQTT Server
@@ -349,10 +364,7 @@ var EndpointProvider =  function EndpointProvider() {
     endpointConnection.on('document_replaced', function(message) {
       // 'reset' w/ a Reason?
       l('TRACE') && console.log("Document Replaced event received", message);
-      endpointProvider.emit('reset', {'reason':'document_replaced'});
-      setTimeout(function() {
-        endpointProvider.destroy();
-      },500);
+      endpointProvider.reset("document_replaced");
     });
     return endpointConnection; 
   }; // End of createEndpointConnection
