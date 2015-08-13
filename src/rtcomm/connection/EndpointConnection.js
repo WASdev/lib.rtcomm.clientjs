@@ -567,8 +567,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           };
 
           var onFailure = function(error) {
-            console.log('FAILURE! - ',error);
-
+            console.error(this+'.connect() FAILURE! - ',error);
             this.connected = false;
             cbFailure(error);
           };

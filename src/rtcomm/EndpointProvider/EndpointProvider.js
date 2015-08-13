@@ -265,7 +265,12 @@ var EndpointProvider =  function EndpointProvider() {
      */
     var onFailure = function(error) {
       this.ready = false;
-      cbFailure(error);
+      if (error.name === 'CONNLOST') {
+        // we need to emit this rather than call the callback
+        this.reset('Connection Lost');
+      } else { 
+        cbFailure(error);
+      }
     };
     // Connect!
     endpointConnection.connect(onSuccess.bind(this), onFailure.bind(this));
@@ -275,6 +280,13 @@ var EndpointProvider =  function EndpointProvider() {
 
   this.stop = this.destroy;
   this.start = this.init;
+  this.reset = function reset(reason) {
+     var endpointProvider = this;
+      endpointProvider.emit('reset', {'reason':reason});
+      setTimeout(function() {
+        endpointProvider.destroy();
+      },500);
+  };
 
   /*
    * Create the endpoint connection to the MQTT Server
@@ -352,10 +364,7 @@ var EndpointProvider =  function EndpointProvider() {
     endpointConnection.on('document_replaced', function(message) {
       // 'reset' w/ a Reason?
       l('TRACE') && console.log("Document Replaced event received", message);
-      endpointProvider.emit('reset', {'reason':'document_replaced'});
-      setTimeout(function() {
-        endpointProvider.destroy();
-      },500);
+      endpointProvider.reset("document_replaced");
     });
     return endpointConnection; 
   }; // End of createEndpointConnection
