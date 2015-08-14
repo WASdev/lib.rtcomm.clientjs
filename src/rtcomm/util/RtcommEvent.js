@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/ 
-var RtcommEvent = function RtcommEvent() {
-  this.name = "";
+var RtcommEvent = function RtcommEvent(name, object) {
+  this.eventName = name;
   this.message = "";
-  this.object = "";
+  this.object = object;
 };
+exports.RtcommEvent = RtcommEvent;

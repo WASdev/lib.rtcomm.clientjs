@@ -725,6 +725,24 @@ var EndpointProvider =  function EndpointProvider() {
   this.endpoints = function() {
     return this._.endpointRegistry.list();
   };
+
+  /* This is an event formatter that is called by the prototype emit() to format an event if 
+   * it exists
+   * When passed an object, we ammend it w/ eventName and endpoint and pass it along.
+   */
+  this._Event = function Event(event, object) {
+      l('DEBUG') && console.log(this+'_Event -> creating event['+event+'], augmenting with', object);
+      var newEvent = new util.RtcommEvent(event, object);
+      console.log('REMOVE ME! after util.RtcommEvent', newEvent);
+
+      if (typeof object === 'object') {
+        Object.keys(object).forEach(function(key) { 
+          newEvent[key] = object[key];
+        });
+      }
+      l('DEBUG') && console.log(this+'_Event -> created event: ',newEvent);
+      return newEvent;
+  };
   /** Return object indicating state of EndpointProvider 
    *  *NOTE* Generally used for debugging purposes 
   */

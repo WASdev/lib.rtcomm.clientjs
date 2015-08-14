@@ -131,7 +131,7 @@ var RtcommBaseObject = {
       // We have an event format specified, normalize the event before emitting.
       if (this._Event && typeof this._Event === 'function') { 
         event_object = this._Event(event, event_object);
-      }
+      } 
       // event_object.name = (event_object.name) ? event_object.name : event;
       if (this.events && this.events[event] ) {
      //   console.log('>>>>>>>> Firing event '+event);

@@ -146,8 +146,15 @@ var rtcomm= (function rtcomm() {
         'reset': []
    };
 
+   //QUESTIONS:
+   // What do we do if you use the default interface AND the old API?
+   // THis is really a 'single Endpoint' API -- we need a multi-endpoint API (which is our old API);
+   //   -- it should be cleaned up to be easier.
+   //   --
+   // 
+
    /* Defaults */
-   var providerConfig = {
+   var defaultProviderConfig = {
      server : window.document.location.hostname,
      port : window.document.location.port,
      managementTopicName : "management",
@@ -156,35 +163,35 @@ var rtcomm= (function rtcomm() {
      presence: {topic: 'defaultRoom'}
    };
 
-
    var init = function init(config) {
-
-     // Merge Config w/ epConfig
-     var epConfig = util.combineObjects(config, providerConfig);
-
      var self = this;
 
+     // Merge Config w/ defaultProviderConfig
+     var providerConfig = util.combineObjects(config, defaultProviderConfig);
+
      var endpointConfig = {
-       mediaIn: epConfig.mediaIn,
-       mediaOut: epConfig.mediaOut,
-       ringback: epConfig.ringback,
-       ringbacktone: epConfig.ringbacktone
+       mediaIn: providerConfig.mediaIn,
+       mediaOut: providerConfig.mediaOut,
+       ringback: providerConfig.ringback,
+       ringbacktone: providerConfig.ringbacktone
      };
 
-     delete epConfig.mediaIn;
-     delete epConfig.mediaOut;
-     delete epConfig.ringbacktone;
-     delete epConfig.ringtone;
+     delete providerConfig.mediaIn;
+     delete providerConfig.mediaOut;
+     delete providerConfig.ringbacktone;
+     delete providerConfig.ringtone;
 
-     console.log(epConfig);
+     console.log(providerConfig);
      if (endpointProvider) {
        console.log('EndpointProvider is ',endpointProvider);
      } else {
        endpointProvider = new EndpointProvider();
+       endpointProvider.setLogLevel('DEBUG');
      }
 
+
      endpointProvider.init(
-       epConfig,
+       providerConfig,
        /* onSuccess for init() will pass an object:
          *  { endpoint: RtcommEndpoint ,   <-- RtcommEndpoint Object if created
          *     ready: boolean,             <-- We are ready to proceed.
@@ -201,7 +208,9 @@ var rtcomm= (function rtcomm() {
    var rtcommCallback = function rtcommCallback(event_object) {
      // handle an EndpointEvent.
      console.log('Received the event ',event_object);
-     self.emit(event_object.name, event_object);
+     console.log('self?', self);
+     // Event Object shoudl be an event...
+     self.emit(event_object.eventName, event_object);
    };
     /*
      * Assign the callbacks
@@ -209,24 +218,37 @@ var rtcomm= (function rtcomm() {
      *  This happens prior to the doRegister above and defines the default callbacks to use for 
      *  all RtcommEndpoints created by the EndpointProvider.
      */
+    //TODO: Defaults need to come from Config
     endpointProvider.setRtcommEndpointConfig({
-        broadcast:  { audio: true,video: true},
+        broadcast:  { audio: true, video: true},
         // Played when call is going out
         ringbacktone: 'resources/ringbacktone.wav',
         // played when inbound call occurrs
         ringtone: 'resources/ringtone.wav',
         // Fired when any event is triggered
-        bubble : rtcommCallback
+        bubble: rtcommCallback
     });
+
+    // What is this doing?
+
     endpointProvider.bubble(rtcommCallback);
 
-    // Establish a presence monitor on the default topic we are published to
+   // Establish a presence monitor on the default topic we are published to
    // endpointProvider.getPresenceMonitor(presence.topic).on('updated', rtcommCallback);;
    };
+
+   // what if we always returned a new endpoint?
+   //
    var connect = function connect(user) {
      // create an endpoint and connect it.
      return endpointProvider.getRtcommEndpoint().connect(user);
    };
+
+   // TODO  THis doens't work at all, though it might I guess... 
+   //
+   // TODO:  Add some interface to the EndpointProvider so it will only use one endpoint if 
+   // there isn't a handler...
+   //
    var answer = function answer() {
      return endpointProvider.getRtcommEndpoint().connect();
      // take an inbound enpdoint and answer?

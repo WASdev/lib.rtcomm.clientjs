@@ -740,20 +740,16 @@ return  {
    * When passed an object, we ammend it w/ eventName and endpoint and pass it along.
    */
   _Event : function Event(event, object) {
-      var RtcommEvent =  {
-        eventName: '',
-        endpoint: null
-      };
+      var newEvent = new util.RtcommEvent(event, object);
       l('DEBUG') && console.log(this+'_Event -> creating event['+event+'], augmenting with', object);
-      RtcommEvent.eventName= event;
-      RtcommEvent.endpoint= this;
+      newEvent.endpoint= this;
       if (typeof object === 'object') {
         Object.keys(object).forEach(function(key) { 
-          RtcommEvent[key] = object[key];
+          newEvent[key] = object[key];
         });
       }
-      l('DEBUG') && console.log(this+'_Event -> created event: ',RtcommEvent);
-      return RtcommEvent;
+      l('DEBUG') && console.log(this+'_Event -> created event: ',newEvent);
+      return newEvent;
   }
 
   };
