@@ -31,18 +31,19 @@ var WebRTCConnection = (function invocation() {
 /* global reattachMediaStream:false */
 /* global RTCIceCandidate:false */
   var WebRTCConnection = function WebRTCConnection(parent) {
+
     var OfferConstraints = {'mandatory': {
       OfferToReceiveAudio: true, 
       OfferToReceiveVideo: true}
     };
 
-    this.config = {
+    this.config = util.combineObjects(parent.config.webrtcConfig, {
       RTCConfiguration : {iceTransports : "all"},
       RTCOfferConstraints: OfferConstraints,
       RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
-      iceServers: [],
       mediaIn: null,
       mediaOut: null,
+      iceServers: [],
       lazyAV: true,
       trickleICE: true,
       connect: null,
@@ -50,7 +51,8 @@ var WebRTCConnection = (function invocation() {
         audio: true,
         video: true 
       }
-    };
+    });
+
     // TODO:  Throw error if no parent.
     this.dependencies = {
       parent: parent || null
@@ -59,6 +61,7 @@ var WebRTCConnection = (function invocation() {
       state: 'disconnected',
       objName:'WebRTCConnection',
       parentConnected : false,
+      iceServers: [],
       paused: false,
       enabled : false
     };
@@ -103,6 +106,7 @@ var WebRTCConnection = (function invocation() {
      * @param {object} [config.RTCConfiguration] RTCPeerConnection specific {@link http://w3c.github.io/webrtc-pc/} 
      * @param {object} [config.RTCConfiguration.peerIdentity] 
      * @param {boolean} [config.trickleICE=true] Enable/disable ice trickling 
+     * @param {Array} [config.iceServers] Array of strings that represent ICE Servers.
      * @param {boolean} [config.lazyAV=true]  Enable AV lazily [upon connect/accept] rather than during
      * right away
      * @param {boolean} [config.connect=true] Internal, do not use.
@@ -124,54 +128,59 @@ var WebRTCConnection = (function invocation() {
           l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
         };
       }
+      // If connect is true, we will force a connect... 
       var connect = (config && typeof config.connect === 'boolean') ? config.connect : parent.sessionStarted();
       var lazyAV = (config && typeof config.lazyAV === 'boolean') ? config.lazyAV : true;
       // Load Ice Servers...
+      // load with configured iceServers from this.config.iceServers
+      this.setIceServers();
       this.config.RTCConfiguration.iceServers = this.config.RTCConfiguration.iceServers || this.getIceServers();
 
-      l('DEBUG') && console.log(self+'.enable() config created, defining callback');
-
-      // When Enable is called we have a couple of options:
-      // 1.  If parent is connected, enable will createofffer and send it.
-      // 2.  if parent is NOT CONNECTED. enable will create offer and STORE it for sending by _connect.
-      //
-      // 3.  
       /*
-       * create an offer during the enable process
+       * when enable() is called we have a couple of options:
+       *  1.  If parent is connected( a Session is already started) then enable will create an Offer and send it.
+       *  2.  if parent is NOT CONNECTED (and connect is false) enable will create offer and STORE it 
+       *      for sending by _connect later
+       *  3.  if parent is NOT CONNECTED (and connect is TRUE) enable will create offer and send it. 
+       *  4.  If have already been enabled?
+       *
        */
-
-      // If we are enabled already, just return ourselves;
-      //
-
-      if (this._.enabled) {
-        this.enableLocalAV(callback);
-        return this;
-      } else {
-        l('DEBUG') && console.log(self+'.enable() connect if possible? '+connect);
+      if (!this._.enabled) {
+        l('DEBUG') && console.log(self+'.enable() We are not enabled -- enabling');
         try {
           this.pc = createPeerConnection(this.config.RTCConfiguration, this.config.RTCConstraints, this);
+          this._.enabled = true;
         } catch (error) {
           // No PeerConnection support, cannot enable.
           throw new Error(error);
+          // Call the callback w/ false?
         }
-        this._.enabled = true;
-        // If we don't have lazy set and we aren't immediately connecting, enable AV.
-        l('DEBUG') && console.log(self+'.enable() (lazyAV='+lazyAV+',connect='+connect);
-        if (!lazyAV && !connect) {
-          // enable now.
-          this.enableLocalAV(function(success, message) {
-            l('DEBUG') && console.log(self+'.enable() enableLocalAV Callback(success='+success+',message='+message);
-            callback(true);
-          });
-        } else {
-          if (connect) {
-            this._connect(null, callback(true));
-          } else {
-            callback(true);
-          } 
-        } 
-        return this;
+      } else {
+        l('DEBUG') && console.log(self+'.enable() already enabled');
       }
+      /*
+       * If lazyAV is false, enable AV here if its true but connect is true it gets enabled in connect.
+       */
+      if (!lazyAV && !connect) {
+        // enable now.
+        l('DEBUG') && console.log(self+'.enable() lazyAV is false, calling enableLocalAV');
+        this.enableLocalAV(function(success, message) {
+          l('DEBUG') && console.log(self+'.enable() enableLocalAV Callback(success='+success+',message='+message);
+          callback(true);
+       });
+      }
+      /* 
+       * If connect is true, connect
+       */
+      if (connect) {
+        l('DEBUG') && console.log(self+'.enable() connect is true, connecting');
+        // If we should connect, connect;
+        this._connect(callback(true));
+      } else {
+        l('DEBUG') && console.log(self+'.enable() connect is false; skipping connect');
+        callback(true);
+      }
+      return this;
     },
     /** disable webrtc 
      * Disconnect and reset
@@ -195,15 +204,31 @@ var WebRTCConnection = (function invocation() {
     enabled: function() {
       return this._.enabled;
     },
-
+    connect: function connect(){
+      if (this.dependencies.parent.autoEnable) {
+        // Enable and connect
+        return this.enable({connect: true});
+      } else {
+        return this._connect();
+      }
+    },
     /*
      * Called to 'connect' (Send message, change state)
      * Only works if enabled.
      *
      */
-    _connect: function(sendMethod,callback) {
+    _connect: function(callback) {
       var self = this;
-      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
+      var sendMethod = null;
+      var parent = self.dependencies.parent;
+      if (parent.sessionStarted()) {
+        sendMethod = this.send.bind(this);
+      } else if (parent._.activeSession ) {
+        sendMethod = parent._.activeSession.start.bind(parent._.activeSession);
+      } else {
+        throw new Error(self+'._connect() unable to find a sendMethod');
+      }
+
       callback = callback ||function(success, message) {
         l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
       };
@@ -240,6 +265,7 @@ var WebRTCConnection = (function invocation() {
           console.error('_connect failed, '+msg);
         }
       };
+      // Only works if we are already enabled
       if (this._.enabled && this.pc) {
         this.enableLocalAV(doOffer);
         return true;
@@ -842,9 +868,8 @@ var WebRTCConnection = (function invocation() {
     }
   },
  setIceServers: function(service) {
-
+   var self = this;
    l('DEBUG') && console.log(this+'.setIceServers() called w/ service:', service);
-
    function buildTURNobject(url) {
      // We expect this to be in form 
      // turn:<userid>@servername:port:credential:<password>
@@ -863,38 +888,37 @@ var WebRTCConnection = (function invocation() {
        iceServer.username= user;
        iceServer.credential= credential;
      } else {
-       l('DEBUG') && console.log('Unable to parse the url into a Turn Server');
+       l('DEBUG') && console.log(self+'.setIceServers() Unable to parse the url into a Turn Server');
        iceServer = null;
      }
-     l('DEBUG') && console.log(this+'.setIceServers() built iceServer object: ', iceServer);
+     l('DEBUG') && console.log(self +'.setIceServers() built iceServer object: ', iceServer);
      return iceServer;
    }
 
     // Returned object expected to look something like:
     // {"iceServers":[{"urls": "stun:host:port"}, {"urls","turn:host:port"}] 
     var urls = [];
-    if (service && service.iceURL)  {
-        service.iceURL.split(',').forEach(function(url){
-          // remove leading/trailing spaces
-          url = url.trim();
-          var obj = null;
-          if (/^stun:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url);
-            obj = {'urls': url};
-          } else if (/^turn:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url);
-            obj = buildTURNobject(url);
-          } else {
-            l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url);
-          }
-          obj && urls.push(obj);
-        });
-    } 
-    this.config.iceServers = urls;
+    var iceServers = (service && service.iceURL) ? service.iceURL.split(',') : this.config.iceServers;
+    iceServers.forEach(function(url){
+        // remove leading/trailing spaces
+        url = url.trim();
+        var obj = null;
+        if (/^stun:/.test(url)) {
+          l('DEBUG') && console.log(self+'.setIceServers() Is STUN: '+url);
+          obj = {'urls': url};
+        } else if (/^turn:/.test(url)) {
+          l('DEBUG') && console.log(self+'.setIceServers() Is TURN: '+url);
+          obj = buildTURNobject(url);
+        } else {
+          l('DEBUG') && console.error(self+'.setIceServers() Failed to match anything, bad Ice URL: '+url);
+        }
+        obj && urls.push(obj);
+      });
+    this._.iceServers = urls;
    },
   getIceServers: function() {
-    return this.config.iceServers;
-    }
+    return this._.iceServers;
+  }
  };
 
 })()); // End of Prototype

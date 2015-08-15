@@ -93,6 +93,11 @@ define([
       };
 
       var resolve = function() {
+
+        console.log('ep1.getState() === '+ep1.getState());
+        console.log('ep2.getState() === '+ep2.getState());
+        console.log('ep1.webrtc.getState() === '+ep1.webrtc.getState());
+        console.log('ep2.webrtc.getState() === '+ep2.webrtc.getState());
         if (ep2.getState() === 'session:started' && 
             ep1.getState() === 'session:started' && 
             ep1.webrtc.getState() === 'connected' && 

@@ -247,9 +247,9 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         }.bind(this);
 
         mqttClient.onConnectionLost = function(error) {
-          console.error('onConnectionLost', error);
           var newError = null;
           if (error.errorCode !== 0) { // 0 means it was on purpose.
+            console.error('onConnectionLost', error);
             newError = new util.RtcommError(this.ERRORS.CONNLOST.msg);
             newError.name = this.ERRORS.CONNLOST.name;
             newError.src = error.errorMessage;

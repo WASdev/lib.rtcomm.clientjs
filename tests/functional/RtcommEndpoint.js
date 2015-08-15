@@ -136,8 +136,8 @@ define([
          endpointProvider2.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
+         var ep1 = endpointProvider.getRtcommEndpoint({webrtc:false, chat:true});
+         var ep2 = endpointProvider2.getRtcommEndpoint({webrtc:false, chat:true});
          config1.userid='testuser1';
          config2.userid='testuser2';
          var dfd = this.async(T1);
@@ -199,8 +199,11 @@ define([
          endpointProvider2.setAppContext('test');
          // mark for destroy;
          g.endpointProvider2 = endpointProvider2;
+
          var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
          var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
+
+
          config1.userid='testuser1';
          config2.userid='testuser2';
          var dfd = this.async(T1);
@@ -233,20 +236,23 @@ define([
          // ep2(callee)
          //   receive call --> alerting
          //   send ANSWER --> started
-         ep1.on('session:ringing', function() { ep1_ringing = true})
+         //
+         ep1.on('session:ringing', function() { 
+           console.log('>>> ep1 session:ringing');
+           ep1_ringing = true;});
          ep1.on('session:failed', function() { ep1_failed= true})
          ep2.on('session:failed', function() { ep2_failed= true})
          ep1.on('session:trying', function() { ep1_trying = true})
          ep1.on('session:started', function() { ep1_started = true});
          ep2.on('session:started', function() { ep2_started = true});
-         ep1.on('session:stopped', function() { ep1_stopped = true;});
+         ep1.on('session:stopped', function() {console.log('EP1 ***session:stopped'); ep1_stopped = true;});
          ep2.on('session:stopped', finish );
 
          ep2.on('session:alerting', function(obj) {
            // At this state, cancel the call.
            ep2_alerting = true;
            setTimeout(function() {
-            console.log('Disconnecting call');
+            console.log('********* Disconnecting call **************');
             ep1.disconnect();
            },1000);
          });
@@ -268,6 +274,7 @@ define([
                   }
                  );
          },
+
      "in Browser A calls B (sendOneTimeMessage)": function() {
           SKIP_ALL && this.skip(SKIP_ALL);
          var endpointProvider2 = new EndpointProvider();

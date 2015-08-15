@@ -19,7 +19,6 @@
 
 var RtcommEndpoint = (function invocation(){
 
-
   var createChat = function createChat(parent) {
     /* globals Chat:false */
     var chat = new Chat(parent);
@@ -30,10 +29,12 @@ var RtcommEndpoint = (function invocation(){
       parent.emit('chat:message', {'message': message});
     });
     chat.on('alerting', function(message) {
+      l('DEBUG') && console.log('RtcommEndpoint emitting session:alerting event');
       var obj =  {};
       obj.message  = message;
       obj.protocols = 'chat';
-      parent.emit('session:alerting', obj );
+      // Have to do setState here because the parent state needs to change.
+      parent.setState('session:alerting', obj );
     });
     chat.on('connected', function() {
       parent.emit('chat:connected');
@@ -109,14 +110,19 @@ var RtcommEndpoint = (function invocation(){
     // then augment newSession object.
     //
     this.config = {
+      // if a feature is supported, enable by default.
+      autoEnable: false,
       ignoreAppContext: true,
       appContext : null,
       userid: null,
       ringtone: null,
       ringbacktone: null,
       chat: true,
-      webrtc: true
+      chatConfig: {},
+      webrtc:true,
+      webrtcConfig:{}
     };
+
     this.dependencies = {
       endpointConnection: null,
     };
@@ -379,7 +385,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     });
     session.on('stopped', function(message) {
       // We could already be stopped, ignore it in that case.
-      l('DEBUG') && console.log('SigSession callback called to process STOPPED: ' + context.getState());
+      l('DEBUG') && console.log(context+' SigSession callback called to process STOPPED: ' + context.getState());
       if (context.getState() !== 'session:stopped') {
         // In this case, we should disconnect();
         context.setState('session:stopped');
@@ -399,18 +405,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
   }
 /** @lends module:rtcomm.RtcommEndpoint.prototype */
 return  {
-  _playRingtone: function() {
-    this._.ringTone && this._.ringTone.play();
-  },
-  _playRingback: function() {
-    this._.ringbackTone && this._.ringbackTone.play();
-  },
-  _stopRing: function() {
-    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
-    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
-    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
-    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
-  },
   getAppContext:function() {return this.config.appContext;},
   newSession: function(session) {
       var event = null;
@@ -486,7 +480,6 @@ return  {
               // It is a chat this will change to something different later on...
               if (this.config.chat) { 
                 this.chat._processMessage(payload[type]);
-                //this.emit('chat:message', payload.userdata);
               } else {
                 console.error('Received chat message, but chat not supported!',payload[type]);
               }
@@ -519,6 +512,18 @@ return  {
    } else {
      l('DEBUG') && console.log(this+' Received message, but nothing to do with it', payload);
    }
+  },
+  _playRingtone: function() {
+    this._.ringTone && this._.ringTone.play();
+  },
+  _playRingback: function() {
+    this._.ringbackTone && this._.ringbackTone.play();
+  },
+  _stopRing: function() {
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
+    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
+    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
   },
   /** Endpoint is available to accept an incoming call
    *
@@ -561,12 +566,10 @@ return  {
         addSessionCallbacks(this, this._.activeSession);
       } 
       this.setState('session:trying');
-      if (this.config.webrtc && 
-          this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
-        l('DEBUG') && console.log(this+'.connect() initiating with webrtc._connect');
-      } else if (this.config.chat && 
-                 this.chat._connect(this._.activeSession.start.bind(this._.activeSession))){
-        l('DEBUG') && console.log(this+'.connect() initiating with chat._connect');
+      if (this.config.webrtc && this.webrtc.connect()) {
+        l('DEBUG') && console.log(this+'.connect() initiating with webrtc.enable({connect:true})');
+      } else if (this.config.chat && this.chat.enable({connect:true})){
+        l('DEBUG') && console.log(this+'.connect() initiating with chat.enable({connect:true})');
       } else {
         l('DEBUG') && console.log(this+'.connect() sending startMessage w/ no content');
         this._.activeSession.start();
