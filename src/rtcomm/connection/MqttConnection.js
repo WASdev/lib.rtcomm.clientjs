@@ -247,9 +247,9 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         }.bind(this);
 
         mqttClient.onConnectionLost = function(error) {
-          console.error('onConnectionLost', error);
           var newError = null;
           if (error.errorCode !== 0) { // 0 means it was on purpose.
+            console.error('onConnectionLost', error);
             newError = new util.RtcommError(this.ERRORS.CONNLOST.msg);
             newError.name = this.ERRORS.CONNLOST.name;
             newError.src = error.errorMessage;
@@ -302,7 +302,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
            *    errorMessage: some string
            */
           // TODO:  ADD loggin here.  Would be perfect... 
-          console.log('connectAttempts:'+connectAttempts+' retry: '+retry+'this.retry:'+this.retry);
           if (connectAttempts < retry) {
             this.retry = true;
           } else {
@@ -342,8 +341,8 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           connectAttempts++;
           // If we are not ready (so we connected) or retry is not set)
           // Retry could be turned off in onFailure and onSuccess.
-          l('DEBUG') && console.log(self+'.connect() attempting to connect, try:'+connectAttempts);
           if (!self.ready && self.retry) {
+            l('DEBUG') && console.log(self+'.connect() attempting to connect, try:'+connectAttempts);
             mqttClient.connect(util.makeCopy(mqttConnectOptions));
             setTimeout(retryConnect, 1000);
           }
@@ -453,5 +452,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
       }
     }; // end of Return
 })());
+
 exports.MqttConnection = MqttConnection;
 

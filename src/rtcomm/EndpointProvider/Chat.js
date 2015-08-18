@@ -41,6 +41,11 @@ var Chat = (function invocation() {
     this.onDisabledMessage = null;
     this.state = 'disconnected';
 
+    // TODO:  Throw error if no parent.
+    this.dependencies = {
+      parent: parent || null
+    };
+
     this.events = {
       'message': [],
       'ringing': [],
@@ -54,20 +59,46 @@ var Chat = (function invocation() {
      * @param {string} message  Message to send when enabled.
      */  
     this.enable =  function(message) {
-      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
+      var connect = false;
+      if (typeof message === 'object') {
+        if (typeof message.connect === 'boolean') {
+          connect = message.connect;
+        }
+        if (message.message) {
+          message = message.message;
+        } else {
+          message = null;
+        }
+      } 
 
+      /*
+       * TODO:  Get this working, write new tests too!  
+       *
+       * Remember, all sessions support CHAT be default so we should 'just work'
+       *
+       * Work on this over weekend!!!!
+       *
+       */
+      l('DEBUG') && console.log(this+'.enable() - message --> '+ message);
+      l('DEBUG') && console.log(this+'.enable() - --> '+ connect);
+      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
       this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
       // Don't need much, just set enabled to true.
       // Default message
       this._.enabled = true;
-      
+
       if (parent.sessionStarted()) {
         l('DEBUG') && console.log(this+'.enable() - Session Started, connecting chat');
         this._connect();
       } else { 
-        l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
-        parent._.activeSession && parent._.activeSession.respond();
-        this._connect();
+        if (connect) {
+          // we are expected to actually connect
+          this._connect();
+        } else {
+          l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
+          // respond to a session if we are active
+          parent._.activeSession && parent._.activeSession.respond();
+        }
       }
       return this;
     };
@@ -101,6 +132,9 @@ var Chat = (function invocation() {
       }
       return null;
     };
+    this.enabled = function enabled(){ 
+      return this._.enabled;
+    };
     /**
      * send a chat message
      * @param {string} message  Message to send
@@ -112,8 +146,25 @@ var Chat = (function invocation() {
         parent._.activeSession.send(message);
       }
     };
-    this._connect = function(sendMethod) {
-      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
+
+    this.connect = function() {
+      if (this.dependencies.parent.autoEnable) {
+        this.enable({connect:true});
+      } else {
+        this._connect();
+      }
+    };
+    this._connect = function() {
+      var self = this;
+      var sendMethod = null;
+      var parent = self.dependencies.parent;
+      if (parent.sessionStarted()) {
+        sendMethod = this.send.bind(this);
+      } else if (parent._.activeSession ) {
+        sendMethod = parent._.activeSession.start.bind(parent._.activeSession);
+      } else {
+        throw new Error(self+'._connect() unable to find a sendMethod');
+      }
       if (this._.enabled) {
         this.onEnabledMessage && sendMethod({'payload': this.onEnabledMessage});
         this._setState('connected');
@@ -129,9 +180,14 @@ var Chat = (function invocation() {
     //
     this._processMessage = function(message) {
       // If we are connected, emit the message
+      var parent = this.dependencies.parent;
       if (this.state === 'connected') {
         this.emit('message', message);
+      } else if (this.state === 'alerting') {
+        // dropping message, not in a state to receive it.
+        l('DEBUG') && console.log(this+ '_processMessage() Dropping message -- unable to receive in alerting state'); 
       } else {
+        // If we aren't stopped, then we should pranswer it and alert.
         if (!parent.sessionStopped()) {
           parent._.activeSession && parent._.activeSession.pranswer();
           this._setState('alerting', message);

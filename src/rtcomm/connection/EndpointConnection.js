@@ -181,7 +181,13 @@ var EndpointConnection = function EndpointConnection(config) {
       } else {
         // We have a transID, we need to pass message to it.
         // May fail? check.
-        endpointConnection.transactions.find(rtcommMessage.transID).emit('message',rtcommMessage);
+        var msgTransaction = endpointConnection.transactions.find(rtcommMessage.transID);
+        if (msgTransaction) {
+          msgTransaction.emit('message',rtcommMessage);
+        } else {
+          l('DEBUG') && console.log('Dropping message, transaction is gone for message: ',message);
+        }
+
       }
     } else if (rtcommMessage && rtcommMessage.sigSessID) {
       // has a session ID, fire it to that.

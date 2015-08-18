@@ -193,7 +193,8 @@ The primary logic for this HTML Page
     rtcommTopicPath: "/rtcomm/",
     createEndpoint : true,
     useSSL: false,
-    presence: {topic: 'defaultRoom'} 
+    presence: {topic: 'defaultRoom'},
+    credentials: {userName: 'swgraham', password: 'password'}
   };
 
   var urlConfig = getUrlParams();
@@ -262,24 +263,6 @@ The primary logic for this HTML Page
                 // Configure the rtcommEndpoint now
                 rtcommEndpoint = object.endpoint;
                 // Set the media div's webrtc will use, but do not ENABLE AV yet.
-                rtcommEndpoint.webrtc.setLocalMedia(
-                  { enable: false, 
-                    mediaOut: document.querySelector('#selfView'),
-                    mediaIn: document.querySelector('#remoteView'),
-                  });
-
-                if (regwithAV) {
-                  // Enable Audio Video here.
-                  console.log('** videoClient.html ** Enabling Webrtc without lazyAV');
-                  //NOTE:  lazyAV means we will enable when we have too, in this case, the UI wants
-                  // To enable it right away.  
-                  rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE, lazyAV: false}, function() {
-                    console.log('>>>>>>>>>>>>>>SUCCESS ENABLED WEBRTC CALLBACK');
-                  });
-                } else {
-                  console.log('** videoClient.html ** Enabling Webrtc...');
-                  rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE});
-                }
               }, function(error) { //onFailure
                 console.error('init failed: ', error);
                 alertMessage('Initialization and registration failed!');
@@ -298,8 +281,15 @@ The primary logic for this HTML Page
   ibmep.setRtcommEndpointConfig({
       // Our endpoints will be setup to broadcast Audio and Video 
       // BROADCAST is set at the top
-      broadcast:  { audio: BROADCAST, video: BROADCAST},
-
+      autoEnable: true,
+      webrtcConfig: {
+        broadcast:  { 
+          audio: BROADCAST, 
+          video: BROADCAST},
+        trickleICE: trickleICE,
+        mediaOut: document.querySelector('#selfView'),
+        mediaIn: document.querySelector('#remoteView')
+      },
       // Played when call is going out
       ringbacktone: 'resources/ringbacktone.wav',
       // played when inbound call occurrs
@@ -394,13 +384,16 @@ The primary logic for this HTML Page
       if (connected) {
         connected = false;
         rtcommEndpoint.disconnect();
-
-        // TODO: Move this into a callback for disconnect. (Issue #61)
-        setTimeout(function() {
+        /* Since this is using the same endpoint, a disconnect
+         * needs to re-enable the endpoint so it can receive/make new
+         * calls. 
+         * The timeout is necessary for the time being because 
+         * the disconnect() may take a bit and does not provide a callback.
+         * 
+         * This will be resolved in the future.
+         */
           $('#btnConnect').text('Connect');
           updateMessage(message || 'Unknown');
-          rtcommEndpoint.webrtc.enable({'trickleICE':trickleICE});
-          }, 1000);
       }
   };
 
@@ -500,14 +493,7 @@ The primary logic for this HTML Page
     } else {
       updateMessage('Connecting to '+remoteid);
       // This is only necessary if you want to enable/connect in same motion. 
-      rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE}, function(success, message) {
-        console.log('Enable Completed: '+ success);
-        if (success) {
-          rtcommEndpoint.connect(remoteid);
-        } else {
-          console.error('enable failed: '+ message)
-          }
-        });
+      rtcommEndpoint.connect(remoteid);
       $("#connectModal").modal("hide");
       $('#connAlert').hide();
     }

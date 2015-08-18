@@ -155,7 +155,7 @@ var EndpointProvider =  function EndpointProvider() {
     var rtcommTopicPath = '/rtcomm/';
     // If we are served over SSL, use SSL is needed.
     //
-    var useSSL = (location && location.protocol === 'https:') ? true : false;
+    var useSSL = (typeof location !== 'undefined' && location.protocol === 'https:') ? true : false;
     var configDefinition = {
         required: { server: 'string', port: 'number'},
         optional: {
@@ -386,9 +386,31 @@ var EndpointProvider =  function EndpointProvider() {
    * @example
    *
    * endpointProvider.setRtcommEndpointConfig({
-   *   webrtc: true,
+   *   autoEnable: false,
+   *   ignoreAppContext: true,
+   *   appContext : null,
+   *   userid: null,
+   *   ringtone: null,
+   *   ringbacktone: null,
    *   chat: true,
-   *   broadcast: { audio: true, video: true},
+   *   chatConfig: {},
+   *   webrtc:true,
+   *   webrtcConfig:{
+   *     broadcast: { audio: true, video: true},
+   *     iceServers:
+   *     RTCConfiguration : {iceTransports : "all"},
+   *     RTCOfferConstraints: OfferConstraints,
+   *     RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
+   *     mediaIn: null,
+   *     mediaOut: null,
+   *     iceServers: [],
+   *     lazyAV: true,
+   *     trickleICE: true,
+   *     connect: null,
+   *     broadcast: {
+   *       audio: true,
+   *       video: true 
+   *     },
    *   'session:started': function(event) {
    *
    *   }, 
@@ -435,62 +457,69 @@ var EndpointProvider =  function EndpointProvider() {
         webrtc: true,
         parent:this
     };
-    var objConfig = defaultConfig;
-    // if there is a config defined...
-    if (this._.rtcommEndpointConfig) {
-      objConfig.chat = (typeof this._.rtcommEndpointConfig.chat === 'boolean') ? 
-        this._.rtcommEndpointConfig.chat : objConfig.chat;
-      objConfig.webrtc = (typeof this._.rtcommEndpointConfig.webrtc === 'boolean') ? 
-        this._.rtcommEndpointConfig.webrtc : objConfig.webrtc;
-      objConfig.ringtone = (this._.rtcommEndpointConfig.ringtone) ?  this._.rtcommEndpointConfig.ringtone: null; 
-      objConfig.ringbacktone = (this._.rtcommEndpointConfig.ringbacktone) ?  this._.rtcommEndpointConfig.ringbacktone: null; 
-    }
 
-    if (typeof this.config.appContext === 'undefined') {
-      throw new Error('Unable to create an Endpoint without appContext set on EndpointProvider');
-    }
-    if(endpointConfig && typeof endpointConfig !== 'object') {
+    /*
+     * If endpointConfig is not an Object, it should be a String that is an ID of an endpoint
+     */
+    if (endpointConfig && typeof endpointConfig !== 'object') {
       endpointid = endpointConfig;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() Looking for endpoint: '+endpointid);
       // Returns an array of 1 endpoint. 
       endpoint = this._.endpointRegistry.get(endpointid)[0];
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() found endpoint: ',endpoint);
     } else {
+      if (typeof this.config.appContext === 'undefined') {
+        throw new Error('Unable to create an Endpoint without appContext set on EndpointProvider');
+      }
+      /*
+       * First, if there is a config defined on the provider, we are going to use it:
+       */
+      // Merge the objects, will still have callbacks.
+
+      var objConfig = util.combineObjects(this._.rtcommEndpointConfig, defaultConfig);
+      // 
+      // If we have any callbacks defined, put in their own object for later.
+      //
+      var endpointCallbacks = {};
+      Object.keys(objConfig).forEach(function(key){
+         if (typeof objConfig[key] === 'function') {
+           endpointCallbacks[key] = objConfig[key];
+           delete objConfig[key];
+         }
+      });
+      // Any passed in config overrides the existing config.
       applyConfig(endpointConfig, objConfig);
+      // Add some specific config from the EndpointProvider
       objConfig.appContext = this.config.appContext;
       objConfig.userid = this.config.userid;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint using config: ', objConfig);
+      // Create the endpoint
       endpoint = new RtcommEndpoint(objConfig);
+      // attach the endpointConnection if it exists. 
       this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
-//      endpoint.init(objConfig);
+      // If the endpoint is destroyed, define the behavior to cleanup.
       endpoint.on('destroyed', function(event_object) {
         endpointProvider._.endpointRegistry.remove(event_object.endpoint);
       });
-      // If we have any callbacks defined:
-      //
-      if (this._.rtcommEndpointConfig) {
-        Object.keys(this._.rtcommEndpointConfig).forEach(function(key){
-          try {
-            if (typeof endpointProvider._.rtcommEndpointConfig[key] === 'function') {
-              endpoint.on(key, endpointProvider._.rtcommEndpointConfig[key]);
-            } 
-          } catch (e) {
-            console.error(e);
-            console.error('Invalid event in rtcommEndpointConfig: '+key);
-          }
-        });
-      }
-      if (this._.rtcommEndpointConfig.bubble && (typeof this._.rtcommEndpointConfig.bubble === 'function')) {
-        // Attach the bubble event
-        endpoint.bubble(this._.rtcommEndpointConfig.bubble);
-      }
-      // If broadcast needs to be set
-      if(this._.rtcommEndpointConfig.broadcast) {
-        endpoint.webrtc && endpoint.webrtc.setBroadcast(this._.rtcommEndpointConfig.broadcast);
-      }
       // Add to registry or return the one already there
       endpoint = this._.endpointRegistry.add(endpoint);
       l('DEBUG') && console.log('ENDPOINT REGISTRY: ', this._.endpointRegistry.list());
+      // Attach the callbacks
+      Object.keys(endpointCallbacks).forEach(function(key) {
+         if (typeof endpointCallbacks[key] === 'function') {
+           try {
+             if (key === 'bubble') {
+               // this is actually a special behavior and should be handled separately
+               endpoint.bubble(endpointCallbacks[key]);
+             } else {
+               endpoint.on(key, endpointCallbacks[key]);
+             }
+           } catch (e) {
+            console.error(e);
+            console.error('Invalid event in rtcommEndpointConfig: '+key);
+           }
+         }
+        });
     }
     return endpoint;
   };

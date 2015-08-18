@@ -197,7 +197,7 @@ var combineObjects = function combineObjects(obj1, obj2) {
 };
 
 var makeCopy = function(obj) {
-  var returnObject = {};;
+  var returnObject = {};
   Object.keys(obj).forEach(function(key){
     returnObject[key] = obj[key];
   });
