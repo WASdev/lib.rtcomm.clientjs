@@ -98,7 +98,7 @@ define([
         },
 
         'Init of EndpointProvider creates Queues' : function() {
-          noQueuesConfigured && this.skip();
+          noQueuesConfigured && this.skip("There are no Queues configured on the server");
           console.log('queues: ', ep.listQueues());
           assert.ok(ep.listQueues().length > 0 , 'queues is defined');
         },
@@ -113,8 +113,40 @@ define([
           }
           assert.isDefined(error, 'An error was thrown correctly');
         },
+        "Join/Leave queue": function() {
+          noQueuesConfigured && this.skip("There are no Queues configured on the server");
+          console.log('***************** RunTest ************');
+          var dfd = this.async();
+          var endpoint = ep.createRtcommEndpoint({webrtc: false, chat:true});
+          console.log('TEST endpoint: ', endpoint);
+          var initObj = null;
+          var success = false;
+          var self = this;
+          var testConfig = config.clientConfig();
+          testConfig.userid = 'Agent';
+          var finish = dfd.callback(function(object) {
+            console.log('************ Finish called w/ OBJECT: ',object);
+            var e = false;
+            try{
+              if (ep.listQueues().length > 0) {
+                ep.joinQueue(ep.listQueues()[0]);
+              }
+            } catch(error) {
+              e= true;
+            }
+            ep.leaveQueue(ep.listQueues()[0]);
+            console.log('TEST -> userid: ' + endpoint.userid);
+            assert.ok(/^Agent/.test(endpoint.userid));
+            console.log("TEST => ready: "+ endpoint);
+            assert.ok(endpoint);
+            console.log("JoinQueue was successful: "+ endpoint);
+            assert.notOk(e);
+          });
+          ep.init(testConfig,finish, finish);
+        },
+
         'Send a start session to a queue': function () {
-          noQueuesConfigured && this.skip();
+          noQueuesConfigured && this.skip("There are no Queues configured on the server");
           var dfd = this.async(5000);
           var error;
           var queue = ep.getAllQueues()[ep.listQueues()[0]];

@@ -193,7 +193,8 @@ The primary logic for this HTML Page
     rtcommTopicPath: "/rtcomm/",
     createEndpoint : true,
     useSSL: false,
-    presence: {topic: 'defaultRoom'} 
+    presence: {topic: 'defaultRoom'},
+    credentials: {userName: 'swgraham', password: 'password'}
   };
 
   var urlConfig = getUrlParams();
@@ -280,6 +281,7 @@ The primary logic for this HTML Page
   ibmep.setRtcommEndpointConfig({
       // Our endpoints will be setup to broadcast Audio and Video 
       // BROADCAST is set at the top
+      autoEnable: true,
       webrtcConfig: {
         broadcast:  { 
           audio: BROADCAST, 
@@ -381,7 +383,7 @@ The primary logic for this HTML Page
   function uiDisconnect(message) {
       if (connected) {
         connected = false;
-        rtcommEndpoint.disconnect();
+        //rtcommEndpoint.disconnect();
         /* Since this is using the same endpoint, a disconnect
          * needs to re-enable the endpoint so it can receive/make new
          * calls. 

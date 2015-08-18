@@ -386,9 +386,31 @@ var EndpointProvider =  function EndpointProvider() {
    * @example
    *
    * endpointProvider.setRtcommEndpointConfig({
-   *   webrtc: true,
+   *   autoEnable: false,
+   *   ignoreAppContext: true,
+   *   appContext : null,
+   *   userid: null,
+   *   ringtone: null,
+   *   ringbacktone: null,
    *   chat: true,
-   *   broadcast: { audio: true, video: true},
+   *   chatConfig: {},
+   *   webrtc:true,
+   *   webrtcConfig:{
+   *     broadcast: { audio: true, video: true},
+   *     iceServers:
+   *     RTCConfiguration : {iceTransports : "all"},
+   *     RTCOfferConstraints: OfferConstraints,
+   *     RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
+   *     mediaIn: null,
+   *     mediaOut: null,
+   *     iceServers: [],
+   *     lazyAV: true,
+   *     trickleICE: true,
+   *     connect: null,
+   *     broadcast: {
+   *       audio: true,
+   *       video: true 
+   *     },
    *   'session:started': function(event) {
    *
    *   }, 

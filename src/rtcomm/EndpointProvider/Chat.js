@@ -132,6 +132,9 @@ var Chat = (function invocation() {
       }
       return null;
     };
+    this.enabled = function enabled(){ 
+      return this._.enabled;
+    };
     /**
      * send a chat message
      * @param {string} message  Message to send

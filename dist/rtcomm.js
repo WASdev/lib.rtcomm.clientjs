@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 15-08-2015 13:50:07 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 15-08-2015 13:50:07 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 20:18:54 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 20:18:54 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -3005,6 +3005,9 @@ var Chat = (function invocation() {
       }
       return null;
     };
+    this.enabled = function enabled(){ 
+      return this._.enabled;
+    };
     /**
      * send a chat message
      * @param {string} message  Message to send
@@ -3473,9 +3476,31 @@ var EndpointProvider =  function EndpointProvider() {
    * @example
    *
    * endpointProvider.setRtcommEndpointConfig({
-   *   webrtc: true,
+   *   autoEnable: false,
+   *   ignoreAppContext: true,
+   *   appContext : null,
+   *   userid: null,
+   *   ringtone: null,
+   *   ringbacktone: null,
    *   chat: true,
-   *   broadcast: { audio: true, video: true},
+   *   chatConfig: {},
+   *   webrtc:true,
+   *   webrtcConfig:{
+   *     broadcast: { audio: true, video: true},
+   *     iceServers:
+   *     RTCConfiguration : {iceTransports : "all"},
+   *     RTCOfferConstraints: OfferConstraints,
+   *     RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
+   *     mediaIn: null,
+   *     mediaOut: null,
+   *     iceServers: [],
+   *     lazyAV: true,
+   *     trickleICE: true,
+   *     connect: null,
+   *     broadcast: {
+   *       audio: true,
+   *       video: true 
+   *     },
    *   'session:started': function(event) {
    *
    *   }, 
@@ -5653,7 +5678,6 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
       l('DEBUG') && console.log(context+' SigSession callback called to process STOPPED: ' + context.getState());
       if (context.getState() !== 'session:stopped') {
         // In this case, we should disconnect();
-        console.log('REMOVE ME: context', context);
         context.setState('session:stopped');
         context.disconnect();
       }
@@ -6072,6 +6096,23 @@ var WebRTCConnection = (function invocation() {
       OfferToReceiveVideo: true}
     };
 
+    /** 
+     * @typedef {object} webrtcEnableConfig
+     *
+     * @property {object} [mediaIn]  UI component to attach inbound media stream
+     * @property {object} [mediaOut] UI Component to attach outbound media stream
+     * @property {object} [broadcast] 
+     * @property {boolean} [broadcast.audio] Broadcast Audio
+     * @property {boolean} [broadcast.video] Broadcast Video
+     * @property {object} [RTCOfferConstraints] RTCPeerConnection specific config {@link http://w3c.github.io/webrtc-pc/} 
+     * @property {object} [RTCConfiguration] RTCPeerConnection specific {@link http://w3c.github.io/webrtc-pc/} 
+     * @property {object} [RTCConfiguration.peerIdentity] 
+     * @property {boolean} [trickleICE=true] Enable/disable ice trickling 
+     * @property {Array} [iceServers] Array of strings that represent ICE Servers.
+     * @property {boolean} [lazyAV=true]  Enable AV lazily [upon connect/accept] rather than during
+     * right away
+     * @property {boolean} [connect=true] Internal, do not use.
+     */
     this.config = util.combineObjects(parent.config.webrtcConfig, {
       RTCConfiguration : {iceTransports : "all"},
       RTCOfferConstraints: OfferConstraints,
@@ -6129,6 +6170,7 @@ var WebRTCConnection = (function invocation() {
      * When enable() is called, if we are connected we will initiate a webrtc connection (generate offer)
      * Otherwise, call enable() prior to connect and when connect occurs it will do what is enabled...
      * </p>
+     *
      *
      * @param {object} [config]
      *
@@ -6221,14 +6263,10 @@ var WebRTCConnection = (function invocation() {
      * Disconnect and reset
      */
     disable: function() {
-      this.onEnabledMessage = null;
       if (this._.enabled) {
         l('DEBUG') && console.log(this+'.disable() disabling webrtc');
         this._.enabled = false;
         this._disconnect();
-        if (this.pc) {
-          this.pc = null;
-        }
       }
       return this;
     },
@@ -6240,7 +6278,7 @@ var WebRTCConnection = (function invocation() {
       return this._.enabled;
     },
     connect: function connect(){
-      if (this.dependencies.parent.autoEnable) {
+      if (this.dependencies.parent.config.autoEnable) {
         // Enable and connect
         return this.enable({connect: true});
       } else {
@@ -6310,10 +6348,14 @@ var WebRTCConnection = (function invocation() {
     },
 
     _disconnect: function() {
-      l('DEBUG') && console.log(this+'._disconnect() Signaling State is: '+this.pc.signalingState);
-      if (this.pc && this.pc.signalingState !== 'closed') {
-        l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
-        this.pc.close();
+      if (this.pc) {
+        l('DEBUG') && console.log(this+'._disconnect() Signaling State is: '+this.pc.signalingState);
+        if (this.pc.signalingState !== 'disconnected' || this.pc.signalingState !== 'closed'  ) {
+          l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
+          this.pc.close();
+        }
+        // set it to null
+        this.pc = null;
       }
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
@@ -6986,14 +7028,14 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
     peerConnection.oniceconnectionstatechange = function (evt) {
       if (this.pc === null) {
         // If we are null, do nothing... Weird cases where we get here I don't understand yet.
-        l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE fired but this.pc is null');
+        l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE fired but this.pc is null', evt);
         return;
       }
       l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE '+ this.pc.iceConnectionState);
       // When this is connected, set our state to connected in webrtc.
-      if (this.pc.iceConnectionState === 'closed') {
+      if (this.pc.iceConnectionState === 'closed' || this.pc.iceConnectionState === 'disconnected') {
         // wait for it to be 'Closed'  
-        this.disable();
+        this._disconnect();
       } else if (this.pc.iceConnectionState === 'connected') {
         this._setState('connected');
       }
@@ -7051,7 +7093,7 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
     }.bind(context);
 
     peerConnection.onsignalingstatechange = function(evt) {
-        l('DEBUG') && console.log('peerConnection onsignalingstatechange fired: ', evt);
+        l('DEBUG') && console.log(this+' peerConnection onsignalingstatechange fired: ', evt);
     }.bind(context);
 
     peerConnection.onclosedconnection = function(evt) {

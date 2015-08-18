@@ -23,8 +23,9 @@ define([
         'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'bower_components/webrtc-adapter/adapter',
-    'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred,globals, config, adapter, EndpointProvider) {
+    'umd/rtcomm/EndpointProvider',
+    'support/rtcommFatUtils'
+], function (intern, registerSuite, assert, Deferred,globals, config, adapter, EndpointProvider,Fat) {
 
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     console.log('GLOBALS?', globals);
@@ -99,36 +100,25 @@ define([
           });
           endpointProvider.init(config1,finish, finish);
         },
-      "Join/Leave queue": function() {
+        "Endpoint creation(iceServers)": function() {
           SKIP_ALL && this.skip(SKIP_ALL);
           console.log('***************** RunTest ************');
-          var dfd = this.async();
-          var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
-          console.log('TEST endpoint: ', ep);
-          var initObj = null;
-          var success = false;
-          var self = this;
-          config1.userid = 'Agent';
-
+          var dfd = this.async(T1);
+          var endpoint = null;
+          var ICE = ['stun:rtcomm.fat.com:19302','stun:rtcomm1.fat.com:19302'];
           var finish = dfd.callback(function(object) {
             console.log('************ Finish called w/ OBJECT: ',object);
-            var e = false;
-            try{
-              if (endpointProvider.listQueues().length > 0) {
-                endpointProvider.joinQueue(endpointProvider.listQueues()[0]);
-              }
-            } catch(error) {
-              e= true;
-            }
-            endpointProvider.leaveQueue(endpointProvider.listQueues()[0]);
-            console.log('TEST -> userid: ' + ep.userid);
-            assert.ok(/^Agent/.test(ep.userid));
-            console.log("TEST => ready: "+ ep);
-            assert.ok(ep);
-            console.log("JoinQueue was successful: "+ ep);
-            assert.notOk(e);
+            // should be ready, should have a GUEST userid
+            console.log("Ice Servers", endpoint.webrtc.config.iceServers);
+            assert.equal(endpoint.webrtc.config.iceServers, ICE, 'Ice Servers are set');
           });
-          endpointProvider.init(config1,finish, finish);
+          Fat.createProvider(config.clientConfig(), 'test').then(
+            function(ep){
+              endpoint = ep.createRtcommEndpoint({webrtc:true, chat:true});
+              console.log('Endpoint?', endpoint);
+              endpoint.webrtc.enable({iceServers: ICE});
+              finish();
+            });
         },
      "in Browser A calls B": function() {
          SKIP_ALL && this.skip(false);
@@ -565,80 +555,6 @@ define([
                     console.log('error in customer init:' + error);
                   }
                  );
-         },
-     "Create many endpoints" : function() {
-       // This test is in progress
-         this.skip();
-         // mark for destroy;
-         var config1 = config.clientConfig();
-         var endpointProvider2 = g.endpointProvider2 = new EndpointProvider();
-         var config2 = config.clientConfig();
-         var endpointProvider3 = g.endpointProvider3 = new EndpointProvider();
-         var config3 = config.clientConfig();
-         var endpointProvider4 = g.endpointProvider4 = new EndpointProvider();
-         var config4 = config.clientConfig();
-
-         endpointProvider2.setAppContext('test');
-         endpointProvider3.setAppContext('test');
-         endpointProvider4.setAppContext('test');
-
-         // All enpdointProvider1 should be INBOUND... 
-          
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep4 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
-
-         var onNewEndpoint = function(event) {
-           // you don't know the provider here.
-
-         };
-
-         var initAllEps = function() {
-           var dfd = new Deferred();
-           endpointProvider.init(config1);
-           endpointProvider2.init(config2);
-           endpointProvider3.init(config3);
-           endpointProvider4.init(config4);
-           setTimeout(function(){
-            dfd.resolve();
-           },3000);
-           return dfd.promise;
-         };
-
-         var dfd = this.async(T1);
-         initAllEps.then(
-
-         );
-         var finish = dfd.callback(function(object){
-            console.log("******************Asserting now...***********************");
-            console.log('endpoint1: ',ep1);
-            console.log('endpoint2: ',ep2);
-            assert.ok(ep1.sessionStarted());
-            assert.ok(ep2.sessionStarted());
-            endpointProvider2.destroy();
-         });
-
-         ep1.on('session:started', finish);
-         ep2.on('session:alerting', function(obj) {
-           console.log('>>>>TEST  accepting call');
-           ep2.accept();
-         });
-         endpointProvider.init(config1,
-                  function(obj) {
-                    endpointProvider2.init(config2,
-                        function(obj) {
-                          console.log('calling EP2');
-                          ep1.connect(config2.userid);
-                        },
-                        function(error) {
-                          console.log('error in ep2 init:' + error);
-                        }
-                       );
-                  },
-                  function(error) {
-                    console.log('error in ep1 init:' + error);
-                  }
-                 );
-         },
+         }
     });
 });
