@@ -80,7 +80,7 @@ define([
           DEBUG && endpointProvider.setLogLevel('DEBUG');
         },
         "Endpoint creation(anonymous)": function() {
-          SKIP_ALL && this.skip(SKIP_ALL);
+          SKIP_ALL && this.skip();
           console.log('***************** RunTest ************');
           var dfd = this.async(T1);
           var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
@@ -96,15 +96,20 @@ define([
               assert.ok(ep);
               console.log("TEST => : "+ object.ready);
               assert.ok(object.ready);
+              ep.destroy();
               ep = null;
           });
           endpointProvider.init(config1,finish, finish);
         },
+
         "Endpoint creation(iceServers)": function() {
-          SKIP_ALL && this.skip(SKIP_ALL);
-          console.log('***************** RunTest ************');
+          if (typeof global !== 'undefined' || typeof window === 'undefined') {
+            console.log('********* SKIPPING TEST ***************');
+            this.skip("This test only runs in the Browser");
+          }
+          console.log('***************** RunTest iceServers ************');
           var dfd = this.async(T1);
-          var endpoint = null;
+          var endpoint = g.endpoint = null;
           var ICE = ['stun:rtcomm.fat.com:19302','stun:rtcomm1.fat.com:19302'];
           var finish = dfd.callback(function(object) {
             console.log('************ Finish called w/ OBJECT: ',object);
@@ -184,7 +189,7 @@ define([
                  );
          },
      "in Browser A calls B(disconnect while ringing)": function() {
-         //SKIP_ALL && this.skip(false);
+         SKIP_ALL && this.skip(false);
          var endpointProvider2 = new EndpointProvider();
          endpointProvider2.setAppContext('test');
          // mark for destroy;
@@ -192,8 +197,8 @@ define([
 
          var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
          var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
-
-
+         g.ep1 = ep1;
+         g.ep2 = ep2;
          config1.userid='testuser1';
          config2.userid='testuser2';
          var dfd = this.async(T1);

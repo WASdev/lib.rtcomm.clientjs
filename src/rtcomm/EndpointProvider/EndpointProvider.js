@@ -155,7 +155,7 @@ var EndpointProvider =  function EndpointProvider() {
     var rtcommTopicPath = '/rtcomm/';
     // If we are served over SSL, use SSL is needed.
     //
-    var useSSL = (location && location.protocol === 'https:') ? true : false;
+    var useSSL = (typeof location !== 'undefined' && location.protocol === 'https:') ? true : false;
     var configDefinition = {
         required: { server: 'string', port: 'number'},
         optional: {

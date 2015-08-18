@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 21:14:35 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 21:14:35 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 21:37:25 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 21:37:25 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -3245,7 +3245,7 @@ var EndpointProvider =  function EndpointProvider() {
     var rtcommTopicPath = '/rtcomm/';
     // If we are served over SSL, use SSL is needed.
     //
-    var useSSL = (location && location.protocol === 'https:') ? true : false;
+    var useSSL = (typeof location !== 'undefined' && location.protocol === 'https:') ? true : false;
     var configDefinition = {
         required: { server: 'string', port: 'number'},
         optional: {
@@ -6188,7 +6188,16 @@ var WebRTCConnection = (function invocation() {
      * right away
      * @param {boolean} [config.connect=true] Internal, do not use.
      *
-     **/
+     * @param {WebRTCConnection~callback} callback - The callback when enable is complete.
+     *
+     */
+
+    /**
+    * This callback is displayed as a global member.
+    * @callback WebRTCConnection~callback
+    * @param {(boolean|MediaStream)} success - True or a MediaStream if successful
+    * @param {string} message  - Empty if success evaluates to true, otherwise failure reason. 
+    */
     enable: function(config,callback) {
       // If you call enable, no matter what we can update the config.
       //
@@ -6289,6 +6298,7 @@ var WebRTCConnection = (function invocation() {
      * Called to 'connect' (Send message, change state)
      * Only works if enabled.
      *
+     * @param {WebRTCConnection~callback} callback - The callback when enable is complete.
      */
     _connect: function(callback) {
       var self = this;
@@ -6381,6 +6391,9 @@ var WebRTCConnection = (function invocation() {
 
     /**
      * Accept an inbound connection
+     *
+     * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
+     *
      */
     accept: function(callback) {
       var self = this;
@@ -6851,7 +6864,7 @@ var WebRTCConnection = (function invocation() {
   * @param {object} config.mediaIn
   * @param {object} config.mediaOut
   *
-  * @param {function} [callback] callback called if getUserMedia enabled.
+  * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
   *
   */
   setLocalMedia: function setLocalMedia(config,callback) {
@@ -6892,7 +6905,8 @@ var WebRTCConnection = (function invocation() {
    * @param {object} options
    * @param {boolean} options.audio
    * @param {boolean} options.video
-   * @callback 
+   *
+   * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
    *
    */
   enableLocalAV: function(options, callback) {
