@@ -129,7 +129,16 @@ var WebRTCConnection = (function invocation() {
      * right away
      * @param {boolean} [config.connect=true] Internal, do not use.
      *
-     **/
+     * @param {WebRTCConnection~callback} callback - The callback when enable is complete.
+     *
+     */
+
+    /**
+    * This callback is displayed as a global member.
+    * @callback WebRTCConnection~callback
+    * @param {(boolean|MediaStream)} success - True or a MediaStream if successful
+    * @param {string} message  - Empty if success evaluates to true, otherwise failure reason. 
+    */
     enable: function(config,callback) {
       // If you call enable, no matter what we can update the config.
       //
@@ -230,6 +239,7 @@ var WebRTCConnection = (function invocation() {
      * Called to 'connect' (Send message, change state)
      * Only works if enabled.
      *
+     * @param {WebRTCConnection~callback} callback - The callback when enable is complete.
      */
     _connect: function(callback) {
       var self = this;
@@ -322,21 +332,38 @@ var WebRTCConnection = (function invocation() {
 
     /**
      * Accept an inbound connection
+     *
+     * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
+     *
      */
-    accept: function(options) {
+    accept: function(callback) {
       var self = this;
 
-      var doAnswer = function doAnswer() {
-        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
-        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
-        //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
-        //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
-        //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
-        self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
-          console.error('failed to create answer', error);
-        },
-         self.config.RTCOfferConstraints
-        );
+      callback = callback || function(success, message) {
+        l('DEBUG') && console.log(self+'.accept() default callback(success='+success+',message='+message);
+      };
+
+      var doAnswer = function doAnswer(success,msg) {
+        if (success) {
+          l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
+          l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
+          //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
+          //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
+          //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
+          self.pc && self.pc.createAnswer(
+            function(desc) {
+              self._gotAnswer(desc);
+              callback(success, msg);
+            },
+            function(error) {
+              console.error('failed to create answer', error);
+              callback(false, 'Failed to create answer');
+            },
+            self.config.RTCOfferConstraints
+          );
+        } else {
+          callback(success, msg);
+        }
       };
       l('DEBUG') && console.log(this+'.accept() -- accepting --');
       if (this.getState() === 'alerting') {
@@ -778,7 +805,7 @@ var WebRTCConnection = (function invocation() {
   * @param {object} config.mediaIn
   * @param {object} config.mediaOut
   *
-  * @param {function} [callback] callback called if getUserMedia enabled.
+  * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
   *
   */
   setLocalMedia: function setLocalMedia(config,callback) {
@@ -819,7 +846,8 @@ var WebRTCConnection = (function invocation() {
    * @param {object} options
    * @param {boolean} options.audio
    * @param {boolean} options.video
-   * @callback 
+   *
+   * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
    *
    */
   enableLocalAV: function(options, callback) {
@@ -860,8 +888,8 @@ var WebRTCConnection = (function invocation() {
         return false;
       }
     };
-    
-    if (audio || video ) { 
+
+    if (audio || video ) {
       if (this._.localStream) {
         l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattaching stream');
         callback(attachLocalStream(this._.localStream));

@@ -383,7 +383,7 @@ The primary logic for this HTML Page
   function uiDisconnect(message) {
       if (connected) {
         connected = false;
-        //rtcommEndpoint.disconnect();
+        rtcommEndpoint.disconnect();
         /* Since this is using the same endpoint, a disconnect
          * needs to re-enable the endpoint so it can receive/make new
          * calls. 

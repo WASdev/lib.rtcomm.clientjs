@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 20:18:54 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 20:18:54 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 21:14:35 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 21:14:35 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -6382,20 +6382,34 @@ var WebRTCConnection = (function invocation() {
     /**
      * Accept an inbound connection
      */
-    accept: function(options) {
+    accept: function(callback) {
       var self = this;
 
-      var doAnswer = function doAnswer() {
-        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
-        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
-        //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
-        //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
-        //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
-        self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
-          console.error('failed to create answer', error);
-        },
-         self.config.RTCOfferConstraints
-        );
+      callback = callback || function(success, message) {
+        l('DEBUG') && console.log(self+'.accept() default callback(success='+success+',message='+message);
+      };
+
+      var doAnswer = function doAnswer(success,msg) {
+        if (success) {
+          l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
+          l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
+          //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
+          //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
+          //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
+          self.pc && self.pc.createAnswer(
+            function(desc) {
+              self._gotAnswer(desc);
+              callback(success, msg);
+            },
+            function(error) {
+              console.error('failed to create answer', error);
+              callback(false, 'Failed to create answer');
+            },
+            self.config.RTCOfferConstraints
+          );
+        } else {
+          callback(success, msg);
+        }
       };
       l('DEBUG') && console.log(this+'.accept() -- accepting --');
       if (this.getState() === 'alerting') {
@@ -6919,8 +6933,8 @@ var WebRTCConnection = (function invocation() {
         return false;
       }
     };
-    
-    if (audio || video ) { 
+
+    if (audio || video ) {
       if (this._.localStream) {
         l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattaching stream');
         callback(attachLocalStream(this._.localStream));
