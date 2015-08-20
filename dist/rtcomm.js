@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 19-08-2015 20:08:41 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 19-08-2015 20:08:41 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 20-08-2015 19:52:07 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 20-08-2015 19:52:07 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -3273,9 +3273,11 @@ var EndpointProvider =  function EndpointProvider() {
 
       /* global setConfig:false */
       config = this.config = setConfig(options,configDefinition);
+
+      // this.config now has the options + combo with defaults.
       // If we are READY (we are resetting) so use the NEW ones... otherwise, use saved ones.
-      this.config.appContext = (this.ready) ? this.config.appContext : appContext || this.config.appContext ; 
-      this.setUserID((this.ready) ? this.config.userid: userid || this.config.userid, true) ; 
+      this.config.appContext = options.appContext ? options.appContext : (appContext ? appContext : this.config.appContext) ; 
+      this.setUserID((options.userid ? options.userid: (userid ? userid: this.config.userid)), true) ; 
     } else {
       throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
                       JSON.stringify(configDefinition.required));

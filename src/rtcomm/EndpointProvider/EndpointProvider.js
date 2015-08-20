@@ -188,9 +188,11 @@ var EndpointProvider =  function EndpointProvider() {
 
       /* global setConfig:false */
       config = this.config = setConfig(options,configDefinition);
+
+      // this.config now has the options + combo with defaults.
       // If we are READY (we are resetting) so use the NEW ones... otherwise, use saved ones.
-      this.config.appContext = (this.ready) ? this.config.appContext : appContext || this.config.appContext ; 
-      this.setUserID((this.ready) ? this.config.userid: userid || this.config.userid, true) ; 
+      this.config.appContext = options.appContext ? options.appContext : (appContext ? appContext : this.config.appContext) ; 
+      this.setUserID((options.userid ? options.userid: (userid ? userid: this.config.userid)), true) ; 
     } else {
       throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
                       JSON.stringify(configDefinition.required));

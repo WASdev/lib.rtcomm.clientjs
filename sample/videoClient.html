@@ -159,24 +159,6 @@ The primary logic for this HTML Page
   /*************************************************
    * Define Globals 
    *************************************************/
-  // Define the RtcommEndpointProvider globabl variable
-  var ibmep = new rtcomm.EndpointProvider();
-
-  ibmep.on('reset', function(event_object) {
-    updateMessage("Connection was reset - reason: "+event_object.reason);
-  });
-
-  // Change the loglevel - default is 'INFO', possibilities are:
-  // 'MESSAGES' --> Just log sent/received messages in console.
-  // 'DEBUG' -- > log most everything
-  // 'TRACE' --> log everything
-  ibmep.setLogLevel('DEBUG');
-  // In this sample, initializing rtcommEndpoint variable as a GLOBAL
-  var rtcommEndpoint = null;
-
-  // UI State
-  var registered = false;
-  var connected = false;
 
   /* Define the configuration for the EndpointProvider.  THis is REQUIRED and generally must be changed.
    * It MUST match the rtcomm configuration used on the liberty server.
@@ -187,39 +169,28 @@ The primary logic for this HTML Page
    */
   var epConfig = {
     server : window.document.location.hostname,
-    port : window.document.location.port,
+   // port : window.document.location.port,
+    port : 9080,
     managementTopicName : "management",
     appContext: "default",
     rtcommTopicPath: "/rtcomm/",
-    createEndpoint : true,
-    useSSL: false,
-    presence: {topic: 'defaultRoom'},
-    credentials: {userName: 'swgraham', password: 'password'}
+    createEndpoint : true
   };
 
-  var urlConfig = getUrlParams();
-  console.log('** videoClient.html ** Config passed in via URL:', urlConfig);
-  /* 
-   *  The following pulls information from the urlConfig, generally used to simplify
-   *  testing/initial connection
-   *
-   */
+  // Define the RtcommEndpointProvider globabl variable
+  var ibmep = new rtcomm.EndpointProvider();
 
-  /*  videoClient.html?regwithoutAV=true -- Do not enable AV when registering. 
-      Will wait until a call is established */
-  var regwithAV = (urlConfig.regwithAV === 'true')? true : false;
-  /*  videoClient.html?regOnload=true&userid=someuser -- Immediately register onLoad with userid passed */
-  var regOnload = (urlConfig.regOnload === 'true')? true : false;
-  var userid = urlConfig.userid || null;
-  /*  videoClient.html?autoAnswer=true -- inbound call will be automatically answered.  Good for testing. */
-  var autoAnswer = (urlConfig.autoAnswer === 'true')? true : false;
-  /* Trickle ICE */
-  var trickleICE = (urlConfig.trickleICE === 'false')? false: true;
-  var BROADCAST = (urlConfig.broadcast === 'false')? false: true;
-  // Update to boolean
-  urlConfig.useSSL = (urlConfig.useSSL === 'true')? true: false;
-  // This uses any params passed on URL to override config.
-  updateConfig(epConfig, urlConfig);
+  // In this sample, initializing rtcommEndpoint variable as a GLOBAL
+  var rtcommEndpoint = null;
+
+  // Handle resets on the endpoint provider
+  ibmep.on('reset', function(event_object) {
+    updateMessage("Connection was reset - reason: "+event_object.reason);
+  });
+
+  // UI State
+  var registered = false;
+  var connected = false;
 
   /********************************************************************
    *  Rtcomm Functions
@@ -231,16 +202,14 @@ The primary logic for this HTML Page
    * init the EndpointProvider using epConfig provided above.  This
    * config is using getRtcommEndpoint = true so that 
    * the init returns a rtcommEndpoint object.  
-
-   *  This can be decoupled getRtcommEndpoint() can be
+   *
+   *  This can be decoupled. getRtcommEndpoint() can be
    *  called individually.
    * 
    */
   function doRegister(userid) {
     updateMessage('Registering... '+ userid);
     epConfig.userid = userid;
-    // make sure this is an integer.
-    epConfig.port = parseInt(epConfig.port);
     /*
      * Call init() on the Endpoint Provider.
      */
@@ -259,7 +228,6 @@ The primary logic for this HTML Page
                 // Update the UI with messages, etc..
                 updateMessage('Registered');
                 uiRegister(userid);
-
                 // Configure the rtcommEndpoint now
                 rtcommEndpoint = object.endpoint;
                 // Set the media div's webrtc will use, but do not ENABLE AV yet.
@@ -279,14 +247,11 @@ The primary logic for this HTML Page
    *
    */
   ibmep.setRtcommEndpointConfig({
-      // Our endpoints will be setup to broadcast Audio and Video 
-      // BROADCAST is set at the top
       autoEnable: true,
       webrtcConfig: {
         broadcast:  { 
-          audio: BROADCAST, 
-          video: BROADCAST},
-        trickleICE: trickleICE,
+          audio: true, 
+          video: true},
         mediaOut: document.querySelector('#selfView'),
         mediaIn: document.querySelector('#remoteView')
       },
@@ -309,29 +274,14 @@ The primary logic for this HTML Page
       },
       // An outbound call is starting and the target user has been reached.
       'session:ringing': function(event_object) {
-        // TODO: This should not be necessary, we should always be the caller for ringing
-        if (event_object.object && event_object.object.pcSigState) {
-          if (event_object.object.pcSigState === 'have-local-offer') {
-            // we are the CALLER.
-            // This could be tracked through the UI too.
-            updateMessage('Calling ' + event_object.object.remoteID);
-          } else {
-            updateMessage('Inbound call from  ' + event_object.endpoint.getRemoteEndpointID());
-          }
-        }
+         updateMessage('Calling ' + event_object.endpoint.getRemoteEndpointID() );
       },
       // An inbound call was received.
       'session:alerting': function(event_object) {
-        console.log('** videoClient ** Alerting event_object: ', event_object);
         // Use the global value to autoAnswer if configured.
-        if (!autoAnswer) {
-          $('#answerDialog .modal-body').html(
+        $('#answerDialog .modal-body').html(
               "Inbound call from " + event_object.endpoint.getRemoteEndpointID());
-          $('#answerDialog').modal('show');
-        } else {
-          status = 'Automatically Answering...';
-          event_object.endpoint.accept();
-        }
+        $('#answerDialog').modal('show');
       },
       // Establishing the session failed, display a message, cleanup.
       'session:failed': function(event_object) {
@@ -339,14 +289,16 @@ The primary logic for this HTML Page
       },
       // An inbound Refer was received.  
       'session:refer': function(conn) {
-        console.log(conn);
         $('#answerDialog .modal-body').html(
             "[3PCC] Initiate call to " + conn.endpoint.getRemoteEndpointID());
         $('#answerDialog').modal('show');
       }, 
+      /* The remote user muted audio or video 
+       * Check event_object.audio and event_object.video to see what was muted/unmuted
+       *
+       * This is necessary to indicate in the UI it has been muted.
+       */
       'webrtc:remotemuted': function(event_object) {
-        // Should have audio/video set to true/false on whether its enabled/disabled.
-        // If you want to change what is shown... 
         var msg = 'The remote user ';
         if (event_object.audio) {
           if (event_object.video) {
@@ -384,16 +336,8 @@ The primary logic for this HTML Page
       if (connected) {
         connected = false;
         rtcommEndpoint.disconnect();
-        /* Since this is using the same endpoint, a disconnect
-         * needs to re-enable the endpoint so it can receive/make new
-         * calls. 
-         * The timeout is necessary for the time being because 
-         * the disconnect() may take a bit and does not provide a callback.
-         * 
-         * This will be resolved in the future.
-         */
-          $('#btnConnect').text('Connect');
-          updateMessage(message || 'Unknown');
+        $('#btnConnect').text('Connect');
+        updateMessage(message || 'Unknown');
       }
   };
 
@@ -405,47 +349,37 @@ The primary logic for this HTML Page
     $('#btnRegister').text('Unregister');
     registered = true;
   };
-
   function uiUnregister() {
     $('#displayNameStr').html('Please Register');
-//    updateMessage('Unregistered');
     $('#btnConnect').prop('disabled', true);
     $('#btnRegister').text('Register');
     registered = false;
   }
 
   function updateMessage(message) {
-    console.log('updateMessage --> '+message);
     $('#statusMessage').html(message);
   }
 
   $('#answerYes').on('click', function() {
     $("#answerDialog").modal("hide");
+    /* Accept the inbound call */
     rtcommEndpoint.accept();
   });
 
   $('#answerNo').on('click', function() {
     $("#answerDialog").modal("hide");
     state='disconnected';
+    /* Reject the inbound call */
     rtcommEndpoint.reject();
-  });
-
-
-  $('#btnReset').on('click', function() {
-    rtcommEndpoint && rtcommEndpoint.reset();
-    rtcommEndpoint = null;
-    ibmep && ibmep.destroy();
-    ibmep = null;
-    updateMessage('Please Register');
-    $('#btnRegister').hasClass('active') && $('#btnRegister').button('toggle');
-
   });
 
   $('#btnRegister').on('click', function() {
     if (registered) {
+      /* unregister */
       ibmep.destroy();
       uiUnregister();
     } else {
+      /* Launch register modal */
       updateMessage('Registering');
       $('#registerModal').modal('show');
     }
@@ -464,21 +398,23 @@ The primary logic for this HTML Page
   });
 
   $('#btnConnect').on('click', function() {
-    console.log('CONNECT BUTTON: connected: '+connected, rtcommEndpoint);
     if (connected) {
+      /* disconnect */
       uiDisconnect("Disconnected");
     } else {
+      /* launch connect Modal */
       $('#connectModal').modal('show');
     }
   });
 
   $('#btnToggleBroadcast').on('click', function() {
-    console.log('TOGGLE pressed :'+connected, rtcommEndpoint);
     if (connected) {
       if (rtcommEndpoint.webrtc.isMuted()) {
+        /* Unmute a stream */
         rtcommEndpoint.webrtc.unmute();
         $('#toggleIcon').removeClass('glyphicon-play').addClass('glyphicon-pause');
       } else {
+        /* mute the stream */
         rtcommEndpoint.webrtc.mute();
         $('#toggleIcon').removeClass('glyphicon-pause').addClass('glyphicon-play');
       }
@@ -501,62 +437,11 @@ The primary logic for this HTML Page
   });
 
   function alertMessage(message) {
-    console.log('Updating statusMessge with ', message);
     $('#statusMessage').css('color:red');
     $('#statusMessage').html(message);
   }
 
-  function updateConfig(obj1, obj2) {
-    // Copy anything in obj2 into obje1 if in obj1
-    for (key in obj1) {
-      if (obj1.hasOwnProperty(key)) {
-        if (obj2.hasOwnProperty(key)) {
-          obj1[key] = obj2[key];
-        }
-      }
-    }
-  }
-  function displayConfig() {
-    var configHTML = "";
-    for (key in epConfig) {
-      if (epConfig.hasOwnProperty(key)) {
-        configHTML = configHTML + keyPairToHtml(key, epConfig[key]);
-      }
-    }
-    // console.log('trying to display '+configHTML);
-    $('#config').html(configHTML);
-  }
 
-  function keyPairToHtml(key, value) {
-    var template = '<b>label</b>:value<br>';
-    var str = template.replace(/label/i, key);
-    return str.replace(/value/i, value);
-
-  }
-
-  function getUrlParams() {
-    var url = decodeURIComponent(document.URL);
-    var params = [];
-    if (url.indexOf('?') > 0) {
-      params = url.slice(url.indexOf('?') + 1).split('&');
-    }
-    // param to hash...
-    var paramhash = {};
-    params.forEach(function(param) {
-      var kv = param.split('=');
-      paramhash[kv[0]] = kv[1];
-    })
-    console.log(paramhash);
-    return paramhash;
-  }
-
-window.onload = function() {
-  console.log('ONLOAD! '+regOnload+' userid: '+userid);
-  if (regOnload && userid) {
-    console.log('Calling doRegister!');
-    doRegister(userid);
-  }
-}
 </script>
 
 
