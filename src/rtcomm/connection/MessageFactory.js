@@ -14,7 +14,7 @@
  * limitations under the License.
  **/ 
 /** @class
- * @memberof module:rtcomm.webrtc
+ * @memberof module:rtcomm.connector
  * @private
  */
 /* Constructor */

@@ -105,10 +105,20 @@ var RtcommEndpoint = (function invocation(){
  *  @extends  module:rtcomm.util.RtcommBaseObject
  */
   var RtcommEndpoint = function RtcommEndpoint(config) {
-    // Presuming you creat an object based on this one, 
-    // you must override the ession event handler and
-    // then augment newSession object.
-    //
+    /** 
+     * @typedef {object} module:rtcomm.RtcommEndpoint~config
+     *
+     * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
+     * @property {string}  [userid=null] UserID the endpoint will use (generally provided by the EndpointProvider
+     * @property {string}  [appContext=null] UI Component to attach outbound media stream
+     * @property {string} [ringtone=null] Path to a  ringtone to play when we are ringing on inbound call
+     * @property {string} [ringbacktone=null] path to a ringbacktone to play on outbound call
+     * @property {boolean} [webrtc=true]  Whether the endpoint supports webrtc
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
+     * @property {boolean} [chat=true]  Wehther the endpoint supports chat
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
+     *
+     */
     this.config = {
       // if a feature is supported, enable by default.
       autoEnable: false,
@@ -403,8 +413,9 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
    // session.listEvents();
     return true;
   }
+
 /** @lends module:rtcomm.RtcommEndpoint.prototype */
-return  {
+var proto = {
   getAppContext:function() {return this.config.appContext;},
   newSession: function(session) {
       var event = null;
@@ -525,6 +536,7 @@ return  {
     this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
     this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
   },
+
   /** Endpoint is available to accept an incoming call
    *
    * @returns {boolean}
@@ -542,7 +554,6 @@ return  {
     },
 
   /**
-   *  @memberof module:rtcomm.RtcommEndpoint
    * Connect to another endpoint.  Depending on what is enabled, it may also start
    * a chat connection or a webrtc connection.
    * <p>
@@ -552,9 +563,6 @@ return  {
    * </p>
    *
    * @param {string|object} endpoint Remote ID of endpoint to connect.
-   *
-   * TODO:  Doc this..
-   *
    */
 
   connect: function(endpoint) {
@@ -611,13 +619,17 @@ return  {
    * Accept an inbound request.  This is typically called after a 
    * {@link module:rtcomm.RtcommEndpoint#session:alerting|session:alerting} event
    *
+   *
+   * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when accept is complete.
+   *
+   * @returns {module:rtcomm.RtcommEndpoint}
    */
-  accept: function(options) {
+  accept: function(callback) {
     if (this.getState() === 'session:refer') {  
       this.connect(null);
-    } else if (this.webrtc && this.webrtc && this.webrtc.accept(options)) {
+    } else if (this.webrtc && this.webrtc && this.webrtc.accept(callback)) {
       l('DEBUG') && console.log(this+'.accept() Accepted in webrtc.');
-    } else if (this.chat && this.chat.accept(options)) {
+    } else if (this.chat && this.chat.accept(callback)) {
       l('DEBUG') && console.log(this+'.accept() Accepted in chat.');
     } else {
       l('DEBUG') && console.log(this+'.accept() accepting generically.');
@@ -761,6 +773,8 @@ return  {
 
   };
 
+  // This construct is to get the jsdoc correct
+  return proto;
 
   })()); // End of Prototype
 

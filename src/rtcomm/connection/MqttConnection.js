@@ -178,7 +178,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
   };
 
     /** @lends module:rtcomm.connector.MqttConnection.prototype */
-    return {
+    var proto = {
       /* global setLogLevel:false */
       setLogLevel: setLogLevel,
       /* global getLogLevel:false */
@@ -451,6 +451,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         }
       }
     }; // end of Return
+    return proto;
 })());
 
 exports.MqttConnection = MqttConnection;

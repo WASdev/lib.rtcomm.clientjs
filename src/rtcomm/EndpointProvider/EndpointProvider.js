@@ -22,7 +22,7 @@
  * This programming interface lets a JavaScript client application use 
  * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
  * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
- * & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
+ * & {@link module:rtcomm.EndpointProvider#init|initialized} the
  * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
  * that is used to receive inbound communication.
  * <p>
@@ -67,10 +67,7 @@ var EndpointProvider =  function EndpointProvider() {
   this._.objName = "EndpointProvider";
   this._.rtcommEndpointConfig = {};
 
-  /**
-   * State of the EndpointProvider
-   * @type {boolean}
-   */ 
+  /** State of the EndpointProvider */ 
   this.ready = false;
 
   this.events = {
@@ -375,42 +372,22 @@ var EndpointProvider =  function EndpointProvider() {
    *
    * *NOTE* This should be set PRIOR to calling getRtcommEndpoint()
    *
-   *  @param {Object}  [config] 
-   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
-   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
-   *  @param {object}  [config.broadcast]   
-   *  @param {boolean}  [config.broadcast.audio]  Endpoint should broadcast Audio
-   *  @param {boolean}  [config.broadcast.video]  Endpoint should broadcast Video
+   *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
    *  @param {function} [config.event] Events are defined in {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    *
    * @example
    *
    * endpointProvider.setRtcommEndpointConfig({
-   *   autoEnable: false,
-   *   ignoreAppContext: true,
-   *   appContext : null,
-   *   userid: null,
-   *   ringtone: null,
-   *   ringbacktone: null,
+   *   appContext : "testApp",
+   *   ringtone: "resources/ringtone.wav",
+   *   ringbacktone: "resources/ringbacktone.wav",
    *   chat: true,
    *   chatConfig: {},
    *   webrtc:true,
    *   webrtcConfig:{
    *     broadcast: { audio: true, video: true},
-   *     iceServers:
-   *     RTCConfiguration : {iceTransports : "all"},
-   *     RTCOfferConstraints: OfferConstraints,
-   *     RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
-   *     mediaIn: null,
-   *     mediaOut: null,
-   *     iceServers: [],
-   *     lazyAV: true,
-   *     trickleICE: true,
-   *     connect: null,
-   *     broadcast: {
-   *       audio: true,
-   *       video: true 
-   *     },
+   *     iceServers: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
+   *   },
    *   'session:started': function(event) {
    *
    *   }, 
@@ -432,10 +409,7 @@ var EndpointProvider =  function EndpointProvider() {
    *  RTCPeerConnection where to send that stream in the User Interface.
    *  </p>
    *
-   *  @param {Object}  [config] 
-   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
-   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
-   *
+   *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
    *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint 
    *  @throws Error
    *

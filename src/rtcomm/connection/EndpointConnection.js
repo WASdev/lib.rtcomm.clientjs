@@ -375,7 +375,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
 
 
       /** @lends module:rtcomm.connector.EndpointConnection.prototype */
-      return {
+      var proto = {
         /*
          * Instance Methods
          */
@@ -729,6 +729,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           }
         }
     };
+    return proto;
   })()
 );
 /* globals exports:false */

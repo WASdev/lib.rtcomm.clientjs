@@ -38,7 +38,7 @@ var WebRTCConnection = (function invocation() {
     };
 
     /** 
-     * @typedef {object} webrtcEnableConfig
+     * @typedef {object} module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig
      *
      * @property {object} [mediaIn]  UI component to attach inbound media stream
      * @property {object} [mediaOut] UI Component to attach outbound media stream
@@ -104,7 +104,7 @@ var WebRTCConnection = (function invocation() {
 
   WebRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.WebRTCConnection.prototype */
-    return {
+    var proto = {
     /**
      * enable webrtc
      * <p>
@@ -129,13 +129,13 @@ var WebRTCConnection = (function invocation() {
      * right away
      * @param {boolean} [config.connect=true] Internal, do not use.
      *
-     * @param {WebRTCConnection~callback} callback - The callback when enable is complete.
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
      *
      */
 
     /**
     * This callback is displayed as a global member.
-    * @callback WebRTCConnection~callback
+    * @callback module:rtcomm.RtcommEndpoint.WebRTCConnection~callback
     * @param {(boolean|MediaStream)} success - True or a MediaStream if successful
     * @param {string} message  - Empty if success evaluates to true, otherwise failure reason. 
     */
@@ -239,7 +239,7 @@ var WebRTCConnection = (function invocation() {
      * Called to 'connect' (Send message, change state)
      * Only works if enabled.
      *
-     * @param {WebRTCConnection~callback} callback - The callback when enable is complete.
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
      */
     _connect: function(callback) {
       var self = this;
@@ -333,7 +333,7 @@ var WebRTCConnection = (function invocation() {
     /**
      * Accept an inbound connection
      *
-     * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when accept is complete.
      *
      */
     accept: function(callback) {
@@ -805,7 +805,7 @@ var WebRTCConnection = (function invocation() {
   * @param {object} config.mediaIn
   * @param {object} config.mediaOut
   *
-  * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
+  * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when setLocalMedia is complete.
   *
   */
   setLocalMedia: function setLocalMedia(config,callback) {
@@ -847,7 +847,7 @@ var WebRTCConnection = (function invocation() {
    * @param {boolean} options.audio
    * @param {boolean} options.video
    *
-   * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
+   * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when function is complete.
    *
    */
   enableLocalAV: function(options, callback) {
@@ -966,6 +966,9 @@ var WebRTCConnection = (function invocation() {
     return this._.iceServers;
   }
  };
+
+ // Required for jsdoc to look right
+ return proto;
 
 })()); // End of Prototype
 

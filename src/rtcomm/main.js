@@ -14,21 +14,7 @@
  * limitations under the License.
  */
 /**
- * @class
- * @memberof module:rtcomm
- * @classdesc
- * Provides Services to register a user and create Endpoints (RtcommEndpoints & MqttEndpoints)
- * <p>
- * This programming interface lets a JavaScript client application use 
- * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
- * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
- * & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
- * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
- * that is used to receive inbound communication.
- * <p>
- * See the example in {@link module:rtcomm.EndpointProvider#init|EndpointProvider.init()}
- * <p>
- *
+ * @module rtcomm
  * @requires {@link mqttws31.js}
  *
  */

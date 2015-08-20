@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 21:37:25 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 18-08-2015 21:37:25 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 19-08-2015 20:08:41 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 19-08-2015 20:08:41 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -1151,7 +1151,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
 
 
       /** @lends module:rtcomm.connector.EndpointConnection.prototype */
-      return {
+      var proto = {
         /*
          * Instance Methods
          */
@@ -1505,6 +1505,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           }
         }
     };
+    return proto;
   })()
 );
 /* globals exports:false */
@@ -1526,7 +1527,7 @@ exports.EndpointConnection = EndpointConnection;
  * limitations under the License.
  **/ 
 /** @class
- * @memberof module:rtcomm.webrtc
+ * @memberof module:rtcomm.connector
  * @private
  */
 /* Constructor */
@@ -1951,7 +1952,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
   };
 
     /** @lends module:rtcomm.connector.MqttConnection.prototype */
-    return {
+    var proto = {
       /* global setLogLevel:false */
       setLogLevel: setLogLevel,
       /* global getLogLevel:false */
@@ -2075,7 +2076,6 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
            *    errorMessage: some string
            */
           // TODO:  ADD loggin here.  Would be perfect... 
-          console.log('connectAttempts:'+connectAttempts+' retry: '+retry+'this.retry:'+this.retry);
           if (connectAttempts < retry) {
             this.retry = true;
           } else {
@@ -2115,8 +2115,8 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           connectAttempts++;
           // If we are not ready (so we connected) or retry is not set)
           // Retry could be turned off in onFailure and onSuccess.
-          l('DEBUG') && console.log(self+'.connect() attempting to connect, try:'+connectAttempts);
           if (!self.ready && self.retry) {
+            l('DEBUG') && console.log(self+'.connect() attempting to connect, try:'+connectAttempts);
             mqttClient.connect(util.makeCopy(mqttConnectOptions));
             setTimeout(retryConnect, 1000);
           }
@@ -2225,7 +2225,9 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         }
       }
     }; // end of Return
+    return proto;
 })());
+
 exports.MqttConnection = MqttConnection;
 
 
@@ -2344,22 +2346,15 @@ var SigSession = function SigSession(config) {
 /* global util: false */
 SigSession.prototype = util.RtcommBaseObject.extend((function() {
   /** @lends module:rtcomm.connector.SigSession.prototype */
-  return { 
-    /** 
-     * Init method
-     * @param config  -- message:message, localEndpointID: endpointid, toTopic: toTopic
-     */
-    
+  var proto = { 
     _setupQueue: function _setupQueue() {
       this._messageQueue = {
           'messages': [],
           'processing': false            
       };
-      
       this.on('started', this._processQueue.bind(this));
       this.on('have_pranswer', this._processQueue.bind(this));
       this.on('pranswer', this._processQueue.bind(this));
-      
     },
     _processQueue : function _processQueue() {
         var q = this._messageQueue.messages;
@@ -2661,6 +2656,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
 
     }
   };
+  return proto;
 })());
 
 
@@ -2889,7 +2885,6 @@ var logging = new util.Log(),
 /*global l:false*/
 /*global util:false*/
 var Chat = (function invocation() {
-
 /**
    * @memberof module:rtcomm.RtcommEndpoint
    *
@@ -2978,10 +2973,10 @@ var Chat = (function invocation() {
     /**
      * Accept an inbound connection  
      */
-    this.accept = function(message) {
+    this.accept = function(callback) {
       l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
       if (this.state === 'alerting') {
-        this.enable(message || 'Accepting chat connection');
+        this.enable(callback|| 'Accepting chat connection');
         return true;
       } else {
         return false;
@@ -3112,7 +3107,7 @@ var Chat = (function invocation() {
  * This programming interface lets a JavaScript client application use 
  * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
  * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
- * & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
+ * & {@link module:rtcomm.EndpointProvider#init|initialized} the
  * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
  * that is used to receive inbound communication.
  * <p>
@@ -3157,10 +3152,7 @@ var EndpointProvider =  function EndpointProvider() {
   this._.objName = "EndpointProvider";
   this._.rtcommEndpointConfig = {};
 
-  /**
-   * State of the EndpointProvider
-   * @type {boolean}
-   */ 
+  /** State of the EndpointProvider */ 
   this.ready = false;
 
   this.events = {
@@ -3465,42 +3457,22 @@ var EndpointProvider =  function EndpointProvider() {
    *
    * *NOTE* This should be set PRIOR to calling getRtcommEndpoint()
    *
-   *  @param {Object}  [config] 
-   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
-   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
-   *  @param {object}  [config.broadcast]   
-   *  @param {boolean}  [config.broadcast.audio]  Endpoint should broadcast Audio
-   *  @param {boolean}  [config.broadcast.video]  Endpoint should broadcast Video
+   *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
    *  @param {function} [config.event] Events are defined in {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    *
    * @example
    *
    * endpointProvider.setRtcommEndpointConfig({
-   *   autoEnable: false,
-   *   ignoreAppContext: true,
-   *   appContext : null,
-   *   userid: null,
-   *   ringtone: null,
-   *   ringbacktone: null,
+   *   appContext : "testApp",
+   *   ringtone: "resources/ringtone.wav",
+   *   ringbacktone: "resources/ringbacktone.wav",
    *   chat: true,
    *   chatConfig: {},
    *   webrtc:true,
    *   webrtcConfig:{
    *     broadcast: { audio: true, video: true},
-   *     iceServers:
-   *     RTCConfiguration : {iceTransports : "all"},
-   *     RTCOfferConstraints: OfferConstraints,
-   *     RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
-   *     mediaIn: null,
-   *     mediaOut: null,
-   *     iceServers: [],
-   *     lazyAV: true,
-   *     trickleICE: true,
-   *     connect: null,
-   *     broadcast: {
-   *       audio: true,
-   *       video: true 
-   *     },
+   *     iceServers: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
+   *   },
    *   'session:started': function(event) {
    *
    *   }, 
@@ -3522,10 +3494,7 @@ var EndpointProvider =  function EndpointProvider() {
    *  RTCPeerConnection where to send that stream in the User Interface.
    *  </p>
    *
-   *  @param {Object}  [config] 
-   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
-   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
-   *
+   *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
    *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint 
    *  @throws Error
    *
@@ -4046,18 +4015,51 @@ var EndpointRegistry = function EndpointRegistry(options) {
 
 };
 
+/*
+ * Copyright 2014,2015 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ *  @memberof module:rtcomm
+ *  @description
+ *  This object should only be created with the {@link module:rtcomm.EndpointProvider#getMqttEndpoint|getRtcommEndpoint} function.
+ *  <p>
+ *  The MqttEndpoint object provides an interface to directly subscribe and publish MQTT messages.
+ *
+ *  @constructor
+ *
+ *  @extends  module:rtcomm.util.RtcommBaseObject
+ */
 var MqttEndpoint = function MqttEndpoint(config) {
 
   this.dependencies = { 
     connection: null,
   };
-  /* Object storing subscriptions */
+  /* Object storing subscriptions */ 
   this.subscriptions = {};
   this.dependencies.connection = config && config.connection;
   this.events = {'message': []};
 };
 /*global util:false*/
-MqttEndpoint.prototype = util.RtcommBaseObject.extend({
+/*global: l:false*/
+MqttEndpoint.prototype = util.RtcommBaseObject.extend(
+  /** @lends module:rtcomm.MqttEndpoint.prototype */
+  {
+  /** 
+   * subscribe to a topic
+   * @param {string} topic - A string that represents an MQTT topic
+   */
   subscribe: function(topic) {
                // Add it
                this.subscriptions[topic] = null;
@@ -4068,6 +4070,10 @@ MqttEndpoint.prototype = util.RtcommBaseObject.extend({
                });
              },
 
+  /** 
+   * unsubscribe from  a topic
+   * @param {string} topic - A string that represents an MQTT topic
+   */
   unsubscribe: function(topic) {
                var mqttEP = this;
                if (this.subscriptions.hasOwnProperty(topic)) {
@@ -4077,9 +4083,17 @@ MqttEndpoint.prototype = util.RtcommBaseObject.extend({
                  throw new Error("Topic not found:"+topic);
                }
              },
+  /** 
+   * publish a message to topic
+   * @param {string} topic - A string that represents an MQTT topic
+   * @param {string} message - a String that is a message to be published
+   */
   publish: function(topic,message) {
              this.dependencies.connection.publish(topic, message);
   },
+  /** 
+   * Destroy the MqttEndpoint
+   */
   destroy: function() {
      l('DEBUG') &&  console.log('Destroying mqtt(unsubscribing everything... ');
              var mqttEP = this;
@@ -4110,11 +4124,17 @@ var PhoneRTCConnection = (function invocation() {
    * @memberof module:rtcomm.RtcommEndpoint
    *
    * @description 
-   * A PhoneRTCConnection is a connection is a shim to the cordova.phonertc plugin
+   * A PhoneRTCConnection is a shim to the cordova.phonertc plugin it replaces the WebRTCConnection
+   * if cordova.phonertc is found.
+   *
    *  @constructor
    *
    *  @extends  module:rtcomm.util.RtcommBaseObject
    */
+   /*global phonertc:false*/ 
+   /*global cordova:false*/ 
+   /*global l:false*/ 
+   /*global util:false*/ 
   var PhoneRTCConnection = function PhoneRTCConnection(parent) {
 
     this.config = {
@@ -4177,7 +4197,7 @@ var PhoneRTCConnection = (function invocation() {
 
   PhoneRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.PhoneRTCConnection.prototype */
-    return {
+    var proto = {
       /**
        * enable webrtc
        * <p>
@@ -4321,7 +4341,7 @@ var PhoneRTCConnection = (function invocation() {
                 candidate: message.content.candidate,
                 sdpMLineIndex: message.content.label,
                 sdpMid: message.content.id
-              }
+              };
               delete message.content.label;
               delete message.content.id;
               message.content.candidate = newCandidate;
@@ -4616,6 +4636,7 @@ var PhoneRTCConnection = (function invocation() {
       return this.config.iceServers;
       }
    };
+   return proto;
 
   })()); // End of Prototype
 
@@ -4815,13 +4836,40 @@ var normalizeTopic = function normalizeTopic(topic) {
   newTopic = topic.replace(/\/+/g,'\/').replace(/\/$/g, '');
   return /^\//.test(newTopic) ? newTopic : '/'+newTopic;
 };
+
+
+/** 
+ * @memberof module:rtcomm.PresenceMonitor
+ * @class 
+ */
 var PresenceNode = function PresenceNode(nodename, record) {
+  /** Object Name 
+  *  @readonly
+  */
   this.objName = 'PresenceNode';
+  /** Node Name 
+  *  @readonly
+  */
   this.name = nodename || '';
+  /** If it is a final record (rather than a tree node)
+  *  @readonly
+  */
   this.record = record || false;
+  /** Address Topic (topic to contact another endpoint) 
+  *  @readonly
+  */
   this.addressTopic = null;
+  /** Presence Topic (topic to presence is published to) 
+  *  @readonly
+  */
   this.presenceTopic = null;
+  /** Sub Presence Nodes if present 
+  *  @readonly
+  */
   this.nodes= [];
+  /** Id (same as name) 
+  *  @readonly
+  */
   this.id = this.name;
 };
 
@@ -4835,8 +4883,10 @@ var PresenceNode = function PresenceNode(nodename, record) {
     }
   }; 
 
-PresenceNode.prototype = util.RtcommBaseObject.extend({
-  /** 
+PresenceNode.prototype = util.RtcommBaseObject.extend(
+  /** @lends module:rtcomm.PresenceMonitor.PresenceNode */
+  {
+  /* 
    * update the PresenceNode w/ the message passed
    */
   update: function(message) {
@@ -4862,7 +4912,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     });
     return (new_flat.length > 0) ? new_flat: flat;
   },
-  /** 
+  /* 
    * Return the presenceNode Object matching this topic
    * if it doesn't exist, creates it.
    */
@@ -5025,6 +5075,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
  *  @constructor
  *  @extends  module:rtcomm.util.RtcommBaseObject
  *
+ *  @fires module:rtcomm.PresenceMonitor#updated
  *
  * @example
  *
@@ -5096,7 +5147,8 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
     }
   }
 
-  return { 
+  /** @lends module:rtcomm.PresenceMonitor.prototype */
+  var proto = { 
     /**
      * Add a topic to monitor presence on
      *
@@ -5134,7 +5186,10 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       }
       return this;
     },
-
+    /**
+     * Remove a topic to monitor
+     * @param {string} topic  A topic/group to monitor, ex. 'us/agents'
+     */
     remove: function remove(topic) {
       //var presenceData = this._.presenceData;
       topic = normalizeTopic(topic);
@@ -5153,7 +5208,6 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
         // reset presence Data:
-  // this._.presenceData=[new PresenceNode("/")];
         this._.rootNode.nodes = [];
         var t = util.makeCopy(this._.monitoredTopics);  // Clone the array
         this._.monitoredTopics = {};
@@ -5162,25 +5216,26 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         });
       }
     },
+
+    /**
+     * @typedef {array.<module:rtcomm.PresenceMonitor.PresenceNode>} module:RtcommEndpoint.PresenceMonitor.PresenceData
+     */
     /**
      * Get an array representing the presence data
-     * @returns {array} An array of PresenceNodes
+     * @returns {array.<module:rtcomm.PresenceMonitor.PresenceNode>} PresenceData
      */
     getPresenceData: function getPresenceData() {
-      // This returns everything under the ROOT.
       return this._.presenceData;
-//      return this._.presenceData[0].nodes;
     },
-    getRootNode: function getRootNode() {
-      return this._.rootNode;
-    },
-
     /**
      * Return the root presenceNode if it exists.
      *
      * @param {string} topic
      * @returns {PresenceNode} The root PresenceNode for a topic (if it already exists)
      */
+    getRootNode: function getRootNode() {
+      return this._.rootNode;
+    },
     __getRootNode: function getRootNode(topic) {
       // The root node matching the topic (if it exists)
       var rootNode = null;
@@ -5225,6 +5280,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        });
     }
   } ;
+  return proto;
 })());
 
   var Queues = function Queues(availableQueues) {
@@ -5395,10 +5451,20 @@ var RtcommEndpoint = (function invocation(){
  *  @extends  module:rtcomm.util.RtcommBaseObject
  */
   var RtcommEndpoint = function RtcommEndpoint(config) {
-    // Presuming you creat an object based on this one, 
-    // you must override the ession event handler and
-    // then augment newSession object.
-    //
+    /** 
+     * @typedef {object} module:rtcomm.RtcommEndpoint~config
+     *
+     * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
+     * @property {string}  [userid=null] UserID the endpoint will use (generally provided by the EndpointProvider
+     * @property {string}  [appContext=null] UI Component to attach outbound media stream
+     * @property {string} [ringtone=null] Path to a  ringtone to play when we are ringing on inbound call
+     * @property {string} [ringbacktone=null] path to a ringbacktone to play on outbound call
+     * @property {boolean} [webrtc=true]  Whether the endpoint supports webrtc
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
+     * @property {boolean} [chat=true]  Wehther the endpoint supports chat
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
+     *
+     */
     this.config = {
       // if a feature is supported, enable by default.
       autoEnable: false,
@@ -5693,8 +5759,9 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
    // session.listEvents();
     return true;
   }
+
 /** @lends module:rtcomm.RtcommEndpoint.prototype */
-return  {
+var proto = {
   getAppContext:function() {return this.config.appContext;},
   newSession: function(session) {
       var event = null;
@@ -5815,6 +5882,7 @@ return  {
     this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
     this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
   },
+
   /** Endpoint is available to accept an incoming call
    *
    * @returns {boolean}
@@ -5832,7 +5900,6 @@ return  {
     },
 
   /**
-   *  @memberof module:rtcomm.RtcommEndpoint
    * Connect to another endpoint.  Depending on what is enabled, it may also start
    * a chat connection or a webrtc connection.
    * <p>
@@ -5842,9 +5909,6 @@ return  {
    * </p>
    *
    * @param {string|object} endpoint Remote ID of endpoint to connect.
-   *
-   * TODO:  Doc this..
-   *
    */
 
   connect: function(endpoint) {
@@ -5901,13 +5965,17 @@ return  {
    * Accept an inbound request.  This is typically called after a 
    * {@link module:rtcomm.RtcommEndpoint#session:alerting|session:alerting} event
    *
+   *
+   * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when accept is complete.
+   *
+   * @returns {module:rtcomm.RtcommEndpoint}
    */
-  accept: function(options) {
+  accept: function(callback) {
     if (this.getState() === 'session:refer') {  
       this.connect(null);
-    } else if (this.webrtc && this.webrtc && this.webrtc.accept(options)) {
+    } else if (this.webrtc && this.webrtc && this.webrtc.accept(callback)) {
       l('DEBUG') && console.log(this+'.accept() Accepted in webrtc.');
-    } else if (this.chat && this.chat.accept(options)) {
+    } else if (this.chat && this.chat.accept(callback)) {
       l('DEBUG') && console.log(this+'.accept() Accepted in chat.');
     } else {
       l('DEBUG') && console.log(this+'.accept() accepting generically.');
@@ -6051,6 +6119,8 @@ return  {
 
   };
 
+  // This construct is to get the jsdoc correct
+  return proto;
 
   })()); // End of Prototype
 
@@ -6097,7 +6167,7 @@ var WebRTCConnection = (function invocation() {
     };
 
     /** 
-     * @typedef {object} webrtcEnableConfig
+     * @typedef {object} module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig
      *
      * @property {object} [mediaIn]  UI component to attach inbound media stream
      * @property {object} [mediaOut] UI Component to attach outbound media stream
@@ -6163,7 +6233,7 @@ var WebRTCConnection = (function invocation() {
 
   WebRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.WebRTCConnection.prototype */
-    return {
+    var proto = {
     /**
      * enable webrtc
      * <p>
@@ -6188,13 +6258,13 @@ var WebRTCConnection = (function invocation() {
      * right away
      * @param {boolean} [config.connect=true] Internal, do not use.
      *
-     * @param {WebRTCConnection~callback} callback - The callback when enable is complete.
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
      *
      */
 
     /**
     * This callback is displayed as a global member.
-    * @callback WebRTCConnection~callback
+    * @callback module:rtcomm.RtcommEndpoint.WebRTCConnection~callback
     * @param {(boolean|MediaStream)} success - True or a MediaStream if successful
     * @param {string} message  - Empty if success evaluates to true, otherwise failure reason. 
     */
@@ -6298,7 +6368,7 @@ var WebRTCConnection = (function invocation() {
      * Called to 'connect' (Send message, change state)
      * Only works if enabled.
      *
-     * @param {WebRTCConnection~callback} callback - The callback when enable is complete.
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
      */
     _connect: function(callback) {
       var self = this;
@@ -6392,7 +6462,7 @@ var WebRTCConnection = (function invocation() {
     /**
      * Accept an inbound connection
      *
-     * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when accept is complete.
      *
      */
     accept: function(callback) {
@@ -6864,7 +6934,7 @@ var WebRTCConnection = (function invocation() {
   * @param {object} config.mediaIn
   * @param {object} config.mediaOut
   *
-  * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
+  * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when setLocalMedia is complete.
   *
   */
   setLocalMedia: function setLocalMedia(config,callback) {
@@ -6906,7 +6976,7 @@ var WebRTCConnection = (function invocation() {
    * @param {boolean} options.audio
    * @param {boolean} options.video
    *
-   * @param {WebRTCConnection~callback} callback - The callback when accept is complete.
+   * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when function is complete.
    *
    */
   enableLocalAV: function(options, callback) {
@@ -7025,6 +7095,9 @@ var WebRTCConnection = (function invocation() {
     return this._.iceServers;
   }
  };
+
+ // Required for jsdoc to look right
+ return proto;
 
 })()); // End of Prototype
 
@@ -7450,21 +7523,7 @@ return EndpointProvider;
  * limitations under the License.
  */
 /**
- * @class
- * @memberof module:rtcomm
- * @classdesc
- * Provides Services to register a user and create Endpoints (RtcommEndpoints & MqttEndpoints)
- * <p>
- * This programming interface lets a JavaScript client application use 
- * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
- * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
- * & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
- * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
- * that is used to receive inbound communication.
- * <p>
- * See the example in {@link module:rtcomm.EndpointProvider#init|EndpointProvider.init()}
- * <p>
- *
+ * @module rtcomm
  * @requires {@link mqttws31.js}
  *
  */

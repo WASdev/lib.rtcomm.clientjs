@@ -16,7 +16,6 @@
 /*global l:false*/
 /*global util:false*/
 var Chat = (function invocation() {
-
 /**
    * @memberof module:rtcomm.RtcommEndpoint
    *
@@ -105,10 +104,10 @@ var Chat = (function invocation() {
     /**
      * Accept an inbound connection  
      */
-    this.accept = function(message) {
+    this.accept = function(callback) {
       l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
       if (this.state === 'alerting') {
-        this.enable(message || 'Accepting chat connection');
+        this.enable(callback|| 'Accepting chat connection');
         return true;
       } else {
         return false;
