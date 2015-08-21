@@ -103,10 +103,16 @@ define([
           chat3 = null;
         },
         beforeEach: function() {
+          var dfd = new Deferred();
           chat1 && chat1.destroy();
           chat2 && chat2.destroy();
           chat1 = EP1.createRtcommEndpoint();
           chat2 = EP2.createRtcommEndpoint();
+          setTimeout(function(){
+            console.log('BeforeEach -- waiting 1 second for cleanup/restart to complete');
+            dfd.resolve();
+          },1000);
+          return dfd.promise;
         },
         'verify setup': function() {
           assert.equal(uid1, EP1.getUserID());
@@ -237,6 +243,7 @@ define([
         },
 
         'connect 2 chat clients via 3PCC':function() {
+          console.log('************** START OF 3PCC TEST ********************');
           var ccTopic = null;
           if (EP1.getServices().RTCOMM_CALL_CONTROL_SERVICE) {
             ccTopic = EP1.getServices().RTCOMM_CALL_CONTROL_SERVICE.topic;
