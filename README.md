@@ -2,6 +2,20 @@
 
 The rtcomm.js library is a JavaScript Universal Module Description(UMD) formatted module that provides an API for client side web application developers to enable WebRTC functionality.  This module handles signaling and creation of WebRTC PeerConnections between endpoints in a simple and flexible way. This library is works with the 'rtcomm-1.0' feature in WebSphere Liberty Profile server.
 
+## Quick Start
+
+1. Grab the sample.zip from here: <link>
+2. Unzip the sample app into a Directory ( We will use <sample_app_dir> );
+3. Grab Liberty https://developer.ibm.com/wasdev/downloads/liberty-profile-using-non-eclipse-environments/
+4. Make sure you install rtcomm-1.0:
+```
+   bin/installUtility install rtcomm-1.0
+```
+5. 
+
+
+
+
 ##Requirements
 
 1.  An MQTT Server such as IBM MessageSite. For prototyping and development, it is possible to use `messagesight.demos.ibm.com`. 

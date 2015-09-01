@@ -85,6 +85,13 @@ var EndpointProvider =  function EndpointProvider() {
        */
       'queueupdate': [],
       /**
+       * The Presence was Updated 
+       * @event module:rtcomm.EndpointProvider#presence_updated
+       * @property {module:rtcomm.PresenceMonitor.presenceData}
+       *
+       */
+      'presence_updated': [],
+      /**
        * The endpoint Provider has reset.  Usually due to another peer logging in with the same presence. 
        * The event has a 'reason' property indicating why the EndpointProvider was reset.
        *
@@ -110,6 +117,7 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
+   * @param {boolean} [config.monitorPresence=false] Automatically create a presence monitor and emit events on the endpoint provider.
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
    *
@@ -162,6 +170,7 @@ var EndpointProvider =  function EndpointProvider() {
           presence: 'object',
           userid: 'string',
           useSSL: 'boolean',
+          monitorPresence: 'boolean',
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
@@ -176,6 +185,7 @@ var EndpointProvider =  function EndpointProvider() {
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
           port: useSSL ? 8883: 1883,
+          monitorPresence: false,
           createEndpoint: false }
       };
     // the configuration for Endpoint Provider
@@ -211,6 +221,7 @@ var EndpointProvider =  function EndpointProvider() {
     var connectionConfig =  util.makeCopy(config);
     // everything else is the same config.
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
+    connectionConfig.hasOwnProperty('monitorPresence') &&  delete connectionConfig.monitorPresence;
     connectionConfig.publishPresence = true;
     // createEndpointConnection
 
@@ -248,6 +259,10 @@ var EndpointProvider =  function EndpointProvider() {
           console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
         endpointProvider.publishPresence();
        // endpointProvider.setUserID(config.userid);
+        if (config.monitorPresence) {
+          // Attach a default presence monitor to our presence topic
+          endpointProvider.getPresenceMonitor("/");
+        }
         returnObj.registered = true;
       }
       // Attach endpointConnection if a presenceMonitor
@@ -519,7 +534,13 @@ var EndpointProvider =  function EndpointProvider() {
     this._.presenceMonitor  = this._.presenceMonitor || new PresenceMonitor({connection: this.dependencies.endpointConnection});
     if (this.ready) {
       topic && this._.presenceMonitor.add(topic);
-    } 
+    }; 
+
+    // propogate the event out if we have a handler.
+    var endpointProvider = this;
+    this._.presenceMonitor.on('updated', function(presenceData) {
+      endpointProvider.emit('presence_updated', {'presenceData': presenceData});
+    });
     return this._.presenceMonitor;
   };
   /** 
@@ -537,7 +558,6 @@ var EndpointProvider =  function EndpointProvider() {
     this.dependencies.endpointConnection = null;
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointConnection');
     this.ready = false;
-    
   };
 
   /**

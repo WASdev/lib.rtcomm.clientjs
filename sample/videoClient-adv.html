@@ -18,45 +18,70 @@
 <title>IBM WebRTC Demo</title>
 <!-- Load the CSS -->
 <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet"/>
-<link href="resources/css/video.css" rel="stylesheet"/>
+<link href="resources/css/videoAdvanced.css" rel="stylesheet"/>
 </head>
 
 <body>
 <!-- The Main Page conainer -->
-<div id="MainContainer" class="mainContentContainer">
- <div id="topContainer">
-        <div class="pull-left logo">
-          <span class="blue">IBM</span> WebRTC Sample
+<div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#">IBM WebRTC Advanced Sample</a>
         </div>
-        <div class="pull-right logo" style="font-size: 24px; padding-right: 30px">
-          <span id="displayNameStr"></span>
-        </div>
+				<ul class="nav navbar-nav navbar-right"
+					ng-controller="UserController">
+					<li id="sign_in" ><a href="#">Sign In...</a></li>
+        </ul>
       </div>
-  <div id="videoContainer">
-    <div id='selfViewContainer'>
-      <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
-      <button id="btnToggleBroadcast" type="button" class="btn btn-default" aria-label="Left Align">
-        <span id="toggleIcon" class="glyphicon glyphicon-pause" aria-hidden="true"></span>
-      </button>
     </div>
-    
-    <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
-    </video>
-     </div>
-     <div class="video-controls">
-    <div class="btn-group pull-left" style='padding-top:10px'>
-     <button id='btnRegister' class='btn btn-primary'>
-       Register
-      </button>
-      <button id='btnConnect' class='btn btn-default' disabled='disabled'>
-         Connect  
-      </button>
-    </div>
-     <div id='statusMessage' class="pull-right logo" style="font-size: 24px; padding-right: 30px">
-          Please Register
-    </div>
-  </div>
+
+<div id="MainContainer" class="mainContentContainer container-fluid" style=" padding-top: 60px">
+  <div class="row">
+    <div class="col-sm-3">
+      <div class="panel panel-primary vertical-stretch">
+        <div class="panel-heading">
+          <span class="glyphicon glyphicon-comment"></span> Presence
+        </div>
+        <div id="presence" class="panel-body">
+          Where Presence Members go
+        </div>
+      </div> <!-- panel --> 
+    </div> <!-- chat -->
+    <div id="videoContainer" class="col-sm-6">
+        <div id='selfViewContainer'>
+          <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
+          <button id="btnToggleBroadcast" type="button" class="btn btn-default" aria-label="Left Align">
+            <span id="toggleIcon" class="glyphicon glyphicon-pause" aria-hidden="true"></span>
+          </button>
+        </div>
+        <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
+        </video>
+    </div> <!-- end of video-container -->
+    <div id="chat" class="col-sm-3">
+      <div class="panel panel-primary vertical-stretch">
+        <div class="panel-heading">
+          <span class="glyphicon glyphicon-comment"></span> Chat
+        </div>
+        <div class="panel-body">
+          Where chat messages go.
+        </div>
+        <div class="panel-footer">
+          <div class="input-group">
+            <input id="chat-input" type="text" class="form-control input-sm" placeholder="Type your message here..." type="text" > 
+              <span class="input-group-btn">
+                <button class="btn btn-primary btn-sm" id="btn-chat" >Send</button>
+              </span>
+          </div>
+        </div>
+      </div> <!-- panel --> 
+    </div> <!-- chat -->
+  </div> <!-- container -->
 </div>
+<div class="navbar navbar-fixed-bottom" >
+      <div class="container">
+        <h1 id="statusMessage">Please Register</h1>
+      </div>
+    </div>
 
 <!-- The Answer Dialog -->
 <div id="answerDialog" class="modal fade">
@@ -165,6 +190,10 @@ The primary logic for this HTML Page
   ibmep.on('reset', function(event_object) {
     updateMessage("Connection was reset - reason: "+event_object.reason);
   });
+  ibmep.on('presence_updated', function(event_object) {
+      console.log('onPresenceUPdated',event_object);
+    updatePresence(event_object.presenceData[0].flatten());
+  });
 
   // Change the loglevel - default is 'INFO', possibilities are:
   // 'MESSAGES' --> Just log sent/received messages in console.
@@ -192,6 +221,7 @@ The primary logic for this HTML Page
     appContext: "default",
     rtcommTopicPath: "/rtcomm/",
     createEndpoint : true,
+    monitorPresence: true,
     useSSL: false,
     presence: {topic: 'defaultRoom'},
     credentials: {userName: 'swgraham', password: 'password'}
@@ -367,6 +397,7 @@ The primary logic for this HTML Page
      }
   });
 
+
   /*****************************************************************
    * UI Related functionality
    *
@@ -416,6 +447,7 @@ The primary logic for this HTML Page
 
   function updateMessage(message) {
     console.log('updateMessage --> '+message);
+
     $('#statusMessage').html(message);
   }
 
@@ -441,7 +473,7 @@ The primary logic for this HTML Page
 
   });
 
-  $('#btnRegister').on('click', function() {
+  $('#sign_in').on('click', function() {
     if (registered) {
       ibmep.destroy();
       uiUnregister();
@@ -499,6 +531,18 @@ The primary logic for this HTML Page
     }
     return false;
   });
+
+function updatePresence(presenceData) {
+  console.log('updatePresence', presenceData);
+  var presenceHTML = '<ul class="list-group">';
+  for (var i=0; i<presenceData.length; i++) {
+    var node = presenceData[i];
+    presenceHTML = presenceHTML+ '<li class="list-group-item">'+node.name+'</li>';
+  };
+  presenceHTML = presenceHTML + '</ul>';
+  $('#presence').html(presenceHTML);
+};
+
 
   function alertMessage(message) {
     console.log('Updating statusMessge with ', message);
