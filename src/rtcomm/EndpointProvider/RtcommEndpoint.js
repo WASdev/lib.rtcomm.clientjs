@@ -619,7 +619,8 @@ var proto = {
       } else {
         this._.activeSession=null;
       }
-
+      // Renable webrtc if autoEnable is set.
+      this.config.autoEnable && this.webrtc && this.webrtc.enable();
       this._.disconnecting = false;
       this.available(true);
     } else {

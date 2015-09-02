@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 02-09-2015 15:35:07 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 02-09-2015 15:35:07 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 02-09-2015 18:38:09 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 02-09-2015 18:38:09 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5991,7 +5991,8 @@ var proto = {
       } else {
         this._.activeSession=null;
       }
-
+      // Renable webrtc if autoEnable is set.
+      this.config.autoEnable && this.webrtc && this.webrtc.enable();
       this._.disconnecting = false;
       this.available(true);
     } else {
@@ -6654,7 +6655,7 @@ var WebRTCConnection = (function invocation() {
         });
 
       this.send(msg);
-      this._.muted = true;
+      this._.muted = false;
     },
     isMuted: function() {
       return this._.muted;

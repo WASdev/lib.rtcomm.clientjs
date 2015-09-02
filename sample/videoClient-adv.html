@@ -17,7 +17,8 @@
 <meta charset="utf-8">
 <title>IBM WebRTC Demo</title>
 <!-- Load the CSS -->
-<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet"/>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+<link href="resources/css/video.css" rel="stylesheet"/>
 <link href="resources/css/videoAdvanced.css" rel="stylesheet"/>
 </head>
 
@@ -26,38 +27,43 @@
 <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
       <div class="container">
         <div class="navbar-header">
-          <a class="navbar-brand" href="#">IBM WebRTC Advanced Sample</a>
+          <a class="navbar-brand" href="#"><span class="blue"> IBM</span> WebRTC Advanced Sample</a>
         </div>
-				<ul class="nav navbar-nav navbar-right"
-					ng-controller="UserController">
-					<li id="sign_in" ><a href="#">Sign In...</a></li>
-        </ul>
+        <div class="navbar-right">
+          <p class="navbar-text" id="displayNameStr"></p>
+          <button id="sign_in" type="button" class="btn btn-default navbar-btn">Sign in</button>
+        </div>
       </div>
-    </div>
+</div>
 
 <div id="MainContainer" class="mainContentContainer container-fluid" style=" padding-top: 60px">
   <div class="row">
     <div class="col-sm-3">
       <div class="panel panel-primary vertical-stretch">
         <div class="panel-heading">
-          <span class="glyphicon glyphicon-comment"></span> Presence
+          <span class="glyphicon glyphicon-user"></span> Presence
         </div>
         <div id="presence" class="panel-body">
           Where Presence Members go
         </div>
       </div> <!-- panel --> 
-    </div> <!-- chat -->
-    <div id="videoContainer" class="col-sm-6">
-        <div id='selfViewContainer'>
-          <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
-          <button id="btnToggleBroadcast" type="button" class="btn btn-default" aria-label="Left Align">
-            <span id="toggleIcon" class="glyphicon glyphicon-pause" aria-hidden="true"></span>
-          </button>
-        </div>
+    </div> <!-- presence-->
+    <div class="col-sm-6">
         <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
         </video>  
     </div> <!-- end of video-container -->
-    <div id="chat" class="col-sm-3">
+    <div class="col-sm-3">
+      <div class="panel panel-primary vertical-stretch">
+        <div class="panel-heading">
+          <span class="glyphicon glyphicon-facetime-video"></span> Local Video
+          <button id="btnToggleBroadcast" type="button" disabled="disabled" class="btn btn-xs btn-info pull-right" aria-label="Left Align">
+             <span id="toggleIcon" class="glyphicon glyphicon-pause" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="panel-body">
+          <video title="selfView" poster='resources/video_camera.png' id="selfView" autoplay="true" muted="true" ></video>
+        </div>
+      </div> <!-- local video panel --> 
       <div class="panel panel-primary vertical-stretch">
         <div class="panel-heading">
           <span class="glyphicon glyphicon-comment"></span> Chat
@@ -67,9 +73,9 @@
         </div>
         <div class="panel-footer">
           <div class="input-group">
-            <input id="chat-input" type="text" class="form-control input-sm" placeholder="Type your message here..." type="text" > 
+            <input id="chat-input" type="text" class="form-control input-sm" placeholder="Type your message here..." > 
               <span class="input-group-btn">
-                <button class="btn btn-primary btn-sm" id="btnChat" >Send</button>
+                <button class="btn btn-primary btn-sm" type="submit" id="btnChat" >Send</button>
               </span>
           </div>
         </div>
@@ -79,11 +85,12 @@
 </div>
 <div class="navbar navbar-inverse navbar-fixed-bottom" >
   <div class="container">
-        <div class="navbar-header">
-          <h3 id="statusMessage">Please Sign In...</h3>
-        </div>
-        <button id='btnConnect' type="button" class="btn btn-default navbar-btn navbar-right" style="display:none" >Disconnect</button>
+  <a class="navbar-brand" href="#"  >>></a>
+  <p id="statusMessage" class="navbar-text"> Please Sign in... </p>
+  <div class="navbar-right">
+     <button id='btnConnect' type="button" class="btn btn-info navbar-btn" style="display:none" >Disconnect</button>
   </div>
+</div>
 </div>
 
 <!-- The Answer Dialog -->
@@ -136,42 +143,12 @@
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
-<!-- The Connect Modal Dialog -->
-<div id="connectModal" class="modal fade">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-        <h4 class="modal-title">Connect</h4>
-      </div>
-      <div class="modal-body">
-      <div id='connAlert' class="alert alert-danger hidden" role="alert" >
-        A UserID is required to Connect to
-        </div>
-         Enter the User ID to connect to.  They must be registered with the same server.
-          <br/>
-          <br/>
-          <div>
-        <div class="input-group">
-          <span class="input-group-addon">ID:</span>
-          <input id="remoteid" class="form-control" type="text"  placeholder="userid to connect to"/>
-        </div>
-       </div>
-      </div>
-      <div class="modal-footer">
-        <button id='connectCancel' type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-        <button id='connectGo' type="button" class="btn btn-primary" data-dismiss="modal" >Go</button>
-      </div>
-    </div><!-- /.modal-content -->
-  </div><!-- /.modal-dialog -->
-</div><!-- /.modal -->
-
 <!-- 
 This is SAMPLE is dependent on jQuery and bootstrap. Both load from a CDN. Alternatively, download jquery 
-from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
+from jquery.com/downloads.  This app was tested with jQuery 2.1.4.
 -->
-<script src="http://code.jquery.com/jquery-2.1.1.js"></script>
-<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 
 <!-- The following paths may need to be modified depending on the location of this script. -->
 <script src="../bower_components/bower-mqttws/mqttws31.js"></script>
@@ -217,7 +194,7 @@ The primary logic for this HTML Page
    *
    * Example:  videoClient.html?server=servername&port=1883&rtcommTopicPath=/rtcommcompany/
    */
-  var epConfig = {
+  var providerConfig = {
     server : window.document.location.hostname,
     port : window.document.location.port,
     managementTopicName : "management",
@@ -252,7 +229,7 @@ The primary logic for this HTML Page
   // Update to boolean
   urlConfig.useSSL = (urlConfig.useSSL === 'true')? true: false;
   // This uses any params passed on URL to override config.
-  updateConfig(epConfig, urlConfig);
+  updateConfig(providerConfig, urlConfig);
 
   /********************************************************************
    *  Rtcomm Functions
@@ -261,7 +238,7 @@ The primary logic for this HTML Page
    /* doRegister()
    *
    * This function is the meat of the sample and shows how to
-   * init the EndpointProvider using epConfig provided above.  This
+   * init the EndpointProvider using providerConfig provided above.  This
    * config is using getRtcommEndpoint = true so that 
    * the init returns a rtcommEndpoint object.  
 
@@ -272,16 +249,16 @@ The primary logic for this HTML Page
   function doRegister(userid) {
     updateMessage('Registering... '+ userid);
     
-    epConfig.userid = userid;
+    providerConfig.userid = userid;
     myUserId = userid;
     // make sure this is an integer.
-    epConfig.port = parseInt(epConfig.port);
+    providerConfig.port = parseInt(providerConfig.port);
     /*
      * Call init() on the Endpoint Provider.
      */
     ibmep
           .init(
-              epConfig,
+              providerConfig,
               /* onSuccess for init() will pass an object:
                *  { endpoint: RtcommEndpoint ,   <-- RtcommEndpoint Object if created
                *     ready: boolean,             <-- We are ready to proceed.
@@ -406,7 +383,6 @@ The primary logic for this HTML Page
       }
   });
 
-
   /*****************************************************************
    * UI Related functionality
    *
@@ -415,13 +391,13 @@ The primary logic for this HTML Page
    ****************************************************************/ 
 
   function uiConnect(message) {
+      $('#btnToggleBroadcast').prop('disabled', false);
       $('#btnConnect').show();
       updateMessage(message || 'Unknown');
       connected = true;
   };
 
   function uiDisconnect(message) {
-      
       if (connected) {
         connected = false;
         rtcommEndpoint.disconnect();
@@ -433,6 +409,7 @@ The primary logic for this HTML Page
          * 
          * This will be resolved in the future.
          */
+          $('#btnToggleBroadcast').prop('disabled', true);
           $('#btnConnect').hide();
           updateMessage(message || 'Unknown');
       }
@@ -443,7 +420,7 @@ The primary logic for this HTML Page
     $('#displayNameStr').html('Welcome, <span class="blue">' + userid + '</span>');
     updateMessage('Registered');
     $('#btnConnect').prop('disabled', false);
-    $('#btnRegister').text('Unregister');
+    $('#sign_in').text('Sign Out');
     registered = true;
   };
 
@@ -451,13 +428,12 @@ The primary logic for this HTML Page
     $('#displayNameStr').html('Please Register');
 //    updateMessage('Unregistered');
     $('#btnConnect').prop('disabled', true);
-    $('#btnRegister').text('Register');
+    $('#sign_in').text('Sign In');
     registered = false;
   }
 
   function updateMessage(message) {
     console.log('updateMessage --> '+message);
-
     $('#statusMessage').html(message);
   }
 
@@ -472,17 +448,7 @@ The primary logic for this HTML Page
     rtcommEndpoint.reject();
   });
 
-
-  $('#btnReset').on('click', function() {
-    rtcommEndpoint && rtcommEndpoint.reset();
-    rtcommEndpoint = null;
-    ibmep && ibmep.destroy();
-    ibmep = null;
-    updateMessage('Please Register');
-    $('#btnRegister').hasClass('active') && $('#btnRegister').button('toggle');
-
-  });
-
+  // Sign in 
   $('#sign_in').on('click', function() {
     if (registered) {
       ibmep.destroy();
@@ -493,17 +459,19 @@ The primary logic for this HTML Page
     }
   });
 
-  $('#btnChat').on('click', function() {
+ function sendChat() {
     var msg = $("#chat-input").val();
     if (rtcommEndpoint.chat) {
-      console.log('sending message '+msg);
       rtcommEndpoint.chat.send(msg);
       $("#chat-messages").append('<p>'+msg+'</p>');
+      // Clear out the text now
+      $("#chat-input").val('');
     }
-  });
+ }
 
+ $('#btnChat').on('click', sendChat); 
 
-  $('#regGo').on('click', function() {
+ $('#regGo').on('click', function() {
     var userid = $("#userid").val();
     // Make sure userid is set.
     if (userid === "") {
@@ -537,19 +505,6 @@ The primary logic for this HTML Page
     } 
   });
 
-  $("#connectGo").on('click', function(event) {
-    var remoteid = $("#remoteid").val();
-    if (remoteid === "") {
-      $('#connAlert').show();
-      return false;
-    } else {
-      doConnect(remoteid);
-      $("#connectModal").modal("hide");
-      $('#connAlert').hide();
-    }
-    return false;
-  });
-
 function doConnect(remoteid) {
   updateMessage('Connecting to '+remoteid);
   // This is only necessary if you want to enable/connect in same motion. 
@@ -558,15 +513,18 @@ function doConnect(remoteid) {
 
 function updatePresence(presenceData) {
   console.log('updatePresence', presenceData);
-  var presenceHTML = '<ul class="list-group">';
+  var presenceHTML = '<ul class="nav nav-pills nav-stacked">';
   for (var i=0; i<presenceData.length; i++) {
     var node = presenceData[i];
-    presenceHTML = presenceHTML+ '<li id='+node.name+' class="list-group-item">'+node.name+'</li>';
+    if (myUserId === node.name) {
+      presenceHTML = presenceHTML+ '<li class="disabled" role="presentation" ><a id='+node.name+' href="#">'+node.name+'</a></li>';
+    } else {
+      presenceHTML = presenceHTML+ '<li role="presentation" ><a id='+node.name+' href="#">'+node.name+'</a></li>';
+    }
   };
   presenceHTML = presenceHTML + '</ul>';
   $('#presence').html(presenceHTML);
 };
-
 
   function alertMessage(message) {
     console.log('Updating statusMessge with ', message);
@@ -586,9 +544,9 @@ function updatePresence(presenceData) {
   }
   function displayConfig() {
     var configHTML = "";
-    for (key in epConfig) {
-      if (epConfig.hasOwnProperty(key)) {
-        configHTML = configHTML + keyPairToHtml(key, epConfig[key]);
+    for (key in providerConfig) {
+      if (providerConfig.hasOwnProperty(key)) {
+        configHTML = configHTML + keyPairToHtml(key, providerConfig[key]);
       }
     }
     // console.log('trying to display '+configHTML);
@@ -619,7 +577,8 @@ function updatePresence(presenceData) {
   }
 
 $(document).ready(function(){
-    $(document).on('click', '.list-group', function(e){
+    $(document).on('click', '.nav-pills', function(e){
+       console.log('success e is: ', e);
        console.log('success '+ e.target.id);
        console.log('myUserID is: '+ myUserId);
           if (e.target.id !== myUserId) {
@@ -627,6 +586,13 @@ $(document).ready(function(){
           }
        });
     });
+
+$('#chat-input').keypress(function(event){
+   var keycode = (event.keyCode ? event.keyCode : event.which);
+      if(keycode == '13'){
+        sendChat();
+      }
+});
 
 window.onload = function() {
   console.log('ONLOAD! '+regOnload+' userid: '+myUserId);

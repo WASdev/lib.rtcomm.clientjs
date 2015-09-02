@@ -17,35 +17,33 @@
 <meta charset="utf-8">
 <title>IBM WebRTC Demo</title>
 <!-- Load the CSS -->
-<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet"/>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
 <link href="resources/css/video.css" rel="stylesheet"/>
 </head>
 
 <body>
-<!-- The Main Page conainer -->
+<!-- The Main Page container -->
 <div id="MainContainer" class="mainContentContainer">
- <div id="topContainer">
-        <div class="pull-left logo">
-          <span class="blue">IBM</span> WebRTC Sample
-        </div>
-        <div class="pull-right logo" style="font-size: 24px; padding-right: 30px">
-          <span id="displayNameStr"></span>
-        </div>
-      </div>
-  <div id="videoContainer">
-    <div id='selfViewContainer'>
-      <!-- The selfView is where the Video you are broadcasting is shown.  You need to 'MUTE' this (muted="true") or you get feedback -->
-      <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
-      <!-- The btnToggleBroadcast provides an interface to pause/resume broadcasting -->
-      <button id="btnToggleBroadcast" type="button" class="btn btn-default" aria-label="Left Align">
-        <span id="toggleIcon" class="glyphicon glyphicon-pause" aria-hidden="true"></span>
-      </button>
-    </div>
-    <!-- The remoteView is where the Video you are receiving is shown. -->
-    <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
-    </video>
+  <div id="topContainer">
+     <div class="pull-left logo">
+        <span class="blue">IBM</span> WebRTC Sample
      </div>
-     <div class="video-controls">
+     <div class="pull-right logo" style="font-size: 24px; padding-right: 30px">
+        <span id="displayNameStr"></span>
+     </div>
+  </div> <!-- End of the topContainer -->
+  <!-- alert message for use later -->
+  <div id='mainAlert' class="alert alert-danger alert-dismissible" style="display:none" role="alert">
+     <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+     <div id='alertMessage'></div>
+  </div>
+  <div id="videoContainer">
+      <!-- The selfView is where the Video you are broadcasting is shown.  You need to 'MUTE' this (muted="true") or you get feedback -->
+    <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true"></video>
+    <!-- The remoteView is where the Video you are receiving is shown. -->
+    <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true"></video>
+  </div> <!-- End of the videoContainer -->
+  <div class="video-controls">
     <div class="btn-group pull-left" style='padding-top:10px'>
      <button id='btnRegister' class='btn btn-primary'>
        Register
@@ -57,8 +55,8 @@
      <div id='statusMessage' class="pull-right logo" style="font-size: 24px; padding-right: 30px">
           Please Register
     </div>
-  </div>
-</div>
+  </div> <!-- End of the video-controls -->
+</div> <!-- end of the MainContainer -->
 
 <!-- The Register Modal Dialog -->
 <div id="registerModal" class="modal fade">
@@ -69,7 +67,7 @@
         <h4 class="modal-title">Register</h4>
       </div>
       <div class="modal-body">
-        <div id='regAlert' class="alert alert-danger hidden" role="alert" >
+        <div id='regAlert' class="alert alert-danger " style="display:none" role="alert" >
         A UserID is required to Register
         </div>
           It is necessary to register before doing anything. The ID used here
@@ -100,7 +98,7 @@
         <h4 class="modal-title">Connect</h4>
       </div>
       <div class="modal-body">
-      <div id='connAlert' class="alert alert-danger hidden" role="alert" >
+      <div id='connAlert' class="alert alert-danger" style="display:none"  role="alert" >
         A UserID is required to Connect to
         </div>
          Enter the User ID to connect to.  They must be registered with the same server.
@@ -144,8 +142,8 @@
 This is SAMPLE is dependent on jQuery and bootstrap. Both load from a CDN. Alternatively, download jquery 
 from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 -->
-<script src="http://code.jquery.com/jquery-2.1.1.js"></script>
-<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 
 <!-- The following paths may need to be modified depending on the location of this script. -->
 <script src="../bower_components/bower-mqttws/mqttws31.js"></script>
@@ -183,6 +181,9 @@ The primary logic for this HTML Page
   // UI State
   var registered = false;
   var connected = false;
+
+  // bootstrap/jquery make alerts closable
+  $().alert();
 
   /********************************************************************
    *  Rtcomm Functions
@@ -285,7 +286,7 @@ The primary logic for this HTML Page
       },
       // Establishing the session failed, display a message, cleanup.
       'session:failed': function(event_object) {
-        updateMessage("Connection failed - reason: "+event_object.reason);
+        alertMessage("Connection failed - reason: "+event_object.reason);
       },
       // An inbound Refer was received.  
       'session:refer': function(conn) {
@@ -388,8 +389,10 @@ The primary logic for this HTML Page
 
   $('#regGo').on('click', function() {
     var userid = $("#userid").val();
+    console.log('regGo: userid is: >'+userid+'<');
     // Make sure userid is set.
     if (userid === "") {
+      console.log('regGo: userid is: >'+userid+'<');
       $('#regAlert').show();
       return false;
     } else {
@@ -438,8 +441,9 @@ The primary logic for this HTML Page
   });
 
   function alertMessage(message) {
-    $('#statusMessage').css('color:red');
-    $('#statusMessage').html(message);
+    $('#alertMessage').html(message);
+    $('#mainAlert').show();
+    $('#statusMessage').html("Please try again");
   }
 </script>
 </body>

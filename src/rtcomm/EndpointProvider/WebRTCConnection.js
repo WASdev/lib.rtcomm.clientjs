@@ -486,7 +486,7 @@ var WebRTCConnection = (function invocation() {
         });
 
       this.send(msg);
-      this._.muted = true;
+      this._.muted = false;
     },
     isMuted: function() {
       return this._.muted;
