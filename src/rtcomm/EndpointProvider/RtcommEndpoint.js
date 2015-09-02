@@ -185,6 +185,8 @@ var RtcommEndpoint = (function invocation(){
      * @readonly
      */
     this.webrtc = (this.config.webrtc)?createWebRTCConnection(this): null;
+    // If autoenable, go ahead and enable webrtc.
+    this.config.autoEnable && this.webrtc && this.webrtc.enable();
     /**
      * The attached {@link module:rtcomm.RtcommEndpoint.Chat} object 
      * if enabled null if not enabled
@@ -194,7 +196,7 @@ var RtcommEndpoint = (function invocation(){
      */
     this.chat = (this.config.chat) ? createChat(this): null;
     // Enable chat by default if it is set up that way.
-    //this.chat && this.chat.enable();
+    this.chat && this.chat.enable();
 
     /** 
      * RtcommEndpoint Event type 
@@ -490,6 +492,10 @@ var proto = {
             case 'chat': 
               // It is a chat this will change to something different later on...
               if (this.config.chat) { 
+                // If there is also a webrtc payload, we don't want to alert, so just set it to connected
+                if (payload.webrtc) { 
+                  this.chat._setState('connected');
+                }
                 this.chat._processMessage(payload[type]);
               } else {
                 console.error('Received chat message, but chat not supported!',payload[type]);
@@ -574,7 +580,14 @@ var proto = {
         addSessionCallbacks(this, this._.activeSession);
       } 
       this.setState('session:trying');
-      if (this.config.webrtc && this.webrtc.connect()) {
+
+      var chatMessage = null;
+      if (this.config.chat && this.chat.enabled()) {
+        chatMessage = this.chat.onEnabledMessage;
+      } 
+      if (this.config.webrtc && this.webrtc.connect(chatMessage)) { 
+        // if its already enabled, we need to set chat to connected here so it can handle inbound messages.
+        this.chat.enabled() && this.chat._setState('connected');
         l('DEBUG') && console.log(this+'.connect() initiating with webrtc.enable({connect:true})');
       } else if (this.config.chat && this.chat.enable({connect:true})){
         l('DEBUG') && console.log(this+'.connect() initiating with chat.enable({connect:true})');

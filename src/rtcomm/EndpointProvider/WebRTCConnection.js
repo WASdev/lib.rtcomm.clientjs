@@ -227,13 +227,8 @@ var WebRTCConnection = (function invocation() {
     enabled: function() {
       return this._.enabled;
     },
-    connect: function connect(){
-      if (this.dependencies.parent.config.autoEnable) {
-        // Enable and connect
-        return this.enable({connect: true});
-      } else {
-        return this._connect();
-      }
+    connect: function connect(chatMessage){
+      return this._connect(chatMessage);
     },
     /*
      * Called to 'connect' (Send message, change state)
@@ -252,22 +247,26 @@ var WebRTCConnection = (function invocation() {
       } else {
         throw new Error(self+'._connect() unable to find a sendMethod');
       }
-
-      callback = callback ||function(success, message) {
-        l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
-      };
-
+      var payload = {};
+      // Used if chat is being sent w/ the offer
+      var chatMessage = null;
+      if (typeof callback !== 'function') {
+        chatMessage = callback;
+        callback = function(success, message) {
+          l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
+        };
+      }
       var doOffer =  function doOffer(success, msg) {
         if (success) { 
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
               if (self.config.trickleICE) {
-                sendMethod({payload: self.createMessage(offersdp)});
+                sendMethod({payload: self.createMessage(offersdp, chatMessage)});
               } else {
                 self.on('_notrickle', function(obj) {
                   l('DEBUG') && console.log(self+'.doOffer _notrickle called: Sending offer here. ');
-                  sendMethod({payload: self.createMessage(self.pc.localDescription)});
+                  sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
                   // turn it off once it fires.
                   callback(true);
                   self.off('_notrickle');
@@ -643,17 +642,15 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
-  createMessage: function(content) {
+  createMessage: function(content,chatcontent) {
+    var message = {'webrtc': {}};
     if (content) {
-      if (content.webrtc) {
-        // presumably OK, just return it
-        return content;
-      } else {
-        return {'webrtc': content};
-      }
-    } else {
-        return {'webrtc': content};
+      message.webrtc = (content.hasOwnProperty('webrtc')) ? content.webrtc : content;
     }
+    if (chatcontent && chatcontent.hasOwnProperty('chat')) {
+       message.chat = chatcontent.chat;
+    }
+    return message;
   },
 
   /* Process inbound messages

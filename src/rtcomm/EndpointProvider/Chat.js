@@ -207,6 +207,9 @@ var Chat = (function invocation() {
       }
     };
 
+    this.getState = function() {
+      return this.state;
+    };
   };
   Chat.prototype = util.RtcommBaseObject.extend({});
 

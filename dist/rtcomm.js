@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 01-09-2015 15:19:51 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 01-09-2015 15:19:51 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 02-09-2015 03:26:39 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 02-09-2015 03:26:39 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -3076,6 +3076,9 @@ var Chat = (function invocation() {
       }
     };
 
+    this.getState = function() {
+      return this.state;
+    };
   };
   Chat.prototype = util.RtcommBaseObject.extend({});
 
@@ -3531,6 +3534,7 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         chat: true,
         webrtc: true,
+        autoEnable: false,
         parent:this
     };
 
@@ -5553,6 +5557,8 @@ var RtcommEndpoint = (function invocation(){
      * @readonly
      */
     this.webrtc = (this.config.webrtc)?createWebRTCConnection(this): null;
+    // If autoenable, go ahead and enable webrtc.
+    this.config.autoEnable && this.webrtc && this.webrtc.enable();
     /**
      * The attached {@link module:rtcomm.RtcommEndpoint.Chat} object 
      * if enabled null if not enabled
@@ -5562,7 +5568,7 @@ var RtcommEndpoint = (function invocation(){
      */
     this.chat = (this.config.chat) ? createChat(this): null;
     // Enable chat by default if it is set up that way.
-    //this.chat && this.chat.enable();
+    this.chat && this.chat.enable();
 
     /** 
      * RtcommEndpoint Event type 
@@ -5858,6 +5864,10 @@ var proto = {
             case 'chat': 
               // It is a chat this will change to something different later on...
               if (this.config.chat) { 
+                // If there is also a webrtc payload, we don't want to alert, so just set it to connected
+                if (payload.webrtc) { 
+                  this.chat._setState('connected');
+                }
                 this.chat._processMessage(payload[type]);
               } else {
                 console.error('Received chat message, but chat not supported!',payload[type]);
@@ -5942,7 +5952,14 @@ var proto = {
         addSessionCallbacks(this, this._.activeSession);
       } 
       this.setState('session:trying');
-      if (this.config.webrtc && this.webrtc.connect()) {
+
+      var chatMessage = null;
+      if (this.config.chat && this.chat.enabled()) {
+        chatMessage = this.chat.onEnabledMessage;
+      } 
+      if (this.config.webrtc && this.webrtc.connect(chatMessage)) { 
+        // if its already enabled, we need to set chat to connected here so it can handle inbound messages.
+        this.chat.enabled() && this.chat._setState('connected');
         l('DEBUG') && console.log(this+'.connect() initiating with webrtc.enable({connect:true})');
       } else if (this.config.chat && this.chat.enable({connect:true})){
         l('DEBUG') && console.log(this+'.connect() initiating with chat.enable({connect:true})');
@@ -6378,13 +6395,8 @@ var WebRTCConnection = (function invocation() {
     enabled: function() {
       return this._.enabled;
     },
-    connect: function connect(){
-      if (this.dependencies.parent.config.autoEnable) {
-        // Enable and connect
-        return this.enable({connect: true});
-      } else {
-        return this._connect();
-      }
+    connect: function connect(chatMessage){
+      return this._connect(chatMessage);
     },
     /*
      * Called to 'connect' (Send message, change state)
@@ -6403,22 +6415,26 @@ var WebRTCConnection = (function invocation() {
       } else {
         throw new Error(self+'._connect() unable to find a sendMethod');
       }
-
-      callback = callback ||function(success, message) {
-        l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
-      };
-
+      var payload = {};
+      // Used if chat is being sent w/ the offer
+      var chatMessage = null;
+      if (typeof callback !== 'function') {
+        chatMessage = callback;
+        callback = function(success, message) {
+          l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
+        };
+      }
       var doOffer =  function doOffer(success, msg) {
         if (success) { 
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
               if (self.config.trickleICE) {
-                sendMethod({payload: self.createMessage(offersdp)});
+                sendMethod({payload: self.createMessage(offersdp, chatMessage)});
               } else {
                 self.on('_notrickle', function(obj) {
                   l('DEBUG') && console.log(self+'.doOffer _notrickle called: Sending offer here. ');
-                  sendMethod({payload: self.createMessage(self.pc.localDescription)});
+                  sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
                   // turn it off once it fires.
                   callback(true);
                   self.off('_notrickle');
@@ -6794,17 +6810,15 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
-  createMessage: function(content) {
+  createMessage: function(content,chatcontent) {
+    var message = {'webrtc': {}};
     if (content) {
-      if (content.webrtc) {
-        // presumably OK, just return it
-        return content;
-      } else {
-        return {'webrtc': content};
-      }
-    } else {
-        return {'webrtc': content};
+      message.webrtc = (content.hasOwnProperty('webrtc')) ? content.webrtc : content;
     }
+    if (chatcontent && chatcontent.hasOwnProperty('chat')) {
+       message.chat = chatcontent.chat;
+    }
+    return message;
   },
 
   /* Process inbound messages

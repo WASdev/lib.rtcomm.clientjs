@@ -55,21 +55,21 @@
           </button>
         </div>
         <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
-        </video>
+        </video>  
     </div> <!-- end of video-container -->
     <div id="chat" class="col-sm-3">
       <div class="panel panel-primary vertical-stretch">
         <div class="panel-heading">
           <span class="glyphicon glyphicon-comment"></span> Chat
         </div>
-        <div class="panel-body">
+        <div id="chat-messages" class="panel-body">
           Where chat messages go.
         </div>
         <div class="panel-footer">
           <div class="input-group">
             <input id="chat-input" type="text" class="form-control input-sm" placeholder="Type your message here..." type="text" > 
               <span class="input-group-btn">
-                <button class="btn btn-primary btn-sm" id="btn-chat" >Send</button>
+                <button class="btn btn-primary btn-sm" id="btnChat" >Send</button>
               </span>
           </div>
         </div>
@@ -77,11 +77,14 @@
     </div> <!-- chat -->
   </div> <!-- container -->
 </div>
-<div class="navbar navbar-fixed-bottom" >
-      <div class="container">
-        <h1 id="statusMessage">Please Register</h1>
-      </div>
-    </div>
+<div class="navbar navbar-inverse navbar-fixed-bottom" >
+  <div class="container">
+        <div class="navbar-header">
+          <h3 id="statusMessage">Please Sign In...</h3>
+        </div>
+        <button id='btnConnect' type="button" class="btn btn-default navbar-btn navbar-right" style="display:none" >Disconnect</button>
+  </div>
+</div>
 
 <!-- The Answer Dialog -->
 <div id="answerDialog" class="modal fade">
@@ -240,7 +243,7 @@ The primary logic for this HTML Page
   var regwithAV = (urlConfig.regwithAV === 'true')? true : false;
   /*  videoClient.html?regOnload=true&userid=someuser -- Immediately register onLoad with userid passed */
   var regOnload = (urlConfig.regOnload === 'true')? true : false;
-  var userid = urlConfig.userid || null;
+  var myUserId = urlConfig.userid || null;
   /*  videoClient.html?autoAnswer=true -- inbound call will be automatically answered.  Good for testing. */
   var autoAnswer = (urlConfig.autoAnswer === 'true')? true : false;
   /* Trickle ICE */
@@ -268,7 +271,9 @@ The primary logic for this HTML Page
    */
   function doRegister(userid) {
     updateMessage('Registering... '+ userid);
+    
     epConfig.userid = userid;
+    myUserId = userid;
     // make sure this is an integer.
     epConfig.port = parseInt(epConfig.port);
     /*
@@ -394,7 +399,11 @@ The primary logic for this HTML Page
           }
         }
        updateMessage(msg);
-     }
+     },
+      'chat:message': function(event_object) {
+        $("#chat-messages").append('<p><b>'+event_object.message.message+'</b></p>');
+        console.log('Chat Message!: ', event_object);
+      }
   });
 
 
@@ -406,12 +415,13 @@ The primary logic for this HTML Page
    ****************************************************************/ 
 
   function uiConnect(message) {
-      $('#btnConnect').text('Disconnect');
+      $('#btnConnect').show();
       updateMessage(message || 'Unknown');
       connected = true;
   };
 
   function uiDisconnect(message) {
+      
       if (connected) {
         connected = false;
         rtcommEndpoint.disconnect();
@@ -423,7 +433,7 @@ The primary logic for this HTML Page
          * 
          * This will be resolved in the future.
          */
-          $('#btnConnect').text('Connect');
+          $('#btnConnect').hide();
           updateMessage(message || 'Unknown');
       }
   };
@@ -483,6 +493,16 @@ The primary logic for this HTML Page
     }
   });
 
+  $('#btnChat').on('click', function() {
+    var msg = $("#chat-input").val();
+    if (rtcommEndpoint.chat) {
+      console.log('sending message '+msg);
+      rtcommEndpoint.chat.send(msg);
+      $("#chat-messages").append('<p>'+msg+'</p>');
+    }
+  });
+
+
   $('#regGo').on('click', function() {
     var userid = $("#userid").val();
     // Make sure userid is set.
@@ -523,21 +543,25 @@ The primary logic for this HTML Page
       $('#connAlert').show();
       return false;
     } else {
-      updateMessage('Connecting to '+remoteid);
-      // This is only necessary if you want to enable/connect in same motion. 
-      rtcommEndpoint.connect(remoteid);
+      doConnect(remoteid);
       $("#connectModal").modal("hide");
       $('#connAlert').hide();
     }
     return false;
   });
 
+function doConnect(remoteid) {
+  updateMessage('Connecting to '+remoteid);
+  // This is only necessary if you want to enable/connect in same motion. 
+  rtcommEndpoint.connect(remoteid);
+}
+
 function updatePresence(presenceData) {
   console.log('updatePresence', presenceData);
   var presenceHTML = '<ul class="list-group">';
   for (var i=0; i<presenceData.length; i++) {
     var node = presenceData[i];
-    presenceHTML = presenceHTML+ '<li class="list-group-item">'+node.name+'</li>';
+    presenceHTML = presenceHTML+ '<li id='+node.name+' class="list-group-item">'+node.name+'</li>';
   };
   presenceHTML = presenceHTML + '</ul>';
   $('#presence').html(presenceHTML);
@@ -594,11 +618,21 @@ function updatePresence(presenceData) {
     return paramhash;
   }
 
+$(document).ready(function(){
+    $(document).on('click', '.list-group', function(e){
+       console.log('success '+ e.target.id);
+       console.log('myUserID is: '+ myUserId);
+          if (e.target.id !== myUserId) {
+            doConnect(e.target.id);
+          }
+       });
+    });
+
 window.onload = function() {
-  console.log('ONLOAD! '+regOnload+' userid: '+userid);
-  if (regOnload && userid) {
+  console.log('ONLOAD! '+regOnload+' userid: '+myUserId);
+  if (regOnload && myUserId) {
     console.log('Calling doRegister!');
-    doRegister(userid);
+    doRegister(myUserId);
   }
 }
 </script>

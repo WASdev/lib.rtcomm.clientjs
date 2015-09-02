@@ -62,7 +62,10 @@ define([
       var dfd = new Deferred();
       Fat.createProvider(cfg1).then( function(EP) {
         Fat.createProvider(cfg2).then( function(EP2) {
-          dfd.resolve({provider1: EP, provider2: EP2});
+          // Wait 1 second to resolve 
+          setTimeout(function() {
+            dfd.resolve({provider1: EP, provider2: EP2});
+          },1000);
         });
        });
       return dfd.promise;
@@ -90,7 +93,7 @@ define([
           DEBUG && endpointProvider.setLogLevel('DEBUG');
         },
         "Endpoint creation(anonymous)": function() {
-          SKIP_ALL && this.skip();
+         // SKIP_ALL && this.skip();
           console.log('***************** RunTest ************');
           var dfd = this.async(T1);
           var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
@@ -141,7 +144,7 @@ define([
             });
         },
      "in Browser A calls B": function() {
-         SKIP_ALL && this.skip(false);
+        // SKIP_ALL && this.skip(false);
 
          var dfd = this.async(T1);
          // Our endpoints
@@ -192,7 +195,7 @@ define([
           });
          },
      "in Browser A calls B(disconnect while ringing)": function() {
-         SKIP_ALL && this.skip(false);
+//         SKIP_ALL && this.skip(false);
          var dfd = this.async(T1);
          // Our endpoints
          var ep1;
@@ -258,7 +261,7 @@ define([
          },
 
      "in Browser A calls B (sendOneTimeMessage)": function() {
-         SKIP_ALL && this.skip(false);
+         //SKIP_ALL && this.skip(false);
          var dfd = this.async(T1);
          // Our endpoints
          var ep1;
@@ -316,7 +319,7 @@ define([
           });
          },
      "in Browser A calls B(nested presence)": function() {
-         SKIP_ALL && this.skip(false);
+         //SKIP_ALL && this.skip(false);
          var dfd = this.async(T1);
          // Our endpoints
          var ep1;
@@ -358,6 +361,7 @@ define([
              //   send ANSWER --> started
              ep1.on('session:ringing', function() { ep1_ringing = true;});
              ep1.on('session:trying', function() { ep1_trying = true;});
+             ep1.on('session:failed', finish);
              ep1.on('session:started', finish);
              ep2.on('session:alerting', function(obj) {
                ep2_alerting = true;
@@ -371,7 +375,7 @@ define([
           });
          },
      "in Browser A calls B, neither accept call from C": function() {
-         SKIP_ALL && this.skip(false);
+         //SKIP_ALL && this.skip(false);
          var dfd = this.async(T1);
          // Our endpoints
          var ep1;
@@ -512,6 +516,60 @@ define([
                     console.log('error in customer init:' + error);
                   }
                  );
-         }
+         },
+     "in Browser A calls B (autoEnable - browser only launch Chrome with --use-fake-ui-for-media-stream to stop prompts)": function() {
+          SKIP_ALL && this.skip();
+          if (typeof globals !== 'undefined' && typeof window === 'undefined') {
+            this.skip("Not running in a Browser");
+          }
+         var dfd = this.async(10000);
+         // Our endpoints
+         var ep1;
+         var ep2;
+
+         var finish = dfd.callback(function(object){
+            console.log("******************Asserting now...***********************");
+            assert.isTrue(ep1.webrtc.enabled(), 'ep1 webrtc is enabled');
+            assert.isTrue(ep1.chat.enabled(), 'ep1 chat is enabled');
+            assert.isTrue(ep2.webrtc.enabled(), 'ep2 webrtc is enabled');
+            assert.isTrue(ep2.chat.enabled(), 'ep2 chat is enabled');
+            assert.equal(ep1.webrtc.getState() ,'connected', 'ep1 webrtc connected');
+            assert.equal(ep2.webrtc.getState() ,'connected', 'ep2 webrtc connected');
+            assert.equal(ep1.chat.getState() , 'connected', 'ep1 chat connected');
+            assert.equal(ep2.chat.getState() , 'connected', 'ep2 chat connected');
+            assert.ok(ep1.sessionStarted(),'Ep1 Session Started');
+            assert.ok(ep2.sessionStarted(),'Ep2 Session Started');
+         });
+
+         var ep1_trying = false;
+         var ep1_ringing= false;
+         var ep2_alerting= false;
+
+         var cfg1 = config.clientConfig('testuser1');
+         var cfg2 = config.clientConfig('testuser2');
+         createAndInitTwoProviders(cfg1,cfg2)
+          .then(function(obj){
+            var EP1 = g.EP1 = obj.provider1;
+            var EP2 = g.EP2 = obj.provider2;
+            ep1 = EP1.getRtcommEndpoint({autoEnable: true, webrtc:true, chat:true});
+            ep2 = EP2.getRtcommEndpoint({autoEnable: true, webrtc:true, chat:true});
+
+            ep1.on('session:ringing', function() { ep1_ringing = true})
+            ep1.on('session:trying', function() { ep1_trying = true})
+            // We finish on session:started 
+            ep1.on('session:started', finish);
+
+           ep2.on('session:alerting', function(obj) {
+             ep2_alerting = true;
+             console.log('>>>>TEST  accepting call');
+             setTimeout(function() {
+              ep2.accept();
+             },1000);
+           });
+
+           // Initiate the connection
+           ep1.connect(cfg2.userid);
+         });
+     },
     });
 });

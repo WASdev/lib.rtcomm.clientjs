@@ -446,6 +446,7 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         chat: true,
         webrtc: true,
+        autoEnable: false,
         parent:this
     };
 
