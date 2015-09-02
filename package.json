@@ -9,10 +9,10 @@
   "main": "dist/rtcomm.js",
   "private": true,
   "description": "RealTime Communications library implement WebRTC using MQTT for signaling",
-  "repository" :
-      { "type" : "git"
-    , "url" : "http://github.com/WASdev/lib.rtcomm.clientjs.git"
-    },
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/WASdev/lib.rtcomm.clientjs.git"
+  },
   "scripts": {
     "test": "bin/runtests.sh"
   },

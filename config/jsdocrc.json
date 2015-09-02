@@ -3,9 +3,6 @@
     "allowUnknownTags": true
   },
   "source": {
-    "include" : [],
-    "exclude" : [],
-   
     "includePattern": ".+\\.js(doc)?$",
     "excludePattern": ".*(node_modules|[.]git)"
   },
@@ -22,7 +19,7 @@
     "collapseSymbols" :  false,
 
     "default": {
-      "outputSourceFiles":true
+      "outputSourceFiles":false
     }
   },
   "opts": {

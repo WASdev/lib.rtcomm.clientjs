@@ -519,8 +519,9 @@ define([
          },
      "in Browser A calls B (autoEnable - browser only launch Chrome with --use-fake-ui-for-media-stream to stop prompts)": function() {
           SKIP_ALL && this.skip();
-          if (typeof globals !== 'undefined' && typeof window === 'undefined') {
-            this.skip("Not running in a Browser");
+          if (typeof global !== 'undefined' || typeof window === 'undefined') {
+            console.log('********* SKIPPING TEST ***************');
+            this.skip("This test only runs in the Browser");
           }
          var dfd = this.async(10000);
          // Our endpoints
