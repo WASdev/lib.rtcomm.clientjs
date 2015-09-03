@@ -113,22 +113,15 @@ var SigSession = function SigSession(config) {
 /* global util: false */
 SigSession.prototype = util.RtcommBaseObject.extend((function() {
   /** @lends module:rtcomm.connector.SigSession.prototype */
-  return { 
-    /** 
-     * Init method
-     * @param config  -- message:message, localEndpointID: endpointid, toTopic: toTopic
-     */
-    
+  var proto = { 
     _setupQueue: function _setupQueue() {
       this._messageQueue = {
           'messages': [],
           'processing': false            
       };
-      
       this.on('started', this._processQueue.bind(this));
       this.on('have_pranswer', this._processQueue.bind(this));
       this.on('pranswer', this._processQueue.bind(this));
-      
     },
     _processQueue : function _processQueue() {
         var q = this._messageQueue.messages;
@@ -430,5 +423,6 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
 
     }
   };
+  return proto;
 })());
 

@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-beta.13 08-07-2015 19:43:35 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-beta.13 08-07-2015 19:43:35 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-beta.15pre 02-09-2015 18:38:09 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-beta.15pre 02-09-2015 18:38:09 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -216,7 +216,7 @@ var combineObjects = function combineObjects(obj1, obj2) {
 };
 
 var makeCopy = function(obj) {
-  var returnObject = {};;
+  var returnObject = {};
   Object.keys(obj).forEach(function(key){
     returnObject[key] = obj[key];
   });
@@ -337,8 +337,12 @@ var RtcommBaseObject = {
      */
     setState : function(value, object) {
       if (typeof this.state !== 'undefined') {
-        this.state = value;
-        this.emit(value,object);
+        if (this.state !== value) {
+          this.state = value;
+          this.emit(value,object);
+        } else {
+          l('DEBUG') && console.log(this + '.setState():  State already set, ignoring '+value );
+        }
       } else {
         this.emit(value,object);
       }
@@ -953,7 +957,13 @@ var EndpointConnection = function EndpointConnection(config) {
       } else {
         // We have a transID, we need to pass message to it.
         // May fail? check.
-        endpointConnection.transactions.find(rtcommMessage.transID).emit('message',rtcommMessage);
+        var msgTransaction = endpointConnection.transactions.find(rtcommMessage.transID);
+        if (msgTransaction) {
+          msgTransaction.emit('message',rtcommMessage);
+        } else {
+          l('DEBUG') && console.log('Dropping message, transaction is gone for message: ',message);
+        }
+
       }
     } else if (rtcommMessage && rtcommMessage.sigSessID) {
       // has a session ID, fire it to that.
@@ -1141,7 +1151,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
 
 
       /** @lends module:rtcomm.connector.EndpointConnection.prototype */
-      return {
+      var proto = {
         /*
          * Instance Methods
          */
@@ -1339,8 +1349,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           };
 
           var onFailure = function(error) {
-            console.log('FAILURE! - ',error);
-
+            console.error(this+'.connect() FAILURE! - ',error);
             this.connected = false;
             cbFailure(error);
           };
@@ -1496,6 +1505,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           }
         }
     };
+    return proto;
   })()
 );
 /* globals exports:false */
@@ -1517,7 +1527,7 @@ exports.EndpointConnection = EndpointConnection;
  * limitations under the License.
  **/ 
 /** @class
- * @memberof module:rtcomm.webrtc
+ * @memberof module:rtcomm.connector
  * @private
  */
 /* Constructor */
@@ -1525,7 +1535,7 @@ exports.EndpointConnection = EndpointConnection;
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.4.0',
+      'rtcommVer': 'v1.0.0',
        'method' : null,
        'fromTopic': null
   };
@@ -1830,11 +1840,6 @@ var MqttConnection = function MqttConnection(config) {
       l('DEBUG') && console.log('MqttConnection createMqttClient using config: ', config);
       mqtt = new Paho.MQTT.Client(config.server,config.port,config.clientID);
       /* if a connection is lost, this callback is called, reconnect */
-      mqtt.onConnectionLost = function(error) {
-        if (error.errorCode !== 0) { // 0 means it was on purpose.
-          console.error("MqttConnection: Connection Lost... : ", error  );
-        }
-      };
 
     } else {
       throw new Error("MqttConnection depends on 'Paho.MQTT' being loaded via mqttws31.js.");
@@ -1866,15 +1871,20 @@ var MqttConnection = function MqttConnection(config) {
   };
 
   this.ERRORS = {
-    SSL: {msg:'useSSL is enabled, but failure occurred connecting to server.  Check server certificate by going to: '},
+    SSL: {name: 'SSL', msg:'useSSL is enabled, but failure occurred connecting to server.  Check server certificate by going to: '},
+    CONNLOST: {name: 'CONNLOST', msg:'The Connection the MQTT Server was lost'},
+    CONNREFUSED: {name: 'CONNREFUSED', msg:'The connection to the MQTT Server failed(Connection Refused)'}
   };
   // Our required properties
   this.objName = 'MqttConnection';
   this.dependencies = {};
   this.config = {};
   this.ready = false;
+  this.retry = false;
   this._init = false;
   this.id = null;
+  // connectOptions saved for if we need to retry
+  this.connectOptions = null ;
   // Events we can emit go here.
   this.events = {'message':[]};
 
@@ -1914,6 +1924,7 @@ var MqttConnection = function MqttConnection(config) {
     }
   };
 
+
   // Init has be executed.
   this._init = true;
 };
@@ -1941,34 +1952,48 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
   };
 
     /** @lends module:rtcomm.connector.MqttConnection.prototype */
-    return {
+    var proto = {
       /* global setLogLevel:false */
       setLogLevel: setLogLevel,
       /* global getLogLevel:false */
       getLogLevel: getLogLevel,
+
       /**
        * connect()
+       *  onSuccess || null;
+       *  onFailure || null;
+       *  willMessage || null;
+       *  presenceTopic || null;
+       *  mqttVersion || mqttVersion;
+       *  retry || 5;
        */
       connect: function connect(options) {
         if (!this._init) {
           throw new Error('init() must be called before calling connect()');
         }
+
         var mqttClient = this.dependencies.mqttClient;
         var cbOnsuccess = null;
         var cbOnfailure = null;
         var willMessage = null;
         var presenceTopic = null;
         var mqttVersion = 3;
+        var retry = 5;
+        var connectAttempts= 0;
         
         l('DEBUG')&& console.log(this+'.connect() called with options: ', options);
+
+        options = (this.connectOptions) ? this.connectOptions : options;
         if (options) {
+          // Save the options
+          this.connectionOptions = options;
           cbOnsuccess = options.onSuccess || null;
           cbOnfailure = options.onFailure || null;
           willMessage = options.willMessage || null;
           presenceTopic = options.presenceTopic || null;
           mqttVersion = options.mqttVersion || mqttVersion;
+          retry = options.retry || retry;
         }
-
         var mqttConnectOptions = {};
         // set version to 3 for Liberty compatibility
         mqttConnectOptions.mqttVersion = mqttVersion;
@@ -1995,6 +2020,26 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           l('DEBUG')&& console.log(this+'.connect() failed, override for more information', error);
         }.bind(this);
 
+        mqttClient.onConnectionLost = function(error) {
+          var newError = null;
+          if (error.errorCode !== 0) { // 0 means it was on purpose.
+            console.error('onConnectionLost', error);
+            newError = new util.RtcommError(this.ERRORS.CONNLOST.msg);
+            newError.name = this.ERRORS.CONNLOST.name;
+            newError.src = error.errorMessage;
+            if (typeof onFailure === 'function') {
+              // When shutting down, this might get called, catch any failures. if we were ready
+              // this is unexpected.
+              try {
+                onFailure(newError) ;
+              } catch(e) {
+                console.error(e);
+              }
+            } else {
+              console.error(newError);
+            }
+          }
+        }.bind(this);
         /*
          * onSuccess Callback for mqttClient.connect
          */
@@ -2011,6 +2056,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
             return;
           }
           this.ready = true;
+          this.retry = false;
           if (onSuccess && typeof onSuccess === 'function') {
             try {
               onSuccess(this);
@@ -2029,24 +2075,55 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
            *    errorCode: integer
            *    errorMessage: some string
            */
+          // TODO:  ADD loggin here.  Would be perfect... 
+          if (connectAttempts < retry) {
+            this.retry = true;
+          } else {
+            this.retry = false;
+          }
           var error = new util.RtcommError(response.errorMessage);
-          if (response.errorCode === 7 && this.config.useSSL) {
-            error = new util.RtcommError(this.ERRORS.SSL.msg + 'https://'+this.config.server+":"+this.config.port);
-            error.src = response.errorMessage;
+          if (response.errorCode === 7) {
+            if(this.config.useSSL) {
+              error = new util.RtcommError(this.ERRORS.SSL.msg + 'https://'+this.config.server+":"+this.config.port);
+              error.src = response.errorMessage;
+              this.retry = false;
+            } else {
+              error = new util.RtcommError(this.ERRORS.CONNREFUSED.msg + ":"+this.config.server+":"+this.config.port);
+              error.src = response.errorMessage;
+            }
           }
           if (typeof onFailure === 'function') {
             // When shutting down, this might get called, catch any failures. if we were ready
             // this is unexpected.
+
             try {
-              if (!this.ready) { onFailure(error) ;}
+              if ( !this.ready  && !this.retry) { 
+                onFailure(error);
+              }
             } catch(e) {
               console.error(e);
             }
           } else {
             console.error(error);
           }
+
         }.bind(this);
-        mqttClient.connect(mqttConnectOptions);
+
+        var self = this;
+
+        function retryConnect() {
+          connectAttempts++;
+          // If we are not ready (so we connected) or retry is not set)
+          // Retry could be turned off in onFailure and onSuccess.
+          if (!self.ready && self.retry) {
+            l('DEBUG') && console.log(self+'.connect() attempting to connect, try:'+connectAttempts);
+            mqttClient.connect(util.makeCopy(mqttConnectOptions));
+            setTimeout(retryConnect, 1000);
+          }
+        }
+        // We are going to retry
+        this.retry = true;
+        retryConnect();
       },
 
       subscribe : function subscribe(/* string */ topic) {
@@ -2148,7 +2225,9 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         }
       }
     }; // end of Return
+    return proto;
 })());
+
 exports.MqttConnection = MqttConnection;
 
 
@@ -2267,22 +2346,15 @@ var SigSession = function SigSession(config) {
 /* global util: false */
 SigSession.prototype = util.RtcommBaseObject.extend((function() {
   /** @lends module:rtcomm.connector.SigSession.prototype */
-  return { 
-    /** 
-     * Init method
-     * @param config  -- message:message, localEndpointID: endpointid, toTopic: toTopic
-     */
-    
+  var proto = { 
     _setupQueue: function _setupQueue() {
       this._messageQueue = {
           'messages': [],
           'processing': false            
       };
-      
       this.on('started', this._processQueue.bind(this));
       this.on('have_pranswer', this._processQueue.bind(this));
       this.on('pranswer', this._processQueue.bind(this));
-      
     },
     _processQueue : function _processQueue() {
         var q = this._messageQueue.messages;
@@ -2584,6 +2656,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
 
     }
   };
+  return proto;
 })());
 
 
@@ -2812,7 +2885,6 @@ var logging = new util.Log(),
 /*global l:false*/
 /*global util:false*/
 var Chat = (function invocation() {
-
 /**
    * @memberof module:rtcomm.RtcommEndpoint
    *
@@ -2837,6 +2909,11 @@ var Chat = (function invocation() {
     this.onDisabledMessage = null;
     this.state = 'disconnected';
 
+    // TODO:  Throw error if no parent.
+    this.dependencies = {
+      parent: parent || null
+    };
+
     this.events = {
       'message': [],
       'ringing': [],
@@ -2850,30 +2927,56 @@ var Chat = (function invocation() {
      * @param {string} message  Message to send when enabled.
      */  
     this.enable =  function(message) {
-      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
+      var connect = false;
+      if (typeof message === 'object') {
+        if (typeof message.connect === 'boolean') {
+          connect = message.connect;
+        }
+        if (message.message) {
+          message = message.message;
+        } else {
+          message = null;
+        }
+      } 
 
+      /*
+       * TODO:  Get this working, write new tests too!  
+       *
+       * Remember, all sessions support CHAT be default so we should 'just work'
+       *
+       * Work on this over weekend!!!!
+       *
+       */
+      l('DEBUG') && console.log(this+'.enable() - message --> '+ message);
+      l('DEBUG') && console.log(this+'.enable() - --> '+ connect);
+      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
       this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
       // Don't need much, just set enabled to true.
       // Default message
       this._.enabled = true;
-      
+
       if (parent.sessionStarted()) {
         l('DEBUG') && console.log(this+'.enable() - Session Started, connecting chat');
         this._connect();
       } else { 
-        l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
-        parent._.activeSession && parent._.activeSession.respond();
-        this._connect();
+        if (connect) {
+          // we are expected to actually connect
+          this._connect();
+        } else {
+          l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
+          // respond to a session if we are active
+          parent._.activeSession && parent._.activeSession.respond();
+        }
       }
       return this;
     };
     /**
      * Accept an inbound connection  
      */
-    this.accept = function(message) {
+    this.accept = function(callback) {
       l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
       if (this.state === 'alerting') {
-        this.enable(message || 'Accepting chat connection');
+        this.enable(callback|| 'Accepting chat connection');
         return true;
       } else {
         return false;
@@ -2897,6 +3000,9 @@ var Chat = (function invocation() {
       }
       return null;
     };
+    this.enabled = function enabled(){ 
+      return this._.enabled;
+    };
     /**
      * send a chat message
      * @param {string} message  Message to send
@@ -2908,8 +3014,25 @@ var Chat = (function invocation() {
         parent._.activeSession.send(message);
       }
     };
-    this._connect = function(sendMethod) {
-      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
+
+    this.connect = function() {
+      if (this.dependencies.parent.autoEnable) {
+        this.enable({connect:true});
+      } else {
+        this._connect();
+      }
+    };
+    this._connect = function() {
+      var self = this;
+      var sendMethod = null;
+      var parent = self.dependencies.parent;
+      if (parent.sessionStarted()) {
+        sendMethod = this.send.bind(this);
+      } else if (parent._.activeSession ) {
+        sendMethod = parent._.activeSession.start.bind(parent._.activeSession);
+      } else {
+        throw new Error(self+'._connect() unable to find a sendMethod');
+      }
       if (this._.enabled) {
         this.onEnabledMessage && sendMethod({'payload': this.onEnabledMessage});
         this._setState('connected');
@@ -2925,9 +3048,14 @@ var Chat = (function invocation() {
     //
     this._processMessage = function(message) {
       // If we are connected, emit the message
+      var parent = this.dependencies.parent;
       if (this.state === 'connected') {
         this.emit('message', message);
+      } else if (this.state === 'alerting') {
+        // dropping message, not in a state to receive it.
+        l('DEBUG') && console.log(this+ '_processMessage() Dropping message -- unable to receive in alerting state'); 
       } else {
+        // If we aren't stopped, then we should pranswer it and alert.
         if (!parent.sessionStopped()) {
           parent._.activeSession && parent._.activeSession.pranswer();
           this._setState('alerting', message);
@@ -2948,6 +3076,9 @@ var Chat = (function invocation() {
       }
     };
 
+    this.getState = function() {
+      return this.state;
+    };
   };
   Chat.prototype = util.RtcommBaseObject.extend({});
 
@@ -2979,7 +3110,7 @@ var Chat = (function invocation() {
  * This programming interface lets a JavaScript client application use 
  * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
  * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
- * & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
+ * & {@link module:rtcomm.EndpointProvider#init|initialized} the
  * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
  * that is used to receive inbound communication.
  * <p>
@@ -3024,10 +3155,7 @@ var EndpointProvider =  function EndpointProvider() {
   this._.objName = "EndpointProvider";
   this._.rtcommEndpointConfig = {};
 
-  /**
-   * State of the EndpointProvider
-   * @type {boolean}
-   */ 
+  /** State of the EndpointProvider */ 
   this.ready = false;
 
   this.events = {
@@ -3044,6 +3172,13 @@ var EndpointProvider =  function EndpointProvider() {
        *
        */
       'queueupdate': [],
+      /**
+       * The Presence was Updated 
+       * @event module:rtcomm.EndpointProvider#presence_updated
+       * @property {module:rtcomm.PresenceMonitor.presenceData}
+       *
+       */
+      'presence_updated': [],
       /**
        * The endpoint Provider has reset.  Usually due to another peer logging in with the same presence. 
        * The event has a 'reason' property indicating why the EndpointProvider was reset.
@@ -3065,11 +3200,12 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} config.server MQTT Server
    * @param {string} [config.userid] User ID or Identity
    * @param {string} [config.appContext=rtcomm] App Context for EndpointProvider
-   * @param {string} [config.port=1883] MQTT Server Port
-   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection (Most likely use a different port)
+   * @param {string} [config.port=1883] MQTT Server Port.  Defaults to 8883 if served over https
+   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection. Defaults to true if served over https. 
    * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
+   * @param {boolean} [config.monitorPresence=false] Automatically create a presence monitor and emit events on the endpoint provider.
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
    *
@@ -3110,6 +3246,9 @@ var EndpointProvider =  function EndpointProvider() {
     // Used to set up config for endpoint connection;
     var config = null;
     var rtcommTopicPath = '/rtcomm/';
+    // If we are served over SSL, use SSL is needed.
+    //
+    var useSSL = (typeof location !== 'undefined' && location.protocol === 'https:') ? true : false;
     var configDefinition = {
         required: { server: 'string', port: 'number'},
         optional: {
@@ -3119,6 +3258,7 @@ var EndpointProvider =  function EndpointProvider() {
           presence: 'object',
           userid: 'string',
           useSSL: 'boolean',
+          monitorPresence: 'boolean',
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
@@ -3129,10 +3269,11 @@ var EndpointProvider =  function EndpointProvider() {
             rootTopic: 'sphere/',
             topic: '/', // Same as rootTopic by default
           },
-          useSSL: false,
+          useSSL: useSSL,
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
-          port: 1883,
+          port: useSSL ? 8883: 1883,
+          monitorPresence: false,
           createEndpoint: false }
       };
     // the configuration for Endpoint Provider
@@ -3145,9 +3286,11 @@ var EndpointProvider =  function EndpointProvider() {
 
       /* global setConfig:false */
       config = this.config = setConfig(options,configDefinition);
+
+      // this.config now has the options + combo with defaults.
       // If we are READY (we are resetting) so use the NEW ones... otherwise, use saved ones.
-      this.config.appContext = (this.ready) ? this.config.appContext : appContext || this.config.appContext ; 
-      this.setUserID((this.ready) ? this.config.userid: userid || this.config.userid, true) ; 
+      this.config.appContext = options.appContext ? options.appContext : (appContext ? appContext : this.config.appContext) ; 
+      this.setUserID((options.userid ? options.userid: (userid ? userid: this.config.userid)), true) ; 
     } else {
       throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
                       JSON.stringify(configDefinition.required));
@@ -3166,6 +3309,7 @@ var EndpointProvider =  function EndpointProvider() {
     var connectionConfig =  util.makeCopy(config);
     // everything else is the same config.
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
+    connectionConfig.hasOwnProperty('monitorPresence') &&  delete connectionConfig.monitorPresence;
     connectionConfig.publishPresence = true;
     // createEndpointConnection
 
@@ -3203,6 +3347,10 @@ var EndpointProvider =  function EndpointProvider() {
           console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
         endpointProvider.publishPresence();
        // endpointProvider.setUserID(config.userid);
+        if (config.monitorPresence) {
+          // Attach a default presence monitor to our presence topic
+          endpointProvider.getPresenceMonitor("/");
+        }
         returnObj.registered = true;
       }
       // Attach endpointConnection if a presenceMonitor
@@ -3219,7 +3367,12 @@ var EndpointProvider =  function EndpointProvider() {
      */
     var onFailure = function(error) {
       this.ready = false;
-      cbFailure(error);
+      if (error.name === 'CONNLOST') {
+        // we need to emit this rather than call the callback
+        this.reset('Connection Lost');
+      } else { 
+        cbFailure(error);
+      }
     };
     // Connect!
     endpointConnection.connect(onSuccess.bind(this), onFailure.bind(this));
@@ -3229,6 +3382,13 @@ var EndpointProvider =  function EndpointProvider() {
 
   this.stop = this.destroy;
   this.start = this.init;
+  this.reset = function reset(reason) {
+     var endpointProvider = this;
+      endpointProvider.emit('reset', {'reason':reason});
+      setTimeout(function() {
+        endpointProvider.destroy();
+      },500);
+  };
 
   /*
    * Create the endpoint connection to the MQTT Server
@@ -3306,10 +3466,7 @@ var EndpointProvider =  function EndpointProvider() {
     endpointConnection.on('document_replaced', function(message) {
       // 'reset' w/ a Reason?
       l('TRACE') && console.log("Document Replaced event received", message);
-      endpointProvider.emit('reset', {'reason':'document_replaced'});
-      setTimeout(function() {
-        endpointProvider.destroy();
-      },500);
+      endpointProvider.reset("document_replaced");
     });
     return endpointConnection; 
   }; // End of createEndpointConnection
@@ -3320,20 +3477,22 @@ var EndpointProvider =  function EndpointProvider() {
    *
    * *NOTE* This should be set PRIOR to calling getRtcommEndpoint()
    *
-   *  @param {Object}  [config] 
-   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
-   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
-   *  @param {object}  [config.broadcast]   
-   *  @param {boolean}  [config.broadcast.audio]  Endpoint should broadcast Audio
-   *  @param {boolean}  [config.broadcast.video]  Endpoint should broadcast Video
+   *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
    *  @param {function} [config.event] Events are defined in {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    *
    * @example
    *
    * endpointProvider.setRtcommEndpointConfig({
-   *   webrtc: true,
+   *   appContext : "testApp",
+   *   ringtone: "resources/ringtone.wav",
+   *   ringbacktone: "resources/ringbacktone.wav",
    *   chat: true,
-   *   broadcast: { audio: true, video: true},
+   *   chatConfig: {},
+   *   webrtc:true,
+   *   webrtcConfig:{
+   *     broadcast: { audio: true, video: true},
+   *     iceServers: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
+   *   },
    *   'session:started': function(event) {
    *
    *   }, 
@@ -3355,10 +3514,7 @@ var EndpointProvider =  function EndpointProvider() {
    *  RTCPeerConnection where to send that stream in the User Interface.
    *  </p>
    *
-   *  @param {Object}  [config] 
-   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
-   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
-   *
+   *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
    *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint 
    *  @throws Error
    *
@@ -3378,64 +3534,72 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         chat: true,
         webrtc: true,
+        autoEnable: false,
         parent:this
     };
-    var objConfig = defaultConfig;
-    // if there is a config defined...
-    if (this._.rtcommEndpointConfig) {
-      objConfig.chat = (typeof this._.rtcommEndpointConfig.chat === 'boolean') ? 
-        this._.rtcommEndpointConfig.chat : objConfig.chat;
-      objConfig.webrtc = (typeof this._.rtcommEndpointConfig.webrtc === 'boolean') ? 
-        this._.rtcommEndpointConfig.webrtc : objConfig.webrtc;
-      objConfig.ringtone = (this._.rtcommEndpointConfig.ringtone) ?  this._.rtcommEndpointConfig.ringtone: null; 
-      objConfig.ringbacktone = (this._.rtcommEndpointConfig.ringbacktone) ?  this._.rtcommEndpointConfig.ringbacktone: null; 
-    }
 
-    if (typeof this.config.appContext === 'undefined') {
-      throw new Error('Unable to create an Endpoint without appContext set on EndpointProvider');
-    }
-    if(endpointConfig && typeof endpointConfig !== 'object') {
+    /*
+     * If endpointConfig is not an Object, it should be a String that is an ID of an endpoint
+     */
+    if (endpointConfig && typeof endpointConfig !== 'object') {
       endpointid = endpointConfig;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() Looking for endpoint: '+endpointid);
       // Returns an array of 1 endpoint. 
       endpoint = this._.endpointRegistry.get(endpointid)[0];
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() found endpoint: ',endpoint);
     } else {
+      if (typeof this.config.appContext === 'undefined') {
+        throw new Error('Unable to create an Endpoint without appContext set on EndpointProvider');
+      }
+      /*
+       * First, if there is a config defined on the provider, we are going to use it:
+       */
+      // Merge the objects, will still have callbacks.
+
+      var objConfig = util.combineObjects(this._.rtcommEndpointConfig, defaultConfig);
+      // 
+      // If we have any callbacks defined, put in their own object for later.
+      //
+      var endpointCallbacks = {};
+      Object.keys(objConfig).forEach(function(key){
+         if (typeof objConfig[key] === 'function') {
+           endpointCallbacks[key] = objConfig[key];
+           delete objConfig[key];
+         }
+      });
+      // Any passed in config overrides the existing config.
       applyConfig(endpointConfig, objConfig);
+      // Add some specific config from the EndpointProvider
       objConfig.appContext = this.config.appContext;
       objConfig.userid = this.config.userid;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint using config: ', objConfig);
+      // Create the endpoint
       endpoint = new RtcommEndpoint(objConfig);
+      // attach the endpointConnection if it exists. 
       this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
-//      endpoint.init(objConfig);
+      // If the endpoint is destroyed, define the behavior to cleanup.
       endpoint.on('destroyed', function(event_object) {
         endpointProvider._.endpointRegistry.remove(event_object.endpoint);
       });
-      // If we have any callbacks defined:
-      //
-      if (this._.rtcommEndpointConfig) {
-        Object.keys(this._.rtcommEndpointConfig).forEach(function(key){
-          try {
-            if (typeof endpointProvider._.rtcommEndpointConfig[key] === 'function') {
-              endpoint.on(key, endpointProvider._.rtcommEndpointConfig[key]);
-            } 
-          } catch (e) {
-            console.error(e);
-            console.error('Invalid event in rtcommEndpointConfig: '+key);
-          }
-        });
-      }
-      if (this._.rtcommEndpointConfig.bubble && (typeof this._.rtcommEndpointConfig.bubble === 'function')) {
-        // Attach the bubble event
-        endpoint.bubble(this._.rtcommEndpointConfig.bubble);
-      }
-      // If broadcast needs to be set
-      if(this._.rtcommEndpointConfig.broadcast) {
-        endpoint.webrtc && endpoint.webrtc.setBroadcast(this._.rtcommEndpointConfig.broadcast);
-      }
       // Add to registry or return the one already there
       endpoint = this._.endpointRegistry.add(endpoint);
       l('DEBUG') && console.log('ENDPOINT REGISTRY: ', this._.endpointRegistry.list());
+      // Attach the callbacks
+      Object.keys(endpointCallbacks).forEach(function(key) {
+         if (typeof endpointCallbacks[key] === 'function') {
+           try {
+             if (key === 'bubble') {
+               // this is actually a special behavior and should be handled separately
+               endpoint.bubble(endpointCallbacks[key]);
+             } else {
+               endpoint.on(key, endpointCallbacks[key]);
+             }
+           } catch (e) {
+            console.error(e);
+            console.error('Invalid event in rtcommEndpointConfig: '+key);
+           }
+         }
+        });
     }
     return endpoint;
   };
@@ -3459,7 +3623,13 @@ var EndpointProvider =  function EndpointProvider() {
     this._.presenceMonitor  = this._.presenceMonitor || new PresenceMonitor({connection: this.dependencies.endpointConnection});
     if (this.ready) {
       topic && this._.presenceMonitor.add(topic);
-    } 
+    }; 
+
+    // propogate the event out if we have a handler.
+    var endpointProvider = this;
+    this._.presenceMonitor.on('updated', function(presenceData) {
+      endpointProvider.emit('presence_updated', {'presenceData': presenceData});
+    });
     return this._.presenceMonitor;
   };
   /** 
@@ -3477,7 +3647,6 @@ var EndpointProvider =  function EndpointProvider() {
     this.dependencies.endpointConnection = null;
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointConnection');
     this.ready = false;
-    
   };
 
   /**
@@ -3872,18 +4041,51 @@ var EndpointRegistry = function EndpointRegistry(options) {
 
 };
 
+/*
+ * Copyright 2014,2015 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ *  @memberof module:rtcomm
+ *  @description
+ *  This object should only be created with the {@link module:rtcomm.EndpointProvider#getMqttEndpoint|getRtcommEndpoint} function.
+ *  <p>
+ *  The MqttEndpoint object provides an interface to directly subscribe and publish MQTT messages.
+ *
+ *  @constructor
+ *
+ *  @extends  module:rtcomm.util.RtcommBaseObject
+ */
 var MqttEndpoint = function MqttEndpoint(config) {
 
   this.dependencies = { 
     connection: null,
   };
-  /* Object storing subscriptions */
+  /* Object storing subscriptions */ 
   this.subscriptions = {};
   this.dependencies.connection = config && config.connection;
   this.events = {'message': []};
 };
 /*global util:false*/
-MqttEndpoint.prototype = util.RtcommBaseObject.extend({
+/*global: l:false*/
+MqttEndpoint.prototype = util.RtcommBaseObject.extend(
+  /** @lends module:rtcomm.MqttEndpoint.prototype */
+  {
+  /** 
+   * subscribe to a topic
+   * @param {string} topic - A string that represents an MQTT topic
+   */
   subscribe: function(topic) {
                // Add it
                this.subscriptions[topic] = null;
@@ -3894,6 +4096,10 @@ MqttEndpoint.prototype = util.RtcommBaseObject.extend({
                });
              },
 
+  /** 
+   * unsubscribe from  a topic
+   * @param {string} topic - A string that represents an MQTT topic
+   */
   unsubscribe: function(topic) {
                var mqttEP = this;
                if (this.subscriptions.hasOwnProperty(topic)) {
@@ -3903,9 +4109,17 @@ MqttEndpoint.prototype = util.RtcommBaseObject.extend({
                  throw new Error("Topic not found:"+topic);
                }
              },
+  /** 
+   * publish a message to topic
+   * @param {string} topic - A string that represents an MQTT topic
+   * @param {string} message - a String that is a message to be published
+   */
   publish: function(topic,message) {
              this.dependencies.connection.publish(topic, message);
   },
+  /** 
+   * Destroy the MqttEndpoint
+   */
   destroy: function() {
      l('DEBUG') &&  console.log('Destroying mqtt(unsubscribing everything... ');
              var mqttEP = this;
@@ -3936,11 +4150,17 @@ var PhoneRTCConnection = (function invocation() {
    * @memberof module:rtcomm.RtcommEndpoint
    *
    * @description 
-   * A PhoneRTCConnection is a connection is a shim to the cordova.phonertc plugin
+   * A PhoneRTCConnection is a shim to the cordova.phonertc plugin it replaces the WebRTCConnection
+   * if cordova.phonertc is found.
+   *
    *  @constructor
    *
    *  @extends  module:rtcomm.util.RtcommBaseObject
    */
+   /*global phonertc:false*/ 
+   /*global cordova:false*/ 
+   /*global l:false*/ 
+   /*global util:false*/ 
   var PhoneRTCConnection = function PhoneRTCConnection(parent) {
 
     this.config = {
@@ -4003,7 +4223,7 @@ var PhoneRTCConnection = (function invocation() {
 
   PhoneRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.PhoneRTCConnection.prototype */
-    return {
+    var proto = {
       /**
        * enable webrtc
        * <p>
@@ -4147,7 +4367,7 @@ var PhoneRTCConnection = (function invocation() {
                 candidate: message.content.candidate,
                 sdpMLineIndex: message.content.label,
                 sdpMid: message.content.id
-              }
+              };
               delete message.content.label;
               delete message.content.id;
               message.content.candidate = newCandidate;
@@ -4442,6 +4662,7 @@ var PhoneRTCConnection = (function invocation() {
       return this.config.iceServers;
       }
    };
+   return proto;
 
   })()); // End of Prototype
 
@@ -4641,13 +4862,40 @@ var normalizeTopic = function normalizeTopic(topic) {
   newTopic = topic.replace(/\/+/g,'\/').replace(/\/$/g, '');
   return /^\//.test(newTopic) ? newTopic : '/'+newTopic;
 };
+
+
+/** 
+ * @memberof module:rtcomm.PresenceMonitor
+ * @class 
+ */
 var PresenceNode = function PresenceNode(nodename, record) {
+  /** Object Name 
+  *  @readonly
+  */
   this.objName = 'PresenceNode';
+  /** Node Name 
+  *  @readonly
+  */
   this.name = nodename || '';
+  /** If it is a final record (rather than a tree node)
+  *  @readonly
+  */
   this.record = record || false;
+  /** Address Topic (topic to contact another endpoint) 
+  *  @readonly
+  */
   this.addressTopic = null;
+  /** Presence Topic (topic to presence is published to) 
+  *  @readonly
+  */
   this.presenceTopic = null;
+  /** Sub Presence Nodes if present 
+  *  @readonly
+  */
   this.nodes= [];
+  /** Id (same as name) 
+  *  @readonly
+  */
   this.id = this.name;
 };
 
@@ -4661,8 +4909,10 @@ var PresenceNode = function PresenceNode(nodename, record) {
     }
   }; 
 
-PresenceNode.prototype = util.RtcommBaseObject.extend({
-  /** 
+PresenceNode.prototype = util.RtcommBaseObject.extend(
+  /** @lends module:rtcomm.PresenceMonitor.PresenceNode */
+  {
+  /* 
    * update the PresenceNode w/ the message passed
    */
   update: function(message) {
@@ -4688,7 +4938,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     });
     return (new_flat.length > 0) ? new_flat: flat;
   },
-  /** 
+  /* 
    * Return the presenceNode Object matching this topic
    * if it doesn't exist, creates it.
    */
@@ -4851,6 +5101,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
  *  @constructor
  *  @extends  module:rtcomm.util.RtcommBaseObject
  *
+ *  @fires module:rtcomm.PresenceMonitor#updated
  *
  * @example
  *
@@ -4922,7 +5173,8 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
     }
   }
 
-  return { 
+  /** @lends module:rtcomm.PresenceMonitor.prototype */
+  var proto = { 
     /**
      * Add a topic to monitor presence on
      *
@@ -4960,7 +5212,10 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       }
       return this;
     },
-
+    /**
+     * Remove a topic to monitor
+     * @param {string} topic  A topic/group to monitor, ex. 'us/agents'
+     */
     remove: function remove(topic) {
       //var presenceData = this._.presenceData;
       topic = normalizeTopic(topic);
@@ -4979,7 +5234,6 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
         // reset presence Data:
-  // this._.presenceData=[new PresenceNode("/")];
         this._.rootNode.nodes = [];
         var t = util.makeCopy(this._.monitoredTopics);  // Clone the array
         this._.monitoredTopics = {};
@@ -4988,25 +5242,26 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         });
       }
     },
+
+    /**
+     * @typedef {array.<module:rtcomm.PresenceMonitor.PresenceNode>} module:RtcommEndpoint.PresenceMonitor.PresenceData
+     */
     /**
      * Get an array representing the presence data
-     * @returns {array} An array of PresenceNodes
+     * @returns {array.<module:rtcomm.PresenceMonitor.PresenceNode>} PresenceData
      */
     getPresenceData: function getPresenceData() {
-      // This returns everything under the ROOT.
       return this._.presenceData;
-//      return this._.presenceData[0].nodes;
     },
-    getRootNode: function getRootNode() {
-      return this._.rootNode;
-    },
-
     /**
      * Return the root presenceNode if it exists.
      *
      * @param {string} topic
      * @returns {PresenceNode} The root PresenceNode for a topic (if it already exists)
      */
+    getRootNode: function getRootNode() {
+      return this._.rootNode;
+    },
     __getRootNode: function getRootNode(topic) {
       // The root node matching the topic (if it exists)
       var rootNode = null;
@@ -5051,6 +5306,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        });
     }
   } ;
+  return proto;
 })());
 
   var Queues = function Queues(availableQueues) {
@@ -5135,7 +5391,6 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
 
 var RtcommEndpoint = (function invocation(){
 
-
   var createChat = function createChat(parent) {
     /* globals Chat:false */
     var chat = new Chat(parent);
@@ -5146,10 +5401,12 @@ var RtcommEndpoint = (function invocation(){
       parent.emit('chat:message', {'message': message});
     });
     chat.on('alerting', function(message) {
+      l('DEBUG') && console.log('RtcommEndpoint emitting session:alerting event');
       var obj =  {};
       obj.message  = message;
       obj.protocols = 'chat';
-      parent.emit('session:alerting', obj );
+      // Have to do setState here because the parent state needs to change.
+      parent.setState('session:alerting', obj );
     });
     chat.on('connected', function() {
       parent.emit('chat:connected');
@@ -5173,13 +5430,13 @@ var RtcommEndpoint = (function invocation(){
       webrtc = new WebRTCConnection(parent);
     }
     webrtc.on('ringing', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on ringing - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
     });
 
     webrtc.on('trying', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on trying - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:trying') && parent.emit('session:trying');
     });
@@ -5188,14 +5445,17 @@ var RtcommEndpoint = (function invocation(){
       parent.emit('session:alerting', {protocols: 'webrtc'});
     });
     webrtc.on('connected', function(event_obj) {
-      console.log('SHould stop ring now...');
+     l('DEBUG') && console.log("on connected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:connected');
     });
     webrtc.on('disconnected', function(event_obj) {
-      console.log('SHould stop ring now...');
+      l('DEBUG') && console.log("on disconnected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:disconnected');
+    });
+    webrtc.on('remotemuted', function(event_obj) {
+      parent.emit('webrtc:remotemuted', event_obj);
     });
     return webrtc;
   };
@@ -5217,19 +5477,34 @@ var RtcommEndpoint = (function invocation(){
  *  @extends  module:rtcomm.util.RtcommBaseObject
  */
   var RtcommEndpoint = function RtcommEndpoint(config) {
-    // Presuming you creat an object based on this one, 
-    // you must override the ession event handler and
-    // then augment newSession object.
-    //
+    /** 
+     * @typedef {object} module:rtcomm.RtcommEndpoint~config
+     *
+     * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
+     * @property {string}  [userid=null] UserID the endpoint will use (generally provided by the EndpointProvider
+     * @property {string}  [appContext=null] UI Component to attach outbound media stream
+     * @property {string} [ringtone=null] Path to a  ringtone to play when we are ringing on inbound call
+     * @property {string} [ringbacktone=null] path to a ringbacktone to play on outbound call
+     * @property {boolean} [webrtc=true]  Whether the endpoint supports webrtc
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
+     * @property {boolean} [chat=true]  Wehther the endpoint supports chat
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
+     *
+     */
     this.config = {
+      // if a feature is supported, enable by default.
+      autoEnable: false,
       ignoreAppContext: true,
       appContext : null,
       userid: null,
       ringtone: null,
       ringbacktone: null,
       chat: true,
-      webrtc: true
+      chatConfig: {},
+      webrtc:true,
+      webrtcConfig:{}
     };
+
     this.dependencies = {
       endpointConnection: null,
     };
@@ -5241,6 +5516,7 @@ var RtcommEndpoint = (function invocation(){
       /*global generateUUID:false */
       uuid: generateUUID(),
       initialized : false,
+      disconnecting: false,
       protocols : [],
       // webrtc Only 
       inboundMedia: null,
@@ -5281,6 +5557,8 @@ var RtcommEndpoint = (function invocation(){
      * @readonly
      */
     this.webrtc = (this.config.webrtc)?createWebRTCConnection(this): null;
+    // If autoenable, go ahead and enable webrtc.
+    this.config.autoEnable && this.webrtc && this.webrtc.enable();
     /**
      * The attached {@link module:rtcomm.RtcommEndpoint.Chat} object 
      * if enabled null if not enabled
@@ -5290,7 +5568,7 @@ var RtcommEndpoint = (function invocation(){
      */
     this.chat = (this.config.chat) ? createChat(this): null;
     // Enable chat by default if it is set up that way.
-    //this.chat && this.chat.enable();
+    this.chat && this.chat.enable();
 
     /** 
      * RtcommEndpoint Event type 
@@ -5369,6 +5647,17 @@ var RtcommEndpoint = (function invocation(){
          *
          */
         "webrtc:disconnected": [],
+        /**
+         * The remote peer muted their stream
+         * @event module:rtcomm.RtcommEndpoint#webrtc:remotemuted
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         *
+         * Additional properties of the Event Object:
+         *  label: label of the stream
+         *  audio: boolean indicating muted(false) or not(true)
+         *  video: boolean indicating muted(false) or not(true)
+         */
+        "webrtc:remotemuted": [],
         /**
          * Creating the connection to a peer failed
          * @event module:rtcomm.RtcommEndpoint#webrtc:failed
@@ -5479,9 +5768,13 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
       context.setState('session:started');
     });
     session.on('stopped', function(message) {
-      // In this case, we should disconnect();
-      context.setState('session:stopped');
-      context.disconnect();
+      // We could already be stopped, ignore it in that case.
+      l('DEBUG') && console.log(context+' SigSession callback called to process STOPPED: ' + context.getState());
+      if (context.getState() !== 'session:stopped') {
+        // In this case, we should disconnect();
+        context.setState('session:stopped');
+        context.disconnect();
+      }
     });
     session.on('starting', function() {
       context.setState('session:trying');
@@ -5494,20 +5787,9 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
    // session.listEvents();
     return true;
   }
+
 /** @lends module:rtcomm.RtcommEndpoint.prototype */
-return  {
-  _playRingtone: function() {
-    this._.ringTone && this._.ringTone.play();
-  },
-  _playRingback: function() {
-    this._.ringbackTone && this._.ringbackTone.play();
-  },
-  _stopRing: function() {
-    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
-    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
-    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
-    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
-  },
+var proto = {
   getAppContext:function() {return this.config.appContext;},
   newSession: function(session) {
       var event = null;
@@ -5582,8 +5864,11 @@ return  {
             case 'chat': 
               // It is a chat this will change to something different later on...
               if (this.config.chat) { 
+                // If there is also a webrtc payload, we don't want to alert, so just set it to connected
+                if (payload.webrtc) { 
+                  this.chat._setState('connected');
+                }
                 this.chat._processMessage(payload[type]);
-                //this.emit('chat:message', payload.userdata);
               } else {
                 console.error('Received chat message, but chat not supported!',payload[type]);
               }
@@ -5617,6 +5902,19 @@ return  {
      l('DEBUG') && console.log(this+' Received message, but nothing to do with it', payload);
    }
   },
+  _playRingtone: function() {
+    this._.ringTone && this._.ringTone.play();
+  },
+  _playRingback: function() {
+    this._.ringbackTone && this._.ringbackTone.play();
+  },
+  _stopRing: function() {
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
+    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
+    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
+  },
+
   /** Endpoint is available to accept an incoming call
    *
    * @returns {boolean}
@@ -5634,7 +5932,6 @@ return  {
     },
 
   /**
-   *  @memberof module:rtcomm.RtcommEndpoint
    * Connect to another endpoint.  Depending on what is enabled, it may also start
    * a chat connection or a webrtc connection.
    * <p>
@@ -5644,25 +5941,28 @@ return  {
    * </p>
    *
    * @param {string|object} endpoint Remote ID of endpoint to connect.
-   *
-   * TODO:  Doc this..
-   *
    */
 
   connect: function(endpoint) {
     if (this.ready()) {
       this.available(false);
+      this._.disconnecting = false;
       if (!this._.activeSession ) { 
         this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
       } 
       this.setState('session:trying');
-      if (this.config.webrtc && 
-          this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
-        l('DEBUG') && console.log(this+'.connect() initiating with webrtc._connect');
-      } else if (this.config.chat && 
-                 this.chat._connect(this._.activeSession.start.bind(this._.activeSession))){
-        l('DEBUG') && console.log(this+'.connect() initiating with chat._connect');
+
+      var chatMessage = null;
+      if (this.config.chat && this.chat.enabled()) {
+        chatMessage = this.chat.onEnabledMessage;
+      } 
+      if (this.config.webrtc && this.webrtc.connect(chatMessage)) { 
+        // if its already enabled, we need to set chat to connected here so it can handle inbound messages.
+        this.chat.enabled() && this.chat._setState('connected');
+        l('DEBUG') && console.log(this+'.connect() initiating with webrtc.enable({connect:true})');
+      } else if (this.config.chat && this.chat.enable({connect:true})){
+        l('DEBUG') && console.log(this+'.connect() initiating with chat.enable({connect:true})');
       } else {
         l('DEBUG') && console.log(this+'.connect() sending startMessage w/ no content');
         this._.activeSession.start();
@@ -5677,29 +5977,45 @@ return  {
    * Disconnect the endpoint from a remote endpoint.
    */
   disconnect: function() {
-    this.webrtc && this.webrtc.disable();
-    this.chat && this.chat.disable();
-    if (!this.sessionStopped()) {
-      this._.activeSession.stop();
-      this._.activeSession = null;
-      this.setState('session:stopped');
+    l('DEBUG') && console.log(this+'.disconnect() Entry');
+    if (!this._.disconnecting) {
+      // Not in progress, move along
+      l('DEBUG') && console.log(this+'.disconnect() Starting disconnect process');
+      this._.disconnecting = true;
+      this.webrtc && this.webrtc.disable();
+      this.chat && this.chat.disable();
+      if (!this.sessionStopped()) {
+        this._.activeSession.stop();
+        this._.activeSession = null;
+        this.setState('session:stopped');
+      } else {
+        this._.activeSession=null;
+      }
+      // Renable webrtc if autoEnable is set.
+      this.config.autoEnable && this.webrtc && this.webrtc.enable();
+      this._.disconnecting = false;
+      this.available(true);
     } else {
-      this._.activeSession=null;
+      l('DEBUG') && console.log(this+'.disconnect() in progress, cannot disconnect again');
     }
-    this.available(true);
+    l('DEBUG') && console.log(this+'.disconnect() Exit');
     return this;
   },
   /**
    * Accept an inbound request.  This is typically called after a 
    * {@link module:rtcomm.RtcommEndpoint#session:alerting|session:alerting} event
    *
+   *
+   * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when accept is complete.
+   *
+   * @returns {module:rtcomm.RtcommEndpoint}
    */
-  accept: function(options) {
+  accept: function(callback) {
     if (this.getState() === 'session:refer') {  
       this.connect(null);
-    } else if (this.webrtc && this.webrtc && this.webrtc.accept(options)) {
+    } else if (this.webrtc && this.webrtc && this.webrtc.accept(callback)) {
       l('DEBUG') && console.log(this+'.accept() Accepted in webrtc.');
-    } else if (this.chat && this.chat.accept(options)) {
+    } else if (this.chat && this.chat.accept(callback)) {
       l('DEBUG') && console.log(this+'.accept() Accepted in chat.');
     } else {
       l('DEBUG') && console.log(this+'.accept() accepting generically.');
@@ -5843,6 +6159,8 @@ return  {
 
   };
 
+  // This construct is to get the jsdoc correct
+  return proto;
 
   })()); // End of Prototype
 
@@ -5876,19 +6194,42 @@ var WebRTCConnection = (function invocation() {
  *
  *  @extends  module:rtcomm.util.RtcommBaseObject
    */
+/* global RTCPeerConnection:false */
+/* global getUserMedia:false */
+/* global attachMediaStream:false */
+/* global reattachMediaStream:false */
+/* global RTCIceCandidate:false */
   var WebRTCConnection = function WebRTCConnection(parent) {
+
     var OfferConstraints = {'mandatory': {
       OfferToReceiveAudio: true, 
       OfferToReceiveVideo: true}
     };
 
-    this.config = {
+    /** 
+     * @typedef {object} module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig
+     *
+     * @property {object} [mediaIn]  UI component to attach inbound media stream
+     * @property {object} [mediaOut] UI Component to attach outbound media stream
+     * @property {object} [broadcast] 
+     * @property {boolean} [broadcast.audio] Broadcast Audio
+     * @property {boolean} [broadcast.video] Broadcast Video
+     * @property {object} [RTCOfferConstraints] RTCPeerConnection specific config {@link http://w3c.github.io/webrtc-pc/} 
+     * @property {object} [RTCConfiguration] RTCPeerConnection specific {@link http://w3c.github.io/webrtc-pc/} 
+     * @property {object} [RTCConfiguration.peerIdentity] 
+     * @property {boolean} [trickleICE=true] Enable/disable ice trickling 
+     * @property {Array} [iceServers] Array of strings that represent ICE Servers.
+     * @property {boolean} [lazyAV=true]  Enable AV lazily [upon connect/accept] rather than during
+     * right away
+     * @property {boolean} [connect=true] Internal, do not use.
+     */
+    this.config = util.combineObjects(parent.config.webrtcConfig, {
       RTCConfiguration : {iceTransports : "all"},
       RTCOfferConstraints: OfferConstraints,
       RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
-      iceServers: [],
       mediaIn: null,
       mediaOut: null,
+      iceServers: [],
       lazyAV: true,
       trickleICE: true,
       connect: null,
@@ -5896,7 +6237,8 @@ var WebRTCConnection = (function invocation() {
         audio: true,
         video: true 
       }
-    };
+    });
+
     // TODO:  Throw error if no parent.
     this.dependencies = {
       parent: parent || null
@@ -5905,6 +6247,8 @@ var WebRTCConnection = (function invocation() {
       state: 'disconnected',
       objName:'WebRTCConnection',
       parentConnected : false,
+      iceServers: [],
+      paused: false,
       enabled : false
     };
     this.id = parent.id;
@@ -5916,6 +6260,7 @@ var WebRTCConnection = (function invocation() {
       'trying': [],
       'connected': [],
       'disconnected': [],
+      'remotemuted':[],
       '_notrickle':[]
     };
     this.pc = null;
@@ -5928,13 +6273,14 @@ var WebRTCConnection = (function invocation() {
 
   WebRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.WebRTCConnection.prototype */
-    return {
+    var proto = {
     /**
      * enable webrtc
      * <p>
      * When enable() is called, if we are connected we will initiate a webrtc connection (generate offer)
      * Otherwise, call enable() prior to connect and when connect occurs it will do what is enabled...
      * </p>
+     *
      *
      * @param {object} [config]
      *
@@ -5947,11 +6293,21 @@ var WebRTCConnection = (function invocation() {
      * @param {object} [config.RTCConfiguration] RTCPeerConnection specific {@link http://w3c.github.io/webrtc-pc/} 
      * @param {object} [config.RTCConfiguration.peerIdentity] 
      * @param {boolean} [config.trickleICE=true] Enable/disable ice trickling 
+     * @param {Array} [config.iceServers] Array of strings that represent ICE Servers.
      * @param {boolean} [config.lazyAV=true]  Enable AV lazily [upon connect/accept] rather than during
      * right away
      * @param {boolean} [config.connect=true] Internal, do not use.
      *
-     **/
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
+     *
+     */
+
+    /**
+    * This callback is displayed as a global member.
+    * @callback module:rtcomm.RtcommEndpoint.WebRTCConnection~callback
+    * @param {(boolean|MediaStream)} success - True or a MediaStream if successful
+    * @param {string} message  - Empty if success evaluates to true, otherwise failure reason. 
+    */
     enable: function(config,callback) {
       // If you call enable, no matter what we can update the config.
       //
@@ -5968,64 +6324,68 @@ var WebRTCConnection = (function invocation() {
           l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
         };
       }
+      // If connect is true, we will force a connect... 
       var connect = (config && typeof config.connect === 'boolean') ? config.connect : parent.sessionStarted();
       var lazyAV = (config && typeof config.lazyAV === 'boolean') ? config.lazyAV : true;
       // Load Ice Servers...
+      // load with configured iceServers from this.config.iceServers
+      this.setIceServers();
       this.config.RTCConfiguration.iceServers = this.config.RTCConfiguration.iceServers || this.getIceServers();
 
-      l('DEBUG') && console.log(self+'.enable() config created, defining callback');
-
-      // When Enable is called we have a couple of options:
-      // 1.  If parent is connected, enable will createofffer and send it.
-      // 2.  if parent is NOT CONNECTED. enable will create offer and STORE it for sending by _connect.
-      //
-      // 3.  
       /*
-       * create an offer during the enable process
+       * when enable() is called we have a couple of options:
+       *  1.  If parent is connected( a Session is already started) then enable will create an Offer and send it.
+       *  2.  if parent is NOT CONNECTED (and connect is false) enable will create offer and STORE it 
+       *      for sending by _connect later
+       *  3.  if parent is NOT CONNECTED (and connect is TRUE) enable will create offer and send it. 
+       *  4.  If have already been enabled?
+       *
        */
-
-      // If we are enabled already, just return ourselves;
-      //
-
-      if (this._.enabled) {
-        this.enableLocalAV(callback);
-        return this;
-      } else {
-        l('DEBUG') && console.log(self+'.enable() connect if possible? '+connect);
+      if (!this._.enabled) {
+        l('DEBUG') && console.log(self+'.enable() We are not enabled -- enabling');
         try {
           this.pc = createPeerConnection(this.config.RTCConfiguration, this.config.RTCConstraints, this);
+          this._.enabled = true;
         } catch (error) {
           // No PeerConnection support, cannot enable.
           throw new Error(error);
+          // Call the callback w/ false?
         }
-        this._.enabled = true;
-        // If we don't have lazy set and we aren't immediately connecting, enable AV.
-        l('DEBUG') && console.log(self+'.enable() (lazyAV='+lazyAV+',connect='+connect);
-        if (!lazyAV && !connect) {
-          // enable now.
-          this.enableLocalAV(function(success, message) {
-            l('DEBUG') && console.log(self+'.enable() enableLocalAV Callback(success='+success+',message='+message);
-            callback(true);
-          });
-        } else {
-          if (connect) {
-            this._connect(null, callback(true));
-          } else {
-            callback(true);
-          } 
-        } 
-        return this;
+      } else {
+        l('DEBUG') && console.log(self+'.enable() already enabled');
       }
+      /*
+       * If lazyAV is false, enable AV here if its true but connect is true it gets enabled in connect.
+       */
+      if (!lazyAV && !connect) {
+        // enable now.
+        l('DEBUG') && console.log(self+'.enable() lazyAV is false, calling enableLocalAV');
+        this.enableLocalAV(function(success, message) {
+          l('DEBUG') && console.log(self+'.enable() enableLocalAV Callback(success='+success+',message='+message);
+          callback(true);
+       });
+      }
+      /* 
+       * If connect is true, connect
+       */
+      if (connect) {
+        l('DEBUG') && console.log(self+'.enable() connect is true, connecting');
+        // If we should connect, connect;
+        this._connect(callback(true));
+      } else {
+        l('DEBUG') && console.log(self+'.enable() connect is false; skipping connect');
+        callback(true);
+      }
+      return this;
     },
     /** disable webrtc 
      * Disconnect and reset
      */
     disable: function() {
-      this.onEnabledMessage = null;
-      this._.enabled = false;
-      this._disconnect();
-      if (this.pc) {
-        this.pc = null;
+      if (this._.enabled) {
+        l('DEBUG') && console.log(this+'.disable() disabling webrtc');
+        this._.enabled = false;
+        this._disconnect();
       }
       return this;
     },
@@ -6036,30 +6396,46 @@ var WebRTCConnection = (function invocation() {
     enabled: function() {
       return this._.enabled;
     },
-
+    connect: function connect(chatMessage){
+      return this._connect(chatMessage);
+    },
     /*
      * Called to 'connect' (Send message, change state)
      * Only works if enabled.
      *
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
      */
-    _connect: function(sendMethod,callback) {
+    _connect: function(callback) {
       var self = this;
-      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
-      callback = callback ||function(success, message) {
-        l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
-      };
-
+      var sendMethod = null;
+      var parent = self.dependencies.parent;
+      if (parent.sessionStarted()) {
+        sendMethod = this.send.bind(this);
+      } else if (parent._.activeSession ) {
+        sendMethod = parent._.activeSession.start.bind(parent._.activeSession);
+      } else {
+        throw new Error(self+'._connect() unable to find a sendMethod');
+      }
+      var payload = {};
+      // Used if chat is being sent w/ the offer
+      var chatMessage = null;
+      if (typeof callback !== 'function') {
+        chatMessage = callback;
+        callback = function(success, message) {
+          l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
+        };
+      }
       var doOffer =  function doOffer(success, msg) {
         if (success) { 
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
               if (self.config.trickleICE) {
-                sendMethod({payload: self.createMessage(offersdp)});
+                sendMethod({payload: self.createMessage(offersdp, chatMessage)});
               } else {
                 self.on('_notrickle', function(obj) {
                   l('DEBUG') && console.log(self+'.doOffer _notrickle called: Sending offer here. ');
-                  sendMethod({payload: self.createMessage(self.pc.localDescription)});
+                  sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
                   // turn it off once it fires.
                   callback(true);
                   self.off('_notrickle');
@@ -6081,6 +6457,7 @@ var WebRTCConnection = (function invocation() {
           console.error('_connect failed, '+msg);
         }
       };
+      // Only works if we are already enabled
       if (this._.enabled && this.pc) {
         this.enableLocalAV(doOffer);
         return true;
@@ -6090,9 +6467,14 @@ var WebRTCConnection = (function invocation() {
     },
 
     _disconnect: function() {
-      if (this.pc && this.pc.signalingState !== 'closed') {
-        l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
-       this.pc.close();
+      if (this.pc) {
+        l('DEBUG') && console.log(this+'._disconnect() Signaling State is: '+this.pc.signalingState);
+        if (this.pc.signalingState !== 'disconnected' || this.pc.signalingState !== 'closed'  ) {
+          l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
+          this.pc.close();
+        }
+        // set it to null
+        this.pc = null;
       }
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
@@ -6118,21 +6500,38 @@ var WebRTCConnection = (function invocation() {
 
     /**
      * Accept an inbound connection
+     *
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when accept is complete.
+     *
      */
-    accept: function(options) {
+    accept: function(callback) {
       var self = this;
 
-      var doAnswer = function doAnswer() {
-        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
-        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
-        //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
-        //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
-        //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
-        self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
-          console.error('failed to create answer', error);
-        },
-         self.config.RTCOfferConstraints
-        );
+      callback = callback || function(success, message) {
+        l('DEBUG') && console.log(self+'.accept() default callback(success='+success+',message='+message);
+      };
+
+      var doAnswer = function doAnswer(success,msg) {
+        if (success) {
+          l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
+          l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
+          //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
+          //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
+          //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
+          self.pc && self.pc.createAnswer(
+            function(desc) {
+              self._gotAnswer(desc);
+              callback(success, msg);
+            },
+            function(error) {
+              console.error('failed to create answer', error);
+              callback(false, 'Failed to create answer');
+            },
+            self.config.RTCOfferConstraints
+          );
+        } else {
+          callback(success, msg);
+        }
       };
       l('DEBUG') && console.log(this+'.accept() -- accepting --');
       if (this.getState() === 'alerting') {
@@ -6191,20 +6590,91 @@ var WebRTCConnection = (function invocation() {
       */
       return this;
     },
-    pauseBroadcast: function() {
-      if (this._.localStream) {
-        this._.localStream.getVideoTracks()[0].enabled = false;
-        this._.localStream.getAudioTracks()[0].enabled = false;
+    /** Mute a broadcast  (audio or video or both)
+     *  @param {String}  [audio or video]  
+     *
+     *  By default, this will mute both audio and video if passed with no parameters.
+     */
+    mute: function(media) {
+      switch (media) {
+        case 'audio':
+          muteAudio(this._.localStream, this);
+          break;
+        case 'video': 
+          muteVideo(this._.localStream, this);
+          break;
+        default:
+          muteAudio(this._.localStream, this);
+          muteVideo(this._.localStream, this);
       }
+      // This seems odd, but by default we mute both.
+      // so the audio/video sent in the message is inferred
+      // based on what is sent in.  For example, if we are
+      // muting AUDIO, then video will NOT be muted(true). 
+      var msg = this.createMessage(
+        {type: 'stream',
+           stream: {
+             label: this._.localStream.label, 
+             audio: (media === 'video')? true: false,
+             video: (media === 'audio')? true:false 
+            }
+        });
+      this.send(msg);
+      this._.muted = true;
     },
-    resumeBroadcast: function() {
-      if (this._.localStream) {
-        this._.localStream.getVideoTracks()[0].enabled = true;
-        this._.localStream.getAudioTracks()[0].enabled = true;
+
+    /** UnMute a broadcast  (audio or video or both)
+     *  @param {String}  [audio or video]  
+     *
+     *  By default, this will Unmute both audio and video if passed with no parameters.
+     */
+    unmute: function(media) {
+      switch (media) {
+        case 'audio':
+          unmuteAudio(this._.localStream, this);
+          break;
+        case 'video': 
+          unmuteVideo(this._.localStream, this);
+          break;
+        default:
+          unmuteAudio(this._.localStream, this);
+          unmuteVideo(this._.localStream, this);
       }
+      // This seems odd, but by default we mute both.
+      // so the audio/video sent in the message is inferred
+      // based on what is sent in.  For example, if we are
+      // muting AUDIO, then video will NOT be muted(true). 
+
+      var msg = this.createMessage(
+        {type: 'stream',
+           stream: {
+             label: this._.localStream.label, 
+             audio: (media === 'video') ? false : true,
+             video: (media === 'audio') ? false : true
+            }
+        });
+
+      this.send(msg);
+      this._.muted = false;
+    },
+    isMuted: function() {
+      return this._.muted;
     },
     getMediaIn: function() {
       return this.config.mediaIn;
+    },
+    /* global hasTrack:false */
+    isReceivingAudio: function() {
+      return hasTrack("remote", "audio", this);
+    },
+    isReceivingVideo: function() {
+      return hasTrack("remote", "video", this);
+    },
+    isSendingAudio: function() {
+      return hasTrack("local", "audio", this);
+    },
+    isSendingVideo: function() {
+      return hasTrack("local", "video", this);
     },
     /**
      * DOM node to link the RtcommEndpoint inbound media stream to.
@@ -6213,7 +6683,7 @@ var WebRTCConnection = (function invocation() {
      */
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
-        if (this._.remoteStream) {
+        if (typeof this._.remoteStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaIn && this.config.mediaIn !== value) {
             detachMediaStream(this.config.mediaIn);
@@ -6240,7 +6710,7 @@ var WebRTCConnection = (function invocation() {
       if(validMediaElement(value) ) {
         // No matter WHAT (I believe) the outbound media element should be muted.
         value.muted = true; 
-        if (this._.localStream) {
+        if (typeof this._.localStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaOut && this.config.mediaOut !== value) {
             detachMediaStream(this.config.mediaOut);
@@ -6341,17 +6811,15 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
-  createMessage: function(content) {
+  createMessage: function(content,chatcontent) {
+    var message = {'webrtc': {}};
     if (content) {
-      if (content.webrtc) {
-        // presumably OK, just return it
-        return content;
-      } else {
-        return {'webrtc': content};
-      }
-    } else {
-        return {'webrtc': content};
+      message.webrtc = (content.hasOwnProperty('webrtc')) ? content.webrtc : content;
     }
+    if (chatcontent && chatcontent.hasOwnProperty('chat')) {
+       message.chat = chatcontent.chat;
+    }
+    return message;
   },
 
   /* Process inbound messages
@@ -6379,7 +6847,11 @@ var WebRTCConnection = (function invocation() {
         // Set our local description
         //  Only set state to ringing if we have a local offer...
         if (isPC && this.pc.signalingState === 'have-local-offer') {
-          isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          if (message.sdp !== "") { 
+              isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          } else {
+            l('DEBUG') && console.log(this+'._processMessage -- pranswer sdp is empty, not setting');
+          }
           this._setState('ringing');
         }
         break;
@@ -6451,6 +6923,33 @@ var WebRTCConnection = (function invocation() {
           console.error('addIceCandidate threw an error', err);
         }
         break;
+      case 'stream': 
+        //  The remote peer has muted/unmuted audio or video (or both) on a stream
+        // Format { audio: boolean, video: boolean, label: 'labelstring' }
+        l('DEBUG') && console.log(this+'_processMessage Remote media disabled --> message:', message);
+        if (message.stream && message.stream.label) {
+          // This is the label of the stream disabled.
+          // Disable it, emit event.
+          var streams = this.pc.getRemoteStreams();
+          for (var i=0;i<streams.length;i++) {
+            if (streams[i].label === message.stream.label) {
+              var stream = streams[i];
+              // We found our stream, get tracks...
+              if (message.stream.audio) {
+                unmuteAudio(stream, this);
+              } else {
+                muteAudio(stream, this);
+              }
+              if (message.stream.video) {
+                unmuteVideo(stream, this);
+              } else {
+                muteVideo(stream, this);
+              }
+            }
+          }
+          this.emit('remotemuted', message.stream);
+        }
+        break;
       default:
         // Pass it up out of here...
         // TODO: Fix this, should emit something different here...
@@ -6472,7 +6971,7 @@ var WebRTCConnection = (function invocation() {
   * @param {object} config.mediaIn
   * @param {object} config.mediaOut
   *
-  * @param {function} [callback] callback called if getUserMedia enabled.
+  * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when setLocalMedia is complete.
   *
   */
   setLocalMedia: function setLocalMedia(config,callback) {
@@ -6513,7 +7012,8 @@ var WebRTCConnection = (function invocation() {
    * @param {object} options
    * @param {boolean} options.audio
    * @param {boolean} options.video
-   * @callback 
+   *
+   * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when function is complete.
    *
    */
   enableLocalAV: function(options, callback) {
@@ -6534,7 +7034,12 @@ var WebRTCConnection = (function invocation() {
     }
 
     var attachLocalStream = function attachLocalStream(stream){
-      self.getMediaOut() && attachMediaStream(self.getMediaOut(),stream);
+      // If we have a media out, attach the local stream
+      if (self.getMediaOut() ) {
+        if (typeof stream !== 'undefined') {
+          attachMediaStream(self.getMediaOut(),stream);
+        }
+      }
       if (self.pc) {
         if (self.pc.getLocalStreams()[0] === stream) {
           // Do nothing, already attached
@@ -6549,18 +7054,24 @@ var WebRTCConnection = (function invocation() {
         return false;
       }
     };
-    
-    if (audio || video ) { 
+
+    if (audio || video ) {
       if (this._.localStream) {
-        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattching stream');
+        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattaching stream');
         callback(attachLocalStream(this._.localStream));
       } else {
         getUserMedia({'audio': audio, 'video': video},
           /* onSuccess */ function(stream) {
+            if (streamHasAudio(stream) !== audio) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested audio:'+audio+' but got audio: '+streamHasAudio(stream));
+            }
+            if (streamHasVideo(stream) !== video) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested video:'+video+' but got video: '+streamHasVideo(stream));
+            }
             callback(attachLocalStream(stream));
           },
         /* onFailure */ function(error) {
-          callback(false, "getUserMedia failed");
+          callback(false, "getUserMedia failed - User denied permissions for camera/microphone");
         });
       }
     } else {
@@ -6569,9 +7080,8 @@ var WebRTCConnection = (function invocation() {
     }
   },
  setIceServers: function(service) {
-
+   var self = this;
    l('DEBUG') && console.log(this+'.setIceServers() called w/ service:', service);
-
    function buildTURNobject(url) {
      // We expect this to be in form 
      // turn:<userid>@servername:port:credential:<password>
@@ -6581,54 +7091,56 @@ var WebRTCConnection = (function invocation() {
      var credential = matches[3] || null;
 
      var iceServer = {
-       'url': null,
+       'urls': null,
        'username': null,
        'credential': null
      };
      if (user && server && credential) {
-       iceServer.url = 'turn:'+server;
+       iceServer.urls = 'turn:'+server;
        iceServer.username= user;
        iceServer.credential= credential;
      } else {
-       l('DEBUG') && console.log('Unable to parse the url into a Turn Server');
+       l('DEBUG') && console.log(self+'.setIceServers() Unable to parse the url into a Turn Server');
        iceServer = null;
      }
-     l('DEBUG') && console.log(this+'.setIceServers() built iceServer object: ', iceServer);
+     l('DEBUG') && console.log(self +'.setIceServers() built iceServer object: ', iceServer);
      return iceServer;
    }
 
     // Returned object expected to look something like:
-    // {"iceServers":[{"url": "stun:host:port"}, {"url","turn:host:port"}] 
+    // {"iceServers":[{"urls": "stun:host:port"}, {"urls","turn:host:port"}] 
     var urls = [];
-    if (service && service.iceURL)  {
-        service.iceURL.split(',').forEach(function(url){
-          // remove leading/trailing spaces
-          url = url.trim();
-          var obj = null;
-          if (/^stun:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url);
-            obj = {'url': url};
-          } else if (/^turn:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url);
-            obj = buildTURNobject(url);
-          } else {
-            l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url);
-          }
-          obj && urls.push(obj);
-        });
-    } 
-    this.config.iceServers = urls;
+    var iceServers = (service && service.iceURL) ? service.iceURL.split(',') : this.config.iceServers;
+    iceServers.forEach(function(url){
+        // remove leading/trailing spaces
+        url = url.trim();
+        var obj = null;
+        if (/^stun:/.test(url)) {
+          l('DEBUG') && console.log(self+'.setIceServers() Is STUN: '+url);
+          obj = {'urls': url};
+        } else if (/^turn:/.test(url)) {
+          l('DEBUG') && console.log(self+'.setIceServers() Is TURN: '+url);
+          obj = buildTURNobject(url);
+        } else {
+          l('DEBUG') && console.error(self+'.setIceServers() Failed to match anything, bad Ice URL: '+url);
+        }
+        obj && urls.push(obj);
+      });
+    this._.iceServers = urls;
    },
   getIceServers: function() {
-    return this.config.iceServers;
-    }
+    return this._.iceServers;
+  }
  };
+
+ // Required for jsdoc to look right
+ return proto;
 
 })()); // End of Prototype
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;
-  if (typeof MyRTCPeerConnection !== 'undefined'){
+  if (MyRTCPeerConnection) {
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
     peerConnection = new MyRTCPeerConnection(RTCConfiguration, RTCConstraints);
 
@@ -6654,14 +7166,14 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
     peerConnection.oniceconnectionstatechange = function (evt) {
       if (this.pc === null) {
         // If we are null, do nothing... Weird cases where we get here I don't understand yet.
-        l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE fired but this.pc is null');
+        l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE fired but this.pc is null', evt);
         return;
       }
       l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE '+ this.pc.iceConnectionState);
       // When this is connected, set our state to connected in webrtc.
-      if (this.pc.iceConnectionState === 'closed') {
+      if (this.pc.iceConnectionState === 'closed' || this.pc.iceConnectionState === 'disconnected') {
         // wait for it to be 'Closed'  
-        this.disable();
+        this._disconnect();
       } else if (this.pc.iceConnectionState === 'connected') {
         this._setState('connected');
       }
@@ -6719,7 +7231,7 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
     }.bind(context);
 
     peerConnection.onsignalingstatechange = function(evt) {
-        l('DEBUG') && console.log('peerConnection onsignalingstatechange fired: ', evt);
+        l('DEBUG') && console.log(this+' peerConnection onsignalingstatechange fired: ', evt);
     }.bind(context);
 
     peerConnection.onclosedconnection = function(evt) {
@@ -6747,71 +7259,95 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
   return peerConnection;
 }  // end of createPeerConnection
 
-/*
- *  Following are used to handle different browser implementations of WebRTC
- */
-var getBrowser = function() {
-    if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-      // probably in node.js no browser support
-      return ('node.js','unknown');
-    } else  if (navigator && navigator.mozGetUserMedia) {
-      // firefox
-      return("firefox", parseInt(navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1], 10));
-    } else if (navigator && navigator.webkitGetUserMedia) {
-     return("chrome", parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10));
-    } else {
-      return("Unknown","Unknown");
+// Alias these to the globals
+var MyRTCPeerConnection =  (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
+var MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
+var MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
+
+var detachMediaStream = function(element) {
+   if (element) {
+      if (typeof element.src !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting srcObject to empty string');
+        element.src = '';
+      } else if (typeof element.mozSrcObject !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting to null');
+        element.mozSrcObject = null;
+      } else {
+        console.error('Error detaching stream from element.');
+      }
     }
   };
 
-var MyRTCPeerConnection = (function() {
-  /*global mozRTCPeerConnection:false */
-  /*global webkitRTCPeerConnection:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  } else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCPeerConnection;
-  } else if (navigator && navigator.webkitGetUserMedia) {
-    return webkitRTCPeerConnection;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
+var hasTrack = function(direction,media,context) {
+  var directions = { 'remote': function() { return context.pc.getRemoteStreams();},
+                     'local' : function() { return context.pc.getLocalStreams();}};
+  var mediaTypes = {
+    'audio' : function(stream) {
+      return stream.getAudioTracks();
+     },
+     'video': function(stream) {
+       return stream.getVideoTracks();
+     }
+  };
+  var returnValue = false;
+  if (context.pc) {
+    if (direction in directions) {
+      var streams=directions[direction]();
+      l('DEBUG') && console.log('hasTrack() streams -> ', streams);
+        for (var i=0;i< streams.length; i++) {
+          var stream = streams[i];
+          var tracks = mediaTypes[media](stream);
+          for (var j = 0; j< tracks.length; j++) {
+            // go through, and OR it...
+            returnValue = returnValue || tracks[j].enabled;
+          }
+        }
+      }
   }
-})();
+  return returnValue;
+};
 
-var MyRTCSessionDescription = (function() {
-  /*global mozRTCSessionDescription:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  }  else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCSessionDescription;
-  } else if (typeof RTCSessionDescription !== 'undefined' ) {
-    return RTCSessionDescription;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
+var toggleStream = function(stream, media, enabled , context) {
+  var mediaTypes = {
+    'audio' : function(stream) {
+      return stream.getAudioTracks();
+     },
+     'video': function(stream) {
+       return stream.getVideoTracks();
+     }
+  };
+  var tracks = mediaTypes[media](stream);
+  for (var i=0;i<tracks.length;i++) {
+    tracks[i].enabled = enabled;
   }
-})();
+  //TODO: Emit an event that stream was muted.
+  return stream;
+};
 
-l('DEBUG') && console.log("Setting RTCSessionDescription", MyRTCSessionDescription);
+var streamHasAudio = function(stream) {
+   return (stream.getAudioTracks().length > 0);
+};
 
+var streamHasVideo= function(stream) {
+   return (stream.getVideoTracks().length > 0);
+};
 
-var MyRTCIceCandidate = (function() {
-  /*global mozRTCIceCandidate:false */
-  /*global RTCIceCandidate:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  } else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCIceCandidate;
-  } else if (typeof RTCIceCandidate !== 'undefined') {
-    return RTCIceCandidate;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
-  }
-})();
+var muteAudio = function(stream, context) {
+  toggleStream(stream, 'audio', false, context);
+};
 
-l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
+var unmuteAudio = function(stream, context) {
+  toggleStream(stream,'audio', true, context);
+};
+
+var muteVideo = function(stream, context) {
+  toggleStream(stream, 'video', false, context);
+};
+
+var unmuteVideo = function(stream, context) {
+  toggleStream(stream,'video', true, context);
+};
+
 
 var validMediaElement = function(element) {
   return( (typeof element.srcObject !== 'undefined') ||
@@ -6819,73 +7355,6 @@ var validMediaElement = function(element) {
       (typeof element.src !== 'undefined'));
 };
 
-/*
- * Assign getUserMedia, attachMediaStream as private class functions
- */
-var getUserMedia, attachMediaStream,detachMediaStream;
-/* globals URL:false */
-
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    getUserMedia = null;
-    attachMediaStream = null;
-    detachMediaStream = null;
-  // Creating methods for Firefox
-  } else if (navigator && navigator.mozGetUserMedia) {
-
-    getUserMedia = navigator.mozGetUserMedia.bind(navigator);
-    // Attach a media stream to an element.
-    attachMediaStream = function(element, stream) {
-      l('DEBUG') && console.log("FIREFOX --> Attaching media stream");
-      try { 
-        element.mozSrcObject = stream;
-    //    element.play();
-      } catch (e) {
-        console.error('Attach Media Stream failed in FIREFOX:  ', e);
-      }
-    };
-    detachMediaStream = function(element) {
-    l('DEBUG') && console.log("FIREFOX --> Detaching media stream");
-    if (element) {
-      element.mozSrcObject = null;
-    }
-  };
-
-} else if (navigator && navigator.webkitGetUserMedia) {
-  getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
-  attachMediaStream = function(element, stream) {
-    if (typeof element.srcObject !== 'undefined') {
-      element.srcObject = stream;
-    } else if (typeof element.mozSrcObject !== 'undefined') {
-      element.mozSrcObject = stream;
-    } else if (typeof element.src !== 'undefined') {
-      element.src = URL.createObjectURL(stream);
-    } else {
-      console.error('Error attaching stream to element.');
-    }
-  };
-  detachMediaStream = function(element) {
-    var nullStream = '';
-    if (element) {
-      if (typeof element.srcObject !== 'undefined') {
-        element.srcObject = nullStream;
-      } else if (typeof element.mozSrcObject !== 'undefined') {
-        element.mozSrcObject = nullStream;
-      } else if (typeof element.src !== 'undefined') {
-        element.src = nullStream;
-      } else {
-        console.error('Error attaching stream to element.');
-      }
-    }
-  };
-} else {
-  console.error("Browser does not appear to be WebRTC-capable");
-  var skip = function skip() {
-    if (typeof global === 'undefined') { console.error("Function not supported in browser")};
-  };
-  getUserMedia = skip;
-  attachMediaStream = skip;
-  detachMediaStream = skip;
-}
 
 return WebRTCConnection;
 
@@ -7091,21 +7560,7 @@ return EndpointProvider;
  * limitations under the License.
  */
 /**
- * @class
- * @memberof module:rtcomm
- * @classdesc
- * Provides Services to register a user and create Endpoints (RtcommEndpoints & MqttEndpoints)
- * <p>
- * This programming interface lets a JavaScript client application use 
- * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
- * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
- * & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
- * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
- * that is used to receive inbound communication.
- * <p>
- * See the example in {@link module:rtcomm.EndpointProvider#init|EndpointProvider.init()}
- * <p>
- *
+ * @module rtcomm
  * @requires {@link mqttws31.js}
  *
  */

@@ -25,19 +25,42 @@ var WebRTCConnection = (function invocation() {
  *
  *  @extends  module:rtcomm.util.RtcommBaseObject
    */
+/* global RTCPeerConnection:false */
+/* global getUserMedia:false */
+/* global attachMediaStream:false */
+/* global reattachMediaStream:false */
+/* global RTCIceCandidate:false */
   var WebRTCConnection = function WebRTCConnection(parent) {
+
     var OfferConstraints = {'mandatory': {
       OfferToReceiveAudio: true, 
       OfferToReceiveVideo: true}
     };
 
-    this.config = {
+    /** 
+     * @typedef {object} module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig
+     *
+     * @property {object} [mediaIn]  UI component to attach inbound media stream
+     * @property {object} [mediaOut] UI Component to attach outbound media stream
+     * @property {object} [broadcast] 
+     * @property {boolean} [broadcast.audio] Broadcast Audio
+     * @property {boolean} [broadcast.video] Broadcast Video
+     * @property {object} [RTCOfferConstraints] RTCPeerConnection specific config {@link http://w3c.github.io/webrtc-pc/} 
+     * @property {object} [RTCConfiguration] RTCPeerConnection specific {@link http://w3c.github.io/webrtc-pc/} 
+     * @property {object} [RTCConfiguration.peerIdentity] 
+     * @property {boolean} [trickleICE=true] Enable/disable ice trickling 
+     * @property {Array} [iceServers] Array of strings that represent ICE Servers.
+     * @property {boolean} [lazyAV=true]  Enable AV lazily [upon connect/accept] rather than during
+     * right away
+     * @property {boolean} [connect=true] Internal, do not use.
+     */
+    this.config = util.combineObjects(parent.config.webrtcConfig, {
       RTCConfiguration : {iceTransports : "all"},
       RTCOfferConstraints: OfferConstraints,
       RTCConstraints : {'optional': [{'DtlsSrtpKeyAgreement': 'true'}]},
-      iceServers: [],
       mediaIn: null,
       mediaOut: null,
+      iceServers: [],
       lazyAV: true,
       trickleICE: true,
       connect: null,
@@ -45,7 +68,8 @@ var WebRTCConnection = (function invocation() {
         audio: true,
         video: true 
       }
-    };
+    });
+
     // TODO:  Throw error if no parent.
     this.dependencies = {
       parent: parent || null
@@ -54,6 +78,8 @@ var WebRTCConnection = (function invocation() {
       state: 'disconnected',
       objName:'WebRTCConnection',
       parentConnected : false,
+      iceServers: [],
+      paused: false,
       enabled : false
     };
     this.id = parent.id;
@@ -65,6 +91,7 @@ var WebRTCConnection = (function invocation() {
       'trying': [],
       'connected': [],
       'disconnected': [],
+      'remotemuted':[],
       '_notrickle':[]
     };
     this.pc = null;
@@ -77,13 +104,14 @@ var WebRTCConnection = (function invocation() {
 
   WebRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.WebRTCConnection.prototype */
-    return {
+    var proto = {
     /**
      * enable webrtc
      * <p>
      * When enable() is called, if we are connected we will initiate a webrtc connection (generate offer)
      * Otherwise, call enable() prior to connect and when connect occurs it will do what is enabled...
      * </p>
+     *
      *
      * @param {object} [config]
      *
@@ -96,11 +124,21 @@ var WebRTCConnection = (function invocation() {
      * @param {object} [config.RTCConfiguration] RTCPeerConnection specific {@link http://w3c.github.io/webrtc-pc/} 
      * @param {object} [config.RTCConfiguration.peerIdentity] 
      * @param {boolean} [config.trickleICE=true] Enable/disable ice trickling 
+     * @param {Array} [config.iceServers] Array of strings that represent ICE Servers.
      * @param {boolean} [config.lazyAV=true]  Enable AV lazily [upon connect/accept] rather than during
      * right away
      * @param {boolean} [config.connect=true] Internal, do not use.
      *
-     **/
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
+     *
+     */
+
+    /**
+    * This callback is displayed as a global member.
+    * @callback module:rtcomm.RtcommEndpoint.WebRTCConnection~callback
+    * @param {(boolean|MediaStream)} success - True or a MediaStream if successful
+    * @param {string} message  - Empty if success evaluates to true, otherwise failure reason. 
+    */
     enable: function(config,callback) {
       // If you call enable, no matter what we can update the config.
       //
@@ -117,64 +155,68 @@ var WebRTCConnection = (function invocation() {
           l('DEBUG') && console.log(self+'.enable() default callback(success='+success+',message='+message);
         };
       }
+      // If connect is true, we will force a connect... 
       var connect = (config && typeof config.connect === 'boolean') ? config.connect : parent.sessionStarted();
       var lazyAV = (config && typeof config.lazyAV === 'boolean') ? config.lazyAV : true;
       // Load Ice Servers...
+      // load with configured iceServers from this.config.iceServers
+      this.setIceServers();
       this.config.RTCConfiguration.iceServers = this.config.RTCConfiguration.iceServers || this.getIceServers();
 
-      l('DEBUG') && console.log(self+'.enable() config created, defining callback');
-
-      // When Enable is called we have a couple of options:
-      // 1.  If parent is connected, enable will createofffer and send it.
-      // 2.  if parent is NOT CONNECTED. enable will create offer and STORE it for sending by _connect.
-      //
-      // 3.  
       /*
-       * create an offer during the enable process
+       * when enable() is called we have a couple of options:
+       *  1.  If parent is connected( a Session is already started) then enable will create an Offer and send it.
+       *  2.  if parent is NOT CONNECTED (and connect is false) enable will create offer and STORE it 
+       *      for sending by _connect later
+       *  3.  if parent is NOT CONNECTED (and connect is TRUE) enable will create offer and send it. 
+       *  4.  If have already been enabled?
+       *
        */
-
-      // If we are enabled already, just return ourselves;
-      //
-
-      if (this._.enabled) {
-        this.enableLocalAV(callback);
-        return this;
-      } else {
-        l('DEBUG') && console.log(self+'.enable() connect if possible? '+connect);
+      if (!this._.enabled) {
+        l('DEBUG') && console.log(self+'.enable() We are not enabled -- enabling');
         try {
           this.pc = createPeerConnection(this.config.RTCConfiguration, this.config.RTCConstraints, this);
+          this._.enabled = true;
         } catch (error) {
           // No PeerConnection support, cannot enable.
           throw new Error(error);
+          // Call the callback w/ false?
         }
-        this._.enabled = true;
-        // If we don't have lazy set and we aren't immediately connecting, enable AV.
-        l('DEBUG') && console.log(self+'.enable() (lazyAV='+lazyAV+',connect='+connect);
-        if (!lazyAV && !connect) {
-          // enable now.
-          this.enableLocalAV(function(success, message) {
-            l('DEBUG') && console.log(self+'.enable() enableLocalAV Callback(success='+success+',message='+message);
-            callback(true);
-          });
-        } else {
-          if (connect) {
-            this._connect(null, callback(true));
-          } else {
-            callback(true);
-          } 
-        } 
-        return this;
+      } else {
+        l('DEBUG') && console.log(self+'.enable() already enabled');
       }
+      /*
+       * If lazyAV is false, enable AV here if its true but connect is true it gets enabled in connect.
+       */
+      if (!lazyAV && !connect) {
+        // enable now.
+        l('DEBUG') && console.log(self+'.enable() lazyAV is false, calling enableLocalAV');
+        this.enableLocalAV(function(success, message) {
+          l('DEBUG') && console.log(self+'.enable() enableLocalAV Callback(success='+success+',message='+message);
+          callback(true);
+       });
+      }
+      /* 
+       * If connect is true, connect
+       */
+      if (connect) {
+        l('DEBUG') && console.log(self+'.enable() connect is true, connecting');
+        // If we should connect, connect;
+        this._connect(callback(true));
+      } else {
+        l('DEBUG') && console.log(self+'.enable() connect is false; skipping connect');
+        callback(true);
+      }
+      return this;
     },
     /** disable webrtc 
      * Disconnect and reset
      */
     disable: function() {
-      this.onEnabledMessage = null;
-      this._.enabled = false;
-      this._disconnect();
-      if (this.pc) {
-        this.pc = null;
+      if (this._.enabled) {
+        l('DEBUG') && console.log(this+'.disable() disabling webrtc');
+        this._.enabled = false;
+        this._disconnect();
       }
       return this;
     },
@@ -185,30 +227,46 @@ var WebRTCConnection = (function invocation() {
     enabled: function() {
       return this._.enabled;
     },
-
+    connect: function connect(chatMessage){
+      return this._connect(chatMessage);
+    },
     /*
      * Called to 'connect' (Send message, change state)
      * Only works if enabled.
      *
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
      */
-    _connect: function(sendMethod,callback) {
+    _connect: function(callback) {
       var self = this;
-      sendMethod = (sendMethod && typeof sendMethod === 'function') ? sendMethod : this.send.bind(this);
-      callback = callback ||function(success, message) {
-        l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
-      };
-
+      var sendMethod = null;
+      var parent = self.dependencies.parent;
+      if (parent.sessionStarted()) {
+        sendMethod = this.send.bind(this);
+      } else if (parent._.activeSession ) {
+        sendMethod = parent._.activeSession.start.bind(parent._.activeSession);
+      } else {
+        throw new Error(self+'._connect() unable to find a sendMethod');
+      }
+      var payload = {};
+      // Used if chat is being sent w/ the offer
+      var chatMessage = null;
+      if (typeof callback !== 'function') {
+        chatMessage = callback;
+        callback = function(success, message) {
+          l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
+        };
+      }
       var doOffer =  function doOffer(success, msg) {
         if (success) { 
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
               if (self.config.trickleICE) {
-                sendMethod({payload: self.createMessage(offersdp)});
+                sendMethod({payload: self.createMessage(offersdp, chatMessage)});
               } else {
                 self.on('_notrickle', function(obj) {
                   l('DEBUG') && console.log(self+'.doOffer _notrickle called: Sending offer here. ');
-                  sendMethod({payload: self.createMessage(self.pc.localDescription)});
+                  sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
                   // turn it off once it fires.
                   callback(true);
                   self.off('_notrickle');
@@ -230,6 +288,7 @@ var WebRTCConnection = (function invocation() {
           console.error('_connect failed, '+msg);
         }
       };
+      // Only works if we are already enabled
       if (this._.enabled && this.pc) {
         this.enableLocalAV(doOffer);
         return true;
@@ -239,9 +298,14 @@ var WebRTCConnection = (function invocation() {
     },
 
     _disconnect: function() {
-      if (this.pc && this.pc.signalingState !== 'closed') {
-        l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
-       this.pc.close();
+      if (this.pc) {
+        l('DEBUG') && console.log(this+'._disconnect() Signaling State is: '+this.pc.signalingState);
+        if (this.pc.signalingState !== 'disconnected' || this.pc.signalingState !== 'closed'  ) {
+          l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
+          this.pc.close();
+        }
+        // set it to null
+        this.pc = null;
       }
       detachMediaStream(this.getMediaIn());
       this._.remoteStream = null;
@@ -267,21 +331,38 @@ var WebRTCConnection = (function invocation() {
 
     /**
      * Accept an inbound connection
+     *
+     * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when accept is complete.
+     *
      */
-    accept: function(options) {
+    accept: function(callback) {
       var self = this;
 
-      var doAnswer = function doAnswer() {
-        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
-        l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
-        //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
-        //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
-        //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
-        self.pc && self.pc.createAnswer(self._gotAnswer.bind(self), function(error) {
-          console.error('failed to create answer', error);
-        },
-         self.config.RTCOfferConstraints
-        );
+      callback = callback || function(success, message) {
+        l('DEBUG') && console.log(self+'.accept() default callback(success='+success+',message='+message);
+      };
+
+      var doAnswer = function doAnswer(success,msg) {
+        if (success) {
+          l('DEBUG') && console.log(this+'.accept() -- doAnswer -- peerConnection? ', self.pc);
+          l('DEBUG') && console.log(this+'.accept() -- doAnswer -- constraints: ', self.config.RTCOfferConstraints);
+          //console.log('localsttream audio:'+ self._.localStream.getAudioTracks().length );
+          //console.log('localsttream video:'+ self._.localStream.getVideoTracks().length );
+          //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
+          self.pc && self.pc.createAnswer(
+            function(desc) {
+              self._gotAnswer(desc);
+              callback(success, msg);
+            },
+            function(error) {
+              console.error('failed to create answer', error);
+              callback(false, 'Failed to create answer');
+            },
+            self.config.RTCOfferConstraints
+          );
+        } else {
+          callback(success, msg);
+        }
       };
       l('DEBUG') && console.log(this+'.accept() -- accepting --');
       if (this.getState() === 'alerting') {
@@ -340,20 +421,91 @@ var WebRTCConnection = (function invocation() {
       */
       return this;
     },
-    pauseBroadcast: function() {
-      if (this._.localStream) {
-        this._.localStream.getVideoTracks()[0].enabled = false;
-        this._.localStream.getAudioTracks()[0].enabled = false;
+    /** Mute a broadcast  (audio or video or both)
+     *  @param {String}  [audio or video]  
+     *
+     *  By default, this will mute both audio and video if passed with no parameters.
+     */
+    mute: function(media) {
+      switch (media) {
+        case 'audio':
+          muteAudio(this._.localStream, this);
+          break;
+        case 'video': 
+          muteVideo(this._.localStream, this);
+          break;
+        default:
+          muteAudio(this._.localStream, this);
+          muteVideo(this._.localStream, this);
       }
+      // This seems odd, but by default we mute both.
+      // so the audio/video sent in the message is inferred
+      // based on what is sent in.  For example, if we are
+      // muting AUDIO, then video will NOT be muted(true). 
+      var msg = this.createMessage(
+        {type: 'stream',
+           stream: {
+             label: this._.localStream.label, 
+             audio: (media === 'video')? true: false,
+             video: (media === 'audio')? true:false 
+            }
+        });
+      this.send(msg);
+      this._.muted = true;
     },
-    resumeBroadcast: function() {
-      if (this._.localStream) {
-        this._.localStream.getVideoTracks()[0].enabled = true;
-        this._.localStream.getAudioTracks()[0].enabled = true;
+
+    /** UnMute a broadcast  (audio or video or both)
+     *  @param {String}  [audio or video]  
+     *
+     *  By default, this will Unmute both audio and video if passed with no parameters.
+     */
+    unmute: function(media) {
+      switch (media) {
+        case 'audio':
+          unmuteAudio(this._.localStream, this);
+          break;
+        case 'video': 
+          unmuteVideo(this._.localStream, this);
+          break;
+        default:
+          unmuteAudio(this._.localStream, this);
+          unmuteVideo(this._.localStream, this);
       }
+      // This seems odd, but by default we mute both.
+      // so the audio/video sent in the message is inferred
+      // based on what is sent in.  For example, if we are
+      // muting AUDIO, then video will NOT be muted(true). 
+
+      var msg = this.createMessage(
+        {type: 'stream',
+           stream: {
+             label: this._.localStream.label, 
+             audio: (media === 'video') ? false : true,
+             video: (media === 'audio') ? false : true
+            }
+        });
+
+      this.send(msg);
+      this._.muted = false;
+    },
+    isMuted: function() {
+      return this._.muted;
     },
     getMediaIn: function() {
       return this.config.mediaIn;
+    },
+    /* global hasTrack:false */
+    isReceivingAudio: function() {
+      return hasTrack("remote", "audio", this);
+    },
+    isReceivingVideo: function() {
+      return hasTrack("remote", "video", this);
+    },
+    isSendingAudio: function() {
+      return hasTrack("local", "audio", this);
+    },
+    isSendingVideo: function() {
+      return hasTrack("local", "video", this);
     },
     /**
      * DOM node to link the RtcommEndpoint inbound media stream to.
@@ -362,7 +514,7 @@ var WebRTCConnection = (function invocation() {
      */
     setMediaIn: function(value) {
       if(validMediaElement(value) ) {
-        if (this._.remoteStream) {
+        if (typeof this._.remoteStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaIn && this.config.mediaIn !== value) {
             detachMediaStream(this.config.mediaIn);
@@ -389,7 +541,7 @@ var WebRTCConnection = (function invocation() {
       if(validMediaElement(value) ) {
         // No matter WHAT (I believe) the outbound media element should be muted.
         value.muted = true; 
-        if (this._.localStream) {
+        if (typeof this._.localStream !== 'undefined') {
           // If we already have a media in and value is different than current, unset current.
           if (this.config.mediaOut && this.config.mediaOut !== value) {
             detachMediaStream(this.config.mediaOut);
@@ -490,17 +642,15 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
-  createMessage: function(content) {
+  createMessage: function(content,chatcontent) {
+    var message = {'webrtc': {}};
     if (content) {
-      if (content.webrtc) {
-        // presumably OK, just return it
-        return content;
-      } else {
-        return {'webrtc': content};
-      }
-    } else {
-        return {'webrtc': content};
+      message.webrtc = (content.hasOwnProperty('webrtc')) ? content.webrtc : content;
     }
+    if (chatcontent && chatcontent.hasOwnProperty('chat')) {
+       message.chat = chatcontent.chat;
+    }
+    return message;
   },
 
   /* Process inbound messages
@@ -528,7 +678,11 @@ var WebRTCConnection = (function invocation() {
         // Set our local description
         //  Only set state to ringing if we have a local offer...
         if (isPC && this.pc.signalingState === 'have-local-offer') {
-          isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          if (message.sdp !== "") { 
+              isPC && this.pc.setRemoteDescription(new MyRTCSessionDescription(message));
+          } else {
+            l('DEBUG') && console.log(this+'._processMessage -- pranswer sdp is empty, not setting');
+          }
           this._setState('ringing');
         }
         break;
@@ -600,6 +754,33 @@ var WebRTCConnection = (function invocation() {
           console.error('addIceCandidate threw an error', err);
         }
         break;
+      case 'stream': 
+        //  The remote peer has muted/unmuted audio or video (or both) on a stream
+        // Format { audio: boolean, video: boolean, label: 'labelstring' }
+        l('DEBUG') && console.log(this+'_processMessage Remote media disabled --> message:', message);
+        if (message.stream && message.stream.label) {
+          // This is the label of the stream disabled.
+          // Disable it, emit event.
+          var streams = this.pc.getRemoteStreams();
+          for (var i=0;i<streams.length;i++) {
+            if (streams[i].label === message.stream.label) {
+              var stream = streams[i];
+              // We found our stream, get tracks...
+              if (message.stream.audio) {
+                unmuteAudio(stream, this);
+              } else {
+                muteAudio(stream, this);
+              }
+              if (message.stream.video) {
+                unmuteVideo(stream, this);
+              } else {
+                muteVideo(stream, this);
+              }
+            }
+          }
+          this.emit('remotemuted', message.stream);
+        }
+        break;
       default:
         // Pass it up out of here...
         // TODO: Fix this, should emit something different here...
@@ -621,7 +802,7 @@ var WebRTCConnection = (function invocation() {
   * @param {object} config.mediaIn
   * @param {object} config.mediaOut
   *
-  * @param {function} [callback] callback called if getUserMedia enabled.
+  * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when setLocalMedia is complete.
   *
   */
   setLocalMedia: function setLocalMedia(config,callback) {
@@ -662,7 +843,8 @@ var WebRTCConnection = (function invocation() {
    * @param {object} options
    * @param {boolean} options.audio
    * @param {boolean} options.video
-   * @callback 
+   *
+   * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when function is complete.
    *
    */
   enableLocalAV: function(options, callback) {
@@ -683,7 +865,12 @@ var WebRTCConnection = (function invocation() {
     }
 
     var attachLocalStream = function attachLocalStream(stream){
-      self.getMediaOut() && attachMediaStream(self.getMediaOut(),stream);
+      // If we have a media out, attach the local stream
+      if (self.getMediaOut() ) {
+        if (typeof stream !== 'undefined') {
+          attachMediaStream(self.getMediaOut(),stream);
+        }
+      }
       if (self.pc) {
         if (self.pc.getLocalStreams()[0] === stream) {
           // Do nothing, already attached
@@ -698,18 +885,24 @@ var WebRTCConnection = (function invocation() {
         return false;
       }
     };
-    
-    if (audio || video ) { 
+
+    if (audio || video ) {
       if (this._.localStream) {
-        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattching stream');
+        l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattaching stream');
         callback(attachLocalStream(this._.localStream));
       } else {
         getUserMedia({'audio': audio, 'video': video},
           /* onSuccess */ function(stream) {
+            if (streamHasAudio(stream) !== audio) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested audio:'+audio+' but got audio: '+streamHasAudio(stream));
+            }
+            if (streamHasVideo(stream) !== video) {
+              l('INFO') && console.log(self+'.enableLocalAV() requested video:'+video+' but got video: '+streamHasVideo(stream));
+            }
             callback(attachLocalStream(stream));
           },
         /* onFailure */ function(error) {
-          callback(false, "getUserMedia failed");
+          callback(false, "getUserMedia failed - User denied permissions for camera/microphone");
         });
       }
     } else {
@@ -718,9 +911,8 @@ var WebRTCConnection = (function invocation() {
     }
   },
  setIceServers: function(service) {
-
+   var self = this;
    l('DEBUG') && console.log(this+'.setIceServers() called w/ service:', service);
-
    function buildTURNobject(url) {
      // We expect this to be in form 
      // turn:<userid>@servername:port:credential:<password>
@@ -730,54 +922,56 @@ var WebRTCConnection = (function invocation() {
      var credential = matches[3] || null;
 
      var iceServer = {
-       'url': null,
+       'urls': null,
        'username': null,
        'credential': null
      };
      if (user && server && credential) {
-       iceServer.url = 'turn:'+server;
+       iceServer.urls = 'turn:'+server;
        iceServer.username= user;
        iceServer.credential= credential;
      } else {
-       l('DEBUG') && console.log('Unable to parse the url into a Turn Server');
+       l('DEBUG') && console.log(self+'.setIceServers() Unable to parse the url into a Turn Server');
        iceServer = null;
      }
-     l('DEBUG') && console.log(this+'.setIceServers() built iceServer object: ', iceServer);
+     l('DEBUG') && console.log(self +'.setIceServers() built iceServer object: ', iceServer);
      return iceServer;
    }
 
     // Returned object expected to look something like:
-    // {"iceServers":[{"url": "stun:host:port"}, {"url","turn:host:port"}] 
+    // {"iceServers":[{"urls": "stun:host:port"}, {"urls","turn:host:port"}] 
     var urls = [];
-    if (service && service.iceURL)  {
-        service.iceURL.split(',').forEach(function(url){
-          // remove leading/trailing spaces
-          url = url.trim();
-          var obj = null;
-          if (/^stun:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is STUN: '+url);
-            obj = {'url': url};
-          } else if (/^turn:/.test(url)) {
-            l('DEBUG') && console.log(this+'.setIceServers() Is TURN: '+url);
-            obj = buildTURNobject(url);
-          } else {
-            l('DEBUG') && console.error('Failed to match anything, bad Ice URL: '+url);
-          }
-          obj && urls.push(obj);
-        });
-    } 
-    this.config.iceServers = urls;
+    var iceServers = (service && service.iceURL) ? service.iceURL.split(',') : this.config.iceServers;
+    iceServers.forEach(function(url){
+        // remove leading/trailing spaces
+        url = url.trim();
+        var obj = null;
+        if (/^stun:/.test(url)) {
+          l('DEBUG') && console.log(self+'.setIceServers() Is STUN: '+url);
+          obj = {'urls': url};
+        } else if (/^turn:/.test(url)) {
+          l('DEBUG') && console.log(self+'.setIceServers() Is TURN: '+url);
+          obj = buildTURNobject(url);
+        } else {
+          l('DEBUG') && console.error(self+'.setIceServers() Failed to match anything, bad Ice URL: '+url);
+        }
+        obj && urls.push(obj);
+      });
+    this._.iceServers = urls;
    },
   getIceServers: function() {
-    return this.config.iceServers;
-    }
+    return this._.iceServers;
+  }
  };
+
+ // Required for jsdoc to look right
+ return proto;
 
 })()); // End of Prototype
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;
-  if (typeof MyRTCPeerConnection !== 'undefined'){
+  if (MyRTCPeerConnection) {
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
     peerConnection = new MyRTCPeerConnection(RTCConfiguration, RTCConstraints);
 
@@ -803,14 +997,14 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
     peerConnection.oniceconnectionstatechange = function (evt) {
       if (this.pc === null) {
         // If we are null, do nothing... Weird cases where we get here I don't understand yet.
-        l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE fired but this.pc is null');
+        l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE fired but this.pc is null', evt);
         return;
       }
       l('DEBUG') && console.log(this+' oniceconnectionstatechange ICE STATE CHANGE '+ this.pc.iceConnectionState);
       // When this is connected, set our state to connected in webrtc.
-      if (this.pc.iceConnectionState === 'closed') {
+      if (this.pc.iceConnectionState === 'closed' || this.pc.iceConnectionState === 'disconnected') {
         // wait for it to be 'Closed'  
-        this.disable();
+        this._disconnect();
       } else if (this.pc.iceConnectionState === 'connected') {
         this._setState('connected');
       }
@@ -868,7 +1062,7 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
     }.bind(context);
 
     peerConnection.onsignalingstatechange = function(evt) {
-        l('DEBUG') && console.log('peerConnection onsignalingstatechange fired: ', evt);
+        l('DEBUG') && console.log(this+' peerConnection onsignalingstatechange fired: ', evt);
     }.bind(context);
 
     peerConnection.onclosedconnection = function(evt) {
@@ -896,71 +1090,95 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
   return peerConnection;
 }  // end of createPeerConnection
 
-/*
- *  Following are used to handle different browser implementations of WebRTC
- */
-var getBrowser = function() {
-    if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-      // probably in node.js no browser support
-      return ('node.js','unknown');
-    } else  if (navigator && navigator.mozGetUserMedia) {
-      // firefox
-      return("firefox", parseInt(navigator.userAgent.match(/Firefox\/([0-9]+)\./)[1], 10));
-    } else if (navigator && navigator.webkitGetUserMedia) {
-     return("chrome", parseInt(navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./)[2], 10));
-    } else {
-      return("Unknown","Unknown");
+// Alias these to the globals
+var MyRTCPeerConnection =  (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
+var MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
+var MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
+
+var detachMediaStream = function(element) {
+   if (element) {
+      if (typeof element.src !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting srcObject to empty string');
+        element.src = '';
+      } else if (typeof element.mozSrcObject !== 'undefined') {
+        l('DEBUG') && console.log('detachMediaStream setting to null');
+        element.mozSrcObject = null;
+      } else {
+        console.error('Error detaching stream from element.');
+      }
     }
   };
 
-var MyRTCPeerConnection = (function() {
-  /*global mozRTCPeerConnection:false */
-  /*global webkitRTCPeerConnection:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  } else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCPeerConnection;
-  } else if (navigator && navigator.webkitGetUserMedia) {
-    return webkitRTCPeerConnection;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
+var hasTrack = function(direction,media,context) {
+  var directions = { 'remote': function() { return context.pc.getRemoteStreams();},
+                     'local' : function() { return context.pc.getLocalStreams();}};
+  var mediaTypes = {
+    'audio' : function(stream) {
+      return stream.getAudioTracks();
+     },
+     'video': function(stream) {
+       return stream.getVideoTracks();
+     }
+  };
+  var returnValue = false;
+  if (context.pc) {
+    if (direction in directions) {
+      var streams=directions[direction]();
+      l('DEBUG') && console.log('hasTrack() streams -> ', streams);
+        for (var i=0;i< streams.length; i++) {
+          var stream = streams[i];
+          var tracks = mediaTypes[media](stream);
+          for (var j = 0; j< tracks.length; j++) {
+            // go through, and OR it...
+            returnValue = returnValue || tracks[j].enabled;
+          }
+        }
+      }
   }
-})();
+  return returnValue;
+};
 
-var MyRTCSessionDescription = (function() {
-  /*global mozRTCSessionDescription:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  }  else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCSessionDescription;
-  } else if (typeof RTCSessionDescription !== 'undefined' ) {
-    return RTCSessionDescription;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
+var toggleStream = function(stream, media, enabled , context) {
+  var mediaTypes = {
+    'audio' : function(stream) {
+      return stream.getAudioTracks();
+     },
+     'video': function(stream) {
+       return stream.getVideoTracks();
+     }
+  };
+  var tracks = mediaTypes[media](stream);
+  for (var i=0;i<tracks.length;i++) {
+    tracks[i].enabled = enabled;
   }
-})();
+  //TODO: Emit an event that stream was muted.
+  return stream;
+};
 
-l('DEBUG') && console.log("Setting RTCSessionDescription", MyRTCSessionDescription);
+var streamHasAudio = function(stream) {
+   return (stream.getAudioTracks().length > 0);
+};
 
+var streamHasVideo= function(stream) {
+   return (stream.getVideoTracks().length > 0);
+};
 
-var MyRTCIceCandidate = (function() {
-  /*global mozRTCIceCandidate:false */
-  /*global RTCIceCandidate:false */
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    return null;
-  } else if (navigator && navigator.mozGetUserMedia) {
-    return mozRTCIceCandidate;
-  } else if (typeof RTCIceCandidate !== 'undefined') {
-    return RTCIceCandidate;
-  } else {
-    return null;
-  //  throw new Error("Unsupported Browser: ", getBrowser());
-  }
-})();
+var muteAudio = function(stream, context) {
+  toggleStream(stream, 'audio', false, context);
+};
 
-l('DEBUG') && console.log("RTCIceCandidate", MyRTCIceCandidate);
+var unmuteAudio = function(stream, context) {
+  toggleStream(stream,'audio', true, context);
+};
+
+var muteVideo = function(stream, context) {
+  toggleStream(stream, 'video', false, context);
+};
+
+var unmuteVideo = function(stream, context) {
+  toggleStream(stream,'video', true, context);
+};
+
 
 var validMediaElement = function(element) {
   return( (typeof element.srcObject !== 'undefined') ||
@@ -968,73 +1186,6 @@ var validMediaElement = function(element) {
       (typeof element.src !== 'undefined'));
 };
 
-/*
- * Assign getUserMedia, attachMediaStream as private class functions
- */
-var getUserMedia, attachMediaStream,detachMediaStream;
-/* globals URL:false */
-
-  if (typeof navigator === 'undefined' && typeof window === 'undefined') {
-    getUserMedia = null;
-    attachMediaStream = null;
-    detachMediaStream = null;
-  // Creating methods for Firefox
-  } else if (navigator && navigator.mozGetUserMedia) {
-
-    getUserMedia = navigator.mozGetUserMedia.bind(navigator);
-    // Attach a media stream to an element.
-    attachMediaStream = function(element, stream) {
-      l('DEBUG') && console.log("FIREFOX --> Attaching media stream");
-      try { 
-        element.mozSrcObject = stream;
-    //    element.play();
-      } catch (e) {
-        console.error('Attach Media Stream failed in FIREFOX:  ', e);
-      }
-    };
-    detachMediaStream = function(element) {
-    l('DEBUG') && console.log("FIREFOX --> Detaching media stream");
-    if (element) {
-      element.mozSrcObject = null;
-    }
-  };
-
-} else if (navigator && navigator.webkitGetUserMedia) {
-  getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
-  attachMediaStream = function(element, stream) {
-    if (typeof element.srcObject !== 'undefined') {
-      element.srcObject = stream;
-    } else if (typeof element.mozSrcObject !== 'undefined') {
-      element.mozSrcObject = stream;
-    } else if (typeof element.src !== 'undefined') {
-      element.src = URL.createObjectURL(stream);
-    } else {
-      console.error('Error attaching stream to element.');
-    }
-  };
-  detachMediaStream = function(element) {
-    var nullStream = '';
-    if (element) {
-      if (typeof element.srcObject !== 'undefined') {
-        element.srcObject = nullStream;
-      } else if (typeof element.mozSrcObject !== 'undefined') {
-        element.mozSrcObject = nullStream;
-      } else if (typeof element.src !== 'undefined') {
-        element.src = nullStream;
-      } else {
-        console.error('Error attaching stream to element.');
-      }
-    }
-  };
-} else {
-  console.error("Browser does not appear to be WebRTC-capable");
-  var skip = function skip() {
-    if (typeof global === 'undefined') { console.error("Function not supported in browser")};
-  };
-  getUserMedia = skip;
-  attachMediaStream = skip;
-  detachMediaStream = skip;
-}
 
 return WebRTCConnection;
 

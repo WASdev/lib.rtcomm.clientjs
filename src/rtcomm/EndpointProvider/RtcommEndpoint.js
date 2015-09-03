@@ -19,7 +19,6 @@
 
 var RtcommEndpoint = (function invocation(){
 
-
   var createChat = function createChat(parent) {
     /* globals Chat:false */
     var chat = new Chat(parent);
@@ -30,10 +29,12 @@ var RtcommEndpoint = (function invocation(){
       parent.emit('chat:message', {'message': message});
     });
     chat.on('alerting', function(message) {
+      l('DEBUG') && console.log('RtcommEndpoint emitting session:alerting event');
       var obj =  {};
       obj.message  = message;
       obj.protocols = 'chat';
-      parent.emit('session:alerting', obj );
+      // Have to do setState here because the parent state needs to change.
+      parent.setState('session:alerting', obj );
     });
     chat.on('connected', function() {
       parent.emit('chat:connected');
@@ -57,13 +58,13 @@ var RtcommEndpoint = (function invocation(){
       webrtc = new WebRTCConnection(parent);
     }
     webrtc.on('ringing', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on ringing - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
     });
 
     webrtc.on('trying', function(event_obj) {
-     console.log("Should have played a ringbackTone! ", parent._.ringbackTone); 
+     l('DEBUG') && console.log("on trying - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
      (parent.lastEvent !== 'session:trying') && parent.emit('session:trying');
     });
@@ -72,14 +73,17 @@ var RtcommEndpoint = (function invocation(){
       parent.emit('session:alerting', {protocols: 'webrtc'});
     });
     webrtc.on('connected', function(event_obj) {
-      console.log('SHould stop ring now...');
+     l('DEBUG') && console.log("on connected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:connected');
     });
     webrtc.on('disconnected', function(event_obj) {
-      console.log('SHould stop ring now...');
+      l('DEBUG') && console.log("on disconnected - stop ringing ");
       parent._stopRing();
       parent.emit('webrtc:disconnected');
+    });
+    webrtc.on('remotemuted', function(event_obj) {
+      parent.emit('webrtc:remotemuted', event_obj);
     });
     return webrtc;
   };
@@ -101,19 +105,34 @@ var RtcommEndpoint = (function invocation(){
  *  @extends  module:rtcomm.util.RtcommBaseObject
  */
   var RtcommEndpoint = function RtcommEndpoint(config) {
-    // Presuming you creat an object based on this one, 
-    // you must override the ession event handler and
-    // then augment newSession object.
-    //
+    /** 
+     * @typedef {object} module:rtcomm.RtcommEndpoint~config
+     *
+     * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
+     * @property {string}  [userid=null] UserID the endpoint will use (generally provided by the EndpointProvider
+     * @property {string}  [appContext=null] UI Component to attach outbound media stream
+     * @property {string} [ringtone=null] Path to a  ringtone to play when we are ringing on inbound call
+     * @property {string} [ringbacktone=null] path to a ringbacktone to play on outbound call
+     * @property {boolean} [webrtc=true]  Whether the endpoint supports webrtc
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
+     * @property {boolean} [chat=true]  Wehther the endpoint supports chat
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
+     *
+     */
     this.config = {
+      // if a feature is supported, enable by default.
+      autoEnable: false,
       ignoreAppContext: true,
       appContext : null,
       userid: null,
       ringtone: null,
       ringbacktone: null,
       chat: true,
-      webrtc: true
+      chatConfig: {},
+      webrtc:true,
+      webrtcConfig:{}
     };
+
     this.dependencies = {
       endpointConnection: null,
     };
@@ -125,6 +144,7 @@ var RtcommEndpoint = (function invocation(){
       /*global generateUUID:false */
       uuid: generateUUID(),
       initialized : false,
+      disconnecting: false,
       protocols : [],
       // webrtc Only 
       inboundMedia: null,
@@ -165,6 +185,8 @@ var RtcommEndpoint = (function invocation(){
      * @readonly
      */
     this.webrtc = (this.config.webrtc)?createWebRTCConnection(this): null;
+    // If autoenable, go ahead and enable webrtc.
+    this.config.autoEnable && this.webrtc && this.webrtc.enable();
     /**
      * The attached {@link module:rtcomm.RtcommEndpoint.Chat} object 
      * if enabled null if not enabled
@@ -174,7 +196,7 @@ var RtcommEndpoint = (function invocation(){
      */
     this.chat = (this.config.chat) ? createChat(this): null;
     // Enable chat by default if it is set up that way.
-    //this.chat && this.chat.enable();
+    this.chat && this.chat.enable();
 
     /** 
      * RtcommEndpoint Event type 
@@ -253,6 +275,17 @@ var RtcommEndpoint = (function invocation(){
          *
          */
         "webrtc:disconnected": [],
+        /**
+         * The remote peer muted their stream
+         * @event module:rtcomm.RtcommEndpoint#webrtc:remotemuted
+         * @property {module:rtcomm.RtcommEndpoint~Event}
+         *
+         * Additional properties of the Event Object:
+         *  label: label of the stream
+         *  audio: boolean indicating muted(false) or not(true)
+         *  video: boolean indicating muted(false) or not(true)
+         */
+        "webrtc:remotemuted": [],
         /**
          * Creating the connection to a peer failed
          * @event module:rtcomm.RtcommEndpoint#webrtc:failed
@@ -363,9 +396,13 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
       context.setState('session:started');
     });
     session.on('stopped', function(message) {
-      // In this case, we should disconnect();
-      context.setState('session:stopped');
-      context.disconnect();
+      // We could already be stopped, ignore it in that case.
+      l('DEBUG') && console.log(context+' SigSession callback called to process STOPPED: ' + context.getState());
+      if (context.getState() !== 'session:stopped') {
+        // In this case, we should disconnect();
+        context.setState('session:stopped');
+        context.disconnect();
+      }
     });
     session.on('starting', function() {
       context.setState('session:trying');
@@ -378,20 +415,9 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
    // session.listEvents();
     return true;
   }
+
 /** @lends module:rtcomm.RtcommEndpoint.prototype */
-return  {
-  _playRingtone: function() {
-    this._.ringTone && this._.ringTone.play();
-  },
-  _playRingback: function() {
-    this._.ringbackTone && this._.ringbackTone.play();
-  },
-  _stopRing: function() {
-    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
-    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
-    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
-    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
-  },
+var proto = {
   getAppContext:function() {return this.config.appContext;},
   newSession: function(session) {
       var event = null;
@@ -466,8 +492,11 @@ return  {
             case 'chat': 
               // It is a chat this will change to something different later on...
               if (this.config.chat) { 
+                // If there is also a webrtc payload, we don't want to alert, so just set it to connected
+                if (payload.webrtc) { 
+                  this.chat._setState('connected');
+                }
                 this.chat._processMessage(payload[type]);
-                //this.emit('chat:message', payload.userdata);
               } else {
                 console.error('Received chat message, but chat not supported!',payload[type]);
               }
@@ -501,6 +530,19 @@ return  {
      l('DEBUG') && console.log(this+' Received message, but nothing to do with it', payload);
    }
   },
+  _playRingtone: function() {
+    this._.ringTone && this._.ringTone.play();
+  },
+  _playRingback: function() {
+    this._.ringbackTone && this._.ringbackTone.play();
+  },
+  _stopRing: function() {
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
+    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
+    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
+  },
+
   /** Endpoint is available to accept an incoming call
    *
    * @returns {boolean}
@@ -518,7 +560,6 @@ return  {
     },
 
   /**
-   *  @memberof module:rtcomm.RtcommEndpoint
    * Connect to another endpoint.  Depending on what is enabled, it may also start
    * a chat connection or a webrtc connection.
    * <p>
@@ -528,25 +569,28 @@ return  {
    * </p>
    *
    * @param {string|object} endpoint Remote ID of endpoint to connect.
-   *
-   * TODO:  Doc this..
-   *
    */
 
   connect: function(endpoint) {
     if (this.ready()) {
       this.available(false);
+      this._.disconnecting = false;
       if (!this._.activeSession ) { 
         this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
       } 
       this.setState('session:trying');
-      if (this.config.webrtc && 
-          this.webrtc._connect(this._.activeSession.start.bind(this._.activeSession))) {
-        l('DEBUG') && console.log(this+'.connect() initiating with webrtc._connect');
-      } else if (this.config.chat && 
-                 this.chat._connect(this._.activeSession.start.bind(this._.activeSession))){
-        l('DEBUG') && console.log(this+'.connect() initiating with chat._connect');
+
+      var chatMessage = null;
+      if (this.config.chat && this.chat.enabled()) {
+        chatMessage = this.chat.onEnabledMessage;
+      } 
+      if (this.config.webrtc && this.webrtc.connect(chatMessage)) { 
+        // if its already enabled, we need to set chat to connected here so it can handle inbound messages.
+        this.chat.enabled() && this.chat._setState('connected');
+        l('DEBUG') && console.log(this+'.connect() initiating with webrtc.enable({connect:true})');
+      } else if (this.config.chat && this.chat.enable({connect:true})){
+        l('DEBUG') && console.log(this+'.connect() initiating with chat.enable({connect:true})');
       } else {
         l('DEBUG') && console.log(this+'.connect() sending startMessage w/ no content');
         this._.activeSession.start();
@@ -561,29 +605,45 @@ return  {
    * Disconnect the endpoint from a remote endpoint.
    */
   disconnect: function() {
-    this.webrtc && this.webrtc.disable();
-    this.chat && this.chat.disable();
-    if (!this.sessionStopped()) {
-      this._.activeSession.stop();
-      this._.activeSession = null;
-      this.setState('session:stopped');
+    l('DEBUG') && console.log(this+'.disconnect() Entry');
+    if (!this._.disconnecting) {
+      // Not in progress, move along
+      l('DEBUG') && console.log(this+'.disconnect() Starting disconnect process');
+      this._.disconnecting = true;
+      this.webrtc && this.webrtc.disable();
+      this.chat && this.chat.disable();
+      if (!this.sessionStopped()) {
+        this._.activeSession.stop();
+        this._.activeSession = null;
+        this.setState('session:stopped');
+      } else {
+        this._.activeSession=null;
+      }
+      // Renable webrtc if autoEnable is set.
+      this.config.autoEnable && this.webrtc && this.webrtc.enable();
+      this._.disconnecting = false;
+      this.available(true);
     } else {
-      this._.activeSession=null;
+      l('DEBUG') && console.log(this+'.disconnect() in progress, cannot disconnect again');
     }
-    this.available(true);
+    l('DEBUG') && console.log(this+'.disconnect() Exit');
     return this;
   },
   /**
    * Accept an inbound request.  This is typically called after a 
    * {@link module:rtcomm.RtcommEndpoint#session:alerting|session:alerting} event
    *
+   *
+   * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when accept is complete.
+   *
+   * @returns {module:rtcomm.RtcommEndpoint}
    */
-  accept: function(options) {
+  accept: function(callback) {
     if (this.getState() === 'session:refer') {  
       this.connect(null);
-    } else if (this.webrtc && this.webrtc && this.webrtc.accept(options)) {
+    } else if (this.webrtc && this.webrtc && this.webrtc.accept(callback)) {
       l('DEBUG') && console.log(this+'.accept() Accepted in webrtc.');
-    } else if (this.chat && this.chat.accept(options)) {
+    } else if (this.chat && this.chat.accept(callback)) {
       l('DEBUG') && console.log(this+'.accept() Accepted in chat.');
     } else {
       l('DEBUG') && console.log(this+'.accept() accepting generically.');
@@ -727,6 +787,8 @@ return  {
 
   };
 
+  // This construct is to get the jsdoc correct
+  return proto;
 
   })()); // End of Prototype
 

@@ -19,11 +19,17 @@ var PhoneRTCConnection = (function invocation() {
    * @memberof module:rtcomm.RtcommEndpoint
    *
    * @description 
-   * A PhoneRTCConnection is a connection is a shim to the cordova.phonertc plugin
+   * A PhoneRTCConnection is a shim to the cordova.phonertc plugin it replaces the WebRTCConnection
+   * if cordova.phonertc is found.
+   *
    *  @constructor
    *
    *  @extends  module:rtcomm.util.RtcommBaseObject
    */
+   /*global phonertc:false*/ 
+   /*global cordova:false*/ 
+   /*global l:false*/ 
+   /*global util:false*/ 
   var PhoneRTCConnection = function PhoneRTCConnection(parent) {
 
     this.config = {
@@ -86,7 +92,7 @@ var PhoneRTCConnection = (function invocation() {
 
   PhoneRTCConnection.prototype = util.RtcommBaseObject.extend((function() {
     /** @lends module:rtcomm.RtcommEndpoint.PhoneRTCConnection.prototype */
-    return {
+    var proto = {
       /**
        * enable webrtc
        * <p>
@@ -230,7 +236,7 @@ var PhoneRTCConnection = (function invocation() {
                 candidate: message.content.candidate,
                 sdpMLineIndex: message.content.label,
                 sdpMid: message.content.id
-              }
+              };
               delete message.content.label;
               delete message.content.id;
               message.content.candidate = newCandidate;
@@ -525,6 +531,7 @@ var PhoneRTCConnection = (function invocation() {
       return this.config.iceServers;
       }
    };
+   return proto;
 
   })()); // End of Prototype
 

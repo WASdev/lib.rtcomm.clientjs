@@ -66,11 +66,6 @@ var MqttConnection = function MqttConnection(config) {
       l('DEBUG') && console.log('MqttConnection createMqttClient using config: ', config);
       mqtt = new Paho.MQTT.Client(config.server,config.port,config.clientID);
       /* if a connection is lost, this callback is called, reconnect */
-      mqtt.onConnectionLost = function(error) {
-        if (error.errorCode !== 0) { // 0 means it was on purpose.
-          console.error("MqttConnection: Connection Lost... : ", error  );
-        }
-      };
 
     } else {
       throw new Error("MqttConnection depends on 'Paho.MQTT' being loaded via mqttws31.js.");
@@ -102,15 +97,20 @@ var MqttConnection = function MqttConnection(config) {
   };
 
   this.ERRORS = {
-    SSL: {msg:'useSSL is enabled, but failure occurred connecting to server.  Check server certificate by going to: '},
+    SSL: {name: 'SSL', msg:'useSSL is enabled, but failure occurred connecting to server.  Check server certificate by going to: '},
+    CONNLOST: {name: 'CONNLOST', msg:'The Connection the MQTT Server was lost'},
+    CONNREFUSED: {name: 'CONNREFUSED', msg:'The connection to the MQTT Server failed(Connection Refused)'}
   };
   // Our required properties
   this.objName = 'MqttConnection';
   this.dependencies = {};
   this.config = {};
   this.ready = false;
+  this.retry = false;
   this._init = false;
   this.id = null;
+  // connectOptions saved for if we need to retry
+  this.connectOptions = null ;
   // Events we can emit go here.
   this.events = {'message':[]};
 
@@ -150,6 +150,7 @@ var MqttConnection = function MqttConnection(config) {
     }
   };
 
+
   // Init has be executed.
   this._init = true;
 };
@@ -177,34 +178,48 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
   };
 
     /** @lends module:rtcomm.connector.MqttConnection.prototype */
-    return {
+    var proto = {
       /* global setLogLevel:false */
       setLogLevel: setLogLevel,
       /* global getLogLevel:false */
       getLogLevel: getLogLevel,
+
       /**
        * connect()
+       *  onSuccess || null;
+       *  onFailure || null;
+       *  willMessage || null;
+       *  presenceTopic || null;
+       *  mqttVersion || mqttVersion;
+       *  retry || 5;
        */
       connect: function connect(options) {
         if (!this._init) {
           throw new Error('init() must be called before calling connect()');
         }
+
         var mqttClient = this.dependencies.mqttClient;
         var cbOnsuccess = null;
         var cbOnfailure = null;
         var willMessage = null;
         var presenceTopic = null;
         var mqttVersion = 3;
+        var retry = 5;
+        var connectAttempts= 0;
         
         l('DEBUG')&& console.log(this+'.connect() called with options: ', options);
+
+        options = (this.connectOptions) ? this.connectOptions : options;
         if (options) {
+          // Save the options
+          this.connectionOptions = options;
           cbOnsuccess = options.onSuccess || null;
           cbOnfailure = options.onFailure || null;
           willMessage = options.willMessage || null;
           presenceTopic = options.presenceTopic || null;
           mqttVersion = options.mqttVersion || mqttVersion;
+          retry = options.retry || retry;
         }
-
         var mqttConnectOptions = {};
         // set version to 3 for Liberty compatibility
         mqttConnectOptions.mqttVersion = mqttVersion;
@@ -231,6 +246,26 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           l('DEBUG')&& console.log(this+'.connect() failed, override for more information', error);
         }.bind(this);
 
+        mqttClient.onConnectionLost = function(error) {
+          var newError = null;
+          if (error.errorCode !== 0) { // 0 means it was on purpose.
+            console.error('onConnectionLost', error);
+            newError = new util.RtcommError(this.ERRORS.CONNLOST.msg);
+            newError.name = this.ERRORS.CONNLOST.name;
+            newError.src = error.errorMessage;
+            if (typeof onFailure === 'function') {
+              // When shutting down, this might get called, catch any failures. if we were ready
+              // this is unexpected.
+              try {
+                onFailure(newError) ;
+              } catch(e) {
+                console.error(e);
+              }
+            } else {
+              console.error(newError);
+            }
+          }
+        }.bind(this);
         /*
          * onSuccess Callback for mqttClient.connect
          */
@@ -247,6 +282,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
             return;
           }
           this.ready = true;
+          this.retry = false;
           if (onSuccess && typeof onSuccess === 'function') {
             try {
               onSuccess(this);
@@ -265,24 +301,55 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
            *    errorCode: integer
            *    errorMessage: some string
            */
+          // TODO:  ADD loggin here.  Would be perfect... 
+          if (connectAttempts < retry) {
+            this.retry = true;
+          } else {
+            this.retry = false;
+          }
           var error = new util.RtcommError(response.errorMessage);
-          if (response.errorCode === 7 && this.config.useSSL) {
-            error = new util.RtcommError(this.ERRORS.SSL.msg + 'https://'+this.config.server+":"+this.config.port);
-            error.src = response.errorMessage;
+          if (response.errorCode === 7) {
+            if(this.config.useSSL) {
+              error = new util.RtcommError(this.ERRORS.SSL.msg + 'https://'+this.config.server+":"+this.config.port);
+              error.src = response.errorMessage;
+              this.retry = false;
+            } else {
+              error = new util.RtcommError(this.ERRORS.CONNREFUSED.msg + ":"+this.config.server+":"+this.config.port);
+              error.src = response.errorMessage;
+            }
           }
           if (typeof onFailure === 'function') {
             // When shutting down, this might get called, catch any failures. if we were ready
             // this is unexpected.
+
             try {
-              if (!this.ready) { onFailure(error) ;}
+              if ( !this.ready  && !this.retry) { 
+                onFailure(error);
+              }
             } catch(e) {
               console.error(e);
             }
           } else {
             console.error(error);
           }
+
         }.bind(this);
-        mqttClient.connect(mqttConnectOptions);
+
+        var self = this;
+
+        function retryConnect() {
+          connectAttempts++;
+          // If we are not ready (so we connected) or retry is not set)
+          // Retry could be turned off in onFailure and onSuccess.
+          if (!self.ready && self.retry) {
+            l('DEBUG') && console.log(self+'.connect() attempting to connect, try:'+connectAttempts);
+            mqttClient.connect(util.makeCopy(mqttConnectOptions));
+            setTimeout(retryConnect, 1000);
+          }
+        }
+        // We are going to retry
+        this.retry = true;
+        retryConnect();
       },
 
       subscribe : function subscribe(/* string */ topic) {
@@ -384,6 +451,8 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         }
       }
     }; // end of Return
+    return proto;
 })());
+
 exports.MqttConnection = MqttConnection;
 

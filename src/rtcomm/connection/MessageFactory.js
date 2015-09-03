@@ -14,7 +14,7 @@
  * limitations under the License.
  **/ 
 /** @class
- * @memberof module:rtcomm.webrtc
+ * @memberof module:rtcomm.connector
  * @private
  */
 /* Constructor */
@@ -22,7 +22,7 @@
 var MessageFactory = (function (){
   // base Template used for everything.
   var _baseHeaders = {
-      'rtcommVer': 'v0.4.0',
+      'rtcommVer': 'v1.0.0',
        'method' : null,
        'fromTopic': null
   };
