@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-pre 03-09-2015 14:00:37 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-pre 03-09-2015 14:00:37 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-pre 03-09-2015 16:58:17 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-pre 03-09-2015 16:58:17 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -456,6 +456,7 @@ var RtcommBaseObject = {
             }   
         });
       } else {
+        console.log('REMOVE ME!',self.events);
         throw new Error('emit() requires an events property listing the events. this.events['+event+'] = [];');
       }
     },
@@ -2948,7 +2949,7 @@ var Chat = (function invocation() {
        *
        */
       l('DEBUG') && console.log(this+'.enable() - message --> '+ message);
-      l('DEBUG') && console.log(this+'.enable() - --> '+ connect);
+      l('DEBUG') && console.log(this+'.enable() - connect --> '+ connect);
       l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
       this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
       // Don't need much, just set enabled to true.
@@ -2965,7 +2966,10 @@ var Chat = (function invocation() {
         } else {
           l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
           // respond to a session if we are active
-          parent._.activeSession && parent._.activeSession.respond();
+          if (parent._.activeSession) { 
+            parent._.activeSession.respond();
+            this._setState('connected');
+          } 
         }
       }
       return this;

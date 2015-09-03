@@ -132,7 +132,15 @@ define([
             //obj should be a WebRTCConnection
             // and Source should match our topic we know...
             console.log('FINISH Called!', obj);
-            assert.ok(chat2.sessionStarted(), 'Session Started!');
+            assert.ok(chat1.sessionStarted(), 'chat1 --Session Started!');
+            assert.ok(chat2.sessionStarted(), 'chat2 --Session Started!');
+            assert.equal(chat1.chat.getState(),'connected','Chat1--Chat Connected!');
+            assert.equal(chat2.chat.getState(),'connected','Chat2--Chat Connected!');
+
+            console.log('chat1.webrtc.getState():'+chat1.webrtc.getState());
+            console.log('chat2.webrtc.getState():'+chat2.webrtc.getState());
+            //assert.equal(chat1.chat.getState(),'connected','Chat1--Chat Connected!');
+            //assert.equal(chat2.chat.getState(),'connected','Chat2--Chat Connected!');
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
