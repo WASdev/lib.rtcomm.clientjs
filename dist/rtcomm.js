@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-pre 03-09-2015 16:58:17 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-pre 03-09-2015 16:58:17 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-pre 04-09-2015 15:35:20 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-pre 04-09-2015 15:35:20 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -933,7 +933,16 @@ var EndpointConnection = function EndpointConnection(config) {
           l('TRACE') && console.log(this+'.processMessage() existing transaction: ', transaction);
           transaction.finish(rtcommMessage);
         } else {
-          console.error('Transaction ID: ['+rtcommMessage.transID+'] not found, nothing to do with RESPONSE:',rtcommMessage);
+          if (rtcommMessage.orig === 'SERVICE_QUERY') {
+            // This is a special case, if we get a response here that does not have a valid transaction then 
+            // multiple Liberty Servers exist and we need to ALERT that things will be bad.
+            var error = new util.RtcommError("There are multiple rtcomm hosts listening on the same topic:"+endpointConnection.config.rtcommTopicPath+"  Create a unique topic for the client and server and try again");
+            error.name = "MULTIPLE_SERVERS";
+            endpointConnection._.onFailure(error);
+            endpointConnection.disconnect();
+          } else {
+            console.error('Transaction ID: ['+rtcommMessage.transID+'] not found, nothing to do with RESPONSE:',rtcommMessage);
+          }
         }
       } else if (rtcommMessage.method === 'START_SESSION' )  {
         // Create a new session:
@@ -1354,7 +1363,8 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             this.connected = false;
             cbFailure(error);
           };
-
+          // Save this onFailure, we will use it in another place if we get multiple servicequery responses
+          this._.onFailure = onFailure;
           var mqttConfig ={'onSuccess': onSuccess.bind(this),
                            'onFailure': onFailure.bind(this)};
           if (this.config.publishPresence) {
@@ -1423,7 +1433,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
         unsubscribe: function(topic) {
           var topicRegex = buildTopicRegex(optimizeTopic(topic));
-          if(this.mqttConnection.unsubscribe(topic)) {
+          if(this.mqttConnection && this.mqttConnection.unsubscribe(topic)) {
             delete this.subscriptions[topicRegex];
           }
         },
@@ -3374,6 +3384,8 @@ var EndpointProvider =  function EndpointProvider() {
       if (error.name === 'CONNLOST') {
         // we need to emit this rather than call the callback
         this.reset('Connection Lost');
+      } else if (error.name === 'MULTIPLE_SERVERS') {
+        this.reset(error.message);
       } else { 
         cbFailure(error);
       }
@@ -5226,7 +5238,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       if(!this.getRootNode().deleteSubNode(topic)) {
         throw new Error('Topic not found: '+topic);
       } else {
-        this.dependencies.connection.unsubscribe(this._.monitoredTopics[topic]);
+        this.dependencies.connection && this.dependencies.connection.unsubscribe(this._.monitoredTopics[topic]);
         delete this._.monitoredTopics[topic];
       }
       return this;
@@ -5306,7 +5318,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        this._.presenceData = [];
        // Unsubscribe ..
        Object.keys(pm._.monitoredTopics).forEach(function(key) {
-         pm.dependencies.connection.unsubscribe(pm._.monitoredTopics[key]);
+         pm.dependencies.connection && pm.dependencies.connection.unsubscribe(pm._.monitoredTopics[key]);
        });
     }
   } ;
@@ -6318,7 +6330,7 @@ var WebRTCConnection = (function invocation() {
       var self = this;
       var parent = self.dependencies.parent;
       /*global l:false*/
-      l('DEBUG') && console.log(self+'.enable()  --- entry ---');
+      l('DEBUG') && console.log(self+'.enable()  --- entry --- config:',config);
       if (typeof config === 'function') {
         callback = config;
         config = null;
@@ -6375,7 +6387,7 @@ var WebRTCConnection = (function invocation() {
       if (connect) {
         l('DEBUG') && console.log(self+'.enable() connect is true, connecting');
         // If we should connect, connect;
-        this._connect(callback(true));
+        this._connect(callback);
       } else {
         l('DEBUG') && console.log(self+'.enable() connect is false; skipping connect');
         callback(true);
@@ -6453,11 +6465,12 @@ var WebRTCConnection = (function invocation() {
             },
             function(error) {
               console.error('webrtc._connect failed: ', error);
-              callback(false);
+              // TODO: Normalize this error
+              callback(false, error);
             },
             self.config.RTCOfferConstraints);
         } else {
-          callback(false);
+          callback(false, msg);
           console.error('_connect failed, '+msg);
         }
       };

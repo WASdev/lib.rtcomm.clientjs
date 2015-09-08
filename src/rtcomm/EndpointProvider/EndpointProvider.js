@@ -282,6 +282,8 @@ var EndpointProvider =  function EndpointProvider() {
       if (error.name === 'CONNLOST') {
         // we need to emit this rather than call the callback
         this.reset('Connection Lost');
+      } else if (error.name === 'MULTIPLE_SERVERS') {
+        this.reset(error.message);
       } else { 
         cbFailure(error);
       }
@@ -295,6 +297,7 @@ var EndpointProvider =  function EndpointProvider() {
   this.stop = this.destroy;
   this.start = this.init;
   this.reset = function reset(reason) {
+     console.error(this+'.reset() called reason: '+reason);
      var endpointProvider = this;
       endpointProvider.emit('reset', {'reason':reason});
       setTimeout(function() {

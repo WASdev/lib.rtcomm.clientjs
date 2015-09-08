@@ -35,6 +35,11 @@
         </div>
       </div>
 </div>
+  <!-- alert message for use later -->
+  <div id='mainAlert' class="alert alert-danger alert-dismissible" style="display:none" role="alert">
+     <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+     <div id='alertMessage'></div>
+  </div>
 
 <div id="MainContainer" class="mainContentContainer container-fluid" style=" padding-top: 60px">
   <div class="row">
@@ -168,7 +173,8 @@ The primary logic for this HTML Page
   var ibmep = new rtcomm.EndpointProvider();
 
   ibmep.on('reset', function(event_object) {
-    updateMessage("Connection was reset - reason: "+event_object.reason);
+    alertMessage("Connection was reset - reason: "+event_object.reason);
+    uiUnregister();
   });
   ibmep.on('presence_updated', function(event_object) {
       console.log('onPresenceUPdated',event_object);
@@ -527,9 +533,9 @@ function updatePresence(presenceData) {
 };
 
   function alertMessage(message) {
-    console.log('Updating statusMessge with ', message);
-    $('#statusMessage').css('color:red');
-    $('#statusMessage').html(message);
+    $('#alertMessage').html(message);
+    $('#mainAlert').show();
+    $('#statusMessage').html("Please try again");
   }
 
   function updateConfig(obj1, obj2) {
@@ -575,6 +581,9 @@ function updatePresence(presenceData) {
     console.log(paramhash);
     return paramhash;
   }
+
+// bootstrap/jquery make alerts closable
+$().alert();
 
 $(document).ready(function(){
     $(document).on('click', '.nav-pills', function(e){

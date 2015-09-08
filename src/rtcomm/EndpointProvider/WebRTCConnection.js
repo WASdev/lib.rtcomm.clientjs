@@ -145,7 +145,7 @@ var WebRTCConnection = (function invocation() {
       var self = this;
       var parent = self.dependencies.parent;
       /*global l:false*/
-      l('DEBUG') && console.log(self+'.enable()  --- entry ---');
+      l('DEBUG') && console.log(self+'.enable()  --- entry --- config:',config);
       if (typeof config === 'function') {
         callback = config;
         config = null;
@@ -202,7 +202,7 @@ var WebRTCConnection = (function invocation() {
       if (connect) {
         l('DEBUG') && console.log(self+'.enable() connect is true, connecting');
         // If we should connect, connect;
-        this._connect(callback(true));
+        this._connect(callback);
       } else {
         l('DEBUG') && console.log(self+'.enable() connect is false; skipping connect');
         callback(true);
@@ -280,11 +280,12 @@ var WebRTCConnection = (function invocation() {
             },
             function(error) {
               console.error('webrtc._connect failed: ', error);
-              callback(false);
+              // TODO: Normalize this error
+              callback(false, error);
             },
             self.config.RTCOfferConstraints);
         } else {
-          callback(false);
+          callback(false, msg);
           console.error('_connect failed, '+msg);
         }
       };
