@@ -155,7 +155,6 @@ var RtcommBaseObject = {
             }   
         });
       } else {
-        console.log('REMOVE ME!',self.events);
         throw new Error('emit() requires an events property listing the events. this.events['+event+'] = [];');
       }
     },

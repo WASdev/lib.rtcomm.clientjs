@@ -1,5 +1,5 @@
 {
-   "mqttServers" : ["127.0.0.1:9080"],
+   "mqttServers" : ["svt-msd4.rtp.raleigh.ibm.com:1883"],
    "managementTopicName" : "management",
-   "rtcommTopicPath" : "/rtcomm/"
+   "rtcommTopicPath" : "/rtcommScottGraham/"
 }

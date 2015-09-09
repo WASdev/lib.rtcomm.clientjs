@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0-pre 04-09-2015 15:35:20 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0-pre 04-09-2015 15:35:20 UTC');
+/*! lib.rtcomm.clientjs 1.0.0-pre 09-09-2015 15:06:11 UTC */
+console.log('lib.rtcomm.clientjs 1.0.0-pre 09-09-2015 15:06:11 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -456,7 +456,6 @@ var RtcommBaseObject = {
             }   
         });
       } else {
-        console.log('REMOVE ME!',self.events);
         throw new Error('emit() requires an events property listing the events. this.events['+event+'] = [];');
       }
     },
@@ -718,9 +717,9 @@ var logging = new util.Log(),
             logMessage = '%c ' + logMessage;
             css = 'color: ' + object.color;
             if (remainder) {
-            l('TRACE') &&   console.log(logMessage, css, remainder);
+            l('TRACE') && console.log(logMessage, css, remainder);
             } else {
-            l('TRACE') &&  console.log(logMessage,css);
+            l('TRACE') && console.log(logMessage,css);
             }
           } else {
             if (remainder) {
@@ -3399,6 +3398,7 @@ var EndpointProvider =  function EndpointProvider() {
   this.stop = this.destroy;
   this.start = this.init;
   this.reset = function reset(reason) {
+     console.error(this+'.reset() called reason: '+reason);
      var endpointProvider = this;
       endpointProvider.emit('reset', {'reason':reason});
       setTimeout(function() {
@@ -4205,7 +4205,7 @@ var PhoneRTCConnection = (function invocation() {
     // Note, this may be a problem... 
     // Needs to be cordova.plugins.phonertc in other apps...
     if (typeof phonertc !== 'undefined') {
-      console.log('phonertc is: ', phonertc);
+   //   console.log('phonertc is: ', phonertc);
       this._.phonertc = phonertc; 
     } else if (typeof cordova !== 'undefined') {
       console.log('Cordova is: ', cordova);

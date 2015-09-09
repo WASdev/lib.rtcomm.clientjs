@@ -86,7 +86,7 @@ module.exports = function(grunt) {
     compress: {
       main: {
         options: {
-          archive:'dist/release/<%= pkg.name %>-<%=pkg.version %>.zip'
+          archive:'dist/release/<%= pkg.name %>-sample-<%=pkg.version %>.zip'
         },
         files: [ 
           {expand: true, cwd: 'dist/', src: ['*.js'], dest:'<%= pkg.name %>-<%=pkg.version %>/dist' },

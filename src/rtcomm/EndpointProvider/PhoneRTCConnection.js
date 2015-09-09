@@ -58,7 +58,7 @@ var PhoneRTCConnection = (function invocation() {
     // Note, this may be a problem... 
     // Needs to be cordova.plugins.phonertc in other apps...
     if (typeof phonertc !== 'undefined') {
-      console.log('phonertc is: ', phonertc);
+   //   console.log('phonertc is: ', phonertc);
       this._.phonertc = phonertc; 
     } else if (typeof cordova !== 'undefined') {
       console.log('Cordova is: ', cordova);

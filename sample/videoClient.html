@@ -146,8 +146,12 @@ from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 
 <!-- The following paths may need to be modified depending on the location of this script. -->
+<!-- If you load via bower, use it this way
 <script src="../bower_components/bower-mqttws/mqttws31.js"></script>
 <script src="../bower_components/webrtc-adapter/adapter.js"></script>
+-->
+<script src="//git.eclipse.org/c/paho/org.eclipse.paho.mqtt.javascript.git/plain/src/mqttws31.js"></script>
+<script src="//cdn.rawgit.com/webrtc/adapter/master/adapter.js"></script>
 
 <script src="../dist/rtcomm.js"></script>
 
@@ -165,10 +169,10 @@ The primary logic for this HTML Page
    * It MUST match the rtcomm configuration used on the liberty server.
    */
   var providerConfig = {
-    server : window.document.location.hostname,
+    server : 'messagesight.demos.ibm.com',
    // port : window.document.location.port,
-    port : 9080,
-    rtcommTopicPath: "/rtcomm/",
+    port : 1883,
+    rtcommTopicPath: "/rtcommVideoSample/",
     createEndpoint : true
   };
 

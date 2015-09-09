@@ -11,17 +11,12 @@ The rtcomm.js library is a JavaScript Universal Module Description(UMD) formatte
 ```
    bin/installUtility install rtcomm-1.0
 ```
-5. 
-
-
-
 
 ##Requirements
 
 1.  An MQTT Server such as IBM MessageSite. For prototyping and development, it is possible to use `messagesight.demos.ibm.com`. 
-2.  Chrome or Firefox web browsers that support WebRTC.
-3.  A Liberty Profile server that runs with the  `rtcomm-1.0` feature enabled. 
-
+2.  A web browsers that support WebRTC (tested w/ Chrome and Firefox)
+3.  A Liberty Profile server that runs with the `rtcomm-1.0` feature enabled. 
 
 ##Dependencies
 
@@ -90,13 +85,12 @@ $ bower install
 ```
 
 Edit the file 'WebContent/sample/videoClient.html'.  Find the creation of the epConfig object:
-```
-     var epConfig = {
+```javascript
+     var providerConfig = {
        server: 'messagesight.demos.ibm.com',
        port: 1883,
-       managementTopicName: "management",
        appContext: "videosample",
-       rtcommTopicPath: "/rtcomm/",
+       rtcommTopicPath: "/rtcommVideoSample/",
        createEndpoint: true 
      };
 ```
