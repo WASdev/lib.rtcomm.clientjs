@@ -54,7 +54,7 @@ if (typeof window === 'undefined' && global) {
   global.navigator =  navigator;
   global.WebSocket =  WebSocket; 
   global.localStorage= localStorage;
-  require('../../lib/mqttws31.js');
+  require('../../bower_components/bower-mqttws/mqttws31.js');
  }; 
 
 

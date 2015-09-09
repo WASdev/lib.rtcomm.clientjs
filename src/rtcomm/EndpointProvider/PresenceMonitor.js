@@ -367,7 +367,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       if(!this.getRootNode().deleteSubNode(topic)) {
         throw new Error('Topic not found: '+topic);
       } else {
-        this.dependencies.connection.unsubscribe(this._.monitoredTopics[topic]);
+        this.dependencies.connection && this.dependencies.connection.unsubscribe(this._.monitoredTopics[topic]);
         delete this._.monitoredTopics[topic];
       }
       return this;
@@ -447,7 +447,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        this._.presenceData = [];
        // Unsubscribe ..
        Object.keys(pm._.monitoredTopics).forEach(function(key) {
-         pm.dependencies.connection.unsubscribe(pm._.monitoredTopics[key]);
+         pm.dependencies.connection && pm.dependencies.connection.unsubscribe(pm._.monitoredTopics[key]);
        });
     }
   } ;

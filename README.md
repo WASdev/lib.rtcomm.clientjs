@@ -2,26 +2,16 @@
 
 The rtcomm.js library is a JavaScript Universal Module Description(UMD) formatted module that provides an API for client side web application developers to enable WebRTC functionality.  This module handles signaling and creation of WebRTC PeerConnections between endpoints in a simple and flexible way. This library is works with the 'rtcomm-1.0' feature in WebSphere Liberty Profile server.
 
-## Quick Start
-
-1. Grab the sample.zip from here: <link>
-2. Unzip the sample app into a Directory ( We will use <sample_app_dir> );
-3. Grab Liberty https://developer.ibm.com/wasdev/downloads/liberty-profile-using-non-eclipse-environments/
-4. Make sure you install rtcomm-1.0:
-```
-   bin/installUtility install rtcomm-1.0
-```
-5. 
-
-
-
-
 ##Requirements
 
 1.  An MQTT Server such as IBM MessageSite. For prototyping and development, it is possible to use `messagesight.demos.ibm.com`. 
-2.  Chrome or Firefox web browsers that support WebRTC.
-3.  A Liberty Profile server that runs with the  `rtcomm-1.0` feature enabled. 
-
+2.  A web browsers that support WebRTC (tested w/ Chrome and Firefox)
+3.  A Liberty Profile server that runs with the `rtcomm-1.0` feature enabled. 
+    1. Grab Liberty https://developer.ibm.com/wasdev/downloads/liberty-profile-using-non-eclipse-environments/
+    2. Make sure you install rtcomm-1.0:
+    ```
+     bin/installUtility install rtcomm-1.0
+    ```
 
 ##Dependencies
 
@@ -29,6 +19,7 @@ The rtcomm.js library is dependent on the following libraries (which will be ins
 
 1.  Paho MQTT JavaScript client [link](http://git.eclipse.org/c/paho/org.eclipse.paho.mqtt.javascript.git/tree/src/mqttws31.js)  
 2.  WebRTC Adapter [link] (https://github.com/webrtc/adapter)
+
 
 ##Installation
 
@@ -38,7 +29,7 @@ The rtcomm.js library is dependent on the following libraries (which will be ins
 ```
 bower install rtcomm
 ```
-This will handle installing the mqttws31 and webrtc-adapter dependencies as well as the rtcomm library.  Once installed, the scripts still need to be loaded in the application html file based on where bower installed the libraries.
+This will handle installing the `mqttws31` and `webrtc-adapter` dependencies as well as the rtcomm library.  Once installed, the scripts still need to be loaded in the application html file based on where bower installed the libraries.
 
 ### Inclusion in Browser
 
@@ -50,7 +41,9 @@ Add the following you your html file:
 <script src="bower_components/rtcomm/dist/rtcomm.js"></script>
 ```
 
-##Quickstart Sample 
+##Quickstart with the Sample 
+
+This references the simple sample which shows how to create a basic Video client.  An Advanced client is also included `videoClient-adv.html` which shows how to use Chat and Presence.
 
 ###Using a WAR file sample videoClient and Bower
 
@@ -61,7 +54,7 @@ Given the directory structure:
       /META-INF/
 ```
 
-Download the latest 'lib.rtcomm.clientjs-sample-<release>.zip' from this [link](https://github.com/WASdev/lib.rtcomm.clientjs/releases/latest)  This library contains the sample and documentation.
+Download the latest 'lib.rtcomm.clientjs-sample-<release>.zip' from this [link](https://github.com/WASdev/lib.rtcomm.clientjs/releases/latest)  This library contains the sample and API documentation.
 
 Unzip the file into your WebContent directory:
 
@@ -89,14 +82,13 @@ Install the dependencies with Bower (from the WebContent directory):
 $ bower install
 ```
 
-Edit the file 'WebContent/sample/videoClient.html'.  Find the creation of the epConfig object:
-```
-     var epConfig = {
+Edit the file 'WebContent/sample/videoClient.html'.  Find the creation of the `providerConfig` object:
+```javascript
+     var providerConfig = {
        server: 'messagesight.demos.ibm.com',
        port: 1883,
-       managementTopicName: "management",
        appContext: "videosample",
-       rtcommTopicPath: "/rtcomm/",
+       rtcommTopicPath: "/rtcommVideoSample/",
        createEndpoint: true 
      };
 ```
@@ -120,6 +112,8 @@ After installing (as referenced above with Bower) include the rtcomm library in 
 **Classically, imported to the 'rtcomm' namespace:**
 
 ```html
+<script src="bower_components/bower-mqttws/mqttws31.js"></script>
+<script src="bower_components/webrtc-adapter/adapter.js"></script>
 <script src="bower_components/rtcomm/dist/rtcomm.js"></script>
 ```
 
@@ -135,14 +129,13 @@ After installing (as referenced above with Bower) include the rtcomm library in 
 
 ## Using the EndpointProvider
 
-The following shows how to configure and instantiate the EndpointProvider. You need to know the MQTT Server address and ensure you use a unique 'connectorTopicName':
+The following shows how to configure and instantiate the EndpointProvider. You need to know the MQTT Server address and ensure you use a unique `rtcommTopicPath`:
 
 ```javascript
      var endpointProvider = new rtcomm.EndpointProvider(); 
      var endpointProviderConfig = {
             server : "messagesight.demos.ibm.com", // mqtt server 
             userid : 'ibmAgent1@mysurance.org', // userid
-            managementTopicName : 'management', // RTCOMM Management Topic name
             rtcommTopicPath: '/rtcommMyCompany/', // RTCOMM connector Topic path
             port : 1883, // mqtt port
             createEndpoint : true,  // generate RtcommEndpoint instance, pass in onSuccess
@@ -165,7 +158,7 @@ The following shows how to configure and instantiate the EndpointProvider. You n
 ```
 The instantiation example above automatically registers with the 'rtcomm server' and creates a RtcommEndpoint which is assigned to the 'rtcommEndpoint' variable. However, the developer can choose to decouple this behavior and specifically init and getRtcommEndpoint.   The 'rtcommEndpoint' can now be used to create connections(calls) to other Endpoints.
 
-Further information on the EndpointProvider API is located [here](https://github.com/WASdev/lib.rtcomm.clientjs/wiki/module-rtcomm.EndpointProvider.API) 
+Further information on the EndpointProvider API available in the `jsdoc` directory of the sample zip file or buy cloning and building the project with `grunt`
 
 ####Using the rtcommEndpoint object
 
@@ -224,7 +217,7 @@ The available events are:
 <tr><td>chat:disconnected</td><td>A chat connection has been closed</td></tr>
 </table>
 
-Further information on the RtcommEndpoint API is located [here](https://github.com/WASdev/lib.rtcomm.clientjs/wiki/module-rtcomm.RtcommEndpoint.API) 
+Further information on the RtcommEndpoint API is located in the *jsdoc* which is available in the sample zip file or when you clone and build the project using `grunt`
 
 ####Advanced Features of the EndpointProvider & RtcommEndpoint Objects
 
@@ -237,17 +230,15 @@ The above scenario is the simplest way to connect two endpoints using the rtcomm
 ##Sample videoClient
 'lib.rtcomm.clientjs-<release>.zip' contains a 'sample/videoClient.html' file that demonstrates how to use the rtcomm.js library.   This sample can be placed on a web server with the lib/mqttws31.js, js/rtcomm.js from the lib.rtcomm.clientjs-<release>.zip. This sample is also dependent on jQuery that is accessed with the jQuery CDN (http://code.jquery.com/jquery-2.1.1.js). You can obtain jQuery 2.1.1 from the Downloading jQuery site if you prefer..
 
-1.  Extract the Zip file into your Web Server Directory
+1.  Extract the Zip file into your Web Server Directoru
 
 2.  Change the configuration to match that used in the server.xml for the rtcomm-1.0 feature as described [here](http://www-01.ibm.com/support/knowledgecenter/was_beta_liberty/com.ibm.websphere.wlp.nd.multiplatform.doc/ae/twlp_config_rtcomm.html):
 
 ```javascript
-    var epConfig = {
+    var providerConfig = {
       server: 'messagesight.demos.ibm.com',
       port: 1883,
-      userid : null,
-      managementTopicName : "management",
-      rtcommTopicPath: "/rtcomm/",
+      rtcommTopicPath: "/rtcommVideoSample/",
       createEndpoint: true
     };
 ```
@@ -275,11 +266,6 @@ npm install -g grunt-cli
 ```
 grunt
 ```
-6.  Download the Bower dependencies
-```
-bower install
-```
-
 This will create a **dist** directory with the following contents:
  ```
    |-jsdoc
@@ -292,6 +278,10 @@ This will create a **dist** directory with the following contents:
    |---util.js
 ```
 
+6.  Download the Bower dependencies(necessary for tests)
+```
+bower install
+```
 # Running the tests
 
 Reference the README.md file in the tests/ directory.

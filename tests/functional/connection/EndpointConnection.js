@@ -19,8 +19,8 @@ define([
     'intern/chai!assert',
     'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
-      ?'intern/dojo/node!../../support/mqttws31_shim':
-        'lib/mqttws31',
+      ?'intern/dojo/node!../support/mqttws31_shim':
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'umd/rtcomm/connection'
 ], function (intern, registerSuite, assert, Deferred,globals, config, connection) {

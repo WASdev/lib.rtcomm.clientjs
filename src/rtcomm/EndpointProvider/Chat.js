@@ -79,7 +79,7 @@ var Chat = (function invocation() {
        *
        */
       l('DEBUG') && console.log(this+'.enable() - message --> '+ message);
-      l('DEBUG') && console.log(this+'.enable() - --> '+ connect);
+      l('DEBUG') && console.log(this+'.enable() - connect --> '+ connect);
       l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
       this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
       // Don't need much, just set enabled to true.
@@ -96,7 +96,10 @@ var Chat = (function invocation() {
         } else {
           l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
           // respond to a session if we are active
-          parent._.activeSession && parent._.activeSession.respond();
+          if (parent._.activeSession) { 
+            parent._.activeSession.respond();
+            this._setState('connected');
+          } 
         }
       }
       return this;
