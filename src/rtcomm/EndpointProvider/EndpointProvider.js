@@ -22,7 +22,7 @@
  * This programming interface lets a JavaScript client application use 
  * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
  * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
- * & {@link module:rtcomm.RtcommEndpointProvider#init|initialized} the
+ * & {@link module:rtcomm.EndpointProvider#init|initialized} the
  * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
  * that is used to receive inbound communication.
  * <p>
@@ -67,10 +67,7 @@ var EndpointProvider =  function EndpointProvider() {
   this._.objName = "EndpointProvider";
   this._.rtcommEndpointConfig = {};
 
-  /**
-   * State of the EndpointProvider
-   * @type {boolean}
-   */ 
+  /** State of the EndpointProvider */ 
   this.ready = false;
 
   this.events = {
@@ -87,6 +84,13 @@ var EndpointProvider =  function EndpointProvider() {
        *
        */
       'queueupdate': [],
+      /**
+       * The Presence was Updated 
+       * @event module:rtcomm.EndpointProvider#presence_updated
+       * @property {module:rtcomm.PresenceMonitor.presenceData}
+       *
+       */
+      'presence_updated': [],
       /**
        * The endpoint Provider has reset.  Usually due to another peer logging in with the same presence. 
        * The event has a 'reason' property indicating why the EndpointProvider was reset.
@@ -108,11 +112,12 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} config.server MQTT Server
    * @param {string} [config.userid] User ID or Identity
    * @param {string} [config.appContext=rtcomm] App Context for EndpointProvider
-   * @param {string} [config.port=1883] MQTT Server Port
-   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection (Most likely use a different port)
+   * @param {string} [config.port=1883] MQTT Server Port.  Defaults to 8883 if served over https
+   * @param {boolean} [config.useSSL=false] use SSL for the MQTT connection. Defaults to true if served over https. 
    * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
+   * @param {boolean} [config.monitorPresence=false] Automatically create a presence monitor and emit events on the endpoint provider.
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
    *
@@ -153,6 +158,9 @@ var EndpointProvider =  function EndpointProvider() {
     // Used to set up config for endpoint connection;
     var config = null;
     var rtcommTopicPath = '/rtcomm/';
+    // If we are served over SSL, use SSL is needed.
+    //
+    var useSSL = (typeof location !== 'undefined' && location.protocol === 'https:') ? true : false;
     var configDefinition = {
         required: { server: 'string', port: 'number'},
         optional: {
@@ -162,6 +170,7 @@ var EndpointProvider =  function EndpointProvider() {
           presence: 'object',
           userid: 'string',
           useSSL: 'boolean',
+          monitorPresence: 'boolean',
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
@@ -172,10 +181,11 @@ var EndpointProvider =  function EndpointProvider() {
             rootTopic: 'sphere/',
             topic: '/', // Same as rootTopic by default
           },
-          useSSL: false,
+          useSSL: useSSL,
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
-          port: 1883,
+          port: useSSL ? 8883: 1883,
+          monitorPresence: false,
           createEndpoint: false }
       };
     // the configuration for Endpoint Provider
@@ -188,9 +198,11 @@ var EndpointProvider =  function EndpointProvider() {
 
       /* global setConfig:false */
       config = this.config = setConfig(options,configDefinition);
+
+      // this.config now has the options + combo with defaults.
       // If we are READY (we are resetting) so use the NEW ones... otherwise, use saved ones.
-      this.config.appContext = (this.ready) ? this.config.appContext : appContext || this.config.appContext ; 
-      this.setUserID((this.ready) ? this.config.userid: userid || this.config.userid, true) ; 
+      this.config.appContext = options.appContext ? options.appContext : (appContext ? appContext : this.config.appContext) ; 
+      this.setUserID((options.userid ? options.userid: (userid ? userid: this.config.userid)), true) ; 
     } else {
       throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
                       JSON.stringify(configDefinition.required));
@@ -209,6 +221,7 @@ var EndpointProvider =  function EndpointProvider() {
     var connectionConfig =  util.makeCopy(config);
     // everything else is the same config.
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
+    connectionConfig.hasOwnProperty('monitorPresence') &&  delete connectionConfig.monitorPresence;
     connectionConfig.publishPresence = true;
     // createEndpointConnection
 
@@ -246,6 +259,10 @@ var EndpointProvider =  function EndpointProvider() {
           console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
         endpointProvider.publishPresence();
        // endpointProvider.setUserID(config.userid);
+        if (config.monitorPresence) {
+          // Attach a default presence monitor to our presence topic
+          endpointProvider.getPresenceMonitor("/");
+        }
         returnObj.registered = true;
       }
       // Attach endpointConnection if a presenceMonitor
@@ -262,7 +279,14 @@ var EndpointProvider =  function EndpointProvider() {
      */
     var onFailure = function(error) {
       this.ready = false;
-      cbFailure(error);
+      if (error.name === 'CONNLOST') {
+        // we need to emit this rather than call the callback
+        this.reset('Connection Lost');
+      } else if (error.name === 'MULTIPLE_SERVERS') {
+        this.reset(error.message);
+      } else { 
+        cbFailure(error);
+      }
     };
     // Connect!
     endpointConnection.connect(onSuccess.bind(this), onFailure.bind(this));
@@ -272,6 +296,14 @@ var EndpointProvider =  function EndpointProvider() {
 
   this.stop = this.destroy;
   this.start = this.init;
+  this.reset = function reset(reason) {
+     console.error(this+'.reset() called reason: '+reason);
+     var endpointProvider = this;
+      endpointProvider.emit('reset', {'reason':reason});
+      setTimeout(function() {
+        endpointProvider.destroy();
+      },500);
+  };
 
   /*
    * Create the endpoint connection to the MQTT Server
@@ -349,10 +381,7 @@ var EndpointProvider =  function EndpointProvider() {
     endpointConnection.on('document_replaced', function(message) {
       // 'reset' w/ a Reason?
       l('TRACE') && console.log("Document Replaced event received", message);
-      endpointProvider.emit('reset', {'reason':'document_replaced'});
-      setTimeout(function() {
-        endpointProvider.destroy();
-      },500);
+      endpointProvider.reset("document_replaced");
     });
     return endpointConnection; 
   }; // End of createEndpointConnection
@@ -363,20 +392,22 @@ var EndpointProvider =  function EndpointProvider() {
    *
    * *NOTE* This should be set PRIOR to calling getRtcommEndpoint()
    *
-   *  @param {Object}  [config] 
-   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
-   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
-   *  @param {object}  [config.broadcast]   
-   *  @param {boolean}  [config.broadcast.audio]  Endpoint should broadcast Audio
-   *  @param {boolean}  [config.broadcast.video]  Endpoint should broadcast Video
+   *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
    *  @param {function} [config.event] Events are defined in {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    *
    * @example
    *
    * endpointProvider.setRtcommEndpointConfig({
-   *   webrtc: true,
+   *   appContext : "testApp",
+   *   ringtone: "resources/ringtone.wav",
+   *   ringbacktone: "resources/ringbacktone.wav",
    *   chat: true,
-   *   broadcast: { audio: true, video: true},
+   *   chatConfig: {},
+   *   webrtc:true,
+   *   webrtcConfig:{
+   *     broadcast: { audio: true, video: true},
+   *     iceServers: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"],
+   *   },
    *   'session:started': function(event) {
    *
    *   }, 
@@ -398,10 +429,7 @@ var EndpointProvider =  function EndpointProvider() {
    *  RTCPeerConnection where to send that stream in the User Interface.
    *  </p>
    *
-   *  @param {Object}  [config] 
-   *  @param {boolean} [config.webrtc=true] Support audio in the PeerConnection - defaults to true
-   *  @param {boolean} [config.chat=true] Support video in the PeerConnection - defaults to true
-   *
+   *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
    *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint 
    *  @throws Error
    *
@@ -421,64 +449,72 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         chat: true,
         webrtc: true,
+        autoEnable: false,
         parent:this
     };
-    var objConfig = defaultConfig;
-    // if there is a config defined...
-    if (this._.rtcommEndpointConfig) {
-      objConfig.chat = (typeof this._.rtcommEndpointConfig.chat === 'boolean') ? 
-        this._.rtcommEndpointConfig.chat : objConfig.chat;
-      objConfig.webrtc = (typeof this._.rtcommEndpointConfig.webrtc === 'boolean') ? 
-        this._.rtcommEndpointConfig.webrtc : objConfig.webrtc;
-      objConfig.ringtone = (this._.rtcommEndpointConfig.ringtone) ?  this._.rtcommEndpointConfig.ringtone: null; 
-      objConfig.ringbacktone = (this._.rtcommEndpointConfig.ringbacktone) ?  this._.rtcommEndpointConfig.ringbacktone: null; 
-    }
 
-    if (typeof this.config.appContext === 'undefined') {
-      throw new Error('Unable to create an Endpoint without appContext set on EndpointProvider');
-    }
-    if(endpointConfig && typeof endpointConfig !== 'object') {
+    /*
+     * If endpointConfig is not an Object, it should be a String that is an ID of an endpoint
+     */
+    if (endpointConfig && typeof endpointConfig !== 'object') {
       endpointid = endpointConfig;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() Looking for endpoint: '+endpointid);
       // Returns an array of 1 endpoint. 
       endpoint = this._.endpointRegistry.get(endpointid)[0];
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() found endpoint: ',endpoint);
     } else {
+      if (typeof this.config.appContext === 'undefined') {
+        throw new Error('Unable to create an Endpoint without appContext set on EndpointProvider');
+      }
+      /*
+       * First, if there is a config defined on the provider, we are going to use it:
+       */
+      // Merge the objects, will still have callbacks.
+
+      var objConfig = util.combineObjects(this._.rtcommEndpointConfig, defaultConfig);
+      // 
+      // If we have any callbacks defined, put in their own object for later.
+      //
+      var endpointCallbacks = {};
+      Object.keys(objConfig).forEach(function(key){
+         if (typeof objConfig[key] === 'function') {
+           endpointCallbacks[key] = objConfig[key];
+           delete objConfig[key];
+         }
+      });
+      // Any passed in config overrides the existing config.
       applyConfig(endpointConfig, objConfig);
+      // Add some specific config from the EndpointProvider
       objConfig.appContext = this.config.appContext;
       objConfig.userid = this.config.userid;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint using config: ', objConfig);
+      // Create the endpoint
       endpoint = new RtcommEndpoint(objConfig);
+      // attach the endpointConnection if it exists. 
       this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
-//      endpoint.init(objConfig);
+      // If the endpoint is destroyed, define the behavior to cleanup.
       endpoint.on('destroyed', function(event_object) {
         endpointProvider._.endpointRegistry.remove(event_object.endpoint);
       });
-      // If we have any callbacks defined:
-      //
-      if (this._.rtcommEndpointConfig) {
-        Object.keys(this._.rtcommEndpointConfig).forEach(function(key){
-          try {
-            if (typeof endpointProvider._.rtcommEndpointConfig[key] === 'function') {
-              endpoint.on(key, endpointProvider._.rtcommEndpointConfig[key]);
-            } 
-          } catch (e) {
-            console.error(e);
-            console.error('Invalid event in rtcommEndpointConfig: '+key);
-          }
-        });
-      }
-      if (this._.rtcommEndpointConfig.bubble && (typeof this._.rtcommEndpointConfig.bubble === 'function')) {
-        // Attach the bubble event
-        endpoint.bubble(this._.rtcommEndpointConfig.bubble);
-      }
-      // If broadcast needs to be set
-      if(this._.rtcommEndpointConfig.broadcast) {
-        endpoint.webrtc && endpoint.webrtc.setBroadcast(this._.rtcommEndpointConfig.broadcast);
-      }
       // Add to registry or return the one already there
       endpoint = this._.endpointRegistry.add(endpoint);
       l('DEBUG') && console.log('ENDPOINT REGISTRY: ', this._.endpointRegistry.list());
+      // Attach the callbacks
+      Object.keys(endpointCallbacks).forEach(function(key) {
+         if (typeof endpointCallbacks[key] === 'function') {
+           try {
+             if (key === 'bubble') {
+               // this is actually a special behavior and should be handled separately
+               endpoint.bubble(endpointCallbacks[key]);
+             } else {
+               endpoint.on(key, endpointCallbacks[key]);
+             }
+           } catch (e) {
+            console.error(e);
+            console.error('Invalid event in rtcommEndpointConfig: '+key);
+           }
+         }
+        });
     }
     return endpoint;
   };
@@ -502,7 +538,13 @@ var EndpointProvider =  function EndpointProvider() {
     this._.presenceMonitor  = this._.presenceMonitor || new PresenceMonitor({connection: this.dependencies.endpointConnection});
     if (this.ready) {
       topic && this._.presenceMonitor.add(topic);
-    } 
+    }; 
+
+    // propogate the event out if we have a handler.
+    var endpointProvider = this;
+    this._.presenceMonitor.on('updated', function(presenceData) {
+      endpointProvider.emit('presence_updated', {'presenceData': presenceData});
+    });
     return this._.presenceMonitor;
   };
   /** 
@@ -520,7 +562,6 @@ var EndpointProvider =  function EndpointProvider() {
     this.dependencies.endpointConnection = null;
     l('DEBUG') && console.log(this+'.destroy() Finished cleanup of endpointConnection');
     this.ready = false;
-    
   };
 
   /**

@@ -20,10 +20,12 @@ define([
     'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../support/mqttws31_shim':
-        'lib/mqttws31',
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
-    'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred,globals, config, EndpointProvider) {
+    'bower_components/webrtc-adapter/adapter',
+    'umd/rtcomm/EndpointProvider',
+    'support/rtcommFatUtils'
+], function (intern, registerSuite, assert, Deferred,globals, config, adapter, EndpointProvider,Fat) {
 
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     console.log('GLOBALS?', globals);
@@ -56,6 +58,19 @@ define([
     var T2 = T1 + 3000; // How long we wait to check results
     var T3 = T2 +3000;  // How long we wait to timeout test.
 
+    var createAndInitTwoProviders = function createAndInitTwoProviders(cfg1, cfg2) {
+      var dfd = new Deferred();
+      Fat.createProvider(cfg1).then( function(EP) {
+        Fat.createProvider(cfg2).then( function(EP2) {
+          // Wait 1 second to resolve 
+          setTimeout(function() {
+            dfd.resolve({provider1: EP, provider2: EP2});
+          },1000);
+        });
+       });
+      return dfd.promise;
+    };
+
     registerSuite({
         name: 'FVT - RtcommEndpoint',
         setup: function() {
@@ -78,7 +93,7 @@ define([
           DEBUG && endpointProvider.setLogLevel('DEBUG');
         },
         "Endpoint creation(anonymous)": function() {
-          SKIP_ALL && this.skip(SKIP_ALL);
+         // SKIP_ALL && this.skip();
           console.log('***************** RunTest ************');
           var dfd = this.async(T1);
           var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
@@ -94,52 +109,47 @@ define([
               assert.ok(ep);
               console.log("TEST => : "+ object.ready);
               assert.ok(object.ready);
+              ep.destroy();
               ep = null;
           });
           endpointProvider.init(config1,finish, finish);
         },
-      "Join/Leave queue": function() {
-          SKIP_ALL && this.skip(SKIP_ALL);
-          console.log('***************** RunTest ************');
-          var dfd = this.async();
-          var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
-          console.log('TEST endpoint: ', ep);
-          var initObj = null;
-          var success = false;
-          var self = this;
-          config1.userid = 'Agent';
 
+        "Endpoint creation(iceServers)": function() {
+          if (typeof global !== 'undefined' || typeof window === 'undefined') {
+            console.log('********* SKIPPING TEST ***************');
+            this.skip("This test only runs in the Browser");
+          }
+          console.log('***************** RunTest iceServers ************');
+          var dfd = this.async(T1);
+
+          var endpoint;
+
+          var ICE = ['stun:rtcomm.fat.com:19302','stun:rtcomm1.fat.com:19302'];
           var finish = dfd.callback(function(object) {
             console.log('************ Finish called w/ OBJECT: ',object);
-            var e = false;
-            try{
-              if (endpointProvider.listQueues().length > 0) {
-                endpointProvider.joinQueue(endpointProvider.listQueues()[0]);
-              }
-            } catch(error) {
-              e= true;
-            }
-            endpointProvider.leaveQueue(endpointProvider.listQueues()[0]);
-            console.log('TEST -> userid: ' + ep.userid);
-            assert.ok(/^Agent/.test(ep.userid));
-            console.log("TEST => ready: "+ ep);
-            assert.ok(ep);
-            console.log("JoinQueue was successful: "+ ep);
-            assert.notOk(e);
+            // should be ready, should have a GUEST userid
+            console.log("Ice Servers", endpoint.webrtc.config.iceServers);
+            assert.equal(endpoint.webrtc.config.iceServers, ICE, 'Ice Servers are set');
           });
-          endpointProvider.init(config1,finish, finish);
+          Fat.createProvider(config.clientConfig(), 'test').then(
+            function(ep){
+              endpoint = ep.createRtcommEndpoint({webrtc:true, chat:true});
+              // mark for destroy.
+              g.endpoint = endpoint;
+              g.ep = ep;
+              console.log('Endpoint?', endpoint);
+              endpoint.webrtc.enable({iceServers: ICE});
+              finish();
+            });
         },
      "in Browser A calls B": function() {
-         SKIP_ALL && this.skip(false);
-         var endpointProvider2 = new EndpointProvider();
-         endpointProvider2.setAppContext('test');
-         // mark for destroy;
-         g.endpointProvider2 = endpointProvider2;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
-         config1.userid='testuser1';
-         config2.userid='testuser2';
+        // SKIP_ALL && this.skip(false);
+
          var dfd = this.async(T1);
+         // Our endpoints
+         var ep1;
+         var ep2;
 
          var finish = dfd.callback(function(object){
             console.log("******************Asserting now...***********************");
@@ -150,7 +160,6 @@ define([
             assert.ok(ep2_alerting, 'Callee generated alerting event');
             assert.ok(ep1.sessionStarted());
             assert.ok(ep2.sessionStarted());
-            endpointProvider2.destroy();
          });
 
          // States we should hit:
@@ -164,45 +173,33 @@ define([
          // ep2(callee)
          //   receive call --> alerting
          //   send ANSWER --> started
-         ep1.on('session:ringing', function() { ep1_ringing = true})
-         ep1.on('session:trying', function() { ep1_trying = true})
-         ep1.on('session:started', finish);
-         ep2.on('session:alerting', function(obj) {
-           ep2_alerting = true;
-           console.log('>>>>TEST  accepting call');
-           setTimeout(function() {
-            ep2.accept();
-           },1000);
-
-         });
-         endpointProvider.init(config1,
-                  function(obj) {
-                    endpointProvider2.init(config2,
-                        function(obj) {
-                          console.log('calling EP2');
-                          ep1.connect(config2.userid);
-                        },
-                        function(error) {
-                          console.log('error in ep2 init:' + error);
-                        }
-                       );
-                  },
-                  function(error) {
-                    console.log('error in ep1 init:' + error);
-                  }
-                 );
+         var cfg1 = config.clientConfig('testuser1');
+         var cfg2 = config.clientConfig('testuser2');
+         createAndInitTwoProviders(cfg1,cfg2)
+          .then(function(obj){
+            var EP1 = g.EP1 = obj.provider1;
+            var EP2 = g.EP2 = obj.provider2;
+            ep1 = EP1.getRtcommEndpoint({webrtc:false, chat:true});
+            ep2 = EP2.getRtcommEndpoint({webrtc:false, chat:true});
+            ep1.on('session:ringing', function() { ep1_ringing = true})
+            ep1.on('session:trying', function() { ep1_trying = true})
+            ep1.on('session:started', finish);
+            ep2.on('session:alerting', function(obj) {
+              ep2_alerting = true;
+              console.log('>>>>TEST  accepting call');
+              setTimeout(function() {
+               ep2.accept();
+              },1000);
+             });
+            ep1.connect(cfg2.userid);
+          });
          },
      "in Browser A calls B(disconnect while ringing)": function() {
-         //SKIP_ALL && this.skip(false);
-         var endpointProvider2 = new EndpointProvider();
-         endpointProvider2.setAppContext('test');
-         // mark for destroy;
-         g.endpointProvider2 = endpointProvider2;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
-         config1.userid='testuser1';
-         config2.userid='testuser2';
+//         SKIP_ALL && this.skip(false);
          var dfd = this.async(T1);
+         // Our endpoints
+         var ep1;
+         var ep2;
 
          var finish = dfd.callback(function(object){
             console.log("******************Asserting now...***********************");
@@ -214,7 +211,6 @@ define([
             assert.notOk(ep2_started, 'Callee generated started event');
             assert.ok(ep1_ringing, 'Caller generated ringing event');
             assert.ok(ep2_alerting, 'Callee generated alerting event');
-            endpointProvider2.destroy();
          });
 
          var ep1_trying = false;
@@ -227,57 +223,50 @@ define([
          var ep1_started= false;
          var ep2_started= false;
 
-         //   receive PRANSWER --> ringing
-         //   receive ANSWER --> started
-         // ep2(callee)
-         //   receive call --> alerting
-         //   send ANSWER --> started
-         ep1.on('session:ringing', function() { ep1_ringing = true})
-         ep1.on('session:failed', function() { ep1_failed= true})
-         ep2.on('session:failed', function() { ep2_failed= true})
-         ep1.on('session:trying', function() { ep1_trying = true})
-         ep1.on('session:started', function() { ep1_started = true});
-         ep2.on('session:started', function() { ep2_started = true});
-         ep1.on('session:stopped', function() { ep1_stopped = true;});
-         ep2.on('session:stopped', finish );
 
-         ep2.on('session:alerting', function(obj) {
-           // At this state, cancel the call.
-           ep2_alerting = true;
-           setTimeout(function() {
-            console.log('Disconnecting call');
-            ep1.disconnect();
-           },1000);
-         });
-
-         endpointProvider.init(config1,
-                  function(obj) {
-                    endpointProvider2.init(config2,
-                        function(obj) {
-                          console.log('calling EP2');
-                          ep1.connect(config2.userid);
-                        },
-                        function(error) {
-                          console.log('error in ep2 init:' + error);
-                        }
-                       );
-                  },
-                  function(error) {
-                    console.log('error in ep1 init:' + error);
-                  }
-                 );
+         var cfg1 = config.clientConfig('testuser1');
+         var cfg2 = config.clientConfig('testuser2');
+         createAndInitTwoProviders(cfg1,cfg2)
+          .then(function(obj){
+            var EP1 = g.EP1 = obj.provider1;
+            var EP2 = g.EP2 = obj.provider2;
+            ep1 = EP1.getRtcommEndpoint({webrtc:false, chat:true});
+            ep2 = EP2.getRtcommEndpoint({webrtc:false, chat:true});
+             //   receive PRANSWER --> ringing //
+                //   //   receive ANSWER --> started
+             // ep2(callee)
+             //   receive call --> alerting
+             //   send ANSWER --> started
+             //
+             ep1.on('session:ringing', function() { 
+               console.log('>>> ep1 session:ringing');
+               ep1_ringing = true;});
+             ep1.on('session:failed', function() { ep1_failed= true});
+             ep2.on('session:failed', function() { ep2_failed= true});
+             ep1.on('session:trying', function() { ep1_trying = true});
+             ep1.on('session:started', function() { ep1_started = true});
+             ep2.on('session:started', function() { ep2_started = true});
+             ep1.on('session:stopped', function() {console.log('EP1 ***session:stopped'); ep1_stopped = true;});
+             ep2.on('session:stopped', finish );
+             ep2.on('session:alerting', function(obj) {
+                 // At this state, cancel the call.
+                 ep2_alerting = true;
+                 setTimeout(function() {
+                  console.log('********* Disconnecting call **************');
+                  ep1.disconnect();
+                 },1000);
+               });
+              ep1.connect(cfg2.userid);
+          });
          },
+
      "in Browser A calls B (sendOneTimeMessage)": function() {
-          SKIP_ALL && this.skip(SKIP_ALL);
-         var endpointProvider2 = new EndpointProvider();
-         endpointProvider2.setAppContext('test');
-         // mark for destroy;
-         g.endpointProvider2 = endpointProvider2;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
-         config1.userid='testuser1';
-         config2.userid='testuser2';
-         var dfd = this.async(T2);
+         //SKIP_ALL && this.skip(false);
+         var dfd = this.async(T1);
+         // Our endpoints
+         var ep1;
+         var ep2;
+
          var finish = dfd.callback(function(object){
             console.log("******************Asserting now...***********************");
             assert.ok(ep1_trying, 'Caller generated trying event');
@@ -289,7 +278,6 @@ define([
             var message = object.onetimemessage;
             console.log("OneTimeMessage content: "+JSON.stringify(message));
             assert.equal('http://someurl.com', message.url, 'onetimemessage property matches');
-            endpointProvider2.destroy();
          });
 
          // States we should hit:
@@ -298,6 +286,15 @@ define([
          var ep1_trying = false;
          var ep1_ringing= false;
          var ep2_alerting= false;
+
+         var cfg1 = config.clientConfig('testuser1');
+         var cfg2 = config.clientConfig('testuser2');
+         createAndInitTwoProviders(cfg1,cfg2)
+          .then(function(obj){
+            var EP1 = g.EP1 = obj.provider1;
+            var EP2 = g.EP2 = obj.provider2;
+            ep1 = EP1.getRtcommEndpoint({webrtc:false, chat:true});
+            ep2 = EP2.getRtcommEndpoint({webrtc:false, chat:true});
          //   receive PRANSWER --> ringing
          //   receive ANSWER --> started
          // ep2(callee)
@@ -318,40 +315,15 @@ define([
          });
 
          ep2.on('onetimemessage', finish);
-         endpointProvider.init(config1,
-                  function(obj) {
-                    endpointProvider2.init(config2,
-                        function(obj) {
-                          console.log('calling EP2');
-                          ep1.connect(config2.userid);
-                        },
-                        function(error) {
-                          console.log('error in ep2 init:' + error);
-                        }
-                       );
-                  },
-                  function(error) {
-                    console.log('error in ep1 init:' + error);
-                  }
-                 );
+              ep1.connect(cfg2.userid);
+          });
          },
      "in Browser A calls B(nested presence)": function() {
-          SKIP_ALL && this.skip(SKIP_ALL);
-         var endpointProvider2 = new EndpointProvider();
-         endpointProvider2.setAppContext('test');
-         // mark for destroy;
-         g.endpointProvider2 = endpointProvider2;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
-         var c1 = config.clientConfig();
-         c1.userid='testuser1';
-         c1.presence={'topic': 'defaultRoom'};
-
-         var c2 = config.clientConfig();
-         c2.userid='testuser2';
-         c2.presence={'topic': 'defaultRoom'};
-
+         //SKIP_ALL && this.skip(false);
          var dfd = this.async(T1);
+         // Our endpoints
+         var ep1;
+         var ep2;
 
          var finish = dfd.callback(function(object){
             console.log("******************Asserting now...***********************");
@@ -362,7 +334,6 @@ define([
             assert.ok(ep2_alerting, 'Callee generated alerting event');
             assert.ok(ep1.sessionStarted());
             assert.ok(ep2.sessionStarted());
-            endpointProvider2.destroy();
          });
 
          // States we should hit:
@@ -371,57 +342,45 @@ define([
          var ep1_trying = false;
          var ep1_ringing= false;
          var ep2_alerting= false;
-         //   receive PRANSWER --> ringing
-         //   receive ANSWER --> started
-         // ep2(callee)
-         //   receive call --> alerting
-         //   send ANSWER --> started
-         ep1.on('session:ringing', function() { ep1_ringing = true;});
-         ep1.on('session:trying', function() { ep1_trying = true;});
-         ep1.on('session:started', finish);
-         ep2.on('session:alerting', function(obj) {
-           ep2_alerting = true;
-           console.log('>>>>TEST  accepting call');
-           setTimeout(function() {
-            ep2.accept();
-           },1000);
 
-         });
-         endpointProvider.init(c1,
-                  function(obj) {
-                    endpointProvider2.init(c2,
-                        function(obj) {
-                          console.log('calling EP2');
-                          ep1.connect(c2.userid);
-                        },
-                        function(error) {
-                          console.log('error in ep2 init:' + error);
-                        }
-                       );
-                  },
-                  function(error) {
-                    console.log('error in ep1 init:' + error);
-                  }
-                 );
+         var cfg1 = config.clientConfig('testuser1');
+         var cfg2 = config.clientConfig('testuser2');
+         cfg1.presence={'topic': 'defaultRoom'};
+         cfg2.presence={'topic': 'defaultRoom'};
+
+         createAndInitTwoProviders(cfg1,cfg2)
+          .then(function(obj){
+            var EP1 = g.EP1 = obj.provider1;
+            var EP2 = g.EP2 = obj.provider2;
+            ep1 = EP1.getRtcommEndpoint({webrtc:false, chat:true});
+            ep2 = EP2.getRtcommEndpoint({webrtc:false, chat:true});
+             //   receive PRANSWER --> ringing
+             //   receive ANSWER --> started
+             // ep2(callee)
+             //   receive call --> alerting
+             //   send ANSWER --> started
+             ep1.on('session:ringing', function() { ep1_ringing = true;});
+             ep1.on('session:trying', function() { ep1_trying = true;});
+             ep1.on('session:failed', finish);
+             ep1.on('session:started', finish);
+             ep2.on('session:alerting', function(obj) {
+               ep2_alerting = true;
+               console.log('>>>>TEST  accepting call');
+               setTimeout(function() {
+                ep2.accept();
+               },1000);
+
+             });
+              ep1.connect(cfg2.userid);
+          });
          },
      "in Browser A calls B, neither accept call from C": function() {
-          SKIP_ALL && this.skip(SKIP_ALL);
-         var endpointProvider2 = new EndpointProvider();
-         endpointProvider2.setAppContext('test');
-         var endpointProvider3 = new EndpointProvider();
-         endpointProvider3.setAppContext('test');
-         // mark for destroy;
-         g.endpointProvider2 = endpointProvider2;
-         g.endpointProvider3 = endpointProvider3;
-         var ep1 = endpointProvider.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
-         config1.userid='testuser1';
-         config2.userid='testuser2';
-         var config3 = config.clientConfig();
-         config3.userid='testuser3';
-
+         //SKIP_ALL && this.skip(false);
          var dfd = this.async(T1);
+         // Our endpoints
+         var ep1;
+         var ep2;
+         var ep3
 
          var finish = dfd.callback(function(object){
             console.log("******************Asserting now...***********************");
@@ -441,52 +400,52 @@ define([
          //   place call --> trying
          var ep1_trying = false;
          var ep1_ringing= false;
+         var ep1_started= false;
          var ep2_alerting= false;
-         //   receive PRANSWER --> ringing
-         //   receive ANSWER --> started
-         // ep2(callee)
-         //   receive call --> alerting
-         //   send ANSWER --> started
-         ep1.on('session:ringing', function() { ep1_ringing = true;});
-         ep1.on('session:trying', function() { ep1_trying = true;});
-         ep1.on('session:started', function() {
-           // Connect 3rd enpdoint now... 
-           ep3.connect(config2.userid);
-           ep1_started = true;
-         });
-         ep2.on('session:alerting', function(obj) {
-           ep2_alerting = true;
-           console.log('>>>>TEST  accepting call');
-           setTimeout(function() {
-            ep2.accept();
-           },1000);
 
-         });
+         var cfg1 = config.clientConfig('testuser1');
+         var cfg2 = config.clientConfig('testuser2');
+         var cfg3 = config.clientConfig('testuser3');
+         cfg1.presence={'topic': 'defaultRoom'};
+         cfg2.presence={'topic': 'defaultRoom'};
+         cfg3.presence={'topic': 'defaultRoom'};
 
-         ep3.on('session:failed', finish);
+         createAndInitTwoProviders(cfg1,cfg2)
+          .then(function(obj){
+            var EP1 = g.EP1 = obj.provider1;
+            var EP2 = g.EP2 = obj.provider2;
+            ep1 = EP1.getRtcommEndpoint({webrtc:false, chat:true});
+            ep2 = EP2.getRtcommEndpoint({webrtc:false, chat:true});
+            // Create the 3rd Endpoint Provider
+            Fat.createProvider(cfg3)
+              .then(function(EP3) {
+                g.EP3 = EP3;
+                ep3 = EP3.createRtcommEndpoint({webrtc:false, chat:true});
+               //   receive PRANSWER --> ringing
+               //   receive ANSWER --> started
+               // ep2(callee)
+               //   receive call --> alerting
+               //   send ANSWER --> started
+               ep1.on('session:ringing', function() { ep1_ringing = true;});
+               ep1.on('session:trying', function() { ep1_trying = true;});
+               ep1.on('session:started', function() {
+                 // Connect 3rd enpdoint now... 
+                 ep3.connect(cfg2.userid);
+                 ep1_started = true;
+               });
+               ep2.on('session:alerting', function(obj) {
+                 ep2_alerting = true;
+                 console.log('>>>>TEST  accepting call');
+                 setTimeout(function() {
+                  ep2.accept();
+                 },1000);
 
-         endpointProvider3.init(config3, function(obj) {
-           endpointProvider.init(config1,
-                  function(obj) {
-                    endpointProvider2.init(config2,
-                        function(obj) {
-                          console.log('calling EP2');
-                          ep1.connect(config2.userid);
-                        },
-                        function(error) {
-                          console.log('error in ep2 init:' + error);
-                        }
-                       );
-                  },
-                  function(error) {
-                    console.log('error in ep1 init:' + error);
-                  }
-                 );
-         },
-         function(error){
-            console.log('error in ep3 init:' + error);
-         });
-         },
+               });
+               ep3.on('session:failed', finish);
+               ep1.connect(cfg2.userid);
+           });
+        });
+     },
      "Customer A calls Queue[Toys], establish session": function() {
           SKIP_ALL && this.skip(SKIP_ALL);
            var endpointProvider2 = new EndpointProvider();
@@ -558,79 +517,60 @@ define([
                   }
                  );
          },
-     "Create many endpoints" : function() {
-       // This test is in progress
-         this.skip();
-         // mark for destroy;
-         var config1 = config.clientConfig();
-         var endpointProvider2 = g.endpointProvider2 = new EndpointProvider();
-         var config2 = config.clientConfig();
-         var endpointProvider3 = g.endpointProvider3 = new EndpointProvider();
-         var config3 = config.clientConfig();
-         var endpointProvider4 = g.endpointProvider4 = new EndpointProvider();
-         var config4 = config.clientConfig();
+     "in Browser A calls B (autoEnable - browser only launch Chrome with --use-fake-ui-for-media-stream to stop prompts)": function() {
+          SKIP_ALL && this.skip();
+          if (typeof global !== 'undefined' || typeof window === 'undefined') {
+            console.log('********* SKIPPING TEST ***************');
+            this.skip("This test only runs in the Browser");
+          }
+         var dfd = this.async(10000);
+         // Our endpoints
+         var ep1;
+         var ep2;
 
-         endpointProvider2.setAppContext('test');
-         endpointProvider3.setAppContext('test');
-         endpointProvider4.setAppContext('test');
-
-         // All enpdointProvider1 should be INBOUND... 
-          
-         var ep2 = endpointProvider2.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep3 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
-         var ep4 = endpointProvider3.createRtcommEndpoint({webrtc:false, chat:true});
-
-         var onNewEndpoint = function(event) {
-           // you don't know the provider here.
-
-         };
-
-         var initAllEps = function() {
-           var dfd = new Deferred();
-           endpointProvider.init(config1);
-           endpointProvider2.init(config2);
-           endpointProvider3.init(config3);
-           endpointProvider4.init(config4);
-           setTimeout(function(){
-            dfd.resolve();
-           },3000);
-           return dfd.promise;
-         };
-
-         var dfd = this.async(T1);
-         initAllEps.then(
-
-         );
          var finish = dfd.callback(function(object){
             console.log("******************Asserting now...***********************");
-            console.log('endpoint1: ',ep1);
-            console.log('endpoint2: ',ep2);
-            assert.ok(ep1.sessionStarted());
-            assert.ok(ep2.sessionStarted());
-            endpointProvider2.destroy();
+            assert.isTrue(ep1.webrtc.enabled(), 'ep1 webrtc is enabled');
+            assert.isTrue(ep1.chat.enabled(), 'ep1 chat is enabled');
+            assert.isTrue(ep2.webrtc.enabled(), 'ep2 webrtc is enabled');
+            assert.isTrue(ep2.chat.enabled(), 'ep2 chat is enabled');
+            assert.equal(ep1.webrtc.getState() ,'connected', 'ep1 webrtc connected');
+            assert.equal(ep2.webrtc.getState() ,'connected', 'ep2 webrtc connected');
+            assert.equal(ep1.chat.getState() , 'connected', 'ep1 chat connected');
+            assert.equal(ep2.chat.getState() , 'connected', 'ep2 chat connected');
+            assert.ok(ep1.sessionStarted(),'Ep1 Session Started');
+            assert.ok(ep2.sessionStarted(),'Ep2 Session Started');
          });
 
-         ep1.on('session:started', finish);
-         ep2.on('session:alerting', function(obj) {
-           console.log('>>>>TEST  accepting call');
-           ep2.accept();
+         var ep1_trying = false;
+         var ep1_ringing= false;
+         var ep2_alerting= false;
+
+         var cfg1 = config.clientConfig('testuser1');
+         var cfg2 = config.clientConfig('testuser2');
+         createAndInitTwoProviders(cfg1,cfg2)
+          .then(function(obj){
+            var EP1 = g.EP1 = obj.provider1;
+            var EP2 = g.EP2 = obj.provider2;
+            ep1 = EP1.getRtcommEndpoint({autoEnable: true, webrtc:true, chat:true});
+            ep2 = EP2.getRtcommEndpoint({autoEnable: true, webrtc:true, chat:true});
+
+            ep1.on('session:ringing', function() { ep1_ringing = true})
+            ep1.on('session:trying', function() { ep1_trying = true})
+            // We finish on session:started 
+            ep1.on('session:started', finish);
+
+           ep2.on('session:alerting', function(obj) {
+             ep2_alerting = true;
+             console.log('>>>>TEST  accepting call');
+             setTimeout(function() {
+              ep2.accept();
+             },1000);
+           });
+
+           // Initiate the connection
+           ep1.connect(cfg2.userid);
          });
-         endpointProvider.init(config1,
-                  function(obj) {
-                    endpointProvider2.init(config2,
-                        function(obj) {
-                          console.log('calling EP2');
-                          ep1.connect(config2.userid);
-                        },
-                        function(error) {
-                          console.log('error in ep2 init:' + error);
-                        }
-                       );
-                  },
-                  function(error) {
-                    console.log('error in ep1 init:' + error);
-                  }
-                 );
-         },
+     },
     });
 });

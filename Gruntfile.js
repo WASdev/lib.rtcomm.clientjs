@@ -86,12 +86,11 @@ module.exports = function(grunt) {
     compress: {
       main: {
         options: {
-          archive:'dist/release/<%= pkg.name %>-<%=pkg.version %>.zip'
+          archive:'dist/release/<%= pkg.name %>-sample-<%=pkg.version %>.zip'
         },
         files: [ 
           {expand: true, cwd: 'dist/', src: ['*.js'], dest:'<%= pkg.name %>-<%=pkg.version %>/dist' },
           {expand: true, cwd: 'dist/jsdoc', src: ['**'], dest:'<%= pkg.name %>-<%=pkg.version %>/jsdoc' },
-          {src:['lib/**'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {expand: true, cwd: './build_resources/doc/',src:['index.html'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {src:['LICENCE'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
           {src:['README.md'], dest:'<%= pkg.name %>-<%=pkg.version %>/' },
@@ -159,11 +158,12 @@ module.exports = function(grunt) {
     },
     jsdoc : {
         dist : {
-            src: ['dist/rtcomm.js'], 
+            src: ['src/rtcomm/*.js', 'src/rtcomm/**/*.js'], 
             options: {
               destination: 'dist/jsdoc',
               template : "node_modules/grunt-jsdoc/node_modules/ink-docstrap/template",
-              configure : "node_modules/grunt-jsdoc/node_modules/ink-docstrap/template/jsdoc.conf.json"
+              configure : "build_resources/jsdoc.conf.json",
+              private: false,
             }
         }
     },
@@ -251,7 +251,6 @@ module.exports = function(grunt) {
         grunt.config.set('concat', concat);
     });
 });
-
 
  require('load-grunt-tasks')(grunt);
   grunt.loadNpmTasks('intern');

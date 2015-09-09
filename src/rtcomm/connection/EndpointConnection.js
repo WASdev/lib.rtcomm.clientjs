@@ -156,7 +156,16 @@ var EndpointConnection = function EndpointConnection(config) {
           l('TRACE') && console.log(this+'.processMessage() existing transaction: ', transaction);
           transaction.finish(rtcommMessage);
         } else {
-          console.error('Transaction ID: ['+rtcommMessage.transID+'] not found, nothing to do with RESPONSE:',rtcommMessage);
+          if (rtcommMessage.orig === 'SERVICE_QUERY') {
+            // This is a special case, if we get a response here that does not have a valid transaction then 
+            // multiple Liberty Servers exist and we need to ALERT that things will be bad.
+            var error = new util.RtcommError("There are multiple rtcomm hosts listening on the same topic:"+endpointConnection.config.rtcommTopicPath+"  Create a unique topic for the client and server and try again");
+            error.name = "MULTIPLE_SERVERS";
+            endpointConnection._.onFailure(error);
+            endpointConnection.disconnect();
+          } else {
+            console.error('Transaction ID: ['+rtcommMessage.transID+'] not found, nothing to do with RESPONSE:',rtcommMessage);
+          }
         }
       } else if (rtcommMessage.method === 'START_SESSION' )  {
         // Create a new session:
@@ -181,7 +190,13 @@ var EndpointConnection = function EndpointConnection(config) {
       } else {
         // We have a transID, we need to pass message to it.
         // May fail? check.
-        endpointConnection.transactions.find(rtcommMessage.transID).emit('message',rtcommMessage);
+        var msgTransaction = endpointConnection.transactions.find(rtcommMessage.transID);
+        if (msgTransaction) {
+          msgTransaction.emit('message',rtcommMessage);
+        } else {
+          l('DEBUG') && console.log('Dropping message, transaction is gone for message: ',message);
+        }
+
       }
     } else if (rtcommMessage && rtcommMessage.sigSessID) {
       // has a session ID, fire it to that.
@@ -369,7 +384,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
 
 
       /** @lends module:rtcomm.connector.EndpointConnection.prototype */
-      return {
+      var proto = {
         /*
          * Instance Methods
          */
@@ -567,12 +582,12 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           };
 
           var onFailure = function(error) {
-            console.log('FAILURE! - ',error);
-
+            console.error(this+'.connect() FAILURE! - ',error);
             this.connected = false;
             cbFailure(error);
           };
-
+          // Save this onFailure, we will use it in another place if we get multiple servicequery responses
+          this._.onFailure = onFailure;
           var mqttConfig ={'onSuccess': onSuccess.bind(this),
                            'onFailure': onFailure.bind(this)};
           if (this.config.publishPresence) {
@@ -641,7 +656,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
         unsubscribe: function(topic) {
           var topicRegex = buildTopicRegex(optimizeTopic(topic));
-          if(this.mqttConnection.unsubscribe(topic)) {
+          if(this.mqttConnection && this.mqttConnection.unsubscribe(topic)) {
             delete this.subscriptions[topicRegex];
           }
         },
@@ -724,6 +739,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           }
         }
     };
+    return proto;
   })()
 );
 /* globals exports:false */

@@ -22,10 +22,11 @@ define([
     'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../support/mqttws31_shim':
-        'lib/mqttws31',
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
+    'bower_components/webrtc-adapter/adapter',
     'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred, globals,config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred, globals, config, adapter, EndpointProvider) {
 
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     var createProvider = function createProvider(userid,appContext) {
@@ -102,10 +103,16 @@ define([
           chat3 = null;
         },
         beforeEach: function() {
+          var dfd = new Deferred();
           chat1 && chat1.destroy();
           chat2 && chat2.destroy();
           chat1 = EP1.createRtcommEndpoint();
           chat2 = EP2.createRtcommEndpoint();
+          setTimeout(function(){
+            console.log('BeforeEach -- waiting 1 second for cleanup/restart to complete');
+            dfd.resolve();
+          },1000);
+          return dfd.promise;
         },
         'verify setup': function() {
           assert.equal(uid1, EP1.getUserID());
@@ -125,7 +132,15 @@ define([
             //obj should be a WebRTCConnection
             // and Source should match our topic we know...
             console.log('FINISH Called!', obj);
-            assert.ok(chat2.sessionStarted(), 'Session Started!');
+            assert.ok(chat1.sessionStarted(), 'chat1 --Session Started!');
+            assert.ok(chat2.sessionStarted(), 'chat2 --Session Started!');
+            assert.equal(chat1.chat.getState(),'connected','Chat1--Chat Connected!');
+            assert.equal(chat2.chat.getState(),'connected','Chat2--Chat Connected!');
+
+            console.log('chat1.webrtc.getState():'+chat1.webrtc.getState());
+            console.log('chat2.webrtc.getState():'+chat2.webrtc.getState());
+            //assert.equal(chat1.chat.getState(),'connected','Chat1--Chat Connected!');
+            //assert.equal(chat2.chat.getState(),'connected','Chat2--Chat Connected!');
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
@@ -236,6 +251,7 @@ define([
         },
 
         'connect 2 chat clients via 3PCC':function() {
+          console.log('************** START OF 3PCC TEST ********************');
           var ccTopic = null;
           if (EP1.getServices().RTCOMM_CALL_CONTROL_SERVICE) {
             ccTopic = EP1.getServices().RTCOMM_CALL_CONTROL_SERVICE.topic;
@@ -271,7 +287,7 @@ define([
           var mq = EP1.getMqttEndpoint();
           var ThirdPCC = "3PCCTestNode";
           var ThirdPCCMessage = { 
-            'rtcommVer' : 'v0.0.1',
+            'rtcommVer' : 'v1.0.0',
             'method': '3PCC_PLACE_CALL',
             'callerEndpoint': EP1.getUserID(),
             'calleeEndpoint': EP2.getUserID(),

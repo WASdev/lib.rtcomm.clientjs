@@ -7,13 +7,40 @@ var normalizeTopic = function normalizeTopic(topic) {
   newTopic = topic.replace(/\/+/g,'\/').replace(/\/$/g, '');
   return /^\//.test(newTopic) ? newTopic : '/'+newTopic;
 };
+
+
+/** 
+ * @memberof module:rtcomm.PresenceMonitor
+ * @class 
+ */
 var PresenceNode = function PresenceNode(nodename, record) {
+  /** Object Name 
+  *  @readonly
+  */
   this.objName = 'PresenceNode';
+  /** Node Name 
+  *  @readonly
+  */
   this.name = nodename || '';
+  /** If it is a final record (rather than a tree node)
+  *  @readonly
+  */
   this.record = record || false;
+  /** Address Topic (topic to contact another endpoint) 
+  *  @readonly
+  */
   this.addressTopic = null;
+  /** Presence Topic (topic to presence is published to) 
+  *  @readonly
+  */
   this.presenceTopic = null;
+  /** Sub Presence Nodes if present 
+  *  @readonly
+  */
   this.nodes= [];
+  /** Id (same as name) 
+  *  @readonly
+  */
   this.id = this.name;
 };
 
@@ -27,8 +54,10 @@ var PresenceNode = function PresenceNode(nodename, record) {
     }
   }; 
 
-PresenceNode.prototype = util.RtcommBaseObject.extend({
-  /** 
+PresenceNode.prototype = util.RtcommBaseObject.extend(
+  /** @lends module:rtcomm.PresenceMonitor.PresenceNode */
+  {
+  /* 
    * update the PresenceNode w/ the message passed
    */
   update: function(message) {
@@ -54,7 +83,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
     });
     return (new_flat.length > 0) ? new_flat: flat;
   },
-  /** 
+  /* 
    * Return the presenceNode Object matching this topic
    * if it doesn't exist, creates it.
    */
@@ -217,6 +246,7 @@ PresenceNode.prototype = util.RtcommBaseObject.extend({
  *  @constructor
  *  @extends  module:rtcomm.util.RtcommBaseObject
  *
+ *  @fires module:rtcomm.PresenceMonitor#updated
  *
  * @example
  *
@@ -288,7 +318,8 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
     }
   }
 
-  return { 
+  /** @lends module:rtcomm.PresenceMonitor.prototype */
+  var proto = { 
     /**
      * Add a topic to monitor presence on
      *
@@ -326,14 +357,17 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
       }
       return this;
     },
-
+    /**
+     * Remove a topic to monitor
+     * @param {string} topic  A topic/group to monitor, ex. 'us/agents'
+     */
     remove: function remove(topic) {
       //var presenceData = this._.presenceData;
       topic = normalizeTopic(topic);
       if(!this.getRootNode().deleteSubNode(topic)) {
         throw new Error('Topic not found: '+topic);
       } else {
-        this.dependencies.connection.unsubscribe(this._.monitoredTopics[topic]);
+        this.dependencies.connection && this.dependencies.connection.unsubscribe(this._.monitoredTopics[topic]);
         delete this._.monitoredTopics[topic];
       }
       return this;
@@ -345,7 +379,6 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         this.dependencies.connection = connection;
         this._.sphereTopic = normalizeTopic(connection.getPresenceRoot()) ||  null;
         // reset presence Data:
-  // this._.presenceData=[new PresenceNode("/")];
         this._.rootNode.nodes = [];
         var t = util.makeCopy(this._.monitoredTopics);  // Clone the array
         this._.monitoredTopics = {};
@@ -354,25 +387,26 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         });
       }
     },
+
+    /**
+     * @typedef {array.<module:rtcomm.PresenceMonitor.PresenceNode>} module:RtcommEndpoint.PresenceMonitor.PresenceData
+     */
     /**
      * Get an array representing the presence data
-     * @returns {array} An array of PresenceNodes
+     * @returns {array.<module:rtcomm.PresenceMonitor.PresenceNode>} PresenceData
      */
     getPresenceData: function getPresenceData() {
-      // This returns everything under the ROOT.
       return this._.presenceData;
-//      return this._.presenceData[0].nodes;
     },
-    getRootNode: function getRootNode() {
-      return this._.rootNode;
-    },
-
     /**
      * Return the root presenceNode if it exists.
      *
      * @param {string} topic
      * @returns {PresenceNode} The root PresenceNode for a topic (if it already exists)
      */
+    getRootNode: function getRootNode() {
+      return this._.rootNode;
+    },
     __getRootNode: function getRootNode(topic) {
       // The root node matching the topic (if it exists)
       var rootNode = null;
@@ -413,8 +447,9 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
        this._.presenceData = [];
        // Unsubscribe ..
        Object.keys(pm._.monitoredTopics).forEach(function(key) {
-         pm.dependencies.connection.unsubscribe(pm._.monitoredTopics[key]);
+         pm.dependencies.connection && pm.dependencies.connection.unsubscribe(pm._.monitoredTopics[key]);
        });
     }
   } ;
+  return proto;
 })());

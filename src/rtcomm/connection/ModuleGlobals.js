@@ -73,9 +73,9 @@ var logging = new util.Log(),
             logMessage = '%c ' + logMessage;
             css = 'color: ' + object.color;
             if (remainder) {
-            l('TRACE') &&   console.log(logMessage, css, remainder);
+            l('TRACE') && console.log(logMessage, css, remainder);
             } else {
-            l('TRACE') &&  console.log(logMessage,css);
+            l('TRACE') && console.log(logMessage,css);
             }
           } else {
             if (remainder) {

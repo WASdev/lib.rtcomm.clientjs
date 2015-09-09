@@ -20,10 +20,11 @@ define([
     'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../support/mqttws31_shim':
-        'lib/mqttws31',
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
+    'bower_components/webrtc-adapter/adapter',
     'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred,globals, config, EndpointProvider) {
+], function (intern, registerSuite, assert, Deferred,globals, config, adapter, EndpointProvider) {
 
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
 
@@ -92,6 +93,11 @@ define([
       };
 
       var resolve = function() {
+
+        console.log('ep1.getState() === '+ep1.getState());
+        console.log('ep2.getState() === '+ep2.getState());
+        console.log('ep1.webrtc.getState() === '+ep1.webrtc.getState());
+        console.log('ep2.webrtc.getState() === '+ep2.webrtc.getState());
         if (ep2.getState() === 'session:started' && 
             ep1.getState() === 'session:started' && 
             ep1.webrtc.getState() === 'connected' && 
