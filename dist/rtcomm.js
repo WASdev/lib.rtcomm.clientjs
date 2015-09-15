@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.0 15-09-2015 16:16:14 UTC */
-console.log('lib.rtcomm.clientjs 1.0.0 15-09-2015 16:16:14 UTC');
+/*! lib.rtcomm.clientjs 1.0.1 15-09-2015 16:53:12 UTC */
+console.log('lib.rtcomm.clientjs 1.0.1 15-09-2015 16:53:12 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -7142,13 +7142,14 @@ var WebRTCConnection = (function invocation() {
         }
         obj && urls.push(obj);
       });
-    this._.iceServers = urls;
+
+    this._.iceServers = (urls.length === 0 && this._.iceServers.length > 0) ? this._.iceServers : urls;
     // Default to what is set in RTCCOnfiguration already.
     if (this.config.RTCConfiguration.hasOwnProperty(iceServers) && Array.isArray(this.config.RTCConfiguration.iceServers) && this.config.RTCConfiguration.iceServers.length > 0) {
       l('DEBUG') && console.log(this+'.setIceServers() leaving RTCConfiguration alone '+this.config.RTCConfiguration.iceServers);
     } else {
       l('DEBUG') && console.log(this+'.setIceServers() updating RTCConfiguration: '+urls);
-      this.config.RTCConfiguration.iceServers = urls;
+      this.config.RTCConfiguration.iceServers = this._.iceServers;
     }
     if ( this.pc && this._.enabled) {
        if (this.pc.iceConnectionState === 'new') {
