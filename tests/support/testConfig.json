@@ -1,5 +1,5 @@
 {
-   "mqttServers" : ["messagesight.demos.ibm..com:1883"],
+   "mqttServers" : ["messagesight.demos.ibm.com:1883"],
    "managementTopicName" : "management",
-   "rtcommTopicPath" : "/rtcommTests-8888/"
+   "rtcommTopicPath" : "/rtcommTest-8888/"
 }

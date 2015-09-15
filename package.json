@@ -1,6 +1,6 @@
 {
   "name": "lib.rtcomm.clientjs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "Apache-2.0",
   "homepage": "https://github.com/WASdev/lib.rtcomm.clientjs",
   "authors": [
@@ -35,5 +35,8 @@
     "node-localstorage": "^0.3.4",
     "serve-static": "^1.7.1",
     "websocket": "^1.0.14"
+  },
+  "dependencies": {
+    "grunt-serve": "^0.1.6"
   }
 }

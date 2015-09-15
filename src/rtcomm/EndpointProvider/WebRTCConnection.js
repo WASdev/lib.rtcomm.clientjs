@@ -161,7 +161,6 @@ var WebRTCConnection = (function invocation() {
       // Load Ice Servers...
       // load with configured iceServers from this.config.iceServers
       this.setIceServers();
-      this.config.RTCConfiguration.iceServers = this.config.RTCConfiguration.iceServers || this.getIceServers();
 
       /*
        * when enable() is called we have a couple of options:
@@ -958,7 +957,29 @@ var WebRTCConnection = (function invocation() {
         }
         obj && urls.push(obj);
       });
-    this._.iceServers = urls;
+
+    this._.iceServers = (urls.length === 0 && this._.iceServers.length > 0) ? this._.iceServers : urls;
+    // Default to what is set in RTCCOnfiguration already.
+    if (this.config.RTCConfiguration.hasOwnProperty(iceServers) && Array.isArray(this.config.RTCConfiguration.iceServers) && this.config.RTCConfiguration.iceServers.length > 0) {
+      l('DEBUG') && console.log(this+'.setIceServers() leaving RTCConfiguration alone '+this.config.RTCConfiguration.iceServers);
+    } else {
+      l('DEBUG') && console.log(this+'.setIceServers() updating RTCConfiguration: '+urls);
+      this.config.RTCConfiguration.iceServers = this._.iceServers;
+    }
+    if ( this.pc && this._.enabled) {
+       if (this.pc.iceConnectionState === 'new') {
+         // we haven't done anything, just reset the peerConnection
+          l('DEBUG') && console.log(this+'.setIceServers() resetting peerConnection, state is: '+this.pc.iceConnectionState);
+          this.pc = null;
+          this.pc = createPeerConnection(this.config.RTCConfiguration, this.config.RTCConstraints, this);
+       } else {
+         l('DEBUG') && console.log(this+'.setIceServers() Not resetting peerConnection, state is: '+this.pc.iceConnectionState);
+       }
+    } else {
+         l('DEBUG') && console.log(this+'.setIceServers() Not resetting peerConnection this.pc: ',this.pc);
+         l('DEBUG') && console.log(this+'.setIceServers() Not resetting peerConnection this._.enabled: ',this._.enabled);
+    }
+
    },
   getIceServers: function() {
     return this._.iceServers;
@@ -973,7 +994,8 @@ var WebRTCConnection = (function invocation() {
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
   var peerConnection = null;
   if (MyRTCPeerConnection) {
-    l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: " + RTCConfiguration + "and contrainsts: "+ RTCConstraints);
+    l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: ", RTCConfiguration );
+    l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConstraints: ", RTCConstraints );
     peerConnection = new MyRTCPeerConnection(RTCConfiguration, RTCConstraints);
 
     //attach callbacks
