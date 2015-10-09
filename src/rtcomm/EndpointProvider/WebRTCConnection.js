@@ -15,6 +15,11 @@
  **/
 var WebRTCConnection = (function invocation() {
 
+  // Module Global
+  var MyRTCPeerConnection = null;
+  var MyRTCSessionDescription = null;
+  var MyRTCIceCandidate =  null;
+
   /**
    * @memberof module:rtcomm.RtcommEndpoint
    *
@@ -97,6 +102,15 @@ var WebRTCConnection = (function invocation() {
     this.pc = null;
     this.onEnabledMessage = null;
     this.onDisabledMessage = null;
+
+    // Alias these to the globals
+    if (typeof cordova !== 'undefined' && cordova.plugins && cordova.plugins.iosrtc ) {
+      l('DEBUG') && console.log('Cordova IOSRTC Plugin enabled -- registering Globals!'); 
+      cordova.plugins.iosrtc.registerGlobals();
+    }
+    MyRTCPeerConnection = (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
+    MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
+    MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
 
   };
 
@@ -891,7 +905,7 @@ var WebRTCConnection = (function invocation() {
         l('DEBUG') && console.log(self+'.enableLocalAV() already setup, reattaching stream');
         callback(attachLocalStream(this._.localStream));
       } else {
-        getUserMedia({'audio': audio, 'video': video},
+        navigator.getUserMedia({'audio': audio, 'video': video},
           /* onSuccess */ function(stream) {
             if (streamHasAudio(stream) !== audio) {
               l('INFO') && console.log(self+'.enableLocalAV() requested audio:'+audio+' but got audio: '+streamHasAudio(stream));
@@ -1112,11 +1126,6 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
   }
   return peerConnection;
 }  // end of createPeerConnection
-
-// Alias these to the globals
-var MyRTCPeerConnection =  (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
-var MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
-var MyRTCIceCandidate =  (typeof RTCIceCandidate !== 'undefined') ? RTCIceCandidate : null;
 
 var detachMediaStream = function(element) {
    if (element) {
