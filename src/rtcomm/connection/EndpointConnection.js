@@ -616,6 +616,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
          */
         serviceQuery: function(cbSuccess, cbFailure) {
           var self = this;
+          var error = null;
           cbSuccess = cbSuccess || function(message) {
             l('DEBUG') && console.log(this+'.serviceQuery() Default Success message, use callback to process:', message);
           };
@@ -624,7 +625,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           };
 
           if (!this.id) {
-            cbFailure('servicQuery requires a userid to be set');
+            error = new util.RtcommError('servicQuery requires a userid to be set');
+            error.name = "NO_USER_ID";
+            cbFailure(error);
             return;
           }
 
@@ -632,12 +635,17 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
             var message = this.createMessage('SERVICE_QUERY');
             this._query(message, 'services',
                    function(services) {
+                      l('DEBUG') && console.log(self+'.serviceQuery() calling success callback with', services);
                       parseServices(services,self);
                       self.ready = true;
                       self.emit('servicesupdate', services);
                       cbSuccess(services);
                     },
-                    cbFailure);
+                    function(message) {
+                      error = new util.RtcommError(message);
+                      error.name = 'SERVICE_QUERY_FAILED';
+                      cbFailure(error);
+                    });
           } else {
             console.error('Unable to execute service query, not connected');
           }
