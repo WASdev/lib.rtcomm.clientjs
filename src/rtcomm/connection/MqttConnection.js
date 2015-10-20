@@ -444,7 +444,11 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
       destroy: function() {
         this.ready = false;
         //Testin, disconnect can hang for some reason. Commenting out.
-        this.dependencies.mqttClient.disconnect();
+        try {
+          this.dependencies.mqttClient.disconnect();
+        } catch(e) {
+          l('DEBUG') && console.log(this+'.destroy() failed: '+e);
+        }
         this.dependencies.mqttClient = null;
         l('DEBUG') && console.log(this+'.destroy() called and finished');
       },

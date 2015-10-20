@@ -423,11 +423,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
         },
 
         /*global setLogLevel:false */
-        setLogLevel: function(level) {
-          setLogLevel(level);
-        //  util && util.setLogLevel(level);
-        },
-
+        setLogLevel: setLogLevel,
         /*global getLogLevel:false */
         getLogLevel: getLogLevel,
         /* Factory Methods */
@@ -598,12 +594,15 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           this.mqttConnection.connect(mqttConfig);
          },
         disconnect : function(clear_presence) {
-          clear_presence = (typeof clear_presence === 'boolean') ? clear_presence : true;
           l('DEBUG') && console.log('EndpointConnection.disconnect() called: ', this.mqttConnection);
+          clear_presence = (typeof clear_presence === 'boolean') ? clear_presence : true;
           l('DEBUG') && console.log(this+'.disconnect() publishing LWT');
-          clear_presence && this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
-          this.sessions.clear();
-          this.transactions.clear();
+          if (this.connected) {
+            l('DEBUG') && console.log(this+'.disconnect() We are connected, Cleanup...');
+            clear_presence && this.publish(this.getMyPresenceTopic(), this.getLwtMessage(), true);
+            this.sessions.clear();
+            this.transactions.clear();
+          } 
           this.clearEventListeners();
           this.mqttConnection.destroy();
           this.mqttConnection = null;
