@@ -161,7 +161,6 @@ module.exports = function(grunt) {
             src: ['src/rtcomm/*.js', 'src/rtcomm/**/*.js'], 
             options: {
               destination: 'dist/jsdoc',
-              template : "node_modules/grunt-jsdoc/node_modules/ink-docstrap/template",
               configure : "build_resources/jsdoc.conf.json",
               private: false,
             }

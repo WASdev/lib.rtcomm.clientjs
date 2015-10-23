@@ -283,6 +283,7 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
           }
           this.ready = true;
           this.retry = false;
+          this.trying = false;
           if (onSuccess && typeof onSuccess === 'function') {
             try {
               onSuccess(this);
@@ -302,6 +303,8 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
            *    errorMessage: some string
            */
           // TODO:  ADD loggin here.  Would be perfect... 
+          // Done trying
+          this.trying = false;
           if (connectAttempts < retry) {
             this.retry = true;
           } else {
@@ -318,10 +321,14 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
               error.src = response.errorMessage;
             }
           }
+          if (response.errorCode === 1) {
+            // Timed out
+            this.retry = false;
+            // Make sure we call the onFailure in this case.
+          }
           if (typeof onFailure === 'function') {
             // When shutting down, this might get called, catch any failures. if we were ready
             // this is unexpected.
-
             try {
               if ( !this.ready  && !this.retry) { 
                 onFailure(error);
@@ -336,13 +343,13 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
         }.bind(this);
 
         var self = this;
-
         function retryConnect() {
           connectAttempts++;
           // If we are not ready (so we connected) or retry is not set)
           // Retry could be turned off in onFailure and onSuccess.
-          if (!self.ready && self.retry) {
+          if (!self.ready && !self.trying && self.retry) {
             l('DEBUG') && console.log(self+'.connect() attempting to connect, try:'+connectAttempts);
+            self.trying = true;
             mqttClient.connect(util.makeCopy(mqttConnectOptions));
             setTimeout(retryConnect, 1000);
           }
@@ -437,7 +444,11 @@ MqttConnection.prototype  = util.RtcommBaseObject.extend((function() {
       destroy: function() {
         this.ready = false;
         //Testin, disconnect can hang for some reason. Commenting out.
-        this.dependencies.mqttClient.disconnect();
+        try {
+          this.dependencies.mqttClient.disconnect();
+        } catch(e) {
+          l('DEBUG') && console.log(this+'.destroy() failed: '+e);
+        }
         this.dependencies.mqttClient = null;
         l('DEBUG') && console.log(this+'.destroy() called and finished');
       },

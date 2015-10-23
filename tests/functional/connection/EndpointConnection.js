@@ -244,6 +244,29 @@ define([
             nc.disconnect();
           });
       },
+     "Connection Test - (Timeout Error):": function() {
+          //
+          // TODO Revisit this test, it is unreliable.  Possibly upgrate to later paho client?
+       //
+          this.skip("Unreliable test, need to revisit");
+          var finalTimeout = 40000; // 40 seconds;
+          //this.skip();
+       //
+          var cfg = config.clientConfig();
+          cfg.port = 1884;
+          var nc = new connection.EndpointConnection(cfg);
+          DEBUG && nc.setLogLevel('DEBUG');
+          var dfd = this.async(finalTimeout);
+
+          var finish = dfd.callback(function(obj) {
+            console.log('---> obj', obj);
+            assert.equal(obj.message, 'AMQJSC0001E Connect timed out.', 'Received appropriate RtcommError Message');
+            console.log('---- Finish Callback -----!');
+            nc.disconnect();
+          });
+          nc.connect(finish, finish);
+
+      },
       "Service Query Test": function() {
           var nc = new connection.EndpointConnection(config1);
           var success = false;
