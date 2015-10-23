@@ -1,7 +1,7 @@
 {
   "name": "rtcomm",
   "homepage": "https://github.com/WASdev/lib.rtcomm.clientjs",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "authors": [
     "Scott W Graham <swgraham@us.ibm.com>"
   ],
@@ -39,6 +39,6 @@
   ],
   "dependencies": {
     "bower-mqttws": "~1.0.0",
-    "webrtc-adapter": "~0.1.6"
+    "webrtc-adapter": "~0"
   }
 }
