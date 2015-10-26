@@ -118,6 +118,7 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    * @param {boolean} [config.monitorPresence=false] Automatically create a presence monitor and emit events on the endpoint provider.
+   * @param {boolean} [config.requireRtcommServer=true] Require an Rtcomm Server for routing 
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
    *
@@ -171,6 +172,7 @@ var EndpointProvider =  function EndpointProvider() {
           userid: 'string',
           useSSL: 'boolean',
           monitorPresence: 'boolean',
+          requireRtcommServer: 'boolean',
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
@@ -186,6 +188,7 @@ var EndpointProvider =  function EndpointProvider() {
           // Note, if SSL is true then use 8883
           port: useSSL ? 8883: 1883,
           monitorPresence: false,
+          requireRtcommServer: true,
           createEndpoint: false }
       };
     // the configuration for Endpoint Provider
@@ -222,6 +225,7 @@ var EndpointProvider =  function EndpointProvider() {
     // everything else is the same config.
     connectionConfig.hasOwnProperty('createEndpoint') &&  delete connectionConfig.createEndpoint;
     connectionConfig.hasOwnProperty('monitorPresence') &&  delete connectionConfig.monitorPresence;
+    connectionConfig.hasOwnProperty('requireRtcommServer') &&  delete connectionConfig.requireRtcommServer;
     connectionConfig.publishPresence = true;
     // createEndpointConnection
 
@@ -271,8 +275,16 @@ var EndpointProvider =  function EndpointProvider() {
       }
       // Update the userid
       endpointProvider.setUserID(config.userid,true);
-      endpointConnection.serviceQuery();
-      cbSuccess(returnObj);
+      if (config.requireRtcommServer) {
+        l('DEBUG') && console.log(endpointProvider+'.onSuccess() require a server, executing serviceQuery...');
+        endpointConnection.serviceQuery(function(services) {
+          // we don't care about the services, dropping
+          console.log('returnObj?', returnObj);
+          cbSuccess(returnObj);
+        }, onFailure.bind(endpointProvider));
+      } else {
+        cbSuccess(returnObj);
+      }
     };
     /*
      * onFailure for EndpointConnection.connect()

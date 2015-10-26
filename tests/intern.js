@@ -71,6 +71,7 @@ define({
             'functional/connection/MqttConnection.js',
             'functional/connection/EndpointConnection.js',
             'functional/EndpointProvider.js',
+            'functional/PresenceMonitor.js',
             'functional/RtcommEndpoint.js',
             'functional/RtcommEndpoint.chat.js',
             'functional/MqttEndpoint.js',

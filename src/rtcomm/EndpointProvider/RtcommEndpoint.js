@@ -48,15 +48,12 @@ var RtcommEndpoint = (function invocation(){
 
   var createWebRTCConnection = function createWebRTCConnection(parent) {
     /* globals WebRTCConnection:false */
-    /* globals PhoneRTCConnection:false */
     /* globals cordova:false */
     var webrtc = null;
-    if (typeof cordova !== 'undefined' || typeof phonertc !== 'undefined') {
-      l('DEBUG') && console.log(" Cordova Detected, using PhoneRTC");
-      webrtc = new PhoneRTCConnection(parent); 
-    } else {
-      webrtc = new WebRTCConnection(parent);
-    }
+    webrtc = new WebRTCConnection(parent);
+    if (typeof cordova !== 'undefined') {
+      l('DEBUG') && console.log(" Cordova Detected, we are a mobile hybrid app.");
+    } 
     webrtc.on('ringing', function(event_obj) {
      l('DEBUG') && console.log("on ringing - play a ringback tone ", parent._.ringbackTone); 
      parent._playRingback();
