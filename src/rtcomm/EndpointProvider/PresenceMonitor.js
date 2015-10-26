@@ -96,6 +96,27 @@ PresenceNode.prototype = util.RtcommBaseObject.extend(
       return this.createSubNode(nodes);
     }
   },
+  findNodeByName: function findNodeByName(/*string*/ name) {
+    // Build some recursive thing here... 
+    // First see if its in our nodes, otherwise walk our sub nodes
+    l('TRACE') && console.log(this+'.findNodeByName() searching for name: '+name);
+    var match = null;
+    if (this.name === name) {
+      match = this;
+    }
+    l('TRACE') && console.log(this+'.findNodeByName() searching nodes: ',this.nodes);
+    if (!match) {
+      for(var i = 0; i<this.nodes.length;i++ ) {
+        l('TRACE') && console.log(this+'.findNodeByName() searching node['+i+']: ',this.nodes[i]);
+        var n = this.nodes[i].findNodeByName(name);
+        if (n) {
+          match = n;
+          break;
+        }
+      }
+    }
+    return match;
+  },
   findSubNode : function findSubNode(nodes) {
     l('TRACE') && console.log(this+'.findSubNode() searching for nodes --> ', nodes);
     // If the root node matches our name... 
@@ -204,6 +225,8 @@ PresenceNode.prototype = util.RtcommBaseObject.extend(
       var msg = null;
       if (typeof presenceMessage.content === 'string') {
         msg = JSON.parse(presenceMessage.content);
+      } else { 
+        msg = presenceMessage.content;
       }
       presence.alias = msg.alias || null;
       presence.state = msg.state || 'unknown';
@@ -387,7 +410,17 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
         });
       }
     },
+    _loadMockData: function _loadMockData(/*array*/ mockMessages) {
+      var self = this;
+      l('DEBUG') && console.log(this+'._loadMockData() mockMessages: ',mockMessages);
+      mockMessages.forEach(function(message) {
+      l('DEBUG') && console.log(self+'._loadMockData() loading message: ',message);
+        processMessage.call(self, message);
+      });
+    },
+    find: function find(name) {
 
+    },
     /**
      * @typedef {array.<module:rtcomm.PresenceMonitor.PresenceNode>} module:RtcommEndpoint.PresenceMonitor.PresenceData
      */
