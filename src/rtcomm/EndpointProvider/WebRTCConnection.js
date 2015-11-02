@@ -103,10 +103,17 @@ var WebRTCConnection = (function invocation() {
     this.onEnabledMessage = null;
     this.onDisabledMessage = null;
 
-    // Alias these to the globals
+    /* if we are running in cordova, we are mobile -- we need to alias this plugin
+     * if it is installed.  but Only on iOS
+     *
+     * NOTE:  This has to be done here so that the adapter.js works correctly.
+     *
+     */  
     if (typeof cordova !== 'undefined' && cordova.plugins && cordova.plugins.iosrtc ) {
-      l('DEBUG') && console.log('Cordova IOSRTC Plugin enabled -- registering Globals!'); 
-      cordova.plugins.iosrtc.registerGlobals();
+      if (window && window.device && window.device.platform === 'iOS') {
+        l('DEBUG') && console.log('Cordova IOSRTC Plugin enabled -- registering Globals!'); 
+        cordova.plugins.iosrtc.registerGlobals();
+      }
     }
     MyRTCPeerConnection = (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
     MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
