@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.2 26-10-2015 18:13:50 UTC */
-console.log('lib.rtcomm.clientjs 1.0.2 26-10-2015 18:13:50 UTC');
+/*! lib.rtcomm.clientjs 1.0.3 02-11-2015 16:31:21 UTC */
+console.log('lib.rtcomm.clientjs 1.0.3 02-11-2015 16:31:21 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5624,10 +5624,17 @@ var WebRTCConnection = (function invocation() {
     this.onEnabledMessage = null;
     this.onDisabledMessage = null;
 
-    // Alias these to the globals
+    /* if we are running in cordova, we are mobile -- we need to alias this plugin
+     * if it is installed.  but Only on iOS
+     *
+     * NOTE:  This has to be done here so that the adapter.js works correctly.
+     *
+     */  
     if (typeof cordova !== 'undefined' && cordova.plugins && cordova.plugins.iosrtc ) {
-      l('DEBUG') && console.log('Cordova IOSRTC Plugin enabled -- registering Globals!'); 
-      cordova.plugins.iosrtc.registerGlobals();
+      if (window && window.device && window.device.platform === 'iOS') {
+        l('DEBUG') && console.log('Cordova IOSRTC Plugin enabled -- registering Globals!'); 
+        cordova.plugins.iosrtc.registerGlobals();
+      }
     }
     MyRTCPeerConnection = (typeof RTCPeerConnection !== 'undefined') ? RTCPeerConnection : null;
     MyRTCSessionDescription =  (typeof RTCSessionDescription !== 'undefined') ? RTCSessionDescription : null;
