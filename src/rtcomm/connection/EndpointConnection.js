@@ -497,7 +497,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           /*global routeLookup:false*/
           /*global uidRoute:false*/
           if (config && config.remoteEndpointID) {
-            config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
+            config.toTopic = config.toTopic ? 
+              this.normalizeTopic(config.toTopic) :
+              this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
           }
           /*global SigSession:false*/
           var session = new SigSession(config);

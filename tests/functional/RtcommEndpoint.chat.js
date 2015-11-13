@@ -144,7 +144,8 @@ define([
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
-          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+        //  chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+          chat1.connect(uid2);
         },
         'Issue 33:  Busy connect 2 sessions[No Liberty]':function() {
           //this.skip()
@@ -175,10 +176,12 @@ define([
               EP3 = EP;
               chat3 = EP.createRtcommEndpoint();
               chat3.on('session:failed',finish);
-              chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+              //chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+              chat3.connect(uid2);
             });
           });
-          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+          //chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+          chat1.connect(uid2);
         },
         'Initial Chat message on connect (if enabled) [No Liberty]': function() {
           console.log('************** START OF TEST ********************');
@@ -247,7 +250,8 @@ define([
             // message is event_object.message.message
           });
           chat2.on('session:stopped', finish)
-          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+          //chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+          chat1.connect(uid2);
         },
 
         'connect 2 chat clients via 3PCC':function() {

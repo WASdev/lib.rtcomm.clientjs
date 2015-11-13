@@ -114,6 +114,7 @@ var RtcommEndpoint = (function invocation(){
      * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
      * @property {boolean} [chat=true]  Wehther the endpoint supports chat
      * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
+     * @property {module:rtcomm.EndpointProvider} [parent] - set the parent Should be done automatically.
      *
      */
     this.config = {
@@ -132,6 +133,7 @@ var RtcommEndpoint = (function invocation(){
 
     this.dependencies = {
       endpointConnection: null,
+      parent: null
     };
     // Private info.
     this._ = {
@@ -158,8 +160,13 @@ var RtcommEndpoint = (function invocation(){
     //
     this.state = 'session:stopped';
     var self = this;
+
     config && Object.keys(config).forEach(function(key) {
-      self.config[key] = config[key];
+      if (key === 'parent') { 
+        self.dependencies[key] = config[key];
+      } else {
+        self.config[key] = config[key];
+      }
     });
 
     this.config.webrtc && this._.protocols.push('webrtc');
@@ -329,6 +336,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
   function createSignalingSession(endpoint, context) {
     var remoteEndpointID = null;
     var toTopic = null;
+    l('DEBUG') && console.log(context+' createSignalingSession using endpoint: ', endpoint);
     if (typeof endpoint === 'object') {
       if (endpoint.remoteEndpointID && endpoint.toTopic) {
         remoteEndpointID = endpoint.remoteEndpointID;
@@ -344,6 +352,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     if (!remoteEndpointID) {
       throw new Error('remoteEndpointID must be set');
     }
+    console.log('toTopic is: '+toTopic);
     var session = context.dependencies.endpointConnection.createSession({
       id : sessid,
       toTopic : toTopic,
@@ -573,6 +582,19 @@ var proto = {
       this.available(false);
       this._.disconnecting = false;
       if (!this._.activeSession ) { 
+        if (typeof endpoint === 'string') {
+          var pm = this.dependencies.parent.getPresenceMonitor();
+          if (!this.dependencies.parent.requireServer()) {
+            // If we don't require a server, try to figure out the endpoint Topic
+            var node = pm.getPresenceData()[0].findNodeByName(endpoint); 
+            var newep = node ?  
+                        { remoteEndpointID: endpoint,
+                          toTopic: node.addressTopic }
+                        : endpoint;
+          endpoint = newep;
+          }
+        }
+        l('DEBUG') && console.log(this+'.connect() Creating signaling session to: ', endpoint);
         this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
       } 

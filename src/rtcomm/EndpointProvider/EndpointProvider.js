@@ -547,16 +547,20 @@ var EndpointProvider =  function EndpointProvider() {
    * @returns {module:rtcomm.PresenceMonitor}
    */
   this.getPresenceMonitor= function(topic) {
-    this._.presenceMonitor  = this._.presenceMonitor || new PresenceMonitor({connection: this.dependencies.endpointConnection});
+    var endpointProvider = this;
+
+    function createPresenceMonitor(configObject) {
+      var pm = new PresenceMonitor(configObject);
+      pm.on('updated', function(presenceData) {
+        endpointProvider.emit('presence_updated', {'presenceData': presenceData});
+      });
+      return pm;
+    }
+    this._.presenceMonitor  = this._.presenceMonitor || createPresenceMonitor({connection: this.dependencies.endpointConnection});
     if (this.ready) {
       topic && this._.presenceMonitor.add(topic);
     }; 
-
     // propogate the event out if we have a handler.
-    var endpointProvider = this;
-    this._.presenceMonitor.on('updated', function(presenceData) {
-      endpointProvider.emit('presence_updated', {'presenceData': presenceData});
-    });
     return this._.presenceMonitor;
   };
   /** 
@@ -759,6 +763,14 @@ var EndpointProvider =  function EndpointProvider() {
    */
   this.getLogLevel = getLogLevel;
 
+  /** Return  requireRtcommServer
+   * @method
+   *  @returns {boolean} 
+   */
+
+  this.requireServer = function() {
+    return this.config.requireRtcommServer;
+  };
   /** Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} objects that 
    * are associated with this  EndpointProvider
    *  @returns {Array} Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} 
