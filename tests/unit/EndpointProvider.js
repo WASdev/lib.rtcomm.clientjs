@@ -17,7 +17,6 @@ define([
     'intern', 
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
     /* Use the Mock (in browser mqtt) */
    (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../../support/mqttws31_shim':
@@ -25,7 +24,7 @@ define([
     'support/config',
     'bower_components/webrtc-adapter/adapter',
     'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred, globals,config, adapter, EndpointProvider) {
+], function (intern, registerSuite, assert, globals,config, adapter, EndpointProvider) {
   var DEBUG = (intern.args.DEBUG === 'true')? true: false;
   var badconfig = {
       server: 1,

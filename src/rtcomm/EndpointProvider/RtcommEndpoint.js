@@ -582,16 +582,19 @@ var proto = {
       this.available(false);
       this._.disconnecting = false;
       if (!this._.activeSession ) { 
+        l('DEBUG') && console.log(this+'.connect() connecting to endpoint : ', endpoint);
         if (typeof endpoint === 'string') {
           var pm = this.dependencies.parent.getPresenceMonitor();
           if (!this.dependencies.parent.requireServer()) {
             // If we don't require a server, try to figure out the endpoint Topic
+            l('DEBUG') && console.log(this+'.connect() Looking up endpoint : ', endpoint);
             var node = pm.getPresenceData()[0].findNodeByName(endpoint); 
             var newep = node ?  
                         { remoteEndpointID: endpoint,
                           toTopic: node.addressTopic }
                         : endpoint;
-          endpoint = newep;
+            l('DEBUG') && console.log(this+'.connect() found enpdoint : ', newep);
+            endpoint = newep;
           }
         }
         l('DEBUG') && console.log(this+'.connect() Creating signaling session to: ', endpoint);

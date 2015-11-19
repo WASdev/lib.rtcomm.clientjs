@@ -533,7 +533,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           var onFailure = function(query_response) {
             l('DEBUG') && console.log('Query Failed: ', query_response);
             if (cbFailure && typeof cbFailure === 'function') {
-              cbFailure((query_response)? query_response.failureReason : "Service Query failed for Unknown reason");
+              cbFailure((query_response)? query_response.reason : "Service Query failed for Unknown reason");
             } else {
               console.error('query failed:', query_response);
             }

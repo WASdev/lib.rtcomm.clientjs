@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/
-
-var cfg= {server: 'svt-msd4.rtp.raleigh.ibm.com', port: 1883, topicPath: '/rtcommscott/' };
-
 define([
     'intern', 
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global) ? 
       'intern/dojo/node!../support/mqttws31_shim': 
         'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'bower_components/webrtc-adapter/adapter',
-    'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred, globals,config, adapter, EndpointProvider) {
+    'umd/rtcomm/EndpointProvider',
+    'support/rtcommFatUtils'
+], function (intern, registerSuite, assert, globals, config, adapter, EndpointProvider,Fat) {
+   var suiteName = Fat.createSuiteName("FVT: EndpointProvider");
 
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     // endpointProvider
@@ -55,33 +53,36 @@ define([
         .replace(/\/#$/g,'\/');
     }
     registerSuite({
-        name: 'FVT - EndpointProvider SessionQueue', 
+        name: suiteName,
         setup: function() {
-          var dfd = new Deferred();
-          ep = new EndpointProvider();
-          DEBUG && ep.setLogLevel('DEBUG');
-          cfg.userid = 'intern';
-          cfg.appContext = 'rtcommTest';
-          ep.init(cfg, 
-                  function() {
-                    console.log('***** Setup Complete *****');
-                  },
-                  function(error){
-                    console.log('**** Setup Failed *****', error);
-                    dfd.reject(error);
-                  });
-          ep.on('queueupdate', function(queues) {
-            noQueuesConfigured = false;
-            console.log('*******QUEUES!', queues);
-            clearTimeout(timer);
-            dfd.resolve();
-          });
+          console.log('************* SETUP: '+this.name+' **************');
+          var p = new Promise(
+            function(resolve, reject) { 
+              ep = new EndpointProvider();
+              DEBUG && ep.setLogLevel('DEBUG');
+              cfg.userid = 'intern';
+              cfg.appContext = 'rtcommTest';
+              ep.init(cfg, 
+                      function() {
+                        console.log('***** Setup Complete *****');
+                      },
+                      function(error){
+                        console.log('**** Setup Failed *****', error);
+                        reject(error);
+                      });
+              ep.on('queueupdate', function(queues) {
+                noQueuesConfigured = false;
+                console.log('*******QUEUES!', queues);
+                clearTimeout(timer);
+                resolve();
+              });
 
-          var timer = setTimeout(function(){
-            console.log('******* Resolving -- no Queues Configured');
-            dfd.resolve();
-          },5000);
-          return dfd.promise;
+              var timer = setTimeout(function(){
+                console.log('******* Resolving -- no Queues Configured');
+                resolve();
+              },5000);
+          });
+          return p;
         },
         beforeEach: function() {
           // Destroy the endpoint.
@@ -93,17 +94,20 @@ define([
           mqtt = ep.getMqttEndpoint();
         },
         teardown: function() {
+          console.log('************* TEARDOWN: '+this.name+' **************');
           ep.destroy();
           ep = null;
         },
 
         'Init of EndpointProvider creates Queues' : function() {
+          console.log('************* '+this.name+' **************');
           noQueuesConfigured && this.skip("There are no Queues configured on the server");
           console.log('queues: ', ep.listQueues());
           assert.ok(ep.listQueues().length > 0 , 'queues is defined');
         },
 
         'Join bad queue throws exception': function () {
+          console.log('************* '+this.name+' **************');
           var error;
           try { 
             ep.joinQueue('/TestTopic/#');
@@ -114,11 +118,10 @@ define([
           assert.isDefined(error, 'An error was thrown correctly');
         },
         "Join/Leave queue": function() {
+          console.log('************* '+this.name+' **************');
           noQueuesConfigured && this.skip("There are no Queues configured on the server");
-          console.log('***************** RunTest ************');
           var dfd = this.async();
           var endpoint = ep.createRtcommEndpoint({webrtc: false, chat:true});
-          console.log('TEST endpoint: ', endpoint);
           var initObj = null;
           var success = false;
           var self = this;
@@ -146,6 +149,7 @@ define([
         },
 
         'Send a start session to a queue': function () {
+          console.log('************* '+this.name+' **************');
           noQueuesConfigured && this.skip("There are no Queues configured on the server");
           var dfd = this.async(5000);
           var error;

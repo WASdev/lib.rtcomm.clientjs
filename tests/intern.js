@@ -47,35 +47,21 @@ define({
   
 	// Configuration options for the module loader; any AMD configuration options supported by the specified AMD loader
 	// can be used here
-	loader: {
+	loaderOptions: {
 		// Packages that should be registered with the loader in each testing environment
+
 		packages: [ { name: 'umd', location: 'dist/umd'},
                 { name: 'unit', location: 'tests/unit'},
                 { name: 'functional', location: 'tests/functional'},
                 { name: 'mock', location: 'dist/mock'},
                 { name: 'support', location: 'tests/support'}],
-    shim: { 
-          'lib/mqttws31': {
-              exports: 'Paho'
-          },
-          'mock/mockMqtt': {
-            exports: 'Paho'
-          }
-      }
 	},
 
 	// Non-functional test suite(s) to run in each browser
-	suites: [ 'unit/connection/connection.js',
-            'unit/util/util.js',
-            'unit/EndpointProvider.js',
-            'functional/connection/MqttConnection.js',
-            'functional/connection/EndpointConnection.js',
-            'functional/EndpointProvider.js',
-            'functional/PresenceMonitor.js',
-            'functional/RtcommEndpoint.js',
-            'functional/RtcommEndpoint.chat.js',
-            'functional/MqttEndpoint.js',
-            'functional/SessionQueue.js'
+	suites: [ 'unit/all.js', 
+            'functional/all.js',
+  // Can't do both of these.
+  //  'functional/all_with_no_server.js'
   ],
 	//suites: [ ],
 

@@ -167,13 +167,13 @@ module.exports = function(grunt) {
         }
     },
     intern: {
-      client: {
+      base: {
         options: {
           // for other available options, see:
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: [ 'console', 'lcov', 'junit' ]
+          reporters: [ 'Console', 'Lcov', 'Junit' ]
         }
       },
       unit: {
@@ -182,12 +182,8 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: [ 'pretty'],
-          suites: [
-          'unit/connection/connection.js',
-            'unit/util/util.js',
-            'unit/EndpointProvider.js'
-          ]
+          reporters: [ 'Pretty'],
+          suites: [ 'unit/all.js' ] 
         }
       },
       stress: {
@@ -196,7 +192,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern_stress',
           runner: 'client',
-          reporters: [ 'pretty'],
+          reporters: [ 'Pretty'],
           suites: [
           'stress/stressTest.js'
           ]
@@ -209,15 +205,17 @@ module.exports = function(grunt) {
           config: 'tests/intern',
           runner: 'client',
           reporters: [ 'Pretty'],
-          suites: [
-            'functional/connection/MqttConnection.js',
-            'functional/connection/EndpointConnection.js',
-            'functional/EndpointProvider.js',
-            'functional/RtcommEndpoint.js',
-            'functional/RtcommEndpoint.chat.js',
-            'functional/MqttEndpoint.js',
-            'functional/SessionQueue.js'
-           ]
+          suites: ['tests/functional/all.js']
+        }
+      }, 
+      fat_no_server: {
+        options: {
+          // for other available options, see:
+          // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
+          config: 'tests/intern',
+          runner: 'client',
+          reporters: [ 'Pretty'],
+          suites: [ 'tests/functional/all_with_no_server.js']
         }
       }
     }
@@ -253,7 +251,7 @@ module.exports = function(grunt) {
 
  require('load-grunt-tasks')(grunt);
   grunt.loadNpmTasks('intern');
-  grunt.registerTask('test', ['intern:client']);
+  grunt.registerTask('test', ['intern:base']);
   grunt.registerTask('release', ['default', 'compress']);
   grunt.registerTask('umdModules', ['clean', 'prepareModules', 'concat', 'umd']);
   grunt.registerTask('lite', ['umdModules', 'concat:rtcomm_final','uglify']);

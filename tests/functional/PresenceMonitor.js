@@ -17,18 +17,17 @@ define([
     'intern', 
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
     /* Use the Mock (in browser mqtt) */
    (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../../support/mqttws31_shim':
         'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'bower_components/webrtc-adapter/adapter',
-    'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred, globals,config, adapter, EndpointProvider) {
-  var DEBUG = (intern.args.DEBUG === 'true')? true: false;
-
-
+    'umd/rtcomm/EndpointProvider',
+    'support/rtcommFatUtils'
+], function (intern, registerSuite, assert, globals, config, adapter, EndpointProvider,Fat) {
+   var suiteName = Fat.createSuiteName("FVT: PresenceMonitor");
+   var DEBUG = (intern.args.DEBUG === 'true')? true: false;
   /*
    * Create a Mock message, needs to look like:
    * {topic: where the message was received,
@@ -36,6 +35,7 @@ define([
    *  fromEndpointID: ....
    * 
    */
+  var cfg = config.clientConfig();
   var createPresenceMessage = function(id) {
     /*
      * rtcommVer: "v1.0.0", 
@@ -49,7 +49,6 @@ define([
      * method: "DOCUMENT"
      * rtcommVer: "v1.0.0"state: "available"type: "ENDPOINT"userDefines: Array[0]__proto__: Object
     */
-
     var DOCUMENT = {
       'rtcommVer': 'v1.0.0',
       'method': 'DOCUMENT',
@@ -60,7 +59,7 @@ define([
       'alias': null,
       'userDefines':[]
     };
-    var rootTopic = config.clientConfig().rtcommTopicPath; 
+    var rootTopic = cfg.rtcommTopicPath; 
     DOCUMENT.appContext = 'interntest';
     DOCUMENT.addressTopic = rootTopic + 'clients/'+ id;
 
@@ -75,29 +74,30 @@ define([
   var presenceMonitor = null;
 
   registerSuite({
-    name: "Unit Tests - PresenceMonitor",
+    name: suiteName,
     beforeEach: function() {
-     console.log('******** Running Test *********');
     },
     setup: function() {
-      var dfd = new Deferred();
-      endpointProvider = new EndpointProvider()
-      endpointProvider.setLogLevel('TRACE');
-      var cfg = config.clientConfig();
-      cfg.requireRtcommServer = false;
-      endpointProvider.init(cfg, function(obj) {
-        console.log('****** Setup complete? **********', obj);
-        dfd.resolve();
-      }, function(error) {
-        console.log('INIT FAILED');
-        dfd.reject(error);
-      });
-      return dfd.promise;
+      console.log('******** '+this.name+ ' *********');
+      var p = new Promise(
+        function(resolve, reject) {
+          Fat.createProvider(cfg).then(
+            function(EP) {
+              endpointProvider = EP;
+              setTimeout(resolve,1000);
+            })
+            .catch(function(reason) {
+              reject(reason);
+            });
+       });
+      return p;
     },
     teardown: function() {
+      console.log('******** TEARDOWN: '+this.name+ ' *********');
       endpointProvider.destroy();
     },
     "Load and validate PresenceMonitor data": function() {
+        console.log('******** '+this.name+ ' *********');
         presenceMonitor = endpointProvider.getPresenceMonitor();
         var mockData = [];
         for (var i=0;i<mockLength; i++) {
@@ -110,9 +110,11 @@ define([
         // Always use the 0 data...
         var data = presenceMonitor.getPresenceData()[0];
         var f = data.flatten();
-        assert.equal(f.length, mockLength, 'loaded data correctly');
+        // We should have our OWN record plus the loaded mock data (mockLength+1);
+        assert.equal(f.length, mockLength+1, 'loaded data correctly');
     },
     "findNodeByName": function() {
+        console.log('******** '+this.name+ ' *********');
         var data=presenceMonitor.getPresenceData()[0];
         console.log('data is?', data);
 

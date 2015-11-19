@@ -29,7 +29,7 @@
     "grunt-sg-release": "^0.2.4",
     "grunt-umd": "^2.2.1",
     "http": "0.0.0",
-    "intern": "^2.1.1",
+    "intern": "^3.0.6",
     "jshint-stylish": "^1.0.0",
     "load-grunt-tasks": "^1.0.0",
     "node-localstorage": "^0.3.4",

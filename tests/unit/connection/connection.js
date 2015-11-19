@@ -17,14 +17,13 @@ define([
     'intern',
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
     /* Use the Mock (in browser mqtt) */
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../../support/mqttws31_shim':
         'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'umd/rtcomm/connection'
-], function (intern, registerSuite, assert, Deferred, globals, config, connection) {
+], function (intern, registerSuite, assert, globals, config, connection) {
   console.log('Paho!', Paho);
   var DEBUG = (intern.args.DEBUG === 'true')? true: false;
   var optionalHeaders = {
@@ -159,6 +158,7 @@ define([
      },
    'logLevelTest': function () {
      var cfg = config.clientConfig1();
+     delete cfg.requireRtcommServer;
      console.log('Paho!', Paho);
      console.log('config', cfg);
         var conn = new connection.EndpointConnection(cfg);

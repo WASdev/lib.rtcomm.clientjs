@@ -117,7 +117,7 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
-   * @param {boolean} [config.monitorPresence=false] Automatically create a presence monitor and emit events on the endpoint provider.
+   * @param {boolean} [config.monitorPresence=true] Automatically create a presence monitor and emit events on the endpoint provider.
    * @param {boolean} [config.requireRtcommServer=true] Require an Rtcomm Server for routing 
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
@@ -187,7 +187,7 @@ var EndpointProvider =  function EndpointProvider() {
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
           port: useSSL ? 8883: 1883,
-          monitorPresence: false,
+          monitorPresence: true,
           requireRtcommServer: true,
           createEndpoint: false }
       };
@@ -257,24 +257,25 @@ var EndpointProvider =  function EndpointProvider() {
       if (config.createEndpoint) {
         returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
       }
-
-      if (config.userid) {
-        l('DEBUG') && 
-          console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
-        endpointProvider.publishPresence();
-       // endpointProvider.setUserID(config.userid);
-        if (config.monitorPresence) {
-          // Attach a default presence monitor to our presence topic
-          endpointProvider.getPresenceMonitor("/");
-        }
-        returnObj.registered = true;
-      }
       // Attach endpointConnection if a presenceMonitor
       if (endpointProvider._.presenceMonitor) {
-         endpointProvider._.presenceMonitor.setEndpointConnection(endpointConnection);
+        l('DEBUG') && console.log(endpointProvider+'.init() Already have a presenceMonitor -- setting EndpointConnection');
+        endpointProvider._.presenceMonitor.setEndpointConnection(endpointConnection);
       }
       // Update the userid
       endpointProvider.setUserID(config.userid,true);
+      if (config.userid) {
+        l('DEBUG') && console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
+        // Publish our presence if we have a userid
+        endpointProvider.publishPresence();
+        if (config.monitorPresence) {
+          // Attach a default presence monitor to our presence topic
+          l('DEBUG') && console.log(endpointProvider+'.init() Attaching Presence Monitor to: '+ config.presence.topic);
+          // Always monitor our own topic...
+          endpointProvider.getPresenceMonitor(config.presence.topic);
+        }
+        returnObj.registered = true;
+      }
       if (config.requireRtcommServer) {
         l('DEBUG') && console.log(endpointProvider+'.onSuccess() require a server, executing serviceQuery...');
         endpointConnection.serviceQuery(function(services) {
@@ -548,7 +549,6 @@ var EndpointProvider =  function EndpointProvider() {
    */
   this.getPresenceMonitor= function(topic) {
     var endpointProvider = this;
-
     function createPresenceMonitor(configObject) {
       var pm = new PresenceMonitor(configObject);
       pm.on('updated', function(presenceData) {
@@ -558,8 +558,11 @@ var EndpointProvider =  function EndpointProvider() {
     }
     this._.presenceMonitor  = this._.presenceMonitor || createPresenceMonitor({connection: this.dependencies.endpointConnection});
     if (this.ready) {
+      l('DEBUG') && console.log(this+'.getPresenceMonitor Monitoring topic: '+topic); 
       topic && this._.presenceMonitor.add(topic);
-    }; 
+    } else {  
+      l('DEBUG') && console.log(this+'.getPresenceMonitor Not adding monitor for topic: '+topic); 
+    }
     // propogate the event out if we have a handler.
     return this._.presenceMonitor;
   };

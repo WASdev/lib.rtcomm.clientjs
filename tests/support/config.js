@@ -10,6 +10,10 @@
 * U.S. Copyright Office.
 */
 define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig) {
+  var requireRtcommServer = true;
+  if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined') { 
+    requireRtcommServer = REQUIRE_RTCOMM_SERVER;
+  } 
   var configdata = JSON.parse(testconfig);
   console.log('testconfig', configdata );
   var mqArray = /(\S+)\:(\d+)/.exec(configdata.mqttServers[0]);
@@ -34,6 +38,9 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
     return bytes;
   };
 
+  // defined for case where we have don't have a server
+  var alternateRtcommTopicPath = '/'+generateRandomBytes('xxxxxxxxxxxxxxxxxxx')+'/';
+
   function randomID(pattern) {
     pattern = pattern || "xxxxxxxxxxxx";
     var id = generateRandomBytes(pattern);
@@ -49,13 +56,20 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
     
     _ServerConfig : function(userid, Topic) {
      
-      return {
+      var config = {
         server: mqttServer,
         port: mqttPort,
         userid: userid || null,
         managementTopicName: Topic || managementTopicName,
-        rtcommTopicPath:rtcommTopicPath 
+        rtcommTopicPath:rtcommTopicPath
       };
+      // Only set this if it is false.
+      if (!requireRtcommServer) {
+        config.requireRtcommServer = requireRtcommServer;
+        config.rtcommTopicPath = alternateRtcommTopicPath;
+        // set a bogus topic too
+      }
+      return config;
     },
     clientConfig: function(pattern) {
          return new this._ServerConfig(

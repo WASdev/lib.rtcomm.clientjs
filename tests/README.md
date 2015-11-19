@@ -62,6 +62,10 @@ grunt test
     ``` 
     grunt intern:fat
     ```
+    ** Run just the functional tests (without an rtcomm-1.0 server):
+    ``` 
+    grunt intern:fat_no_server
+    ```
     ** Run the Stress Test:
     ```
     grunt intern:stress
