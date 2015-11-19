@@ -14,28 +14,33 @@
  * limitations under the License.
  **/
 define([
+    'intern',
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
+    'intern/node_modules/dojo/Promise',
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../support/mqttws31_shim':
-        'lib/mqttws31',
+        'bower_components/bower-mqttws/mqttws31',
     'support/config',
-    'ibm/rtcomm'
-], function (registerSuite, assert, Deferred,globals, config, rtcomm) {
+    'bower_components/webrtc-adapter/adapter',
+    'umd/rtcomm/EndpointProvider',
+    'support/rtcommFatUtils'
+], function (intern, registerSuite, assert, Deferred, globals, config, adapter, EndpointProvider,Fat) {
+   var suiteName = Fat.createSuiteName("FVT: SomeSuiteName");
+   var DEBUG = (intern.args.DEBUG === 'true')? true: false;
 
     registerSuite({
-      name: '[FVT || Unit Tests]  - <classname> ',
+      name: suiteName,
       setup: function() {
-          console.log('****************** Setup ***********************');
+          console.log('****************** SETUP: '+this.name+' ***********************');
       },
       teardown: function() {
-          console.log("******************TearDown***********************");
+          console.log('****************** TearDown: '+this.name+'***********************');
       },
       beforeEach: function() {
-        console.log("***************************** NEW TEST ***************************");
       },
       'test name ': function() {
+        console.log('***************************** '+this.name+' ***************************');
       }
     });
 });

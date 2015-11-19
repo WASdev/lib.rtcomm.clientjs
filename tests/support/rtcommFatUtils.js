@@ -32,6 +32,7 @@ define([
      * pass object w/ two endnpoints { ep1: endpoint, ep2: endpoint} 
      */
     var createConnection = function createConnection(EP1, EP2) {
+
       var p = new Promise(
         function(resolve, reject) {
           var readyToResolve = 0;
@@ -63,6 +64,7 @@ define([
           };
 
         var resolvePromise = function() {
+          var timer = null;
           console.log('ep1.getState() === '+ep1.getState());
           console.log('ep2.getState() === '+ep2.getState());
           console.log('ep1.webrtc.getState() === '+ep1.webrtc.getState());
@@ -71,12 +73,12 @@ define([
               ep1.getState() === 'session:started' && 
               ep1.webrtc.getState() === 'connected' && 
               ep2.webrtc.getState() === 'connected' ) {
-            console.log('createConnection resolving callback...');
-            setTimeout(function() {
+            console.log('createConnection resolving callback...in 5 seconds...');
+            timer = timer || setTimeout(function() {
               console.log('st ep1:', ep1);
               console.log('st ep2:', ep2);
               resolve({ep1: ep1,ep2: ep2});
-            }, 1000);
+            }, 5000);
           }
         };
         

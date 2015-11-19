@@ -88,9 +88,9 @@ define([
 
           // the connection created should have webrtc enabled, but not chat!
           assert.isTrue(caller.webrtc.enabled(), 'Caller: WebRTC is enabled');
-          assert.isFalse(caller.chat.enabled(), 'Callee: is enabled');
-          assert.isTrue(callee.webrtc.enabled(), 'Caller: WebRTC is enabled');
-          assert.isFalse(callee.chat.enabled(), 'Callee: Chat is enabled');
+          assert.isTrue(caller.chat.enabled(), 'Caller: Chat is enabled');
+          assert.isTrue(callee.webrtc.enabled(), 'Callee: WebRTC is enabled');
+          assert.isTrue(callee.chat.enabled(), 'Callee: Chat is enabled');
           // Make sure we are connected.
           assert.equal(caller.getState(),'session:started', 'Caller Session:started'); 
           assert.equal(callee.getState(),'session:started', 'Callee Session:started'); 
@@ -127,11 +127,11 @@ define([
             // Confirm everything is disabled.
             console.log('***** caller.webrtc.enabled()?:'+caller.webrtc.enabled());
             assert.isFalse(caller.webrtc.enabled(), 'Caller: WebRTC is DISABLED');
-            assert.isFalse(caller.chat.enabled(), 'Caller: Chat is DISABLED');
+            assert.isTrue(caller.chat.enabled(), 'Caller: Chat is Enabled');
 
             // Callee should still be enabled.
             assert.isTrue(callee.webrtc.enabled(), 'Callee: WebRTC is DISABLED');
-            assert.isFalse(callee.chat.enabled(), 'Callee: Chat is DISABLED');
+            assert.isTrue(callee.chat.enabled(), 'Callee: Chat is Enabled');
 
             // Session should still be started though
             assert.equal(caller.getState(),'session:started', 'Caller Session:started'); 
@@ -174,9 +174,9 @@ define([
             // Confirm everything is disabled.
             console.log('***** caller.webrtc.enabled()?:'+caller.webrtc.enabled());
             assert.isFalse(caller.webrtc.enabled(), 'Caller: WebRTC is DISABLED');
-            assert.isFalse(caller.chat.enabled(), 'Caller: Chat is DISABLED');
+            assert.isTrue(caller.chat.enabled(), 'Caller: Chat is ENABLED');
             assert.isFalse(callee.webrtc.enabled(), 'Callee: WebRTC is DISABLED');
-            assert.isFalse(callee.chat.enabled(), 'Callee: Chat is DISABLED');
+            assert.isTrue(callee.chat.enabled(), 'Callee: Chat is ENABLED');
 
             // Session should still be started though
             assert.equal(caller.getState(),'session:started', 'Caller Session:started'); 
