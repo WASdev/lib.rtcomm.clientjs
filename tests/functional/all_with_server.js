@@ -1,4 +1,4 @@
-var REQUIRE_RTCOMM_SERVER = false;
+var REQUIRE_RTCOMM_SERVER = true;
 define([
    './connection/MqttConnection.js', 
    './connection/EndpointConnection.js', 

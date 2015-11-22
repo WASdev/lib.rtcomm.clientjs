@@ -60,8 +60,8 @@ define({
 	// Non-functional test suite(s) to run in each browser
 	suites: [ 'unit/all.js', 
             'functional/all.js',
-  // Can't do both of these.
-  //  'functional/all_with_no_server.js'
+            // All with rtcomm server
+//            'functional/all_with_server.js',
   ],
 	//suites: [ ],
 

@@ -118,7 +118,7 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    * @param {boolean} [config.monitorPresence=true] Automatically create a presence monitor and emit events on the endpoint provider.
-   * @param {boolean} [config.requireRtcommServer=true] Require an Rtcomm Server for routing 
+   * @param {boolean} [config.requireRtcommServer=false] Require an Rtcomm Server for routing 
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
    *
@@ -188,7 +188,7 @@ var EndpointProvider =  function EndpointProvider() {
           // Note, if SSL is true then use 8883
           port: useSSL ? 8883: 1883,
           monitorPresence: true,
-          requireRtcommServer: true,
+          requireRtcommServer: false,
           createEndpoint: false }
       };
     // the configuration for Endpoint Provider
@@ -276,14 +276,16 @@ var EndpointProvider =  function EndpointProvider() {
         }
         returnObj.registered = true;
       }
+      /* In the case where we REQUIRE an rtcomm Server, everything must go through it and init will fail if it isn't there */
       if (config.requireRtcommServer) {
         l('DEBUG') && console.log(endpointProvider+'.onSuccess() require a server, executing serviceQuery...');
         endpointConnection.serviceQuery(function(services) {
           // we don't care about the services, dropping
-          console.log('returnObj?', returnObj);
           cbSuccess(returnObj);
         }, onFailure.bind(endpointProvider));
       } else {
+        // Still make the call, but we don't care about success
+        endpointConnection.serviceQuery();
         cbSuccess(returnObj);
       }
     };

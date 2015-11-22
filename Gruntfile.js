@@ -208,14 +208,14 @@ module.exports = function(grunt) {
           suites: ['tests/functional/all.js']
         }
       }, 
-      fat_no_server: {
+      fat_rtcomm_server: {
         options: {
           // for other available options, see:
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
           reporters: [ 'Pretty'],
-          suites: [ 'tests/functional/all_with_no_server.js']
+          suites: [ 'tests/functional/all_with_server.js']
         }
       }
     }

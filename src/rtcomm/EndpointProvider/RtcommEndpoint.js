@@ -585,7 +585,8 @@ var proto = {
         l('DEBUG') && console.log(this+'.connect() connecting to endpoint : ', endpoint);
         if (typeof endpoint === 'string') {
           var pm = this.dependencies.parent.getPresenceMonitor();
-          if (!this.dependencies.parent.requireServer()) {
+          // We do not require  aserver, and there is no service configured (serviceQuery failed)
+          if (!this.dependencies.parent.requireServer() && Object.keys(this.getRtcommConnectorService()).length === 0){
             // If we don't require a server, try to figure out the endpoint Topic
             l('DEBUG') && console.log(this+'.connect() Looking up endpoint : ', endpoint);
             var node = pm.getPresenceData()[0].findNodeByName(endpoint); 
