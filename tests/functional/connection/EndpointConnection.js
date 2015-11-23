@@ -17,14 +17,14 @@ define([
     'intern', 
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
-      ?'intern/dojo/node!../support/mqttws31_shim':
+      ?'intern/dojo/node!../../support/mqttws31_shim':
         'bower_components/bower-mqttws/mqttws31',
     'support/config',
-    'umd/rtcomm/connection'
-], function (intern, registerSuite, assert, Deferred,globals, config, connection) {
-
+    'umd/rtcomm/connection',
+    'support/rtcommFatUtils'
+], function (intern, registerSuite, assert, globals, config, connection, Fat) {
+    var suiteName = Fat.createSuiteName('FVT: connection/EndpointConnection');
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     var T1 = 10000;  // How long we wait to setup, before sending messages.
     var T2 = T1 + 2000; // How long we wait to check results
@@ -33,7 +33,9 @@ define([
     var T5 = T4 +2000;
 
   var config1 = config.clientConfig1();
+  delete config1.requireRtcommServer;
   var config2 = config.clientConfig2();
+  delete config2.requireRtcommServer;
   var epc1, epc2 = null;
     var getTime = function() {
       var d = new Date();
@@ -41,29 +43,31 @@ define([
     };
 
   registerSuite({
-    name: 'FVT - connection/EndpointConnection',
+    name: suiteName,
     setup: function() {
-      console.log('*********** Setup *********');
-      var dfd = new Deferred();
-      epc1 = new connection.EndpointConnection(config1);
-      epc2 = new connection.EndpointConnection(config2);
+      console.log('*********** '+this.name+' *********');
+      var p = new Promise(
+        function(resolve, reject) {
+          epc1 = new connection.EndpointConnection(config1);
+          epc2 = new connection.EndpointConnection(config2);
 
-      epc1.connect(
-      /* onSuccess */ function(service) {
-        epc2.connect(
+          epc1.connect(
           /* onSuccess */ function(service) {
-            console.log('***** resolve setup *****');
-            dfd.resolve();
+            epc2.connect(
+              /* onSuccess */ function(service) {
+                console.log('***** resolve setup *****');
+                resolve();
+              },
+              /* onFailure */ function(error){
+                reject(error);
+              }
+            );
           },
           /* onFailure */ function(error){
-            dfd.reject(error);
-          }
-        );
-      },
-      /* onFailure */ function(error){
-        dfd.reject(error);
+            reject(error);
+          });
       });
-      return dfd.promise;
+      return p;
     },
     teardown: function() {
       epc1.destroy();
@@ -72,13 +76,13 @@ define([
       epc2 = null;
     },
     beforeEach: function() {
-      console.log('******** New Test *********');
       epc1.clearEventListeners();
       epc2.clearEventListeners();
     },
     'Initiate Connections': function() {
+       console.log('******** '+this.name+ ' *********');
        var self = this;
-       epc1.setLogLevel('MESSAGE');
+       DEBUG && epc1.setLogLevel('MESSAGE');
        var ll1 = epc1.getLogLevel();
        DEBUG && epc2.setLogLevel('DEBUG');
        var ll2 = epc2.getLogLevel();
@@ -89,6 +93,7 @@ define([
        assert.ok(epc2.connected);
     },
     'Transaction pollution': function() {
+       console.log('******** '+this.name+ ' *********');
       //this.skip();
        var test = this;
        // kind of working... let's see what happens tonight.
@@ -102,8 +107,8 @@ define([
         assert.ok(epc2.connected);
      },
      'Start Session - Initial Timeout[flakey, try again if fails]': function() {
-      //this.skip();
-           console.log('************* Running Test *********');
+       console.log('******** '+this.name+ ' *********');
+        //this.skip();
            var test = this;
            var sess1 = null;
            var d = new Date();
@@ -130,8 +135,8 @@ define([
            console.log('********* After Start of session **************');
       },
       'Start Session - final Timeout[flakey, try again if fails]': function() {
+         console.log('******** '+this.name+ ' *********');
       //this.skip();
-           console.log('************* Running Test *********');
            var test = this;
            var sess1 = null;
            var d = new Date();
@@ -168,8 +173,11 @@ define([
            console.log('********* After Start of session **************');
       },
       'Start Session test...': function() {
+         console.log('******** '+this.name+ ' *********');
+          if (!Fat.requireServer()) {
+            this.skip('Rtcomm Server required for test');
+          }
       //this.skip();
-        console.log('******* Running Test ***********');
         var test = this;
         var sess1 = null;
         var sess2 = null;
@@ -227,6 +235,7 @@ define([
       },
 
     "Connection Test - using Server": function() {
+         console.log('******** '+this.name+ ' *********');
           //this.skip();
           var nc = new connection.EndpointConnection(config1);
           DEBUG && nc.setLogLevel('DEBUG');
@@ -245,6 +254,7 @@ define([
           });
       },
      "Connection Test - (Timeout Error):": function() {
+         console.log('******** '+this.name+ ' *********');
           //
           // TODO Revisit this test, it is unreliable.  Possibly upgrate to later paho client?
        //
@@ -268,6 +278,10 @@ define([
 
       },
       "Service Query Test": function() {
+          console.log('******** '+this.name+ ' *********');
+          if (!Fat.requireServer() ) {
+            this.skip('Rtcomm Server required for test');
+          }
           var nc = new connection.EndpointConnection(config1);
           var success = false;
           var dfd = this.async(T1);
@@ -298,9 +312,14 @@ define([
           });
       },
       "Service Query Test (no userid)" : function() {
+          console.log('******** '+this.name+ ' *********');
+          if (!Fat.requireServer()) {
+            this.skip('Rtcomm Server required for test');
+          }
           //this.skip();
           var cfg = config.clientConfig1();
           delete cfg.userid;
+          delete cfg.requireRtcommServer;
           var nc = new connection.EndpointConnection(cfg);
           var success = false;
           var failure = false;
@@ -326,9 +345,10 @@ define([
           });
       },
       "RTCOMM_SIP_CONNECTOR_SERVICE": function() {
+          console.log('******** '+this.name+ ' *********');
           //this.skip();
           var nc = new connection.EndpointConnection(config1);
-          nc.setLogLevel('TRACE');
+          DEBUG && nc.setLogLevel('TRACE');
           var success = false;
           var dfd = this.async(T1);
           var sess1 = null;
@@ -350,9 +370,10 @@ define([
           });
       },
       "RTCOMM_SIP_CONNECTOR_SERVICE(sip:alice@192.168.1.4:7777)": function() {
+          console.log('******** '+this.name+ ' *********');
           //this.skip();
           var nc = new connection.EndpointConnection(config1);
-          nc.setLogLevel('TRACE');
+          DEBUG && nc.setLogLevel('TRACE');
           var success = false;
           var dfd = this.async(T1);
           var sess1 = null;

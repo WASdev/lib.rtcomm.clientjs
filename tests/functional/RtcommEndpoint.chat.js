@@ -19,17 +19,18 @@ define([
     'intern',
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../support/mqttws31_shim':
         'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'bower_components/webrtc-adapter/adapter',
-    'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred, globals, config, adapter, EndpointProvider) {
-
+    'umd/rtcomm/EndpointProvider',
+    'support/rtcommFatUtils'
+], function (intern, registerSuite, assert, globals, config, adapter, EndpointProvider,Fat) {
+   var suiteName = Fat.createSuiteName("FVT: RtcommEndpoint Chat");
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
-    var createProvider = function createProvider(userid,appContext) {
+/*
+    var createProviderOld = function createProvider(userid,appContext) {
       var dfd = new Deferred();
       var EP = new EndpointProvider();
       DEBUG && EP.setLogLevel('DEBUG');
@@ -44,7 +45,7 @@ define([
       );
       return dfd.promise;
     };
-
+*/
     var createAutoConnectEP = function createAutoConnectEP(provider) {
       var ep = provider.createRtcommEndpoint();
     //  ep.on('session:started', function() {});
@@ -63,32 +64,34 @@ define([
     var EP2 = null;
     var EP3 = null;
 
-    var cfg= config.clientConfig1();
-    delete cfg.userid;
     var uid1 = 'client1';
     var uid2 = 'client2';
+    var cfg1 = config.clientConfig(uid1);
+    var cfg2 = config.clientConfig(uid2);
     var appContext = 'internChatTest';
     var chat1, chat2, chat3;
     registerSuite({
-        name: 'RtcommEndpoint - chat',
+        name: suiteName,
         setup: function() {
-          console.log('*************setup!**************');
-          var setupDfd = new Deferred();
-          /* init the EndpointProvider */
-          createProvider(uid1, appContext).then(
-            function(EP){
-              EP1 = EP;
-              createProvider(uid2, appContext).then(
+          console.log('************* SETUP: '+this.name+' **************');
+
+          var p = new Promise(
+            function(resolve, reject) {
+              Fat.createProvider(cfg1, appContext).then(
                 function(EP){
-                  EP2 = EP;
-                  setupDfd.resolve();
-                }
-              );
-            }
-          );
-          return setupDfd.promise;
+                  EP1 = EP;
+                  Fat.createProvider(cfg2, appContext).then(
+                    function(EP){
+                      EP2 = EP;
+                      resolve();
+                    }
+                  );
+                });
+            });
+          return p;
         },
         teardown: function() {
+          console.log('************* TEARDOWN: '+this.name+' **************');
           chat1 && chat1.destroy();
           chat2 && chat2.destroy();
           chat3 && chat3.destroy();
@@ -103,24 +106,28 @@ define([
           chat3 = null;
         },
         beforeEach: function() {
-          var dfd = new Deferred();
-          chat1 && chat1.destroy();
-          chat2 && chat2.destroy();
-          chat1 = EP1.createRtcommEndpoint();
-          chat2 = EP2.createRtcommEndpoint();
-          setTimeout(function(){
-            console.log('BeforeEach -- waiting 1 second for cleanup/restart to complete');
-            dfd.resolve();
-          },1000);
-          return dfd.promise;
+          var p = new Promise(
+            function(resolve, reject) {
+              chat1 && chat1.destroy();
+              chat2 && chat2.destroy();
+              chat1 = EP1.createRtcommEndpoint();
+              chat2 = EP2.createRtcommEndpoint();
+              setTimeout(function(){
+                console.log('BeforeEach -- waiting 1 second for cleanup/restart to complete');
+                resolve();
+              },1000);
+            });
+          return p;
         },
         'verify setup': function() {
-          assert.equal(uid1, EP1.getUserID());
-          assert.equal(uid2, EP2.getUserID());
+          console.log('***************** '+this.name+' ******************');
+          assert.equal(EP1.getUserID(), cfg1.userid, "UserID matches");
+          assert.equal(EP2.getUserID(), cfg2.userid, "UserID matches");
           assert.equal(EP1.endpoints().length, 1);
           assert.equal(EP2.endpoints().length ,1);
         },
         'connect 2 sessions[No Liberty]':function() {
+          console.log('***************** '+this.name+' ******************');
           var dfd = this.async(10000);
           chat1.on('chat:message', function(message){
             console.log('****************************MESSAGE ***', message)
@@ -145,8 +152,10 @@ define([
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+        //  chat1.connect(uid2);
         },
         'Issue 33:  Busy connect 2 sessions[No Liberty]':function() {
+          console.log('***************** '+this.name+' ******************');
           //this.skip()
           /* chat1 calls chat2 which accepts.  
            * chat3 calls chat2 -- should get 'BUSY'
@@ -171,17 +180,20 @@ define([
           
           chat1.on('session:started',function() {
             // Now create a 3rd endpoint
-            createProvider('client3','internChatTest').then(function(EP){
-              EP3 = EP;
-              chat3 = EP.createRtcommEndpoint();
-              chat3.on('session:failed',finish);
-              chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+            Fat.createProvider(config.clientConfig('client3'),appContext).then(
+              function(EP){
+                EP3 = EP;
+                chat3 = EP.createRtcommEndpoint();
+                chat3.on('session:failed',finish);
+                chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+                //chat3.connect(uid2);
             });
           });
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+          //chat1.connect(uid2);
         },
         'Initial Chat message on connect (if enabled) [No Liberty]': function() {
-          console.log('************** START OF TEST ********************');
+          console.log('***************** '+this.name+' ******************');
           console.log('chat1: ', chat1);
           console.log('chat2: ', chat2);
           /*
@@ -248,10 +260,14 @@ define([
           });
           chat2.on('session:stopped', finish)
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+          //chat1.connect(uid2);
         },
 
         'connect 2 chat clients via 3PCC':function() {
-          console.log('************** START OF 3PCC TEST ********************');
+          console.log('***************** '+this.name+' ******************');
+          if (!Fat.requireServer()) {
+            this.skip('Rtcomm Server required for test');
+          }
           var ccTopic = null;
           if (EP1.getServices().RTCOMM_CALL_CONTROL_SERVICE) {
             ccTopic = EP1.getServices().RTCOMM_CALL_CONTROL_SERVICE.topic;
@@ -298,7 +314,7 @@ define([
           mq.on('message', finish);
 
           mq.publish(ccTopic, ThirdPCCMessage);
-        //  chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
+          chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         },
     });
 });

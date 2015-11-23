@@ -230,6 +230,7 @@ The primary logic for this HTML Page
   var autoAnswer = (urlConfig.autoAnswer === 'true')? true : false;
   /* Trickle ICE */
   var trickleICE = (urlConfig.trickleICE === 'false')? false: true;
+  var requireRtcommServer = (urlConfig.requireRtcommServer === 'true')? true: false;
   var BROADCAST = (urlConfig.broadcast === 'false')? false: true;
   // Update to boolean
   urlConfig.useSSL = (urlConfig.useSSL === 'true')? true: false;
@@ -258,6 +259,7 @@ The primary logic for this HTML Page
     myUserId = userid;
     // make sure this is an integer.
     providerConfig.port = parseInt(providerConfig.port);
+    providerConfig.requireRtcommServer = requireRtcommServer;
     /*
      * Call init() on the Endpoint Provider.
      */

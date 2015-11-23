@@ -34,6 +34,9 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
     return bytes;
   };
 
+  // defined for case where we have don't have a server
+  var alternateRtcommTopicPath = '/'+generateRandomBytes('xxxxxxxxxxxxxxxxxxx')+'/';
+
   function randomID(pattern) {
     pattern = pattern || "xxxxxxxxxxxx";
     var id = generateRandomBytes(pattern);
@@ -46,16 +49,26 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
     mqttServer : mqttServer,
     mqttPort : mqttPort,
     rtcommTopicPath: rtcommTopicPath,
-    
     _ServerConfig : function(userid, Topic) {
-     
-      return {
+      var config = {
         server: mqttServer,
         port: mqttPort,
         userid: userid || null,
         managementTopicName: Topic || managementTopicName,
-        rtcommTopicPath:rtcommTopicPath 
+        rtcommTopicPath:rtcommTopicPath
       };
+      // If REQUIRE_RTCOMM_SERVER is set globally, we will use its value.  
+      // The default is to NOT require a server in the library. 
+      //
+      if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined') { 
+        config.requireRtcommServer = REQUIRE_RTCOMM_SERVER;
+      } 
+      // By default this should be false, we need to keep to a random topic we picked (vs. picking a new one for each instantiation)
+      // 
+      if (!config.hasOwnProperty('requireRtcommServer') && !config.requireRtcommServer)  {
+        config.rtcommTopicPath = alternateRtcommTopicPath;
+      }
+      return config;
     },
     clientConfig: function(pattern) {
          return new this._ServerConfig(

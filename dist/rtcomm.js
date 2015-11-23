@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.3 02-11-2015 16:31:21 UTC */
-console.log('lib.rtcomm.clientjs 1.0.3 02-11-2015 16:31:21 UTC');
+/*! lib.rtcomm.clientjs 1.0.5 23-11-2015 17:17:01 UTC */
+console.log('lib.rtcomm.clientjs 1.0.5 23-11-2015 17:17:01 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -210,7 +210,7 @@ var combineObjects = function combineObjects(obj1, obj2) {
     }
   }
   allkeys.forEach(function(key) {
-    combinedObj[key] = obj1[key]?obj1[key]:obj2[key];
+    combinedObj[key] = obj1.hasOwnProperty(key)?obj1[key]:obj2[key];
   });
   return combinedObj;
 };
@@ -1273,7 +1273,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           /*global routeLookup:false*/
           /*global uidRoute:false*/
           if (config && config.remoteEndpointID) {
-            config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
+            config.toTopic = config.toTopic ? 
+              this.normalizeTopic(config.toTopic) :
+              this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
           }
           /*global SigSession:false*/
           var session = new SigSession(config);
@@ -1307,7 +1309,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           var onFailure = function(query_response) {
             l('DEBUG') && console.log('Query Failed: ', query_response);
             if (cbFailure && typeof cbFailure === 'function') {
-              cbFailure((query_response)? query_response.failureReason : "Service Query failed for Unknown reason");
+              cbFailure((query_response)? query_response.reason : "Service Query failed for Unknown reason");
             } else {
               console.error('query failed:', query_response);
             }
@@ -3236,8 +3238,8 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.managementTopicName=management] managementTopicName on rtcomm server
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
-   * @param {boolean} [config.monitorPresence=false] Automatically create a presence monitor and emit events on the endpoint provider.
-   * @param {boolean} [config.requireRtcommServer=true] Require an Rtcomm Server for routing 
+   * @param {boolean} [config.monitorPresence=true] Automatically create a presence monitor and emit events on the endpoint provider.
+   * @param {boolean} [config.requireRtcommServer=false] Require an Rtcomm Server for routing 
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
    *
@@ -3306,8 +3308,8 @@ var EndpointProvider =  function EndpointProvider() {
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
           port: useSSL ? 8883: 1883,
-          monitorPresence: false,
-          requireRtcommServer: true,
+          monitorPresence: true,
+          requireRtcommServer: false,
           createEndpoint: false }
       };
     // the configuration for Endpoint Provider
@@ -3376,32 +3378,35 @@ var EndpointProvider =  function EndpointProvider() {
       if (config.createEndpoint) {
         returnObj.endpoint  = endpointProvider.createRtcommEndpoint();
       }
-
-      if (config.userid) {
-        l('DEBUG') && 
-          console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
-        endpointProvider.publishPresence();
-       // endpointProvider.setUserID(config.userid);
-        if (config.monitorPresence) {
-          // Attach a default presence monitor to our presence topic
-          endpointProvider.getPresenceMonitor("/");
-        }
-        returnObj.registered = true;
-      }
       // Attach endpointConnection if a presenceMonitor
       if (endpointProvider._.presenceMonitor) {
-         endpointProvider._.presenceMonitor.setEndpointConnection(endpointConnection);
+        l('DEBUG') && console.log(endpointProvider+'.init() Already have a presenceMonitor -- setting EndpointConnection');
+        endpointProvider._.presenceMonitor.setEndpointConnection(endpointConnection);
       }
       // Update the userid
       endpointProvider.setUserID(config.userid,true);
+      if (config.userid) {
+        l('DEBUG') && console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
+        // Publish our presence if we have a userid
+        endpointProvider.publishPresence();
+        if (config.monitorPresence) {
+          // Attach a default presence monitor to our presence topic
+          l('DEBUG') && console.log(endpointProvider+'.init() Attaching Presence Monitor to: '+ config.presence.topic);
+          // Always monitor our own topic...
+          endpointProvider.getPresenceMonitor(config.presence.topic);
+        }
+        returnObj.registered = true;
+      }
+      /* In the case where we REQUIRE an rtcomm Server, everything must go through it and init will fail if it isn't there */
       if (config.requireRtcommServer) {
         l('DEBUG') && console.log(endpointProvider+'.onSuccess() require a server, executing serviceQuery...');
         endpointConnection.serviceQuery(function(services) {
           // we don't care about the services, dropping
-          console.log('returnObj?', returnObj);
           cbSuccess(returnObj);
         }, onFailure.bind(endpointProvider));
       } else {
+        // Still make the call, but we don't care about success
+        endpointConnection.serviceQuery();
         cbSuccess(returnObj);
       }
     };
@@ -3666,16 +3671,22 @@ var EndpointProvider =  function EndpointProvider() {
    * @returns {module:rtcomm.PresenceMonitor}
    */
   this.getPresenceMonitor= function(topic) {
-    this._.presenceMonitor  = this._.presenceMonitor || new PresenceMonitor({connection: this.dependencies.endpointConnection});
-    if (this.ready) {
-      topic && this._.presenceMonitor.add(topic);
-    }; 
-
-    // propogate the event out if we have a handler.
     var endpointProvider = this;
-    this._.presenceMonitor.on('updated', function(presenceData) {
-      endpointProvider.emit('presence_updated', {'presenceData': presenceData});
-    });
+    function createPresenceMonitor(configObject) {
+      var pm = new PresenceMonitor(configObject);
+      pm.on('updated', function(presenceData) {
+        endpointProvider.emit('presence_updated', {'presenceData': presenceData});
+      });
+      return pm;
+    }
+    this._.presenceMonitor  = this._.presenceMonitor || createPresenceMonitor({connection: this.dependencies.endpointConnection});
+    if (this.ready) {
+      l('DEBUG') && console.log(this+'.getPresenceMonitor Monitoring topic: '+topic); 
+      topic && this._.presenceMonitor.add(topic);
+    } else {  
+      l('DEBUG') && console.log(this+'.getPresenceMonitor Not adding monitor for topic: '+topic); 
+    }
+    // propogate the event out if we have a handler.
     return this._.presenceMonitor;
   };
   /** 
@@ -3878,6 +3889,14 @@ var EndpointProvider =  function EndpointProvider() {
    */
   this.getLogLevel = getLogLevel;
 
+  /** Return  requireRtcommServer
+   * @method
+   *  @returns {boolean} 
+   */
+
+  this.requireServer = function() {
+    return this.config.requireRtcommServer;
+  };
   /** Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} objects that 
    * are associated with this  EndpointProvider
    *  @returns {Array} Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} 
@@ -4549,6 +4568,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
           //this._.presenceData.push(node);
           node.getSubNode(topic);
         }
+        l('DEBUG') && console.log(this+'.add() Subscribing to topic: '+subscriptionTopic);
         this.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
         this._.monitoredTopics[topic]=subscriptionTopic;
       } else {
@@ -4841,6 +4861,7 @@ var RtcommEndpoint = (function invocation(){
      * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
      * @property {boolean} [chat=true]  Wehther the endpoint supports chat
      * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
+     * @property {module:rtcomm.EndpointProvider} [parent] - set the parent Should be done automatically.
      *
      */
     this.config = {
@@ -4859,6 +4880,7 @@ var RtcommEndpoint = (function invocation(){
 
     this.dependencies = {
       endpointConnection: null,
+      parent: null
     };
     // Private info.
     this._ = {
@@ -4885,8 +4907,13 @@ var RtcommEndpoint = (function invocation(){
     //
     this.state = 'session:stopped';
     var self = this;
+
     config && Object.keys(config).forEach(function(key) {
-      self.config[key] = config[key];
+      if (key === 'parent') { 
+        self.dependencies[key] = config[key];
+      } else {
+        self.config[key] = config[key];
+      }
     });
 
     this.config.webrtc && this._.protocols.push('webrtc');
@@ -5056,6 +5083,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
   function createSignalingSession(endpoint, context) {
     var remoteEndpointID = null;
     var toTopic = null;
+    l('DEBUG') && console.log(context+' createSignalingSession using endpoint: ', endpoint);
     if (typeof endpoint === 'object') {
       if (endpoint.remoteEndpointID && endpoint.toTopic) {
         remoteEndpointID = endpoint.remoteEndpointID;
@@ -5071,6 +5099,7 @@ RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     if (!remoteEndpointID) {
       throw new Error('remoteEndpointID must be set');
     }
+    console.log('toTopic is: '+toTopic);
     var session = context.dependencies.endpointConnection.createSession({
       id : sessid,
       toTopic : toTopic,
@@ -5300,6 +5329,23 @@ var proto = {
       this.available(false);
       this._.disconnecting = false;
       if (!this._.activeSession ) { 
+        l('DEBUG') && console.log(this+'.connect() connecting to endpoint : ', endpoint);
+        if (typeof endpoint === 'string') {
+          var pm = this.dependencies.parent.getPresenceMonitor();
+          // We do not require  aserver, and there is no service configured (serviceQuery failed)
+          if (!this.dependencies.parent.requireServer() && Object.keys(this.getRtcommConnectorService()).length === 0){
+            // If we don't require a server, try to figure out the endpoint Topic
+            l('DEBUG') && console.log(this+'.connect() Looking up endpoint : ', endpoint);
+            var node = pm.getPresenceData()[0].findNodeByName(endpoint); 
+            var newep = node ?  
+                        { remoteEndpointID: endpoint,
+                          toTopic: node.addressTopic }
+                        : endpoint;
+            l('DEBUG') && console.log(this+'.connect() found enpdoint : ', newep);
+            endpoint = newep;
+          }
+        }
+        l('DEBUG') && console.log(this+'.connect() Creating signaling session to: ', endpoint);
         this._.activeSession = createSignalingSession(endpoint, this);
         addSessionCallbacks(this, this._.activeSession);
       } 

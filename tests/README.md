@@ -1,7 +1,5 @@
 * Tests for the rtcomm clienjs project
 
-As of 12/18/2014, these tests run using 'theintern.io'.
-
 ** Configure the tests
 
 Access the file 'tests/support/testConfig.json':
@@ -39,9 +37,9 @@ If you have node.js installed, you can quickly launch a local browser to test:
 
 ```
 # Launch the server
-node tests/support/server.js .
+grunt serve
 ```
-Now you should be able to access http://localhost:3000/node_modules/intern/client.html?config=tests/intern
+Now you should be able to access http://localhost:9000/node_modules/intern/client.html?config=tests/intern
 
 2.  Via ** grunt **: 
 
@@ -62,17 +60,21 @@ grunt test
     ``` 
     grunt intern:fat
     ```
+    ** Run just the functional tests (with an rtcomm-1.0 server):
+    ``` 
+    grunt intern:fat_with_server
+    ```
     ** Run the Stress Test:
     ```
     grunt intern:stress
     ```
     For the Stress test, you can also run it via the browser:
 
-    http://localhost:3000/node_modules/intern/client.html?config=tests/intern&suites=tests/stress/stressTest
+    http://localhost:9000/node_modules/intern/client.html?config=tests/intern&suites=tests/stress/stressTest
     
     At the end of the above, you can specify MAX_CONNS & duration as follows:
 
-    http://localhost:3000/node_modules/intern/client.html?config=tests/intern&suites=tests/stress/stressTest&MAX_CONNS=50&duration=30000
+    http://localhost:9000/node_modules/intern/client.html?config=tests/intern&suites=tests/stress/stressTest&MAX_CONNS=50&duration=30000
 
     MAX_CONNS defaults to 50
     duration defaults to 20000 (20 Seconds)
@@ -86,7 +88,7 @@ grunt test
 * Turning on Debug
     You can turn on debug logging for rtcomm for all tests when run from the command line or from the browser:
 
-    http://localhost:3000/node_modules/intern/client.html?config=tests/intern&DEBUG=true
+    http://localhost:9000/node_modules/intern/client.html?config=tests/intern&DEBUG=true
 
     ```
     $ node_modules/intern/bin/intern-client.js config=tests/intern DEBUG=true 

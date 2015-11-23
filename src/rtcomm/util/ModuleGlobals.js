@@ -191,7 +191,7 @@ var combineObjects = function combineObjects(obj1, obj2) {
     }
   }
   allkeys.forEach(function(key) {
-    combinedObj[key] = obj1[key]?obj1[key]:obj2[key];
+    combinedObj[key] = obj1.hasOwnProperty(key)?obj1[key]:obj2[key];
   });
   return combinedObj;
 };

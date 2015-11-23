@@ -17,13 +17,12 @@ define([
     'intern',
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
-      ?'intern/dojo/node!../support/mqttws31_shim':
+      ?'intern/dojo/node!../../support/mqttws31_shim':
         'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'umd/rtcomm/connection'
-], function (intern, registerSuite, assert, Deferred,globals, config, connection) {
+], function (intern, registerSuite, assert, globals, config, connection) {
 
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
   // MQTT ServerConfig
@@ -31,10 +30,12 @@ define([
     var config1 = config.clientConfig1();
     delete config1.managementTopicName;
     delete config1.userid;
+    delete config1.requireRtcommServer;
     // client2 Config
     var config2 = config.clientConfig2();
     delete config2.managementTopicName;
     delete config2.userid;
+    delete config2.requireRtcommServer;
     
     var client1 = null;
     var client2 = null;
@@ -48,27 +49,29 @@ define([
     registerSuite({
       name: "FVT - connection/MqttConnection", 
       setup: function() {
-         var dfd = new Deferred();
-         client1 = new connection.MqttConnection(config1);
-         client2 = new connection.MqttConnection(config2);
-         DEBUG && client1.setLogLevel('DEBUG');
-         DEBUG && client2.setLogLevel('DEBUG');
-         client1.connect({
-          onSuccess:   function(){
-             client2.connect({ 
-             onSuccess:  function() {
-                 dfd.resolve();
+        var p = new Promise(
+          function(resolve, reject) {
+             client1 = new connection.MqttConnection(config1);
+             client2 = new connection.MqttConnection(config2);
+             DEBUG && client1.setLogLevel('DEBUG');
+             DEBUG && client2.setLogLevel('DEBUG');
+             client1.connect({
+              onSuccess:   function(){
+                 client2.connect({ 
+                 onSuccess:  function() {
+                     resolve();
+                   },
+                 onFailure:  function(error) {
+                     reject(error);
+                  }
+                 });
                },
-             onFailure:  function(error) {
+               onFailure:  function(error) {
                  dfd.reject(error);
-              }
+               }
              });
-           },
-           onFailure:  function(error) {
-             dfd.reject(error);
-           }
-         });
-         return dfd.promise;
+        });
+        return p;
       },
        teardown: function() {
          client1.destroy();

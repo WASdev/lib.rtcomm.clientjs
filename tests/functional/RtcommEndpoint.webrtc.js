@@ -17,7 +17,6 @@ define([
     'intern',
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../support/mqttws31_shim':
         'bower_components/bower-mqttws/mqttws31',
@@ -25,7 +24,7 @@ define([
     'bower_components/webrtc-adapter/adapter',
     'umd/rtcomm/EndpointProvider',
     'support/rtcommFatUtils'
-], function (intern, registerSuite, assert, Deferred,globals, cfg, adapter, EndpointProvider, Fat) {
+], function (intern, registerSuite, assert, globals, cfg, adapter, EndpointProvider, Fat) {
 
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
 
@@ -47,36 +46,37 @@ define([
     registerSuite({
         name: 'FVT - Connection Testing (browser only launch Chrome with --use-fake-ui-for-media-stream to stop prompts)',
         setup: function() {
-          console.log('*************setup!**************');
-          var setupDfd = new Deferred();
-          Fat.createProvider(cfg.clientConfig(), 'test').then(
-            function(ep) {
-               g.EP1 = ep;
-               DEBUG && g.EP1.setLogLevel('DEBUG');
-               Fat.createProvider(cfg.clientConfig(), 'test').then(function(EP2) {
-                 g.EP2 = EP2;
-                 DEBUG && g.EP2.setLogLevel('DEBUG');
-                 Fat.createConnection(g.EP1,g.EP2).then(function(obj) {
-                   // Assign these as global (to be destroyed later);
-                   g.ep1 = obj.ep1;
-                   g.ep2 = obj.ep2;
-                   console.log('************* Setup Complete *****************');
-                   setupDfd.resolve();
-                 });
-               });
-            });
-          return setupDfd.promise;
+          console.log('************* SETUP: '+this.name+' **************');
+          var p = new Promise(
+            function(resolve, reject) {
+              Fat.createProvider(cfg.clientConfig(), 'test').then(
+                function(ep) {
+                   g.EP1 = ep;
+                   DEBUG && g.EP1.setLogLevel('DEBUG');
+                   Fat.createProvider(cfg.clientConfig(), 'test').then(function(EP2) {
+                     g.EP2 = EP2;
+                     DEBUG && g.EP2.setLogLevel('DEBUG');
+                     Fat.createConnection(g.EP1,g.EP2).then(function(obj) {
+                       // Assign these as global (to be destroyed later);
+                       g.ep1 = obj.ep1;
+                       g.ep2 = obj.ep2;
+                       console.log('************* Setup Complete *****************');
+                       resolve();
+                     });
+                   });
+                });
+          });
+          return p;
         },
         teardown: function() {
+          console.log('************* TEARDOWN: '+this.name+' **************');
           destroy();
-        },
-        beforeEach: function() {
-          console.log("***************************** NEW TEST ***************************");
         },
         /*
          * Create a peerConnection w/ Webrtc, confirm both sides are receiving audio and video
          */
         "Validate Connection between two clients (browser only)": function() {
+          console.log('************* '+this.name+' **************');
           if (typeof globals !== 'undefined' && typeof window === 'undefined') {
             this.skip();
           }
@@ -88,9 +88,9 @@ define([
 
           // the connection created should have webrtc enabled, but not chat!
           assert.isTrue(caller.webrtc.enabled(), 'Caller: WebRTC is enabled');
-          assert.isFalse(caller.chat.enabled(), 'Callee: is enabled');
-          assert.isTrue(callee.webrtc.enabled(), 'Caller: WebRTC is enabled');
-          assert.isFalse(callee.chat.enabled(), 'Callee: Chat is enabled');
+          assert.isTrue(caller.chat.enabled(), 'Caller: Chat is enabled');
+          assert.isTrue(callee.webrtc.enabled(), 'Callee: WebRTC is enabled');
+          assert.isTrue(callee.chat.enabled(), 'Callee: Chat is enabled');
           // Make sure we are connected.
           assert.equal(caller.getState(),'session:started', 'Caller Session:started'); 
           assert.equal(callee.getState(),'session:started', 'Callee Session:started'); 
@@ -111,6 +111,7 @@ define([
          * Create a peerConnection w/ Webrtc, confirm both sides are receiving audio and video
          */
         "Disable webrtc Connection between two clients (browser only[Test is flakey])": function() {
+          console.log('************* '+this.name+' **************');
           if (typeof globals !== 'undefined' && typeof window === 'undefined') {
             this.skip();
           }
@@ -126,11 +127,11 @@ define([
             // Confirm everything is disabled.
             console.log('***** caller.webrtc.enabled()?:'+caller.webrtc.enabled());
             assert.isFalse(caller.webrtc.enabled(), 'Caller: WebRTC is DISABLED');
-            assert.isFalse(caller.chat.enabled(), 'Caller: Chat is DISABLED');
+            assert.isTrue(caller.chat.enabled(), 'Caller: Chat is Enabled');
 
             // Callee should still be enabled.
             assert.isTrue(callee.webrtc.enabled(), 'Callee: WebRTC is DISABLED');
-            assert.isFalse(callee.chat.enabled(), 'Callee: Chat is DISABLED');
+            assert.isTrue(callee.chat.enabled(), 'Callee: Chat is Enabled');
 
             // Session should still be started though
             assert.equal(caller.getState(),'session:started', 'Caller Session:started'); 
@@ -158,6 +159,7 @@ define([
          * Disable webrtc on callee
          */
         "disable webrtc on Caller(browser only)": function() {
+          console.log('************* '+this.name+' **************');
 //          this.skip();
           if (typeof globals !== 'undefined' && typeof window === 'undefined') {
             this.skip();
@@ -172,9 +174,9 @@ define([
             // Confirm everything is disabled.
             console.log('***** caller.webrtc.enabled()?:'+caller.webrtc.enabled());
             assert.isFalse(caller.webrtc.enabled(), 'Caller: WebRTC is DISABLED');
-            assert.isFalse(caller.chat.enabled(), 'Caller: Chat is DISABLED');
+            assert.isTrue(caller.chat.enabled(), 'Caller: Chat is ENABLED');
             assert.isFalse(callee.webrtc.enabled(), 'Callee: WebRTC is DISABLED');
-            assert.isFalse(callee.chat.enabled(), 'Callee: Chat is DISABLED');
+            assert.isTrue(callee.chat.enabled(), 'Callee: Chat is ENABLED');
 
             // Session should still be started though
             assert.equal(caller.getState(),'session:started', 'Caller Session:started'); 
@@ -192,6 +194,7 @@ define([
          * Create a peerConnection w/ Webrtc, confirm both sides are receiving audio and video
          */
         "enable chat Connection between two clients (browser only)": function() {
+          console.log('************* '+this.name+' **************');
  //         this.skip();
           if (typeof globals !== 'undefined' && typeof window === 'undefined') {
             this.skip();
@@ -247,6 +250,7 @@ define([
           });
         },
         "enable webrtc Connection between two clients (browser only)": function() {
+          console.log('************* '+this.name+' **************');
   //        this.skip();
           if (typeof globals !== 'undefined' && typeof window === 'undefined') {
             this.skip();
@@ -279,8 +283,6 @@ define([
           });
 
           callee.on('webrtc:connected', finish);
-
-
         },
     });
 });

@@ -497,7 +497,9 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           /*global routeLookup:false*/
           /*global uidRoute:false*/
           if (config && config.remoteEndpointID) {
-            config.toTopic = this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
+            config.toTopic = config.toTopic ? 
+              this.normalizeTopic(config.toTopic) :
+              this.normalizeTopic(routeLookup(this.services, uidRoute(config.remoteEndpointID).route));
           }
           /*global SigSession:false*/
           var session = new SigSession(config);
@@ -531,7 +533,7 @@ EndpointConnection.prototype = util.RtcommBaseObject.extend (
           var onFailure = function(query_response) {
             l('DEBUG') && console.log('Query Failed: ', query_response);
             if (cbFailure && typeof cbFailure === 'function') {
-              cbFailure((query_response)? query_response.failureReason : "Service Query failed for Unknown reason");
+              cbFailure((query_response)? query_response.reason : "Service Query failed for Unknown reason");
             } else {
               console.error('query failed:', query_response);
             }

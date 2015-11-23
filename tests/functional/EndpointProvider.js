@@ -17,16 +17,18 @@ define([
     'intern', 
     'intern!object',
     'intern/chai!assert',
-    'intern/node_modules/dojo/Deferred',
     (typeof window === 'undefined' && global)
       ?'intern/dojo/node!../support/mqttws31_shim':
         'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'bower_components/webrtc-adapter/adapter',
-    'umd/rtcomm/EndpointProvider'
-], function (intern, registerSuite, assert, Deferred,globals, config, adapter, EndpointProvider) {
-
+    'umd/rtcomm/EndpointProvider',
+    'support/rtcommFatUtils'
+], function (intern, registerSuite, assert, globals, config, adapter, EndpointProvider,Fat) {
+    var suiteName = Fat.createSuiteName("FVT: EndpointProvider");
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
+    console.log('DEBUG is: ', DEBUG);
+
     /*
      * EndpointProvider FVT -- This runs the following tests:
      *
@@ -50,18 +52,16 @@ define([
     var endpointProvider = null;
 
     registerSuite({
-      name: 'FVT - EndpointProvider',
+      name: suiteName,
 
       setup: function() {
-          console.log('********** Setup **************');
+          console.log('********** Setup '+ this.name +' **************');
       },
       teardown: function() {
-          console.log("******************TearDown***********************");
+          console.log('****************** TearDown '+this.name+' ***********************');
           if (endpointProvider) {
-            console.log('np current state', endpointProvider.currentState());
             endpointProvider.destroy();
             endpointProvider = null;
-            console.log('Finished destroying 1');
           }
           Object.keys(tearDown).forEach(function(key) {
             tearDown[key].destroy();
@@ -70,7 +70,6 @@ define([
 
       },
       beforeEach: function() {
-        console.log("***************************** NEW TEST ***************************");
         if (endpointProvider) {
           endpointProvider.destroy();
           endpointProvider = null;
@@ -80,6 +79,7 @@ define([
         DEBUG && endpointProvider.setLogLevel('DEBUG');
       },
       'constructorTest': function() {
+            console.log("***************************** "+this.name+" ***************************");
             console.log('ep', endpointProvider);
             assert.ok(endpointProvider instanceof EndpointProvider);
             assert.notOk(endpointProvider.ready);
@@ -89,7 +89,7 @@ define([
        *
        */
      'init() no userid': function() {
-           console.log('********** Run Test ************');
+           console.log("***************************** "+this.name+" ***************************");
            var dfd = this.async(T1);
            var initObj = null;
            var failure = false;
@@ -110,7 +110,7 @@ define([
        *
        */
      'init() no userid, change after init.': function() {
-           console.log('********** Run Test ************');
+           console.log("***************************** "+this.name+" ***************************");
            var dfd = this.async(T1);
            var initObj = null;
            var failure = false;
@@ -139,7 +139,7 @@ define([
      },
 
      "init() with  userid": function() {
-           console.log('********** Run Test ************');
+           console.log("***************************** "+this.name+" ***************************");
            var dfd = this.async(T1);
            var initObj = null;
            var failure = false;
@@ -164,7 +164,7 @@ define([
       */
 
      "init() again w/ new userid": function() {
-           console.log('********** Run Test ************');
+           console.log("***************************** "+this.name+" ***************************");
            var dfd = this.async(10000);
            // Establish the first config.
            var c1 = config.clientConfig();
@@ -173,6 +173,8 @@ define([
 
            // Establish the second config.
            var c2 = config.clientConfig();
+           // Save the rtcomMTopic path, it may be random -- shoudl be the same for this system
+           c2.rtcommTopicPath = c1.rtcommTopicPath;
            c2.presence = {topic: 'interntest'};
            c2.userid = 'testuser2';
 
@@ -183,28 +185,31 @@ define([
            var stepOne = function(object) {
              console.log('----- StepOne ------');
              // Monitor presence
+             console.log('Subscriptions? ',presenceMonitor._.monitoredTopics);
              presenceMonitor.add('interntest');
+             console.log('Subscriptions? ',presenceMonitor._.monitoredTopics);
              console.log('StepOne -> userid: ' + endpointProvider.config.userid);
              assert.equal(endpointProvider.config.userid, 'testuser');
              console.log('StepOne -> ready '+ endpointProvider.ready);
              assert.ok(endpointProvider.ready);
-             console.log('----- StepOne Re-init ------');
-             endpointProvider.init(c2,finish, finish);
+             // We need a timeout here in the case where we don't have a server (its too fast to get presence updates.)
+             setTimeout(function() {
+               console.log('----- StepOne Re-init ------');
+               endpointProvider.init(c2, 
+                   function() {
+                     console.log('----- StepTwo Success ------');
+                     setTimeout(finish, 3000);
+                   }, function() {
+                      console.log('----- StepTwo Failure------');
+                      setTimeout(finish, 3000);
+                   });
+             },1000);
            };
 
-           /*var finish = dfd.callback(function(object) {
-              console.log('************ Finish called w/ OBJECT: ',object);
-              console.log('************ Current Presence Data? : ',presenceMonitor.getPresenceData());
-              assert.equal(presenceMonitor.getPresenceData(), object, 'PresenceData object was passed');
-              assert.equal(1, presenceMonitor.getPresenceData().length,' PresenceData has 1 top level entry');
-              assert.equal(1, presenceMonitor.getPresenceData()[0].nodes.length,' PresenceData[test] has 1 entry');
-              assert.equal('test', presenceMonitor.getPresenceData()[0].name, 'Primary topic created...');
-              assert.equal('testuser', presenceMonitor.getPresenceData()[0].nodes[0].name, 'User topic created...');
-           });*/
+           // Our finish call
            var finish = dfd.callback(function(object) {
              console.log('************ Finish called w/ OBJECT: ',object);
              console.log("*** Asserting *** ");
-             // should be ready, should have a GUEST userid
              console.log('TEST -> userid: ' + endpointProvider.config.userid);
              assert.equal(endpointProvider.config.userid, c2.userid, "UserID is set correctly on the EndpointProvider");
              console.log('TEST -> ready '+ endpointProvider.ready);
@@ -216,10 +221,11 @@ define([
              assert.equal(presenceMonitor.getPresenceData()[0].nodes[0].name,'interntest',' Primary topic created...');
              assert.equal(presenceMonitor.getPresenceData()[0].nodes[0].nodes[0].name,'testuser2',  'User topic created...');
            });
-           endpointProvider.init(config1,stepOne, stepOne);
+           // Start the test
+           endpointProvider.init(c1,stepOne, stepOne);
      },
      "init() with  userid and createEndpoint": function() {
-           console.log('********** Run Test ************');
+           console.log("***************************** "+this.name+" ***************************");
            var dfd = this.async(T1);
            config1.userid = 'testuser';
            config1.createEndpoint= true;
@@ -242,6 +248,7 @@ define([
      },
 
      "Presence": function() {
+       console.log("***************************** "+this.name+" ***************************");
        var dfd = this.async(5000);
        var testConfig = config.clientConfig();
        testConfig.presence = {topic: 'test'};
@@ -267,6 +274,7 @@ define([
 
      },
      "[No Server] generate reset on DOCUMENT_REPLACED": function() {
+       console.log("***************************** "+this.name+" ***************************");
        var dfd = this.async(5000);
        var testConfig = config.clientConfig();
        testConfig.presence = {topic: 'test'};
@@ -294,7 +302,12 @@ define([
 
          });
      },
+     /* this test requires an rtcommserver to send the DOCUMENT_REPLACED message */
      "Second presence generates reset event": function() {
+       console.log("***************************** "+this.name+" ***************************");
+       if (!Fat.requireServer()) {
+          this.skip('Rtcomm Server required for test');
+       }
        var dfd = this.async(5000);
        var testConfig = config.clientConfig();
        testConfig.presence = {topic: 'test'};
@@ -324,18 +337,81 @@ define([
          // We have to have a timeout here because we are waiting for the endpointprovider to cleanup.
          assert.equal('document_replaced', event.reason, 'Reset because of document_replaced');
          ep1_reset = true;
-         setTimeout(finish,1000);
+         setTimeout(finish,2000);
        });
 
        endpointProvider.init(testConfig, 
          function(obj){
            // Once we have successfully init'ed our first ep, init the second, which should reset the first one.
-           EP2.init(testConfig);
+           // wait a bit because we need presence to be done (in case where server is not present)
+            EP2.init(testConfig);
          },
          function(error){
 
          });
-     }
+     },
+     /*
+      * In this test, mqtt is configured correctly, we REQUIRE a server, but path is bad
+      * init should fail
+      */
+     "Init failure when bad topic path": function() {
+       console.log("***************************** "+this.name+" ***************************");
+       // This requires the server to be set...
+       if (!Fat.requireServer()) {
+          this.skip('Rtcomm Server required for test');
+       }
+       var dfd = this.async(10000);
+       var testConfig = config.clientConfig();
+       testConfig.rtcommTopicPath= "/Junk-12345-bad/";
+       testConfig.userid = 'testuser';
+       console.log('TESTCONFIG: ', testConfig);
 
+       // Create another EP
+       var EP = new EndpointProvider();
+       EP.setAppContext('test');
+       tearDown.EP = EP;
+
+       // Finish the test.
+       var finish = dfd.callback(function(object) {
+         console.log('Require a Server?', EP.requireServer());
+         console.log(' ----> object', object);
+         assert.match(object.message, /^Transaction/, "Transaction timed out as expected");
+         assert.equal(object.name, "SERVICE_QUERY_FAILED", "Service Query failed as expected");
+       });
+
+       EP.init(testConfig,
+               finish,
+               finish);
+     },
+     /*
+      * In this test, mqtt is configured correctly, we do not REQUIRE a server
+      * Init should succeed.
+      */
+     "[requireRtcommServer=false] ": function() {
+       console.log("***************************** "+this.name+" ***************************");
+       var dfd = this.async(10000);
+       var testConfig = config.clientConfig();
+       testConfig.rtcommTopicPath= "/Junk-12345-bad/";
+       testConfig.requireRtcommServer= false;
+       testConfig.userid = 'testuser';
+
+       // Create another EP
+       var EP = new EndpointProvider();
+       EP.setAppContext('test');
+       tearDown.EP = EP;
+
+       // Finish the test.
+       var finish = dfd.callback(function(object) {
+         console.log(' ----> object', object);
+         // Should succeed.
+         assert.isTrue(object.ready, "Init succeeded");
+         assert.isTrue(object.registered, "Registered");
+
+       });
+
+       EP.init(testConfig,
+               finish,
+               finish);
+     },
     });
 });

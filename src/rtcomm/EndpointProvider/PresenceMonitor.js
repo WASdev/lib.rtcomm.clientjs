@@ -372,6 +372,7 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
           //this._.presenceData.push(node);
           node.getSubNode(topic);
         }
+        l('DEBUG') && console.log(this+'.add() Subscribing to topic: '+subscriptionTopic);
         this.dependencies.connection.subscribe(subscriptionTopic, processMessage.bind(this));
         this._.monitoredTopics[topic]=subscriptionTopic;
       } else {
