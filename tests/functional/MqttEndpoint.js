@@ -26,6 +26,7 @@ define([
     'support/rtcommFatUtils'
 
 ], function (intern, registerSuite, assert, globals,config, adapter, EndpointProvider, Fat) {
+    var suiteName = Fat.createSuiteName("FVT: MqttEndpoint");
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
  /*   if (typeof window === 'undefined' && global) {
       require(['intern/dojo/node!./tests_intern/mock/mqttws31_shim'], function(globals) {
@@ -79,7 +80,7 @@ define([
     };
 
     registerSuite({
-        name: 'FVT - MqttEndpoint',
+        name: suiteName,
         setup: function() {
           console.log('************* SETUP: '+this.name+' **************');
           var p = new Promise(

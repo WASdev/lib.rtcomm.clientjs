@@ -25,7 +25,7 @@ define([
     'umd/rtcomm/EndpointProvider',
     'support/rtcommFatUtils'
 ], function (intern, registerSuite, assert, globals, config, adapter, EndpointProvider,Fat) {
-   var suiteName = Fat.createSuiteName("FVT: EndpointProvider");
+   var suiteName = Fat.createSuiteName("FVT: Session Queue");
 
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
     // endpointProvider

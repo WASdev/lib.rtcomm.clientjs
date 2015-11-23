@@ -92,9 +92,10 @@ define([
       });
       return p ;
     };
-    // Require RTCOMM SErver is set globally.
+    // Require RTCOMM Server is set globally.
     requireServer: function requireServer() {
-      return (typeof REQUIRE_RTCOMM_SERVER !== 'undefined') ? REQUIRE_RTCOMM_SERVER : true;
+      // Default to false.
+      return (typeof REQUIRE_RTCOMM_SERVER !== 'undefined') ? REQUIRE_RTCOMM_SERVER : false;
     };
 
     createSuiteName: function createSuiteName(name) {

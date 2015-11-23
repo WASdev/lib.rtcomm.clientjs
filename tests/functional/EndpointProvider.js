@@ -305,7 +305,7 @@ define([
      /* this test requires an rtcommserver to send the DOCUMENT_REPLACED message */
      "Second presence generates reset event": function() {
        console.log("***************************** "+this.name+" ***************************");
-       if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined' && !REQUIRE_RTCOMM_SERVER) {
+       if (!Fat.requireServer()) {
           this.skip('Rtcomm Server required for test');
        }
        var dfd = this.async(5000);
@@ -337,7 +337,7 @@ define([
          // We have to have a timeout here because we are waiting for the endpointprovider to cleanup.
          assert.equal('document_replaced', event.reason, 'Reset because of document_replaced');
          ep1_reset = true;
-         setTimeout(finish,1000);
+         setTimeout(finish,2000);
        });
 
        endpointProvider.init(testConfig, 
@@ -357,20 +357,19 @@ define([
      "Init failure when bad topic path": function() {
        console.log("***************************** "+this.name+" ***************************");
        // This requires the server to be set...
-       if (typeof REQUIRE_RTCOMM_SERVER === 'undefined' || (typeof REQUIRE_RTCOMM_SERVER !== 'undefined' && !REQUIRE_RTCOMM_SERVER)) {
+       if (!Fat.requireServer()) {
           this.skip('Rtcomm Server required for test');
        }
        var dfd = this.async(10000);
        var testConfig = config.clientConfig();
        testConfig.rtcommTopicPath= "/Junk-12345-bad/";
        testConfig.userid = 'testuser';
+       console.log('TESTCONFIG: ', testConfig);
 
        // Create another EP
        var EP = new EndpointProvider();
        EP.setAppContext('test');
        tearDown.EP = EP;
-
-       console.log('Require a Server?', EP.requireServer());
 
        // Finish the test.
        var finish = dfd.callback(function(object) {

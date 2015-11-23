@@ -459,7 +459,7 @@ define([
      },
      "Customer A calls Queue[Toys], establish session": function() {
          console.log('************* '+this.name+' **************');
-          if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined' && !REQUIRE_RTCOMM_SERVER) {
+         if (!Fat.requireServer()) {
             this.skip('Rtcomm Server required for test');
           }
            var endpointProvider2 = new EndpointProvider();
