@@ -356,7 +356,8 @@ define([
       */
      "Init failure when bad topic path": function() {
        console.log("***************************** "+this.name+" ***************************");
-       if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined' && !REQUIRE_RTCOMM_SERVER) {
+       // This requires the server to be set...
+       if (typeof REQUIRE_RTCOMM_SERVER === 'undefined' || (typeof REQUIRE_RTCOMM_SERVER !== 'undefined' && !REQUIRE_RTCOMM_SERVER)) {
           this.skip('Rtcomm Server required for test');
        }
        var dfd = this.async(10000);
@@ -369,12 +370,14 @@ define([
        EP.setAppContext('test');
        tearDown.EP = EP;
 
+       console.log('Require a Server?', EP.requireServer());
+
        // Finish the test.
        var finish = dfd.callback(function(object) {
+         console.log('Require a Server?', EP.requireServer());
          console.log(' ----> object', object);
          assert.match(object.message, /^Transaction/, "Transaction timed out as expected");
          assert.equal(object.name, "SERVICE_QUERY_FAILED", "Service Query failed as expected");
-
        });
 
        EP.init(testConfig,
