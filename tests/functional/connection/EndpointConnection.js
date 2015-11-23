@@ -174,7 +174,7 @@ define([
       },
       'Start Session test...': function() {
          console.log('******** '+this.name+ ' *********');
-          if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined' && !REQUIRE_RTCOMM_SERVER) {
+          if (!Fat.requireServer()) {
             this.skip('Rtcomm Server required for test');
           }
       //this.skip();
@@ -279,7 +279,7 @@ define([
       },
       "Service Query Test": function() {
           console.log('******** '+this.name+ ' *********');
-          if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined' && !REQUIRE_RTCOMM_SERVER) {
+          if (!Fat.requireServer() ) {
             this.skip('Rtcomm Server required for test');
           }
           var nc = new connection.EndpointConnection(config1);
@@ -313,7 +313,7 @@ define([
       },
       "Service Query Test (no userid)" : function() {
           console.log('******** '+this.name+ ' *********');
-          if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined' && !REQUIRE_RTCOMM_SERVER) {
+          if (!Fat.requireServer()) {
             this.skip('Rtcomm Server required for test');
           }
           //this.skip();

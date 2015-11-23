@@ -27,7 +27,7 @@ define([
     'umd/rtcomm/EndpointProvider',
     'support/rtcommFatUtils'
 ], function (intern, registerSuite, assert, globals, config, adapter, EndpointProvider,Fat) {
-   var suiteName = Fat.createSuiteName("FVT: EndpointProvider");
+   var suiteName = Fat.createSuiteName("FVT: RtcommEndpoint Chat");
     var DEBUG = (intern.args.DEBUG === 'true')? true: false;
 /*
     var createProviderOld = function createProvider(userid,appContext) {
@@ -265,7 +265,7 @@ define([
 
         'connect 2 chat clients via 3PCC':function() {
           console.log('***************** '+this.name+' ******************');
-          if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined' && !REQUIRE_RTCOMM_SERVER) {
+          if (!Fat.requireServer()) {
             this.skip('Rtcomm Server required for test');
           }
           var ccTopic = null;

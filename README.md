@@ -20,7 +20,7 @@ The rtcomm.js library is dependent on the following libraries (which will be ins
 
 ###Bower 
 
-'rtcomm' is now a registered bower module and can be installed using bower.  
+*`rtcomm`* is a registered bower module and can be installed using bower.  
 ```
 bower install rtcomm
 ```
@@ -49,13 +49,12 @@ Add the following you your html file:
 ```
 ### Add some JavaScript
 
-Define the configuration to connect to an MQTT Server.
+Define the configuration to connect to an MQTT Server. 
 
 ```javascript
       <script>
       /* 
        * Define the configuration for the EndpointProvider.  THis is REQUIRED and generally must be changed.
-       * It MUST match the rtcomm configuration used on the liberty server.
        */
       var providerConfig = {
         server : 'messagesight.demos.ibm.com',
@@ -112,9 +111,13 @@ Create a functions to connect to another person  and hangup
       }
       </script>
 ```
-For more detailed information on the API, see an [extended explanation](docs/extended_explanation.md)
-To get started with a sample, checkout the [Getting Started with the Sample](docs/sample.md)
-Further information on the RtcommEndpoint API is located in the *jsdoc* which is available in the sample zip file or when you clone and build the project using `grunt`
+
+## More information
+To get started with a sample, checkout the [Getting Started with the Sample](docs/sample.md).
+
+For more detailed information on the API, see an [extended explanation](docs/extended_explanation.md).
+
+Further information on the RtcommEndpoint API is located in the *jsdoc* which is available in the sample zip file or when you clone and build the project using `grunt`.
 
 #Building the code
 

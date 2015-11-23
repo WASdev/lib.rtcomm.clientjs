@@ -19,7 +19,7 @@ define([
     'intern/chai!assert',
     /* Use the Mock (in browser mqtt) */
    (typeof window === 'undefined' && global)
-      ?'intern/dojo/node!../../support/mqttws31_shim':
+      ?'intern/dojo/node!../support/mqttws31_shim':
         'bower_components/bower-mqttws/mqttws31',
     'support/config',
     'bower_components/webrtc-adapter/adapter',

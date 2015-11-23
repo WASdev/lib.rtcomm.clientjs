@@ -10,10 +10,6 @@
 * U.S. Copyright Office.
 */
 define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig) {
-  var requireRtcommServer = true;
-  if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined') { 
-    requireRtcommServer = REQUIRE_RTCOMM_SERVER;
-  } 
   var configdata = JSON.parse(testconfig);
   console.log('testconfig', configdata );
   var mqArray = /(\S+)\:(\d+)/.exec(configdata.mqttServers[0]);
@@ -53,9 +49,7 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
     mqttServer : mqttServer,
     mqttPort : mqttPort,
     rtcommTopicPath: rtcommTopicPath,
-    
     _ServerConfig : function(userid, Topic) {
-     
       var config = {
         server: mqttServer,
         port: mqttPort,
@@ -63,11 +57,16 @@ define(['intern/node_modules/dojo/text!./testConfig.json'], function(testconfig)
         managementTopicName: Topic || managementTopicName,
         rtcommTopicPath:rtcommTopicPath
       };
-      // Only set this if it is false.
-      if (!requireRtcommServer) {
-        config.requireRtcommServer = requireRtcommServer;
+      // If REQUIRE_RTCOMM_SERVER is set globally, we will use its value.  
+      // The default is to NOT require a server in the library. 
+      //
+      if (typeof REQUIRE_RTCOMM_SERVER !== 'undefined') { 
+        config.requireRtcommServer = REQUIRE_RTCOMM_SERVER;
+      } 
+      // By default this should be false, we need to keep to a random topic we picked (vs. picking a new one for each instantiation)
+      // 
+      if (!config.hasOwnProperty('requireRtcommServer') && !config.requireRtcommServer)  {
         config.rtcommTopicPath = alternateRtcommTopicPath;
-        // set a bogus topic too
       }
       return config;
     },
