@@ -69,7 +69,6 @@ var EndpointProvider =  function EndpointProvider() {
 
   /** State of the EndpointProvider */ 
   this.ready = false;
-
   this.events = {
       /**
        * A new RtcommEndpoint was created from an inbound
@@ -264,7 +263,8 @@ var EndpointProvider =  function EndpointProvider() {
       }
       // Update the userid
       endpointProvider.setUserID(config.userid,true);
-      if (config.userid) {
+      // If there is a userid and it DOES NOT START WITH GUEST we will publish presence.
+      if (config.userid && !(/^GUEST/.test(config.userid))) {
         l('DEBUG') && console.log(endpointProvider+'.init() publishing presence: '+ config.userid+'|'+config.appContext);
         // Publish our presence if we have a userid
         endpointProvider.publishPresence();
