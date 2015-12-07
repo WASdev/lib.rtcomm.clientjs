@@ -332,7 +332,8 @@ var WebRTCConnection = (function invocation() {
       this._.remoteStream = null;
 
       // Stop broadcasting/release the camera.
-      this._.localStream && this._.localStream.stop();
+
+      this._.localStream && stopStream(this._.localStream);
       this._.localStream = null;
       detachMediaStream(this.getMediaOut());
       if (this.getState() !== 'disconnected') {
@@ -466,7 +467,7 @@ var WebRTCConnection = (function invocation() {
       var msg = this.createMessage(
         {type: 'stream',
            stream: {
-             label: this._.localStream.label, 
+             label: this._.localStream.id, 
              audio: (media === 'video')? true: false,
              video: (media === 'audio')? true:false 
             }
@@ -500,7 +501,7 @@ var WebRTCConnection = (function invocation() {
       var msg = this.createMessage(
         {type: 'stream',
            stream: {
-             label: this._.localStream.label, 
+             label: this._.localStream.id, 
              audio: (media === 'video') ? false : true,
              video: (media === 'audio') ? false : true
             }
@@ -784,7 +785,7 @@ var WebRTCConnection = (function invocation() {
           // Disable it, emit event.
           var streams = this.pc.getRemoteStreams();
           for (var i=0;i<streams.length;i++) {
-            if (streams[i].label === message.stream.label) {
+            if (streams[i].id === message.stream.label) {
               var stream = streams[i];
               // We found our stream, get tracks...
               if (message.stream.audio) {
@@ -1175,6 +1176,17 @@ var hasTrack = function(direction,media,context) {
       }
   }
   return returnValue;
+};
+
+var stopStream = function(stream) {
+  if (typeof stream !== 'undefined') {
+    stream.getAudioTracks().forEach(function(track) {
+      track.stop();
+    });
+    stream.getVideoTracks().forEach(function(track) {
+      track.stop();
+    });
+  }
 };
 
 var toggleStream = function(stream, media, enabled , context) {
