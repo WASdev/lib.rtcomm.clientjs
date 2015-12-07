@@ -16,6 +16,10 @@ The rtcomm.js library is dependent on the following libraries (which will be ins
 1.  Paho MQTT JavaScript client [link](http://git.eclipse.org/c/paho/org.eclipse.paho.mqtt.javascript.git/tree/src/mqttws31.js)  
 2.  WebRTC Adapter [link] (https://github.com/webrtc/adapter)
 
+** Regarding SSL & WebRTC [BEHAVIOR CHANGE]**
+
+As of Chrome 47([WebRTC Release Notes](https://developers.google.com/web/updates/2015/10/chrome-47-webrtc)) `getUserMedia` will fail with a permissions error unless the site is served over SSL. This has the side effect of requiring a secure connection to the MQTT Server as well.  By default, when served over `https` the client will attempt to connect to the `sslport` if configured or the `port` if not.  Make sure your MQTT Server supports SSL.
+
 ##Installation
 
 ###Bower 
