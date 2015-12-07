@@ -160,24 +160,42 @@ var EndpointProvider =  function EndpointProvider() {
     var rtcommTopicPath = '/rtcomm/';
     // If we are served over SSL, use SSL is needed and we are going to use the 'sslport' unless port is set (and ssl was not).
     //
-    var useSSL = (typeof location !== 'undefined' && location.protocol === 'https:') ? true : false;
-    var defaultPort = (typeof location !== 'undefined' && location.port === '') ? 80 : 1883;
-    var defaultSecurePort = (typeof location !== 'undefined' && location.port === '') ? 443 : 8883;
+    var useSSL = true;
+    var defaultPort = 1883;
+    var defaultSSLPort = 8883;
+
+    // Reset defaults based on URL
+    if (typeof location !== 'undefined') {
+       // No matter what, use SSL if served over ssl (won't work otherwise)
+       useSSL = (location.protocol === 'https:') ? true : false;
+       if (location.port === '' ) {
+         // If it is empty, its a default port
+         defaultPort = 80;
+         defaultSSLPort = 443;
+       } else {
+         // By default, serve to whatever we were served over.
+         defaultPort = parseInt(location.port);
+         defaultSSLPort = parseInt(location.port);
+       }
+    }
     var configDefinition = {
-        required: { server: 'string', port: 'number'},
+        required: {},
         optional: {
+          server: 'string', 
           credentials : 'object',
           rtcommTopicPath: 'string',
           managementTopicName: 'string',
           presence: 'object',
           userid: 'string',
           useSSL: 'boolean',
+          port: 'number',
           sslport: 'number',
           monitorPresence: 'boolean',
           requireRtcommServer: 'boolean',
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
+          server: (location !== 'undefined' ? location.hostname : 'localhost'),
           rtcommTopicPath: rtcommTopicPath,
           managementTopicName: 'management',
           presence: { 
@@ -189,7 +207,7 @@ var EndpointProvider =  function EndpointProvider() {
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
           port: defaultPort, 
-          sslport: defaultSecurePort, 
+          sslport: defaultSSLPort, 
           monitorPresence: true,
           requireRtcommServer: false,
           createEndpoint: false }
@@ -209,13 +227,12 @@ var EndpointProvider =  function EndpointProvider() {
       // If we are READY (we are resetting) so use the NEW ones... otherwise, use saved ones.
       this.config.appContext = options.appContext ? options.appContext : (appContext ? appContext : this.config.appContext) ; 
       this.setUserID((options.userid ? options.userid: (userid ? userid: this.config.userid)), true) ; 
-      // If sslport was not set, but port was, use port.
 
+      // If sslport was not set, but port was, use port.
       if (typeof options.sslport === 'undefined' && options.port) {
         this.config.sslport = this.config.port;
         l('DEBUG') && console.log(this+'.init() SSLPort not set, using port :'+this.config.sslport);
       } 
-
     } else {
       throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
                       JSON.stringify(configDefinition.required));
@@ -237,13 +254,11 @@ var EndpointProvider =  function EndpointProvider() {
     connectionConfig.hasOwnProperty('monitorPresence') &&  delete connectionConfig.monitorPresence;
     connectionConfig.hasOwnProperty('requireRtcommServer') &&  delete connectionConfig.requireRtcommServer;
     connectionConfig.publishPresence = true;
-
-
     if (connectionConfig.useSSL) {
       l('DEBUG') && console.log(this+'.init() configuring for SSL');
       connectionConfig.port = this.config.sslport;
-      delete connectionConfig.sslport;
     }
+    connectionConfig.hasOwnProperty('sslport') &&  delete connectionConfig.sslport;
 
     // createEndpointConnection
 

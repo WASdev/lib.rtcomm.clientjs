@@ -169,9 +169,10 @@ The primary logic for this HTML Page
    * It MUST match the rtcomm configuration used on the liberty server.
    */
   var providerConfig = {
-    server : 'messagesight.demos.ibm.com',
+//    server : 'messagesight.demos.ibm.com',
+    server: window.document.location.hostname,
    // port : window.document.location.port,
-    port : 1883,
+//    port : 1883,
     rtcommTopicPath: "/rtcommVideoSample/",
     createEndpoint : true
   };

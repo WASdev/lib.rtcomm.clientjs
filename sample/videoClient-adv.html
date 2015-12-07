@@ -3,7 +3,6 @@
 #
 #****************************************************************
 # Licensed Materials - Property of IBM
-# 5725-F96 IBM MessageSight
 # (C) Copyright IBM Corp. 2014 All Rights Reserved.
 #
 # US Government Users Restricted Rights - Use, duplication or
@@ -202,13 +201,12 @@ The primary logic for this HTML Page
    */
   var providerConfig = {
     server : window.document.location.hostname,
-    port : window.document.location.port,
+//    port : window.document.location.port,
     managementTopicName : "management",
     appContext: "default",
     rtcommTopicPath: "/rtcomm/",
     createEndpoint : true,
     monitorPresence: true,
-    useSSL: false,
     presence: {topic: 'defaultRoom'}
   };
 
