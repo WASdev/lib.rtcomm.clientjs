@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.7 07-12-2015 20:07:00 UTC */
-console.log('lib.rtcomm.clientjs 1.0.7 07-12-2015 20:07:00 UTC');
+/*! lib.rtcomm.clientjs 1.0.8 14-12-2015 13:50:09 UTC */
+console.log('lib.rtcomm.clientjs 1.0.8 14-12-2015 13:50:09 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -2513,6 +2513,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         messageToSend = this.endpointconnector.createResponse('START_SESSION');
         messageToSend.transID = this._startTransaction.id;
         messageToSend.sigSessID = this.id;
+        messageToSend.protocols = this.protocols;
         var referralResponse = this.endpointconnector.createResponse('REFER');
 
         if (SUCCESS) { 

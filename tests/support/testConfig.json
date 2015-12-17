@@ -1,5 +1,5 @@
 {
-   "mqttServers" : ["messagesight.demos.ibm.com:1883"],
+   "mqttServers" : ["mqtt4rtcomm.mybluemix.net:80"],
    "managementTopicName" : "management",
    "rtcommTopicPath" : "/rtcommTest-8888/"
 }
