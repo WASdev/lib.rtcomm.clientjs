@@ -1,5 +1,5 @@
 {
-   "mqttServers" : ["mqtt4rtcomm.mybluemix.net:80"],
+   "mqttServers" : ["mqtt-rtcomm-1.mybluemix.net:80"],
    "managementTopicName" : "management",
-   "rtcommTopicPath" : "/rtcommTest-8888/"
+   "rtcommTopicPath" : "/rtcomm/"
 }
