@@ -250,6 +250,7 @@ SigSession.prototype = util.RtcommBaseObject.extend((function() {
         messageToSend = this.endpointconnector.createResponse('START_SESSION');
         messageToSend.transID = this._startTransaction.id;
         messageToSend.sigSessID = this.id;
+        messageToSend.protocols = this.protocols;
         var referralResponse = this.endpointconnector.createResponse('REFER');
 
         if (SUCCESS) { 

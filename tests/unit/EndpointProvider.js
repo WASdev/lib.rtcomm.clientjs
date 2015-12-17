@@ -54,7 +54,7 @@ define([
           error = e;
           console.log(error);
         }
-        assert.equal('EndpointProvider initialization requires a minimum configuration: {"server":"string","port":"number"}', error.message);
+        assert.equal('EndpointProvider initialization requires a minimum configuration: {}', error.message);
       },
       "valid but incorrect config throws an error": function(){
             var error = null;
