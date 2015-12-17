@@ -341,6 +341,7 @@ The primary logic for this HTML Page
   function uiDisconnect(message) {
       if (connected) {
         connected = false;
+        console.log('Calling disconnect on endpoint');
         rtcommEndpoint.disconnect();
         $('#btnConnect').text('Connect');
         updateMessage(message || 'Unknown');

@@ -319,11 +319,17 @@ var WebRTCConnection = (function invocation() {
     },
 
     _disconnect: function() {
+
       if (this.pc) {
         l('DEBUG') && console.log(this+'._disconnect() Signaling State is: '+this.pc.signalingState);
         if (this.pc.signalingState !== 'disconnected' || this.pc.signalingState !== 'closed'  ) {
-          l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
-          this.pc.close();
+          // This causes oniceconnectionstate to fire in Firefox -- If we've called this, we don't need to call it again.  Need to track it.
+          if (this.pc.iceConnectionState !== 'closed') { 
+            l('DEBUG') && console.log(this+'._disconnect() Closing peer connection');
+            this.pc.close();
+          } else {
+            l('DEBUG') && console.log(this+'._disconnect() Already Closed peer connection');
+          }
         }
         // set it to null
         this.pc = null;
