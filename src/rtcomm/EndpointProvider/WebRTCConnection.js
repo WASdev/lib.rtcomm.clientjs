@@ -38,8 +38,8 @@ var WebRTCConnection = (function invocation() {
   var WebRTCConnection = function WebRTCConnection(parent) {
 
     var OfferConstraints = {'mandatory': {
-      OfferToReceiveAudio: true, 
-      OfferToReceiveVideo: true}
+      offerToReceiveAudio: true, 
+      offerToReceiveVideo: true}
     };
 
     /** 
