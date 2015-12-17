@@ -37,10 +37,16 @@ var WebRTCConnection = (function invocation() {
 /* global RTCIceCandidate:false */
   var WebRTCConnection = function WebRTCConnection(parent) {
 
-    var OfferConstraints = {'mandatory': {
-      offerToReceiveAudio: true, 
-      offerToReceiveVideo: true}
-    };
+    var OfferConstraints = (webrtcDetectedBrowser === 'firefox') ? 
+      { 'mandatory': {
+        offerToReceiveAudio: true, 
+        offerToReceiveVideo: true}
+      }:
+      { 'mandatory': {
+        OfferToReceiveAudio: true, 
+        OfferToReceiveVideo: true}
+      }; 
+
 
     /** 
      * @typedef {object} module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig

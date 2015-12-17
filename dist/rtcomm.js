@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.8 17-12-2015 19:58:39 UTC */
-console.log('lib.rtcomm.clientjs 1.0.8 17-12-2015 19:58:39 UTC');
+/*! lib.rtcomm.clientjs 1.0.8 17-12-2015 20:21:31 UTC */
+console.log('lib.rtcomm.clientjs 1.0.8 17-12-2015 20:21:31 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5639,10 +5639,16 @@ var WebRTCConnection = (function invocation() {
 /* global RTCIceCandidate:false */
   var WebRTCConnection = function WebRTCConnection(parent) {
 
-    var OfferConstraints = {'mandatory': {
-      offerToReceiveAudio: true, 
-      offerToReceiveVideo: true}
-    };
+    var OfferConstraints = (webrtcDetectedBrowser === 'firefox') ? 
+      { 'mandatory': {
+        offerToReceiveAudio: true, 
+        offerToReceiveVideo: true}
+      }:
+      { 'mandatory': {
+        OfferToReceiveAudio: true, 
+        OfferToReceiveVideo: true}
+      }; 
+
 
     /** 
      * @typedef {object} module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig
