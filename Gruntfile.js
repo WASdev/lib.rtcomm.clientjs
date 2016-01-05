@@ -153,8 +153,8 @@ module.exports = function(grunt) {
       }
     },
     watch: {
-      files: ['<%= jshint.files %>'],
-      tasks: ['jshint', 'qunit']
+      files: ['src/**/*.js'],
+      tasks: ['jshint', 'build'],
     },
     jsdoc : {
         dist : {
@@ -243,7 +243,6 @@ module.exports = function(grunt) {
             src: fileList,
             dest: 'dist/umd/rtcomm/' + dirName + '.js'
         };
-
         // add module subtasks to the concat task in initConfig
         grunt.config.set('concat', concat);
     });
@@ -251,9 +250,11 @@ module.exports = function(grunt) {
 
  require('load-grunt-tasks')(grunt);
   grunt.loadNpmTasks('intern');
+  grunt.loadNpmTasks('grunt-contrib-watch');
   grunt.registerTask('test', ['intern:base']);
   grunt.registerTask('release', ['default', 'compress']);
   grunt.registerTask('umdModules', ['clean', 'prepareModules', 'concat', 'umd']);
+  grunt.registerTask('build', ['umdModules', 'concat:rtcomm_final']);
   grunt.registerTask('lite', ['umdModules', 'concat:rtcomm_final','uglify']);
   grunt.registerTask('default', ['clean', 'lite', 'jsdoc']);
 };

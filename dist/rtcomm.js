@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.8 17-12-2015 20:21:31 UTC */
-console.log('lib.rtcomm.clientjs 1.0.8 17-12-2015 20:21:31 UTC');
+/*! lib.rtcomm.clientjs 1.0.8 04-01-2016 23:06:38 UTC */
+console.log('lib.rtcomm.clientjs 1.0.8 04-01-2016 23:06:38 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -3141,9 +3141,9 @@ var Chat = (function invocation() {
  * @classdesc
  * Provides Services to register a user and create Endpoints (RtcommEndpoints & MqttEndpoints)
  * <p>
- * This programming interface lets a JavaScript client application use 
+ * This programming interface lets a JavaScript client application use
  * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
- * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
+ * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated}
  * & {@link module:rtcomm.EndpointProvider#init|initialized} the
  * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
  * that is used to receive inbound communication.
@@ -3189,7 +3189,7 @@ var EndpointProvider =  function EndpointProvider() {
   this._.objName = "EndpointProvider";
   this._.rtcommEndpointConfig = {};
 
-  /** State of the EndpointProvider */ 
+  /** State of the EndpointProvider */
   this.ready = false;
   this.events = {
       /**
@@ -3206,14 +3206,14 @@ var EndpointProvider =  function EndpointProvider() {
        */
       'queueupdate': [],
       /**
-       * The Presence was Updated 
+       * The Presence was Updated
        * @event module:rtcomm.EndpointProvider#presence_updated
        * @property {module:rtcomm.PresenceMonitor.presenceData}
        *
        */
       'presence_updated': [],
       /**
-       * The endpoint Provider has reset.  Usually due to another peer logging in with the same presence. 
+       * The endpoint Provider has reset.  Usually due to another peer logging in with the same presence.
        * The event has a 'reason' property indicating why the EndpointProvider was reset.
        *
        * @event module:rtcomm.EndpointProvider#reset
@@ -3225,8 +3225,8 @@ var EndpointProvider =  function EndpointProvider() {
   /** init method
    *
    *  This method is required to be called prior to doing anything else.  If init() is called w/ a userid, the
-   *  userid is *automatically* registered.  If it is called w/out a userid, then the EndpointProvider is 
-   *  *anonymous*.  A userid will be generated for security purposes called 'GUEST-<randomnumber>'.  This is 
+   *  userid is *automatically* registered.  If it is called w/out a userid, then the EndpointProvider is
+   *  *anonymous*.  A userid will be generated for security purposes called 'GUEST-<randomnumber>'.  This is
    *  necessary to have a localEndpointID that can be used for MQTT security.
    *
    * @param {Object} config
@@ -3239,7 +3239,7 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    * @param {boolean} [config.monitorPresence=true] Automatically create a presence monitor and emit events on the endpoint provider.
-   * @param {boolean} [config.requireRtcommServer=false] Require an Rtcomm Server for routing 
+   * @param {boolean} [config.requireRtcommServer=false] Require an Rtcomm Server for routing
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
    *
@@ -3303,7 +3303,7 @@ var EndpointProvider =  function EndpointProvider() {
     var configDefinition = {
         required: {},
         optional: {
-          server: 'string', 
+          server: 'string',
           credentials : 'object',
           rtcommTopicPath: 'string',
           managementTopicName: 'string',
@@ -3320,7 +3320,7 @@ var EndpointProvider =  function EndpointProvider() {
           server: (location !== 'undefined' ? location.hostname : 'localhost'),
           rtcommTopicPath: rtcommTopicPath,
           managementTopicName: 'management',
-          presence: { 
+          presence: {
             // Relative to the rtcommTopicPath
             rootTopic: 'sphere/',
             topic: '/', // Same as rootTopic by default
@@ -3328,8 +3328,8 @@ var EndpointProvider =  function EndpointProvider() {
           useSSL: useSSL,
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
-          port: defaultPort, 
-          sslport: defaultSSLPort, 
+          port: defaultPort,
+          sslport: defaultSSLPort,
           monitorPresence: true,
           requireRtcommServer: false,
           createEndpoint: false }
@@ -3347,16 +3347,16 @@ var EndpointProvider =  function EndpointProvider() {
 
       // this.config now has the options + combo with defaults.
       // If we are READY (we are resetting) so use the NEW ones... otherwise, use saved ones.
-      this.config.appContext = options.appContext ? options.appContext : (appContext ? appContext : this.config.appContext) ; 
-      this.setUserID((options.userid ? options.userid: (userid ? userid: this.config.userid)), true) ; 
+      this.config.appContext = options.appContext ? options.appContext : (appContext ? appContext : this.config.appContext) ;
+      this.setUserID((options.userid ? options.userid: (userid ? userid: this.config.userid)), true) ;
 
       // If sslport was not set, but port was, use port.
       if (typeof options.sslport === 'undefined' && options.port) {
         this.config.sslport = this.config.port;
         l('DEBUG') && console.log(this+'.init() SSLPort not set, using port :'+this.config.sslport);
-      } 
+      }
     } else {
-      throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
+      throw new Error("EndpointProvider initialization requires a minimum configuration: "+
                       JSON.stringify(configDefinition.required));
     }
     var endpointProvider = this;
@@ -3367,7 +3367,7 @@ var EndpointProvider =  function EndpointProvider() {
       l('DEBUG') && console.log(endpointProvider+'.init() Default Failure message, use callback to process:', error);
     };
 
-    // Create the Endpoint Connection  
+    // Create the Endpoint Connection
     l('DEBUG') && console.log(this+'.init() Using config ', config);
 
     var connectionConfig =  util.makeCopy(config);
@@ -3391,8 +3391,8 @@ var EndpointProvider =  function EndpointProvider() {
         this.dependencies.endpointConnection.destroy();
       }
     }
-    var endpointConnection = 
-      this.dependencies.endpointConnection = 
+    var endpointConnection =
+      this.dependencies.endpointConnection =
       createEndpointConnection.call(this, connectionConfig);
     /*
      * onSuccess callback for endpointConnection.connect();
@@ -3455,7 +3455,7 @@ var EndpointProvider =  function EndpointProvider() {
         this.reset('Connection Lost');
       } else if (error.name === 'MULTIPLE_SERVERS') {
         this.reset(error.message);
-      } else { 
+      } else {
         cbFailure(error);
       }
     };
@@ -3507,14 +3507,13 @@ var EndpointProvider =  function EndpointProvider() {
        *  Do we have a default endpoint?  if so, just give the session to it.
        *  if that endpoint is busy, create a new endpoint and emit it.
        *  If there isn't a endpoint, create a Endpoint and EMIT it.
-       *
        */
       if(session) {
         l('DEBUG') && console.log(endpointProvider+'-on.newsession Handle a new incoming session: ', session);
         // Send it to the same id/appContext;
         //
         l('DEBUG') && console.log(endpointProvider+'-on.newsession endpointRegistry: ', endpointProvider._.endpointRegistry.list());
-        var endpoint = endpointProvider._.endpointRegistry.getOneAvailable(); 
+        var endpoint = endpointProvider._.endpointRegistry.getOneAvailable();
         if (endpoint) {
           l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Existing Endpoint: ', endpoint);
           endpoint.newSession(session);
@@ -3535,7 +3534,7 @@ var EndpointProvider =  function EndpointProvider() {
             console.error(endpointProvider+
             '-on.newsession - Rejecting session, ambiguous enpdoint selection; add newendpoint callback? ');
           } else {
-            // Do not emit anything... 
+            // Do not emit anything...
             endpoints[0].newSession(session);
           }
         }
@@ -3554,12 +3553,12 @@ var EndpointProvider =  function EndpointProvider() {
       l('TRACE') && console.log("Document Replaced event received", message);
       endpointProvider.reset("document_replaced");
     });
-    return endpointConnection; 
+    return endpointConnection;
   }; // End of createEndpointConnection
 
   /**
    * Pre-define RtcommEndpoint configuration.  This provides the means to create a common
-   * configuration all RtcommEndpoints will use, including the same event handlers.  
+   * configuration all RtcommEndpoints will use, including the same event handlers.
    *
    * *NOTE* This should be set PRIOR to calling getRtcommEndpoint()
    *
@@ -3581,7 +3580,7 @@ var EndpointProvider =  function EndpointProvider() {
    *   },
    *   'session:started': function(event) {
    *
-   *   }, 
+   *   },
    *   'session:alerting': function(event) {
    *
    *   }
@@ -3590,18 +3589,18 @@ var EndpointProvider =  function EndpointProvider() {
   this.setRtcommEndpointConfig = function setRtcommEndpointCallbacks(options) {
     this._.rtcommEndpointConfig = util.combineObjects(options, this._.rtcommEndpointConfig);
   };
-  /** 
+  /**
    *  Factory method that returns a RtcommEndpoint object to be used by a UI component.
    *  <p>
-   *  The RtcommEndpoint object provides an interface for the UI Developer to attach 
-   *  Video and Audio input/output. Essentially mapping a broadcast stream(a MediaStream 
-   *  that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound 
+   *  The RtcommEndpoint object provides an interface for the UI Developer to attach
+   *  Video and Audio input/output. Essentially mapping a broadcast stream(a MediaStream
+   *  that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound
    *  stream is added to a RTCPeerConnection, then the RtcommEndpoint object also informs the
    *  RTCPeerConnection where to send that stream in the User Interface.
    *  </p>
    *
    *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
-   *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint 
+   *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint
    *  @throws Error
    *
    * @example
@@ -3630,7 +3629,7 @@ var EndpointProvider =  function EndpointProvider() {
     if (endpointConfig && typeof endpointConfig !== 'object') {
       endpointid = endpointConfig;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() Looking for endpoint: '+endpointid);
-      // Returns an array of 1 endpoint. 
+      // Returns an array of 1 endpoint.
       endpoint = this._.endpointRegistry.get(endpointid)[0];
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() found endpoint: ',endpoint);
     } else {
@@ -3643,7 +3642,7 @@ var EndpointProvider =  function EndpointProvider() {
       // Merge the objects, will still have callbacks.
 
       var objConfig = util.combineObjects(this._.rtcommEndpointConfig, defaultConfig);
-      // 
+      //
       // If we have any callbacks defined, put in their own object for later.
       //
       var endpointCallbacks = {};
@@ -3661,7 +3660,7 @@ var EndpointProvider =  function EndpointProvider() {
       l('DEBUG') && console.log(this+'.getRtcommEndpoint using config: ', objConfig);
       // Create the endpoint
       endpoint = new RtcommEndpoint(objConfig);
-      // attach the endpointConnection if it exists. 
+      // attach the endpointConnection if it exists.
       this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
       // If the endpoint is destroyed, define the behavior to cleanup.
       endpoint.on('destroyed', function(event_object) {
@@ -3692,16 +3691,53 @@ var EndpointProvider =  function EndpointProvider() {
   /* deprecated */
   this.createRtcommEndpoint = this.getRtcommEndpoint;
 
-  /** Create Mqtt Endpoint 
+  /** Create Session Endpoint
+   * @returns {module:rtcomm.SessionEndpoint} */
+  this.getSessionEndpoint = function() {
+      var endpoint = new SessionEndpoint({parent: this});
+      // attach the endpointConnection if it exists.
+      var endpointProvider = this;
+      this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
+      // If the endpoint is destroyed, define the behavior to cleanup.
+      endpoint.on('destroyed', function(event_object) {
+        endpointProvider._.endpointRegistry.remove(event_object.endpoint);
+      });
+      // Add to registry or return the one already there
+      endpoint = this._.endpointRegistry.add(endpoint);
+    return endpoint;
+  };
+
+  /** Create Session Endpoint
+   * @returns {module:rtcomm.SessionEndpoint} */
+  this.getMessageEndpoint = function() {
+
+      var endpoint = new MessageEndpoint({parent: this});
+      // attach the endpointConnection if it exists.
+      var endpointProvider = this;
+      this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
+      // If the endpoint is destroyed, define the behavior to cleanup.
+      endpoint.on('destroyed', function(event_object) {
+        endpointProvider._.endpointRegistry.remove(event_object.endpoint);
+      });
+      // Add to registry or return the one already there
+      endpoint = this._.endpointRegistry.add(endpoint);
+    return endpoint;
+  };
+
+  this.createSubProtocol = function createSubProtocol(obj) {
+    return new SubProtocol(obj);
+  };
+
+  /** Create Mqtt Endpoint
    * @returns {module:rtcomm.MqttEndpoint} */
   this.getMqttEndpoint = function() {
     return new MqttEndpoint({connection: this.dependencies.endpointConnection});
   };
 
-  /** 
-   * Get the PresenceMonitor Object 
+  /**
+   * Get the PresenceMonitor Object
    *
-   * This object is used to add topics to monitor for presence. 
+   * This object is used to add topics to monitor for presence.
    *
    * @returns {module:rtcomm.PresenceMonitor}
    */
@@ -3716,15 +3752,15 @@ var EndpointProvider =  function EndpointProvider() {
     }
     this._.presenceMonitor  = this._.presenceMonitor || createPresenceMonitor({connection: this.dependencies.endpointConnection});
     if (this.ready) {
-      l('DEBUG') && console.log(this+'.getPresenceMonitor Monitoring topic: '+topic); 
+      l('DEBUG') && console.log(this+'.getPresenceMonitor Monitoring topic: '+topic);
       topic && this._.presenceMonitor.add(topic);
-    } else {  
-      l('DEBUG') && console.log(this+'.getPresenceMonitor Not adding monitor for topic: '+topic); 
+    } else {
+      l('DEBUG') && console.log(this+'.getPresenceMonitor Not adding monitor for topic: '+topic);
     }
     // propogate the event out if we have a handler.
     return this._.presenceMonitor;
   };
-  /** 
+  /**
    * Destroy all endpoints and cleanup the endpointProvider.
    */
   this.destroy = function() {
@@ -3742,11 +3778,11 @@ var EndpointProvider =  function EndpointProvider() {
   };
 
   /**
-   * Set the AppContext. 
+   * Set the AppContext.
    *
    * It is necessary to call setAppContext() prior to getRtcommEndpoint() if
    * init() has not been called
-   * 
+   *
    * @returns {module:rtcomm.EndpointProvider} EndpointProvider object
    * @throws {Error} Cannot change appContext once init'd
    */
@@ -3787,7 +3823,7 @@ var EndpointProvider =  function EndpointProvider() {
   /**
    * Make your presence available
    *
-   * @param {object} presenceConfig 
+   * @param {object} presenceConfig
    * @param {string} presenceConfig.state One of 'available', 'unavailable', 'away', 'busy'
    * @param {string} presenceConfig.alias An alias to be associated with the presence record
    * @param {array} presenceConfig.userDefines  Array of userdefined objects associated w/ presence
@@ -3798,11 +3834,11 @@ var EndpointProvider =  function EndpointProvider() {
     var states = {
       'available': 'available',
       'unavailable': 'unavailable',
-      'busy':'busy' 
+      'busy':'busy'
     };
     // Always default to available
     var state = (presenceConfig && presenceConfig.state) ?
-      states[presenceConfig.state.trim()] || 'available' : 
+      states[presenceConfig.state.trim()] || 'available' :
       'available';
     presenceConfig = presenceConfig || {};
     presenceConfig.state = state;
@@ -3816,8 +3852,8 @@ var EndpointProvider =  function EndpointProvider() {
    * @fires module:rtcomm.EndpointProvider#queueupdate
    */
   this.updateQueues= function updateQueues() {
-    this._.queues.add((this._.services && 
-                     this._.services.RTCOMM_CALL_QUEUE_SERVICE && 
+    this._.queues.add((this._.services &&
+                     this._.services.RTCOMM_CALL_QUEUE_SERVICE &&
                      this._.services.RTCOMM_CALL_QUEUE_SERVICE.queues) ||
                      []);
     this.emit('queueupdate', this._.queues.all());
@@ -3828,8 +3864,8 @@ var EndpointProvider =  function EndpointProvider() {
    * <p>
    * A Session Queue is a subscription to a Shared Topic.  By joining a queue, it enables
    * the all RtcommEndpoints to be 'available' to receive an inbound request from the queue topic.
-   * Generally, this could be used for an Agent scenario where many endpoints have joined the 
-   * queue, but only 1 endpoint will receive the inbound request.  
+   * Generally, this could be used for an Agent scenario where many endpoints have joined the
+   * queue, but only 1 endpoint will receive the inbound request.
    * </p>
    *
    * @param {string} queueid Id of a queue to join.
@@ -3912,13 +3948,13 @@ var EndpointProvider =  function EndpointProvider() {
     return this.dependencies.endpointConnection;
   };
 
-  /** Set LogLevel 
+  /** Set LogLevel
    *  @method
    *  @param {string} INFO, MESSAGE, DEBUG, TRACE
    */
   this.setLogLevel = setLogLevel;
 
-  /** Return  LogLevel 
+  /** Return  LogLevel
    * @method
    *  @returns {string} INFO, MESSAGE, DEBUG, TRACE
    */
@@ -3926,21 +3962,21 @@ var EndpointProvider =  function EndpointProvider() {
 
   /** Return  requireRtcommServer
    * @method
-   *  @returns {boolean} 
+   *  @returns {boolean}
    */
 
   this.requireServer = function() {
     return this.config.requireRtcommServer;
   };
-  /** Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} objects that 
+  /** Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} objects that
    * are associated with this  EndpointProvider
-   *  @returns {Array} Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} 
+   *  @returns {Array} Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    */
   this.endpoints = function() {
     return this._.endpointRegistry.list();
   };
-  /** Return object indicating state of EndpointProvider 
-   *  *NOTE* Generally used for debugging purposes 
+  /** Return object indicating state of EndpointProvider
+   *  *NOTE* Generally used for debugging purposes
   */
   this.currentState = function() {
     return {
@@ -4140,6 +4176,46 @@ var EndpointRegistry = function EndpointRegistry(options) {
   };
 
 };
+
+var GenericMessageProtocol = function GenericMessageProtocol() {
+
+  function startMessage() {
+    console.log('No Start Message');
+    return null;
+  };
+
+  function stopMessage(){
+    console.log('No Stop Message');
+    return null;
+  };
+  function processMessage(message) {
+    console.log('Received a Message: '+ message);
+  };
+
+  function constructMessage(message) {
+    // Take a string message, cast it in our 'protocol'
+    return {'message': message};
+  };
+
+  var  protocolDefinition = new SubProtocol({
+    name: 'generic-message',
+    getStartMessage: startMessage,
+    getStopMessage: stopMessage,
+    handleMessage: processMessage,
+    constructMessage: constructMessage
+});
+ return protocolDefinition;
+}
+
+
+var MessageEndpoint = (function(config) {
+
+	var MessageEndpoint = function MessageEndpoint(config) {
+		var ep =  new SessionEndpoint(config);
+		ep.addProtocol(GenericMessageEndpoint);
+	}
+	return MessageEndpoint;
+})();
 
 /*
  * Copyright 2014,2015 IBM Corp.
@@ -5598,6 +5674,868 @@ var proto = {
   })()); // End of Prototype
 
 return RtcommEndpoint;
+})();
+
+/*
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/*global: l:false*/
+/*global: generateUUID:false*/
+/*global: util:false*/
+
+/**
+ *  @memberof module:rtcomm
+ *  @description
+ *  This object can only be created with the {@link module:rtcomm.EndpointProvider#getSessionEndpoint|getSessionEndpoint} function.
+ *  <p>
+ *  The SessionEndpoint object provides an interface for the UI Developer to attach
+ *  Video and Audio input/output.  Essentially mapping a broadcast stream(a MediaStream that
+ *  is intended to be sent) to a RTCPeerConnection output stream.   When an inbound stream
+ *  is added to a RTCPeerConnection, then this also informs the RTCPeerConnection
+ *  where to send that stream in the User Interface.
+ *  <p>
+ *  See the example under {@link module:rtcomm.EndpointProvider#getSessionEndpoint|getSessionEndpoint}
+ *  @constructor
+ *
+ *  @extends  module:rtcomm.util.RtcommBaseObject
+ */
+var SessionEndpoint = function SessionEndpoint(config) {
+  /**
+   * @typedef {object} module:rtcomm.SessionEndpoint~config
+   *
+   * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
+   * @property {string}  [userid=null] UserID the endpoint will use (generally provided by the EndpointProvider
+   * @property {string}  [appContext=null] UI Component to attach outbound media stream
+   * @property {module:rtcomm.SessionEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
+   * @property {module:rtcomm.SessionEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
+   * @property {module:rtcomm.EndpointProvider} [parent] - set the parent Should be done automatically.
+   */
+
+    this.config = {
+      // if a feature is supported, enable by default.
+      autoEnable: false,
+      ignoreAppContext: true,
+      appContext : null,
+      userid: null,
+    };
+    this.dependencies = {
+      endpointConnection: null,
+      parent: null
+    };
+    // Private info.
+    this._ = {
+      objName: 'SessionEndpoint',
+      activeSession: null,
+      available: true,
+      /*global generateUUID:false */
+      uuid: generateUUID(),
+      initialized : false,
+      disconnecting: false,
+      protocols : []
+    };
+    // Used to store the last event emitted;
+    this.lastEvent = null;
+    // Used to store the last event emitted
+    this.state = 'session:stopped';
+    var self = this;
+    // Apply the config to config.
+    config && Object.keys(config).forEach(function(key) {
+      if (key === 'parent') {
+        self.dependencies[key] = config[key];
+        self.dependencies.endpointConnection = config[key].getEndpointConnection();
+      } else {
+        self.config[key] = config[key];
+      }
+    });
+
+    // expose the ID
+    this.id = this._.uuid;
+    this.userid = this.config.userid || null;
+    this.appContext = this.config.appContext || null;
+
+    /**
+     * SessionEndpoint Event type
+     *
+     *  @typedef {Object} module:rtcomm.SessionEndpoint~Event
+     *  @property {name} eventName
+     *  @property {object} endpointObject - an object passed with the event
+     *  @property {string} [reason] - Used for failure messages
+     *  @property {string} [protocols] - Used for alerting messages
+     *  @property {object} [message] - Used for chat:message and session:alerting
+     */
+
+    this.events = {
+        /**
+         * A signaling session to a peer has been established
+         * @event module:rtcomm.SessionEndpoint#session:started
+         * @property {module:rtcomm.SessionEndpoint~Event}
+         */
+        "session:started": [],
+        /**
+         * An inbound request to establish a call via
+         * 3PCC was initiated
+         *
+         * @event module:rtcomm.SessionEndpoint#session:refer
+         * @property {module:rtcomm.SessionEndpoint~Event}
+         *
+         */
+        "session:refer": [],
+        /**
+         * A peer has been reached, but not connected (inbound/outound)
+         * @event module:rtcomm.SessionEndpoint#session:ringing
+         * @property {module:rtcomm.SessionEndpoint~Event}
+         */
+        "session:trying": [],
+        /**
+         * A Queue has been contacted and we are waiting for a response.
+         * @event module:rtcomm.SessionEndpoint#session:queued
+         * @property {module:rtcomm.SessionEndpoint~Event}
+         */
+        "session:queued": [],
+        /**
+         * A peer has been reached, but not connected (inbound/outound)
+         * @event module:rtcomm.SessionEndpoint#session:ringing
+         * @property {module:rtcomm.SessionEndpoint~Event}
+         */
+        "session:ringing": [],
+        /**
+         * An inbound connection is being requested.
+         * @event module:rtcomm.SessionEndpoint#session:alerting
+         * @property {module:rtcomm.SessionEndpoint~Event}
+         */
+        "session:alerting": [],
+        /**
+         * A failure occurred establishing the session (check reason)
+         * @event module:rtcomm.SessionEndpoint#session:failed
+         * @property {module:rtcomm.SessionEndpoint~Event}
+         */
+        "session:failed": [],
+        /**
+         * The session has stopped
+         * @event module:rtcomm.SessionEndpoint#session:stopped
+         * @property {module:rtcomm.SessionEndpoint~Event}
+         *
+         */
+        "session:stopped": [],
+        "destroyed": []
+    };
+  };
+/*globals util:false*/
+/*globals l:false*/
+SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
+
+  function createSignalingSession(endpoint, context) {
+    var remoteEndpointID = null;
+    var toTopic = null;
+    l('DEBUG') && console.log(context+' createSignalingSession using endpoint: ', endpoint);
+    if (typeof endpoint === 'object') {
+      if (endpoint.remoteEndpointID && endpoint.toTopic) {
+        remoteEndpointID = endpoint.remoteEndpointID;
+        toTopic = endpoint.toTopic;
+      } else {
+        throw new Error('Invalid object passed on connect! should be {remoteEndpointID: something, toTopic: something}');
+      }
+    } else {
+      remoteEndpointID = endpoint;
+    }
+    l('DEBUG') && console.log(context+" createSignalingSession context: ", context);
+    var sessid = null;
+    if (!remoteEndpointID) {
+      throw new Error('remoteEndpointID must be set');
+    }
+    console.log('toTopic is: '+toTopic);
+    var session = context.dependencies.endpointConnection.createSession({
+      id : sessid,
+      toTopic : toTopic,
+      protocols: context._.protocols,
+      remoteEndpointID: remoteEndpointID,
+      appContext: context.config.appContext
+    });
+    return session;
+  }
+
+  // Protocol Specific handling of the session content.
+  //
+  function addSessionCallbacks(context, session) {
+     // Define our callbacks for the session.
+    // received a pranswer
+    session.on('have_pranswer', function(content){
+      // Got a pranswer:
+      context.setState('session:ringing');
+      context._processMessage(content);
+    });
+    /*
+     * this is a bit of a special message... content MAY contain:
+     * content.queuePosition
+     * content.message
+     *
+     * content.message is all we propogate.
+     *
+     */
+    session.on('queued', function(content){
+      l('DEBUG') && console.log('SigSession callback called to queue: ', content);
+      var position = 0;
+      if (typeof content.queuePosition !== 'undefined') {
+        position = content.queuePosition;
+        context.setState('session:queued',{'queuePosition':position});
+        content = (content.message)? content.message : content;
+      } else {
+        context.setState('session:queued');
+        context._processMessage(content);
+      }
+    });
+    session.on('message', function(content){
+      l('DEBUG') && console.log('SigSession callback called to process content: ', content);
+      context._processMessage(content);
+    });
+    session.on('started', function(content){
+      // Our Session is started!
+      content && context._processMessage(content);
+      context.setState('session:started');
+    });
+    session.on('stopped', function(message) {
+      // We could already be stopped, ignore it in that case.
+      l('DEBUG') && console.log(context+' SigSession callback called to process STOPPED: ' + context.getState());
+      if (context.getState() !== 'session:stopped') {
+        // In this case, we should disconnect();
+        context.setState('session:stopped');
+        context.disconnect();
+      }
+    });
+    session.on('starting', function() {
+      context.setState('session:trying');
+    });
+    session.on('failed', function(message) {
+      context.disconnect();
+      context.setState('session:failed',{reason: message});
+    });
+    l('DEBUG') && console.log(context+' createSignalingSession created!', session);
+   // session.listEvents();
+    return true;
+  }
+
+/** @lends module:rtcomm.SessionEndpoint.prototype */
+var proto = {
+  getAppContext:function() {return this.config.appContext;},
+  newSession: function(session) {
+      var event = null;
+      var msg = null;
+      // If there is a session.appContext, it must match unless this.ignoreAppContext is set
+      if (this.config.ignoreAppContext ||
+         (session.appContext && (session.appContext === this.getAppContext())) ||
+         (typeof session.appContext === 'undefined' )) {
+        // We match appContexts (or don't care)
+        if (this.available()){
+          // We are available (we can mark ourselves busy to not accept the call)
+          // Save the session
+          this._.activeSession = session;
+          addSessionCallbacks(this,session);
+          var commonProtocols = util.commonArrayItems(this._.protocols, session.protocols);
+          l('DEBUG') && console.log(this+'.newSession() common protocols: '+ commonProtocols);
+          // If this session is created by a REFER, we do something different
+          if (session.referralTransaction ) {
+            // Don't start it, emit 'session:refer'
+            l('DEBUG') && console.log(this + '.newSession() REFER');
+            // Set the protocols to match the endpoints.
+            session.protocols = this._.protocols;
+            this.setState('session:refer');
+          } else if (commonProtocols.length > 0  || (this._.protocols.length === 0 && session.protocols.length === 0)) {
+            // have a common protocol (or have NO protocols)
+            // any other inbound session should be started.
+            session.start({protocols: commonProtocols});
+            // Depending on the session.message (i.e its peerContent or future content) then do something.
+            if (session.message && session.message.payload) {
+              // If we need to pranswer, processMessage can handle it.
+              this._processMessage(session.message.payload);
+            } else {
+              // it doesn't have any payload, but could have protocols subprotocol
+              session.pranswer();
+              this.setState('session:alerting', {protocols:commonProtocols});
+            }
+          } else {
+            // can't do anything w/ this session, same as busy... different reason.
+            l('DEBUG') && console.log(this+'.newSession() No common protocols');
+            session.fail('No common protocols');
+          }
+          this.available(false);
+        } else {
+          msg = 'Busy';
+          l('DEBUG') && console.log(this+'.newSession() '+msg);
+          session.fail('Busy');
+        }
+      } else {
+        msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.getAppContext()+')';
+        l('DEBUG') && console.log(this+'.newSession() '+msg);
+        session.fail(msg);
+      }
+  },
+  _processMessage: function(payload) {
+
+    var self = this;
+    /*
+     * payload will be a key:object map where key is 'webrtc' or 'chat' for example
+     * and the object is the 'content' that should be routed to that object.
+     */
+    // basically a protocol router...
+    //
+    var protocols;
+    if (payload) {
+      for (var protocol in payload) {
+        if (payload.hasOwnProperty(protocol)){
+          // we  protocol is in payloads
+          if (self.hasOwnProperty(protocol)) {
+            // we have this protocol defined pass message to the protocol
+            // if protocol is enabled, pass the message
+            if ( self[protocol].enabled()) {
+              self[protocol].handleMessage(payload[protocol]);
+            } else {
+              console.error('Received %s message, but not enabled!',protocol, payload[protocol]);
+            }
+          } else {
+            console.error('Received %s message, but not supported!',protocol, payload[protocol]);
+          }
+        }
+      } // end of for
+     } else {
+       l('DEBUG') && console.log(this+' Received message, but nothing to do with it', payload);
+     }
+  },
+
+  /** Endpoint is available to accept an incoming call
+   *
+   * @returns {boolean}
+   */
+    available: function(a) {
+     // if a is a boolean then set it, otherwise return it.
+     if (typeof a === 'boolean') {
+       this._.available = a;
+       l('DEBUG') && console.log(this+'.available() setting available to '+a);
+       return a;
+     } else  {
+       return this._.available;
+     }
+    },
+
+  /**
+   * Connect to another endpoint.  Depending on what is enabled, it may also start
+   * a chat connection or a webrtc connection.
+   * <p>
+   * If webrtc is enabled by calling webrtc.enable() then the initial connect will
+   * also generate an Offer to the remote endpoint. <br>
+   * If chat is enabled, an initial message will be sent in the session as well.
+   * </p>
+   *
+   * @param {string|object} endpoint Remote ID of endpoint to connect.
+   */
+  connect: function(endpoint) {
+    if (this.ready()) {
+      this.available(false);
+      this._.disconnecting = false;
+      if (!this._.activeSession ) {
+        l('DEBUG') && console.log(this+'.connect() connecting to endpoint : ', endpoint);
+        if (typeof endpoint === 'string') {
+
+          //TODO Move this to the EnpdointProvider
+          var pm = this.dependencies.parent.getPresenceMonitor();
+          // We do not require  aserver, and there is no service configured (serviceQuery failed)
+          if (!this.dependencies.parent.requireServer() && Object.keys(this.getRtcommConnectorService()).length === 0){
+            // If we don't require a server, try to figure out the endpoint Topic
+            l('DEBUG') && console.log(this+'.connect() Looking up endpoint : ', endpoint);
+            var node = pm.getPresenceData()[0].findNodeByName(endpoint);
+            var newep = node ?
+                        { remoteEndpointID: endpoint,
+                          toTopic: node.addressTopic }
+                        : endpoint;
+            l('DEBUG') && console.log(this+'.connect() found enpdoint : ', newep);
+            endpoint = newep;
+          }
+        }
+        l('DEBUG') && console.log(this+'.connect() Creating signaling session to: ', endpoint);
+        this._.activeSession = createSignalingSession(endpoint, this);
+        addSessionCallbacks(this, this._.activeSession);
+      }
+      this.setState('session:trying');
+      var startMessage = this._getStartMessage();
+      // Send our message
+      l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',startMessage);
+      this._.activeSession.start(startMessage);
+    } else {
+      throw new Error('Unable to connect endpoint until EndpointProvider is initialized');
+    }
+    return this;
+  },
+  /*
+   * Get the start Message -- this will call 'connect' on all sub protocols.
+   * (though it won't really connect yet)
+   * TODO:  Think this through.
+   */
+  _getStartMessage: function() {
+      var self = this;
+      // Get our start message
+      var startMessage = null;
+      this._.protocols.forEach(function(protocol) {
+        if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
+          // get the startMessage
+          startMessage[protocol] = self[protocol].connect();
+        }
+      });
+      return startMessage;
+  },
+  _getStopMessage: function() {
+      var self = this;
+      // Get our start message
+      var stopMessage = null;
+      this._.protocols.forEach(function(protocol) {
+        if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
+          // get the startMessage
+          stopMessage[protocol] = self[protocol].disconnect();
+        }
+      });
+      return stopMessage;
+  },
+  _getAcceptMessage: function() {
+      var self = this;
+      // Get our start message
+      var acceptMessage = null;
+      this._.protocols.forEach(function(protocol) {
+        if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
+          // get the startMessage
+          acceptMessage[protocol] = self[protocol].accept();
+        }
+      });
+      return acceptMessage;
+  },
+
+  /**
+   * Disconnect the endpoint from a remote endpoint.
+   */
+  disconnect: function() {
+    l('DEBUG') && console.log(this+'.disconnect() Entry');
+    if (!this._.disconnecting) {
+      // Not in progress, move along
+      l('DEBUG') && console.log(this+'.disconnect() Starting disconnect process');
+      this._.disconnecting = true;
+      var stopMessage = this._getStopMessage();
+      if (!this.sessionStopped()) {
+        this._.activeSession.stop(stopMessage);
+        this._.activeSession = null;
+        this.setState('session:stopped');
+      } else {
+        this._.activeSession=null;
+      }
+      this._.disconnecting = false;
+      this.available(true);
+    } else {
+      l('DEBUG') && console.log(this+'.disconnect() in progress, cannot disconnect again');
+    }
+    l('DEBUG') && console.log(this+'.disconnect() Exit');
+    return this;
+  },
+  /**
+   * Accept an inbound request.  This is typically called after a
+   * {@link module:rtcomm.SessionEndpoint#session:alerting|session:alerting} event
+   *
+   *
+   * @param {module:rtcomm.SessionEndpoint~callback} callback - The callback when accept is complete.
+   *
+   * @returns {module:rtcomm.SessionEndpoint}
+   */
+  accept: function(callback) {
+
+	// If refer, we have been told to connect to someone, call connect on ourself.
+    if (this.getState() === 'session:refer') {
+      this.connect(null);
+	} else {
+		this._.activeSession.respond(true, this._getAcceptMessage);
+	}
+    return this;
+  },
+
+  /**
+   * Reject an inbound request.  This is typically called after a
+   * {@link module:rtcomm.SessionEndpoint#session:alerting|session:alerting} event
+   *
+   */
+  reject: function() {
+    l('DEBUG') && console.log(this + ".reject() invoked ");
+    this._stopRing();
+	var self=this;
+    this._.protocols.forEach(function(protocol) {
+      if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
+        self[protocol].reject();
+      }
+    });
+    this._.activeSession && this._.activeSession.fail("The user rejected the call");
+    this.available(true);
+    this._.activeSession = null;
+    return this;
+  },
+
+  /* TODO deprecate */
+  sendOneTimeMessage: function(message){
+    // Sending message:
+    l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending '+message);
+    var msg = {};
+    if (this.sessionStarted()) {
+      msg.otm = (typeof message === 'object') ? message : {'message':message};
+      l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending ',msg);
+      this._.activeSession.send(msg);
+    } else {
+      throw new Error('Unable to send onetimemessage.  Session not started');
+    }
+  },
+
+  getRtcommConnectorService: function(){
+    return this.dependencies.endpointConnection.services.RTCOMM_CONNECTOR_SERVICE;
+  },
+  /* used by the parent to assign the endpoint connection */
+
+  setEndpointConnection: function(connection) {
+    this.dependencies.endpointConnection = connection;
+    this.dependencies.endpointConnection.on('servicesupdate', function(services) {
+        l('DEBUG') && console.log('setEndpointConnection: resetting the ice servers to '+services.RTCOMM_CONNECTOR_SERVICE);
+    //    webrtc && webrtc.setIceServers(services.RTCOMM_CONNECTOR_SERVICE);
+    });
+  },
+
+  /** Return user id
+   * @returns {string} Local UserID that endpoint is using
+   */
+  getUserID : function(userid) {
+      return this.config.userid;
+  },
+
+  setUserID : function(userid) {
+      this.userid = this.config.userid = userid;
+  },
+
+  getState: function() {
+    return this.state;
+  },
+
+  /**
+   * Endpoint is ready to connect
+   * @returns {boolean}
+   */
+  ready : function() {
+    var ready = (this.dependencies.endpointConnection) ? true : false;
+    return ready;
+  },
+  /**
+   * The Signaling Session is started
+   * @returns {boolean}
+   */
+  sessionStarted: function() {
+    return (this._.activeSession && this._.activeSession.getState() === 'started');
+  },
+  /**
+   * The Signaling Session does not exist or is stopped
+   * @returns {boolean}
+   */
+  sessionStopped: function() {
+    var state = (this._.activeSession) ? (this._.activeSession.getState() === 'stopped'): true;
+    return state;
+  },
+  /**
+   * Remote EndpointID this endpoint is connected to.
+   * @returns {string}
+   */
+  getRemoteEndpointID: function() {
+    return this._.activeSession ? this._.activeSession.remoteEndpointID : 'none';
+  },
+  /**
+   * Local EndpointID this endpoint is using.
+   * @returns {string}
+   */
+  getLocalEndpointID: function() {
+    return this.userid;
+  },
+
+  /**
+   *  Destroy this endpoint.  Cleans up everything and disconnects any and all connections
+   */
+  destroy : function() {
+    l('DEBUG') && console.log(this+'.destroy Destroying SessionEndpoint');
+    this.emit('destroyed');
+    this.disconnect();
+    // this.getLocalStream() && this.getLocalStream().stop();
+    l('DEBUG') && console.log(this+'.destroy() - detaching media streams');
+    //detachMediaStream && detachMediaStream(this.getMediaIn());
+    //detachMediaStream && detachMediaStream(this.getMediaOut());
+    l('DEBUG') && console.log(this+'.destroy() - Finished');
+  },
+
+  /* This is an event formatter that is called by the prototype emit() to format an event if
+   * it exists
+   * When passed an object, we ammend it w/ eventName and endpoint and pass it along.
+   */
+  _Event : function Event(event, object) {
+      var RtcommEvent =  {
+        eventName: '',
+        endpoint: null
+      };
+      l('DEBUG') && console.log(this+'_Event -> creating event['+event+'], augmenting with', object);
+      RtcommEvent.eventName= event;
+      RtcommEvent.endpoint= this;
+      if (typeof object === 'object') {
+        Object.keys(object).forEach(function(key) {
+          RtcommEvent[key] = object[key];
+        });
+      }
+      l('DEBUG') && console.log(this+'_Event -> created event: ',RtcommEvent);
+      return RtcommEvent;
+  },
+  /* add a protocol */
+  addProtocol: function addProtocol(/*SubProtocol or String*/ protocol) {
+    // Add it to the protocols list
+    protocol.setParent(this);
+    this._.protocols.push(protocol.name);
+    this[protocol.name] = protocol;
+    var self = this;
+    Object.keys(protocol.events).forEach(function addEvent(eventname) {
+      self.createEvent(protocol.name+':'+eventname);
+    });
+    // add a common event handler for here... to generically emit events.
+    this[protocol.name].bubble(function(event, object) {
+      self.emit(protocol.name+':'+event, object);
+    });
+  }
+  };
+
+  // This construct is to get the jsdoc correct
+  return proto;
+
+  })()); // End of Prototype
+
+ /*
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/
+/*global l:false*/
+/*global util:false*/
+var SubProtocol= (function invocation() {
+
+/**
+   * @memberof module:rtcomm.EndpointConnection
+   *
+   * @description
+   *
+   * A SubProtocol behaves as follows:
+   *
+   * -- Random Thoughts --
+   *   -- if protocols are 'enabled' then when 'connect' is called on the parent, it will call connect on the protocols.
+   *
+   * enable -- If our parent is connected, we 'enable' and send our OnEnabledMessage
+   *        -- If our parent is not connected, we 'get ready' for a connect.
+   *
+   *  @constructor
+   *  @extends  module:rtcomm.util.RtcommBaseObject
+   */
+
+  var protocolConfig = {
+    name: '',
+    getStartMessage: function getStartMessage() {
+      return "";
+    },
+    getStopMessage: function getStopMessage() {
+      return "";
+    },
+    constructMessage : function constructMessage(message) {
+
+    },
+    handleMessage : function handleMessage(message) {
+
+    }
+  };
+
+
+
+  var SubProtocol = function SubProtocol(object) {
+    this._ = {};
+    this._.enabled = false;
+    // Need?
+    this.onEnabledMessage = null;
+    this.onDisabledMessage = null;
+    // Do maintain state
+    this.state = 'disconnected';
+    // TODO:  Throw error if no parent.
+    this.dependencies = {
+      parent: parent || null
+    };
+    this.events = {
+      'message': [],
+      'ringing': [],
+      'connected': [],
+      'alerting': [],
+      'disconnected': []
+    };
+
+    // Assign everything passed to here
+    this.protocolConfig = object;
+    // name gets assigned
+    this.name = this.protocolConfig.name;
+    /*
+     * Default create Message -- should be overridden w/ the protocol
+     */
+    this.createMessage = function createMessage(message) {
+      // default
+      console.log('Create message is: '+message);
+      var protoMessage = {};
+      protoMessage[this.name]= (typeof this.protocolConfig.constructMessage === 'function')  ?
+        this.protocolConfig.constructMessage(message) :
+          message;
+      return protoMessage;
+    }
+  }; // End of Constructor
+    /**
+     * Send a message if connected, otherwise,
+     * enables chat for subsequent RtcommEndpoint.connect();
+     * @param {string} message  Message to send when enabled.
+     */
+  SubProtocol.prototype = util.RtcommBaseObject.extend({
+    // Return message to be sent in a Start Session
+    getStartMessage: function getStartMessage() {
+
+    },
+    // Return message to be sent in a Stop Session
+    getStopMessage: function getStopMessage() {
+
+    },
+    setParent: function setParent(parent) {
+      this.dependencies.parent = parent;
+    },
+
+    enable : function enable(message) {
+      // cast a message
+      var parent = this.dependencies.parent;
+      var connect = false;
+      this.onStartMessage = this.getStartMessage();
+      this._.enabled = true;
+      // If our parent session is started, then call connect
+      if (parent.sessionStarted()) {
+        l('DEBUG') && console.log(this+'.enable() - Session Started, starting ');
+        this.connect();
+      }
+      return this;
+    },
+    /**
+     * Accept an inbound connection
+     */
+    accept : function accept(callback) {
+      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
+      // Only accept if enabled
+      // We should be 'alerting' I think
+      if (this.state === 'alerting') {
+        this.enabled && this.connect(callback);
+      };
+      return this;
+    },
+
+    /**
+     * Reject an inbound session
+     */
+    reject : function reject() {
+      // Does nothing.
+      return this;
+    },
+
+    disconnect: function disconnect() {
+      var message = this.getStopMessage();
+      // What if we are 'in session' but not STOPPING the whole thing... i.e. we are called directly and weould just send
+      // our message?
+      // TODO Figure that out.
+      this._setState('disconnected');
+      return message;
+    },
+    /**
+     * disable chat
+     */
+    disable : function disable(message) {
+      if (this._.enabled) {
+        this._.enabled = false;
+        this.onDisabledMessage = message;
+        this.send(this.onDisabledMessage);
+      }
+      return null;
+    },
+    enabled : function enabled(){
+      return this._.enabled;
+    },
+    /**
+     * send a chat message
+     * @param {string} message  Message to send
+     */
+    send : function send(message) {
+      var parent = this.dependencies.parent;
+      if (parent._.activeSession) {
+        parent._.activeSession.send(this.createMessage(message));
+      }
+      return this;
+    },
+    connect : function connect() {
+      var self = this;
+      var parent = self.dependencies.parent;
+      // TODO?  Where do we get this?
+      var message = this.getStartMessage();
+      if (parent.sessionStarted()) {
+        this.send(message);
+      }
+      return message;
+    },
+    // Message should be in the format:
+    // {payload content... }
+    // {'message': message, 'from':from}
+    //
+    handleMessage: function handleMessage(message) {
+      //called from the parent...
+      // this one will get overridden w/ something else... or use some othe rimpelmentation.
+      this._processMessage(message);
+    },
+    _processMessage: function _processMessage(message) {
+      // If we are connected, emit the message
+      this.emit('message', message);
+      return this;
+    },
+    _setState : function _setState(state, object) {
+     l('DEBUG') && console.log(this+'._setState() setting state to: '+ state);
+      var currentState = this.state;
+      try {
+        this.state = state;
+        this.emit(state, object);
+      } catch(error) {
+        console.error(error);
+        console.error(this+'._setState() unsupported state: '+state );
+        this.state = currentState;
+      }
+    },
+    getState : function getState() {
+      return this.state;
+    }
+  });
+  return SubProtocol;
 })();
 
  /*

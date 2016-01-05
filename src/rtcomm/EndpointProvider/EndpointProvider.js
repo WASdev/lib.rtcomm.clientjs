@@ -19,9 +19,9 @@
  * @classdesc
  * Provides Services to register a user and create Endpoints (RtcommEndpoints & MqttEndpoints)
  * <p>
- * This programming interface lets a JavaScript client application use 
+ * This programming interface lets a JavaScript client application use
  * a {@link module:rtcomm.RtcommEndpoint|Real Time Communication Endpoint}
- * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated} 
+ * to implement WebRTC simply. When {@link module:rtcomm.EndpointProvider|instantiated}
  * & {@link module:rtcomm.EndpointProvider#init|initialized} the
  * EndpointProvider connects to the defined MQTT Server and subscribes to a unique topic
  * that is used to receive inbound communication.
@@ -67,7 +67,7 @@ var EndpointProvider =  function EndpointProvider() {
   this._.objName = "EndpointProvider";
   this._.rtcommEndpointConfig = {};
 
-  /** State of the EndpointProvider */ 
+  /** State of the EndpointProvider */
   this.ready = false;
   this.events = {
       /**
@@ -84,14 +84,14 @@ var EndpointProvider =  function EndpointProvider() {
        */
       'queueupdate': [],
       /**
-       * The Presence was Updated 
+       * The Presence was Updated
        * @event module:rtcomm.EndpointProvider#presence_updated
        * @property {module:rtcomm.PresenceMonitor.presenceData}
        *
        */
       'presence_updated': [],
       /**
-       * The endpoint Provider has reset.  Usually due to another peer logging in with the same presence. 
+       * The endpoint Provider has reset.  Usually due to another peer logging in with the same presence.
        * The event has a 'reason' property indicating why the EndpointProvider was reset.
        *
        * @event module:rtcomm.EndpointProvider#reset
@@ -103,8 +103,8 @@ var EndpointProvider =  function EndpointProvider() {
   /** init method
    *
    *  This method is required to be called prior to doing anything else.  If init() is called w/ a userid, the
-   *  userid is *automatically* registered.  If it is called w/out a userid, then the EndpointProvider is 
-   *  *anonymous*.  A userid will be generated for security purposes called 'GUEST-<randomnumber>'.  This is 
+   *  userid is *automatically* registered.  If it is called w/out a userid, then the EndpointProvider is
+   *  *anonymous*.  A userid will be generated for security purposes called 'GUEST-<randomnumber>'.  This is
    *  necessary to have a localEndpointID that can be used for MQTT security.
    *
    * @param {Object} config
@@ -117,7 +117,7 @@ var EndpointProvider =  function EndpointProvider() {
    * @param {string} [config.rtcommTopicPath=/rtcomm/] MQTT Path to prefix managementTopicName with and register under
    * @param {boolean} [config.createEndpoint=false] Automatically create a {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    * @param {boolean} [config.monitorPresence=true] Automatically create a presence monitor and emit events on the endpoint provider.
-   * @param {boolean} [config.requireRtcommServer=false] Require an Rtcomm Server for routing 
+   * @param {boolean} [config.requireRtcommServer=false] Require an Rtcomm Server for routing
    * @param {function} [onSuccess] Callback function when init is complete successfully.
    * @param {function} [onFailure] Callback funtion if a failure occurs during init
    *
@@ -181,7 +181,7 @@ var EndpointProvider =  function EndpointProvider() {
     var configDefinition = {
         required: {},
         optional: {
-          server: 'string', 
+          server: 'string',
           credentials : 'object',
           rtcommTopicPath: 'string',
           managementTopicName: 'string',
@@ -198,7 +198,7 @@ var EndpointProvider =  function EndpointProvider() {
           server: (location !== 'undefined' ? location.hostname : 'localhost'),
           rtcommTopicPath: rtcommTopicPath,
           managementTopicName: 'management',
-          presence: { 
+          presence: {
             // Relative to the rtcommTopicPath
             rootTopic: 'sphere/',
             topic: '/', // Same as rootTopic by default
@@ -206,8 +206,8 @@ var EndpointProvider =  function EndpointProvider() {
           useSSL: useSSL,
           appContext: 'rtcomm',
           // Note, if SSL is true then use 8883
-          port: defaultPort, 
-          sslport: defaultSSLPort, 
+          port: defaultPort,
+          sslport: defaultSSLPort,
           monitorPresence: true,
           requireRtcommServer: false,
           createEndpoint: false }
@@ -225,16 +225,16 @@ var EndpointProvider =  function EndpointProvider() {
 
       // this.config now has the options + combo with defaults.
       // If we are READY (we are resetting) so use the NEW ones... otherwise, use saved ones.
-      this.config.appContext = options.appContext ? options.appContext : (appContext ? appContext : this.config.appContext) ; 
-      this.setUserID((options.userid ? options.userid: (userid ? userid: this.config.userid)), true) ; 
+      this.config.appContext = options.appContext ? options.appContext : (appContext ? appContext : this.config.appContext) ;
+      this.setUserID((options.userid ? options.userid: (userid ? userid: this.config.userid)), true) ;
 
       // If sslport was not set, but port was, use port.
       if (typeof options.sslport === 'undefined' && options.port) {
         this.config.sslport = this.config.port;
         l('DEBUG') && console.log(this+'.init() SSLPort not set, using port :'+this.config.sslport);
-      } 
+      }
     } else {
-      throw new Error("EndpointProvider initialization requires a minimum configuration: "+ 
+      throw new Error("EndpointProvider initialization requires a minimum configuration: "+
                       JSON.stringify(configDefinition.required));
     }
     var endpointProvider = this;
@@ -245,7 +245,7 @@ var EndpointProvider =  function EndpointProvider() {
       l('DEBUG') && console.log(endpointProvider+'.init() Default Failure message, use callback to process:', error);
     };
 
-    // Create the Endpoint Connection  
+    // Create the Endpoint Connection
     l('DEBUG') && console.log(this+'.init() Using config ', config);
 
     var connectionConfig =  util.makeCopy(config);
@@ -269,8 +269,8 @@ var EndpointProvider =  function EndpointProvider() {
         this.dependencies.endpointConnection.destroy();
       }
     }
-    var endpointConnection = 
-      this.dependencies.endpointConnection = 
+    var endpointConnection =
+      this.dependencies.endpointConnection =
       createEndpointConnection.call(this, connectionConfig);
     /*
      * onSuccess callback for endpointConnection.connect();
@@ -333,7 +333,7 @@ var EndpointProvider =  function EndpointProvider() {
         this.reset('Connection Lost');
       } else if (error.name === 'MULTIPLE_SERVERS') {
         this.reset(error.message);
-      } else { 
+      } else {
         cbFailure(error);
       }
     };
@@ -385,14 +385,13 @@ var EndpointProvider =  function EndpointProvider() {
        *  Do we have a default endpoint?  if so, just give the session to it.
        *  if that endpoint is busy, create a new endpoint and emit it.
        *  If there isn't a endpoint, create a Endpoint and EMIT it.
-       *
        */
       if(session) {
         l('DEBUG') && console.log(endpointProvider+'-on.newsession Handle a new incoming session: ', session);
         // Send it to the same id/appContext;
         //
         l('DEBUG') && console.log(endpointProvider+'-on.newsession endpointRegistry: ', endpointProvider._.endpointRegistry.list());
-        var endpoint = endpointProvider._.endpointRegistry.getOneAvailable(); 
+        var endpoint = endpointProvider._.endpointRegistry.getOneAvailable();
         if (endpoint) {
           l('DEBUG') && console.log(endpointProvider+'-on.newsession giving session to Existing Endpoint: ', endpoint);
           endpoint.newSession(session);
@@ -413,7 +412,7 @@ var EndpointProvider =  function EndpointProvider() {
             console.error(endpointProvider+
             '-on.newsession - Rejecting session, ambiguous enpdoint selection; add newendpoint callback? ');
           } else {
-            // Do not emit anything... 
+            // Do not emit anything...
             endpoints[0].newSession(session);
           }
         }
@@ -432,12 +431,12 @@ var EndpointProvider =  function EndpointProvider() {
       l('TRACE') && console.log("Document Replaced event received", message);
       endpointProvider.reset("document_replaced");
     });
-    return endpointConnection; 
+    return endpointConnection;
   }; // End of createEndpointConnection
 
   /**
    * Pre-define RtcommEndpoint configuration.  This provides the means to create a common
-   * configuration all RtcommEndpoints will use, including the same event handlers.  
+   * configuration all RtcommEndpoints will use, including the same event handlers.
    *
    * *NOTE* This should be set PRIOR to calling getRtcommEndpoint()
    *
@@ -459,7 +458,7 @@ var EndpointProvider =  function EndpointProvider() {
    *   },
    *   'session:started': function(event) {
    *
-   *   }, 
+   *   },
    *   'session:alerting': function(event) {
    *
    *   }
@@ -468,18 +467,18 @@ var EndpointProvider =  function EndpointProvider() {
   this.setRtcommEndpointConfig = function setRtcommEndpointCallbacks(options) {
     this._.rtcommEndpointConfig = util.combineObjects(options, this._.rtcommEndpointConfig);
   };
-  /** 
+  /**
    *  Factory method that returns a RtcommEndpoint object to be used by a UI component.
    *  <p>
-   *  The RtcommEndpoint object provides an interface for the UI Developer to attach 
-   *  Video and Audio input/output. Essentially mapping a broadcast stream(a MediaStream 
-   *  that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound 
+   *  The RtcommEndpoint object provides an interface for the UI Developer to attach
+   *  Video and Audio input/output. Essentially mapping a broadcast stream(a MediaStream
+   *  that is intended to be sent) to a RTCPeerConnection output stream.   When an inbound
    *  stream is added to a RTCPeerConnection, then the RtcommEndpoint object also informs the
    *  RTCPeerConnection where to send that stream in the User Interface.
    *  </p>
    *
    *  @param {module:rtcomm.RtcommEndpoint~config}  [config] - Any of the parameters in this object can be passed.
-   *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint 
+   *  @returns {module:rtcomm.RtcommEndpoint} RtcommEndpoint
    *  @throws Error
    *
    * @example
@@ -508,7 +507,7 @@ var EndpointProvider =  function EndpointProvider() {
     if (endpointConfig && typeof endpointConfig !== 'object') {
       endpointid = endpointConfig;
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() Looking for endpoint: '+endpointid);
-      // Returns an array of 1 endpoint. 
+      // Returns an array of 1 endpoint.
       endpoint = this._.endpointRegistry.get(endpointid)[0];
       l('DEBUG') && console.log(this+'.getRtcommEndpoint() found endpoint: ',endpoint);
     } else {
@@ -521,7 +520,7 @@ var EndpointProvider =  function EndpointProvider() {
       // Merge the objects, will still have callbacks.
 
       var objConfig = util.combineObjects(this._.rtcommEndpointConfig, defaultConfig);
-      // 
+      //
       // If we have any callbacks defined, put in their own object for later.
       //
       var endpointCallbacks = {};
@@ -539,7 +538,7 @@ var EndpointProvider =  function EndpointProvider() {
       l('DEBUG') && console.log(this+'.getRtcommEndpoint using config: ', objConfig);
       // Create the endpoint
       endpoint = new RtcommEndpoint(objConfig);
-      // attach the endpointConnection if it exists. 
+      // attach the endpointConnection if it exists.
       this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
       // If the endpoint is destroyed, define the behavior to cleanup.
       endpoint.on('destroyed', function(event_object) {
@@ -570,16 +569,53 @@ var EndpointProvider =  function EndpointProvider() {
   /* deprecated */
   this.createRtcommEndpoint = this.getRtcommEndpoint;
 
-  /** Create Mqtt Endpoint 
+  /** Create Session Endpoint
+   * @returns {module:rtcomm.SessionEndpoint} */
+  this.getSessionEndpoint = function() {
+      var endpoint = new SessionEndpoint({parent: this});
+      // attach the endpointConnection if it exists.
+      var endpointProvider = this;
+      this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
+      // If the endpoint is destroyed, define the behavior to cleanup.
+      endpoint.on('destroyed', function(event_object) {
+        endpointProvider._.endpointRegistry.remove(event_object.endpoint);
+      });
+      // Add to registry or return the one already there
+      endpoint = this._.endpointRegistry.add(endpoint);
+    return endpoint;
+  };
+
+  /** Create Session Endpoint
+   * @returns {module:rtcomm.SessionEndpoint} */
+  this.getMessageEndpoint = function() {
+
+      var endpoint = new MessageEndpoint({parent: this});
+      // attach the endpointConnection if it exists.
+      var endpointProvider = this;
+      this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);
+      // If the endpoint is destroyed, define the behavior to cleanup.
+      endpoint.on('destroyed', function(event_object) {
+        endpointProvider._.endpointRegistry.remove(event_object.endpoint);
+      });
+      // Add to registry or return the one already there
+      endpoint = this._.endpointRegistry.add(endpoint);
+    return endpoint;
+  };
+
+  this.createSubProtocol = function createSubProtocol(obj) {
+    return new SubProtocol(obj);
+  };
+
+  /** Create Mqtt Endpoint
    * @returns {module:rtcomm.MqttEndpoint} */
   this.getMqttEndpoint = function() {
     return new MqttEndpoint({connection: this.dependencies.endpointConnection});
   };
 
-  /** 
-   * Get the PresenceMonitor Object 
+  /**
+   * Get the PresenceMonitor Object
    *
-   * This object is used to add topics to monitor for presence. 
+   * This object is used to add topics to monitor for presence.
    *
    * @returns {module:rtcomm.PresenceMonitor}
    */
@@ -594,15 +630,15 @@ var EndpointProvider =  function EndpointProvider() {
     }
     this._.presenceMonitor  = this._.presenceMonitor || createPresenceMonitor({connection: this.dependencies.endpointConnection});
     if (this.ready) {
-      l('DEBUG') && console.log(this+'.getPresenceMonitor Monitoring topic: '+topic); 
+      l('DEBUG') && console.log(this+'.getPresenceMonitor Monitoring topic: '+topic);
       topic && this._.presenceMonitor.add(topic);
-    } else {  
-      l('DEBUG') && console.log(this+'.getPresenceMonitor Not adding monitor for topic: '+topic); 
+    } else {
+      l('DEBUG') && console.log(this+'.getPresenceMonitor Not adding monitor for topic: '+topic);
     }
     // propogate the event out if we have a handler.
     return this._.presenceMonitor;
   };
-  /** 
+  /**
    * Destroy all endpoints and cleanup the endpointProvider.
    */
   this.destroy = function() {
@@ -620,11 +656,11 @@ var EndpointProvider =  function EndpointProvider() {
   };
 
   /**
-   * Set the AppContext. 
+   * Set the AppContext.
    *
    * It is necessary to call setAppContext() prior to getRtcommEndpoint() if
    * init() has not been called
-   * 
+   *
    * @returns {module:rtcomm.EndpointProvider} EndpointProvider object
    * @throws {Error} Cannot change appContext once init'd
    */
@@ -665,7 +701,7 @@ var EndpointProvider =  function EndpointProvider() {
   /**
    * Make your presence available
    *
-   * @param {object} presenceConfig 
+   * @param {object} presenceConfig
    * @param {string} presenceConfig.state One of 'available', 'unavailable', 'away', 'busy'
    * @param {string} presenceConfig.alias An alias to be associated with the presence record
    * @param {array} presenceConfig.userDefines  Array of userdefined objects associated w/ presence
@@ -676,11 +712,11 @@ var EndpointProvider =  function EndpointProvider() {
     var states = {
       'available': 'available',
       'unavailable': 'unavailable',
-      'busy':'busy' 
+      'busy':'busy'
     };
     // Always default to available
     var state = (presenceConfig && presenceConfig.state) ?
-      states[presenceConfig.state.trim()] || 'available' : 
+      states[presenceConfig.state.trim()] || 'available' :
       'available';
     presenceConfig = presenceConfig || {};
     presenceConfig.state = state;
@@ -694,8 +730,8 @@ var EndpointProvider =  function EndpointProvider() {
    * @fires module:rtcomm.EndpointProvider#queueupdate
    */
   this.updateQueues= function updateQueues() {
-    this._.queues.add((this._.services && 
-                     this._.services.RTCOMM_CALL_QUEUE_SERVICE && 
+    this._.queues.add((this._.services &&
+                     this._.services.RTCOMM_CALL_QUEUE_SERVICE &&
                      this._.services.RTCOMM_CALL_QUEUE_SERVICE.queues) ||
                      []);
     this.emit('queueupdate', this._.queues.all());
@@ -706,8 +742,8 @@ var EndpointProvider =  function EndpointProvider() {
    * <p>
    * A Session Queue is a subscription to a Shared Topic.  By joining a queue, it enables
    * the all RtcommEndpoints to be 'available' to receive an inbound request from the queue topic.
-   * Generally, this could be used for an Agent scenario where many endpoints have joined the 
-   * queue, but only 1 endpoint will receive the inbound request.  
+   * Generally, this could be used for an Agent scenario where many endpoints have joined the
+   * queue, but only 1 endpoint will receive the inbound request.
    * </p>
    *
    * @param {string} queueid Id of a queue to join.
@@ -790,13 +826,13 @@ var EndpointProvider =  function EndpointProvider() {
     return this.dependencies.endpointConnection;
   };
 
-  /** Set LogLevel 
+  /** Set LogLevel
    *  @method
    *  @param {string} INFO, MESSAGE, DEBUG, TRACE
    */
   this.setLogLevel = setLogLevel;
 
-  /** Return  LogLevel 
+  /** Return  LogLevel
    * @method
    *  @returns {string} INFO, MESSAGE, DEBUG, TRACE
    */
@@ -804,21 +840,21 @@ var EndpointProvider =  function EndpointProvider() {
 
   /** Return  requireRtcommServer
    * @method
-   *  @returns {boolean} 
+   *  @returns {boolean}
    */
 
   this.requireServer = function() {
     return this.config.requireRtcommServer;
   };
-  /** Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} objects that 
+  /** Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} objects that
    * are associated with this  EndpointProvider
-   *  @returns {Array} Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint} 
+   *  @returns {Array} Array of {@link module:rtcomm.RtcommEndpoint|RtcommEndpoint}
    */
   this.endpoints = function() {
     return this._.endpointRegistry.list();
   };
-  /** Return object indicating state of EndpointProvider 
-   *  *NOTE* Generally used for debugging purposes 
+  /** Return object indicating state of EndpointProvider
+   *  *NOTE* Generally used for debugging purposes
   */
   this.currentState = function() {
     return {
