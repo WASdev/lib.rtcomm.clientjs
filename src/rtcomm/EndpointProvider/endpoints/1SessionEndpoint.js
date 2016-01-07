@@ -279,7 +279,9 @@ var proto = {
             session.start({protocols: commonProtocols});
             // Depending on the session.message (i.e its peerContent or future content) then do something.
             if (session.message && session.message.payload) {
-              // If we need to pranswer, processMessage can handle it.
+              // We need to pranswer here at this level.
+              // TODO:  May need to ask protocols if they have naything to pranswer with.
+              session.pranswer();
               this._processMessage(session.message.payload);
             } else {
               // it doesn't have any payload, but could have protocols subprotocol
@@ -313,21 +315,32 @@ var proto = {
     // basically a protocol router...
     //
     var protocols;
+
+    if (payload && payload.protocols) {
+      protocols = payload.protocols;
+      payload = payload.payload;
+    }
+
     if (payload) {
+      console.log('_processMessage recieved: ', payload);
       for (var protocol in payload) {
+        console.log('looking at protocol: ', protocol);
         if (payload.hasOwnProperty(protocol)){
           // we  protocol is in payloads
           if (self.hasOwnProperty(protocol)) {
             // we have this protocol defined pass message to the protocol
             // if protocol is enabled, pass the message
             if ( self[protocol].enabled()) {
-              self[protocol].handleMessage(payload[protocol]);
+              console.log('calling handle message on protocol:', protocol);
+              self[protocol]._processMessage(payload[protocol]);
             } else {
               console.error('Received %s message, but not enabled!',protocol, payload[protocol]);
             }
           } else {
             console.error('Received %s message, but not supported!',protocol, payload[protocol]);
           }
+        } else { 
+          console.error('property not in protocol');
         }
       } // end of for
      } else {
@@ -389,55 +402,64 @@ var proto = {
         addSessionCallbacks(this, this._.activeSession);
       }
       this.setState('session:trying');
-      var startMessage = this._getStartMessage();
-      // Send our message
-      l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',startMessage);
-      this._.activeSession.start(startMessage);
+      this._getStartMessage(function start(success, startMessage){
+        // Send our message
+        //TODO Fix debug logging
+        console.log(this+'.connect() sending startMessage w/ message',startMessage);
+        l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',startMessage);
+        this._.activeSession.start({'payload': startMessage});
+      }.bind(this));
     } else {
       throw new Error('Unable to connect endpoint until EndpointProvider is initialized');
     }
     return this;
+  },
+  // Get the message by calling a method on all protocols
+  _getGenericMessage: function _getGenericMessage(method, callback) {
+    var self = this;
+    var returnMessage = {};
+    var protocols = this._.protocols;
+    var callbacks = 0;
+    // How many are enabled?
+    var enabled = 0;
+    for (var i=0;i<protocols.length; i++) {
+      var protocol = protocols[i];
+      if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
+        enabled++;
+      }
+    }
+    for (var i=0;i<protocols.length; i++) {
+      var protocol = this._.protocols[i];
+      if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
+        // get the startMessage
+        self[protocol][method](function smCallback(success, message){
+          callbacks++;
+          if (success) {
+            returnMessage[protocol] = message;
+          }
+            // all callbacks called.
+          l('DEBUG') && console.log(this+'._getGenericMessage() callbaks:'+callbacks+' enabled: '+enabled+' protocols :', protocols, 'returnMessage? ',returnMessage);
+          if (callbacks === enabled) {
+            callback(true, returnMessage);
+          }
+        });
+      }
+    };
   },
   /*
    * Get the start Message -- this will call 'connect' on all sub protocols.
    * (though it won't really connect yet)
    * TODO:  Think this through.
    */
-  _getStartMessage: function() {
-      var self = this;
-      // Get our start message
-      var startMessage = null;
-      this._.protocols.forEach(function(protocol) {
-        if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-          // get the startMessage
-          startMessage[protocol] = self[protocol].connect();
-        }
-      });
-      return startMessage;
+  _getStartMessage: function _getStartMessage(callback) {
+    this._getGenericMessage('connect', callback);
   },
-  _getStopMessage: function() {
-      var self = this;
-      // Get our start message
-      var stopMessage = null;
-      this._.protocols.forEach(function(protocol) {
-        if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-          // get the startMessage
-          stopMessage[protocol] = self[protocol].disconnect();
-        }
-      });
-      return stopMessage;
+
+  _getStopMessage: function(callback) {
+    this._getGenericMessage('disconnect',callback);
   },
-  _getAcceptMessage: function() {
-      var self = this;
-      // Get our start message
-      var acceptMessage = null;
-      this._.protocols.forEach(function(protocol) {
-        if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-          // get the startMessage
-          acceptMessage[protocol] = self[protocol].accept();
-        }
-      });
-      return acceptMessage;
+  _getAcceptMessage: function _getAcceptMessage(callback) {
+    this._getGenericMessage('accept', callback);
   },
 
   /**
@@ -449,16 +471,17 @@ var proto = {
       // Not in progress, move along
       l('DEBUG') && console.log(this+'.disconnect() Starting disconnect process');
       this._.disconnecting = true;
-      var stopMessage = this._getStopMessage();
-      if (!this.sessionStopped()) {
-        this._.activeSession.stop(stopMessage);
-        this._.activeSession = null;
-        this.setState('session:stopped');
-      } else {
-        this._.activeSession=null;
-      }
-      this._.disconnecting = false;
-      this.available(true);
+      this._getStopMessage(function cbDisconnect(success, stopMessage){
+        if (!this.sessionStopped()) {
+          this._.activeSession.stop(stopMessage);
+          this._.activeSession = null;
+          this.setState('session:stopped');
+        } else {
+          this._.activeSession=null;
+        }
+        this._.disconnecting = false;
+        this.available(true);
+      }.bind(this));
     } else {
       l('DEBUG') && console.log(this+'.disconnect() in progress, cannot disconnect again');
     }
@@ -469,19 +492,18 @@ var proto = {
    * Accept an inbound request.  This is typically called after a
    * {@link module:rtcomm.SessionEndpoint#session:alerting|session:alerting} event
    *
-   *
-   * @param {module:rtcomm.SessionEndpoint~callback} callback - The callback when accept is complete.
-   *
    * @returns {module:rtcomm.SessionEndpoint}
    */
-  accept: function(callback) {
-
-	// If refer, we have been told to connect to someone, call connect on ourself.
-    if (this.getState() === 'session:refer') {
-      this.connect(null);
-	} else {
-		this._.activeSession.respond(true, this._getAcceptMessage);
-	}
+  accept: function accept() {
+    // If refer, we have been told to connect to someone, call connect on ourself.
+      if (this.getState() === 'session:refer') {
+        this.connect(null);
+    } else {
+      this._getAcceptMessage(function cbAccept(success, acceptMessage){
+        l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',acceptMessage);
+        this._.activeSession.respond(true, acceptMessage);
+      }.bind(this));
+    }
     return this;
   },
 
@@ -626,13 +648,22 @@ var proto = {
     this._.protocols.push(protocol.name);
     this[protocol.name] = protocol;
     var self = this;
+    /* don't emit anything by default...
     Object.keys(protocol.events).forEach(function addEvent(eventname) {
       self.createEvent(protocol.name+':'+eventname);
     });
     // add a common event handler for here... to generically emit events.
-    this[protocol.name].bubble(function(event, object) {
-      self.emit(protocol.name+':'+event, object);
+    this[protocol.name].bubble(function(eventObject) {
+      console.log('>>>>> Bubble handling event for :', eventObject.eventName);
+      console.log('>>>>> Bubble handling event with object :', eventObject.object);
+      // alerting is at the session level.  emit it that way.
+      if (eventObject.eventName === 'alerting') {
+        self.emit('session:alerting', eventObject.object);
+      } else {
+        self.emit(protocol.name+':'+eventObject.eventName, eventObject.object);
+      }
     });
+    */
   }
   };
 

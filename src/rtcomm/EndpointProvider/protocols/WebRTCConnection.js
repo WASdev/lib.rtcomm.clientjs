@@ -105,6 +105,7 @@ var WebRTCConnection = (function invocation() {
       'remotemuted':[],
       '_notrickle':[]
     };
+    this.name='webrtc';
     this.pc = null;
     this.onEnabledMessage = null;
     this.onDisabledMessage = null;
@@ -253,8 +254,10 @@ var WebRTCConnection = (function invocation() {
     enabled: function() {
       return this._.enabled;
     },
-    connect: function connect(chatMessage){
-      return this._connect(chatMessage);
+    connect: function connect(callback){
+      this._connect(function connectCallback(success, message) {
+        callback(success, message)
+      });
     },
     /*
      * Called to 'connect' (Send message, change state)
@@ -262,10 +265,11 @@ var WebRTCConnection = (function invocation() {
      *
      * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
      */
-    _connect: function(callback) {
+    _connect: function _connect(callback) {
       var self = this;
       var sendMethod = null;
       var parent = self.dependencies.parent;
+      /*
       if (parent.sessionStarted()) {
         sendMethod = this.send.bind(this);
       } else if (parent._.activeSession ) {
@@ -276,42 +280,56 @@ var WebRTCConnection = (function invocation() {
       var payload = {};
       // Used if chat is being sent w/ the offer
       var chatMessage = null;
-      if (typeof callback !== 'function') {
-        chatMessage = callback;
-        callback = function(success, message) {
-          l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
-        };
-      }
+      */
+      var cbConnect = function cbConnect(success, message) {
+        if (typeof callback !== 'function') {
+          callback = function cbDefault(success, message) {
+            l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
+          };
+        }
+        if (success) {
+          if (parent.sessionStarted()) {
+            // Special case if we are 'enabled/connected' on a session We have send this message:
+            this.send(message);
+            callback(success, message);
+          } else {
+            callback(success, message);
+          }
+        }
+      };
+
       var doOffer =  function doOffer(success, msg) {
         if (success) { 
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
               if (self.config.trickleICE) {
-                sendMethod({payload: self.createMessage(offersdp, chatMessage)});
+                // return offermessage
+                cbConnect(true, offersdp);
+                // Old way: sendMethod({payload: self.createMessage(offersdp, chatMessage)});
               } else {
                 self.on('_notrickle', function(obj) {
                   l('DEBUG') && console.log(self+'.doOffer _notrickle called: Sending offer here. ');
-                  sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
+                  // Old way      sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
                   // turn it off once it fires.
-                  callback(true);
+                  cbConnect(true, self.pc.localDescription);
                   self.off('_notrickle');
                 });
               }
               self._setState('trying');
               self.pc.setLocalDescription(offersdp, function(){
                 l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
-                self.config.trickleICE && callback(true);
-              }, function(error) { callback(false, error);});
+               // Old Way: Callback was called already... self.config.trickleICE && callback(true);
+              }, function(error) { cbConnect(false, error);});
             },
             function(error) {
               console.error('webrtc._connect failed: ', error);
               // TODO: Normalize this error
-              callback(false, error);
+              cbConnect(false, error);
             },
             self.config.RTCOfferConstraints);
         } else {
-          callback(false, msg);
+          cbConnect(false, msg);
           console.error('_connect failed, '+msg);
         }
       };
@@ -321,7 +339,12 @@ var WebRTCConnection = (function invocation() {
         return true;
       } else {
         return false;
-      } 
+      }
+    },
+    disconnect: function disconnect(callback) {
+      this._disconnect();
+      // No message to send.
+      callback && callback(true, {});
     },
 
     _disconnect: function() {
@@ -356,8 +379,11 @@ var WebRTCConnection = (function invocation() {
 
     send: function(message) {
       var parent = this.dependencies.parent;
-      // Validate message?
+      // Validate message 
       message = (message && message.payload) ? message.payload: message;
+      // Anything sent here needs to be in format:
+      // {protocol: message} i.e. {'webrtc': message};
+      message = (message && message.webrtc) ? message : {'webrtc': message};
       if (parent._.activeSession) {
         parent._.activeSession.send(this.createMessage(message));
       }
@@ -385,8 +411,7 @@ var WebRTCConnection = (function invocation() {
           //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
           self.pc && self.pc.createAnswer(
             function(desc) {
-              self._gotAnswer(desc);
-              callback(success, msg);
+              self._gotAnswer(callback, desc);
             },
             function(error) {
               console.error('failed to create answer', error);
@@ -618,8 +643,15 @@ var WebRTCConnection = (function invocation() {
    *
    *
    */
-  _gotAnswer :  function(desc) {
+  _gotAnswer :  function(callback, desc) {
 
+    if (typeof callback !== 'function') {
+      // Assume its actually the desc,create a fake callback
+      desc = callback;
+      callback = function cbDefault(success, message) {
+        l('DEBUG') && console.log(self+'._gotAnswer() default callback(success='+success+',message='+message);
+      }
+    }
     l('DEBUG') && console.log(this+'.createAnswer answer created:  ', desc);
     var answer = null;
     var pcSigState = this.pc.signalingState;
@@ -634,14 +666,16 @@ var WebRTCConnection = (function invocation() {
       //console.log(this+'.createAnswer sending answer as a RESPONSE', message);
       if (this.config.trickleICE) {
         l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
-        session.respond(true, message);
+        // Old way: session.respond(true, message);
         this._setState('connected');
+        callback(true, message);
       } else {
         this.on('_notrickle', function(message) {
           l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE[notrickle]');
           if (this.pc.localDescription) {
-            session.respond(true, this.createMessage(this.pc.localDescription));
             this._setState('connected');
+            callback(true, message);
+            // Old way: session.respond(true, this.createMessage(this.pc.localDescription));
           } else {
             l('DEBUG') && console.log(this+'.createAnswer localDescription not set.');
           }
@@ -655,11 +689,13 @@ var WebRTCConnection = (function invocation() {
       answer.type = 'pranswer';
       answer.sdp = this.pranswer ? desc.sdp : '';
       desc = {"webrtc":answer};
-      session.pranswer(this.createMessage(desc));
+      // Commented out for 'New Way with subprotocols'
+      console.info('PRANSWER in _gotAnswer() in WebRTCConnection -- should not get here, need to be redone');
+      // session.pranswer(this.createMessage(desc));
     } else if (this.getState() === 'connected' || this.getState() === 'alerting') {
       l('DEBUG') && console.log(this+'.createAnswer sending ANSWER (renegotiation?)');
       // Should be a renegotiation, just send the answer...
-      session.send(message);
+      this.send(message);
     } else {
       SKIP = true;
       this._setState('alerting');
@@ -676,14 +712,17 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
+  // Deprecated...
   createMessage: function(content,chatcontent) {
-    var message = {'webrtc': {}};
+    var message = content;
+  /*  var message = {'webrtc': {}};
     if (content) {
       message.webrtc = (content.hasOwnProperty('webrtc')) ? content.webrtc : content;
     }
     if (chatcontent && chatcontent.hasOwnProperty('chat')) {
        message.chat = chatcontent.chat;
     }
+    */
     return message;
   },
 
@@ -1017,6 +1056,9 @@ var WebRTCConnection = (function invocation() {
    },
   getIceServers: function() {
     return this._.iceServers;
+  },
+  setParent: function setParent(parent) {
+    this.dependencies.parent = parent;
   }
  };
 

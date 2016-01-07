@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.8 04-01-2016 23:06:38 UTC */
-console.log('lib.rtcomm.clientjs 1.0.8 04-01-2016 23:06:38 UTC');
+/*! lib.rtcomm.clientjs 1.0.8 07-01-2016 21:38:19 UTC */
+console.log('lib.rtcomm.clientjs 1.0.8 07-01-2016 21:38:19 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -195,6 +195,12 @@ var setConfig = function(config,configDefinition) {
  * left object takes precendence
  */
 var combineObjects = function combineObjects(obj1, obj2) {
+  if (typeof obj1 === 'undefined' ) {
+    obj1 = {};
+  }
+  if (typeof obj2 === 'undefined' ) {
+    obj2 = {};
+  }
   var allkeys = [];
   var combinedObj = {};
   // What keys do we have
@@ -2898,228 +2904,6 @@ var logging = new util.Log(),
     /*global log: false */
     log = logging.log;
 
- /*
- * Copyright 2014 IBM Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **/
-/*global l:false*/
-/*global util:false*/
-var Chat = (function invocation() {
-/**
-   * @memberof module:rtcomm.RtcommEndpoint
-   *
-   * @description 
-   * A Chat is a connection from one peer to another to pass text back and forth
-   *
-   *  @constructor
-   *  @extends  module:rtcomm.util.RtcommBaseObject
-   */
-  var Chat = function Chat(parent) {
-    // Does this matter?
-    var createChatMessage = function(message) {
-      return {'chat':{'message': message, 'from': parent.userid}};
-    };
-    var chat = this;
-    this._ = {};
-    this._.objName = 'Chat';
-    this.id = parent.id;
-    this._.parentConnected = false;
-    this._.enabled = false;
-    this.onEnabledMessage = null;
-    this.onDisabledMessage = null;
-    this.state = 'disconnected';
-
-    // TODO:  Throw error if no parent.
-    this.dependencies = {
-      parent: parent || null
-    };
-
-    this.events = {
-      'message': [],
-      'ringing': [],
-      'connected': [],
-      'alerting': [],
-      'disconnected': []
-    };
-    /**
-     * Send a message if connected, otherwise, 
-     * enables chat for subsequent RtcommEndpoint.connect();
-     * @param {string} message  Message to send when enabled.
-     */  
-    this.enable =  function(message) {
-      var connect = false;
-      if (typeof message === 'object') {
-        if (typeof message.connect === 'boolean') {
-          connect = message.connect;
-        }
-        if (message.message) {
-          message = message.message;
-        } else {
-          message = null;
-        }
-      } 
-
-      /*
-       * TODO:  Get this working, write new tests too!  
-       *
-       * Remember, all sessions support CHAT be default so we should 'just work'
-       *
-       * Work on this over weekend!!!!
-       *
-       */
-      l('DEBUG') && console.log(this+'.enable() - message --> '+ message);
-      l('DEBUG') && console.log(this+'.enable() - connect --> '+ connect);
-      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
-      this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
-      // Don't need much, just set enabled to true.
-      // Default message
-      this._.enabled = true;
-
-      if (parent.sessionStarted()) {
-        l('DEBUG') && console.log(this+'.enable() - Session Started, connecting chat');
-        this._connect();
-      } else { 
-        if (connect) {
-          // we are expected to actually connect
-          this._connect();
-        } else {
-          l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
-          // respond to a session if we are active
-          if (parent._.activeSession) { 
-            parent._.activeSession.respond();
-            this._setState('connected');
-          } 
-        }
-      }
-      return this;
-    };
-    /**
-     * Accept an inbound connection  
-     */
-    this.accept = function(callback) {
-      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
-      if (this.state === 'alerting') {
-        this.enable(callback|| 'Accepting chat connection');
-        return true;
-      } else {
-        return false;
-      }
-    };
-    /**
-     * Reject an inbound session
-     */
-    this.reject = function() {
-      // Does nothing.
-    };
-    /**
-     * disable chat
-     */
-    this.disable = function(message) {
-      if (this._.enabled) { 
-        this._.enabled = false;
-        this.onDisabledMessage = message|| createChatMessage(parent.userid + ' has left the chat');
-        this.send(this.onDisabledMessage);
-        this._setState('disconnected');
-      }
-      return null;
-    };
-    this.enabled = function enabled(){ 
-      return this._.enabled;
-    };
-    /**
-     * send a chat message
-     * @param {string} message  Message to send
-     */
-    this.send = function(message) {
-      message = (message && message.payload) ? message.payload: message;
-      message = (message && message.chat)  ? message : createChatMessage(message);
-      if (parent._.activeSession) {
-        parent._.activeSession.send(message);
-      }
-    };
-
-    this.connect = function() {
-      if (this.dependencies.parent.autoEnable) {
-        this.enable({connect:true});
-      } else {
-        this._connect();
-      }
-    };
-    this._connect = function() {
-      var self = this;
-      var sendMethod = null;
-      var parent = self.dependencies.parent;
-      if (parent.sessionStarted()) {
-        sendMethod = this.send.bind(this);
-      } else if (parent._.activeSession ) {
-        sendMethod = parent._.activeSession.start.bind(parent._.activeSession);
-      } else {
-        throw new Error(self+'._connect() unable to find a sendMethod');
-      }
-      if (this._.enabled) {
-        this.onEnabledMessage && sendMethod({'payload': this.onEnabledMessage});
-        this._setState('connected');
-        return true;
-      } else {
-        l('DEBUG') && console.log(this+ '_connect() !!!!! not enabled, skipping...'); 
-        return false;
-      }
-    };
-    // Message should be in the format:
-    // {payload content... }
-    // {'message': message, 'from':from}
-    //
-    this._processMessage = function(message) {
-      // If we are connected, emit the message
-      var parent = this.dependencies.parent;
-      if (this.state === 'connected') {
-        this.emit('message', message);
-      } else if (this.state === 'alerting') {
-        // dropping message, not in a state to receive it.
-        l('DEBUG') && console.log(this+ '_processMessage() Dropping message -- unable to receive in alerting state'); 
-      } else {
-        // If we aren't stopped, then we should pranswer it and alert.
-        if (!parent.sessionStopped()) {
-          parent._.activeSession && parent._.activeSession.pranswer();
-          this._setState('alerting', message);
-        }
-      }
-      return this;
-    };
-    this._setState = function(state, object) {
-     l('DEBUG') && console.log(this+'._setState() setting state to: '+ state); 
-      var currentState = this.state;
-      try {
-        this.state = state;
-        this.emit(state, object);
-      } catch(error) {
-        console.error(error);
-        console.error(this+'._setState() unsupported state: '+state );
-        this.state = currentState;
-      }
-    };
-
-    this.getState = function() {
-      return this.state;
-    };
-  };
-  Chat.prototype = util.RtcommBaseObject.extend({});
-
-  return Chat;
-
-})();
-
 /*
  * Copyright 2014 IBM Corp.
  *
@@ -3488,6 +3272,7 @@ var EndpointProvider =  function EndpointProvider() {
     // If we already h some enpdoints, their connection will be null, fix it
     if (this._.endpointRegistry.length() > 0 ) {
       this._.endpointRegistry.list().forEach(function(endpoint) {
+        console.log('REMOVE ME: endpoint? ', endpoint);
         endpoint.setEndpointConnection(endpointConnection);
       });
     }
@@ -4177,134 +3962,6 @@ var EndpointRegistry = function EndpointRegistry(options) {
 
 };
 
-var GenericMessageProtocol = function GenericMessageProtocol() {
-
-  function startMessage() {
-    console.log('No Start Message');
-    return null;
-  };
-
-  function stopMessage(){
-    console.log('No Stop Message');
-    return null;
-  };
-  function processMessage(message) {
-    console.log('Received a Message: '+ message);
-  };
-
-  function constructMessage(message) {
-    // Take a string message, cast it in our 'protocol'
-    return {'message': message};
-  };
-
-  var  protocolDefinition = new SubProtocol({
-    name: 'generic-message',
-    getStartMessage: startMessage,
-    getStopMessage: stopMessage,
-    handleMessage: processMessage,
-    constructMessage: constructMessage
-});
- return protocolDefinition;
-}
-
-
-var MessageEndpoint = (function(config) {
-
-	var MessageEndpoint = function MessageEndpoint(config) {
-		var ep =  new SessionEndpoint(config);
-		ep.addProtocol(GenericMessageEndpoint);
-	}
-	return MessageEndpoint;
-})();
-
-/*
- * Copyright 2014,2015 IBM Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-/**
- *  @memberof module:rtcomm
- *  @description
- *  This object should only be created with the {@link module:rtcomm.EndpointProvider#getMqttEndpoint|getRtcommEndpoint} function.
- *  <p>
- *  The MqttEndpoint object provides an interface to directly subscribe and publish MQTT messages.
- *
- *  @constructor
- *
- *  @extends  module:rtcomm.util.RtcommBaseObject
- */
-var MqttEndpoint = function MqttEndpoint(config) {
-
-  this.dependencies = { 
-    connection: null,
-  };
-  /* Object storing subscriptions */ 
-  this.subscriptions = {};
-  this.dependencies.connection = config && config.connection;
-  this.events = {'message': []};
-};
-/*global util:false*/
-/*global: l:false*/
-MqttEndpoint.prototype = util.RtcommBaseObject.extend(
-  /** @lends module:rtcomm.MqttEndpoint.prototype */
-  {
-  /** 
-   * subscribe to a topic
-   * @param {string} topic - A string that represents an MQTT topic
-   */
-  subscribe: function(topic) {
-               // Add it
-               this.subscriptions[topic] = null;
-               var mqttEP = this;
-               mqttEP.dependencies.connection.subscribe(topic, function(message) {
-                 l('DEBUG') && console.log('MqttEndpoint.subscribe() Received message['+message+'] on topic: '+topic);
-                 mqttEP.emit('message', message);
-               });
-             },
-
-  /** 
-   * unsubscribe from  a topic
-   * @param {string} topic - A string that represents an MQTT topic
-   */
-  unsubscribe: function(topic) {
-               var mqttEP = this;
-               if (this.subscriptions.hasOwnProperty(topic)) {
-                 delete this.subscriptions[topic];
-                 mqttEP.dependencies.connection.unsubscribe(topic);
-               } else {
-                 throw new Error("Topic not found:"+topic);
-               }
-             },
-  /** 
-   * publish a message to topic
-   * @param {string} topic - A string that represents an MQTT topic
-   * @param {string} message - a String that is a message to be published
-   */
-  publish: function(topic,message) {
-             this.dependencies.connection.publish(topic, message);
-  },
-  /** 
-   * Destroy the MqttEndpoint
-   */
-  destroy: function() {
-     l('DEBUG') &&  console.log('Destroying mqtt(unsubscribing everything... ');
-             var mqttEP = this;
-             Object.keys(this.subscriptions).forEach( function(key) {
-               mqttEP.unsubscribe(key);
-             });
-           }
-});
-
 /*global l:false*/
 var normalizeTopic = function normalizeTopic(topic) {
   // have only 1 /, starts with a /, ends without a /
@@ -4875,826 +4532,6 @@ PresenceMonitor.prototype = util.RtcommBaseObject.extend((function() {
 /*global: generateUUID:false*/
 /*global: util:false*/
 
-var RtcommEndpoint = (function invocation(){
-
-  var createChat = function createChat(parent) {
-    /* globals Chat:false */
-    var chat = new Chat(parent);
-    chat.on('ringing', function(event_obj) {
-      (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
-    });
-    chat.on('message', function(message) {
-      parent.emit('chat:message', {'message': message});
-    });
-    chat.on('alerting', function(message) {
-      l('DEBUG') && console.log('RtcommEndpoint emitting session:alerting event');
-      var obj =  {};
-      obj.message  = message;
-      obj.protocols = 'chat';
-      // Have to do setState here because the parent state needs to change.
-      parent.setState('session:alerting', obj );
-    });
-    chat.on('connected', function() {
-      parent.emit('chat:connected');
-    });
-    chat.on('disconnected', function() {
-      parent.emit('chat:disconnected');
-    });
-    return chat;
-  };
-
-
-  var createWebRTCConnection = function createWebRTCConnection(parent) {
-    /* globals WebRTCConnection:false */
-    /* globals cordova:false */
-    var webrtc = null;
-    webrtc = new WebRTCConnection(parent);
-    if (typeof cordova !== 'undefined') {
-      l('DEBUG') && console.log(" Cordova Detected, we are a mobile hybrid app.");
-    } 
-    webrtc.on('ringing', function(event_obj) {
-     l('DEBUG') && console.log("on ringing - play a ringback tone ", parent._.ringbackTone); 
-     parent._playRingback();
-     (parent.lastEvent !== 'session:ringing') && parent.emit('session:ringing');
-    });
-
-    webrtc.on('trying', function(event_obj) {
-     l('DEBUG') && console.log("on trying - play a ringback tone ", parent._.ringbackTone); 
-     parent._playRingback();
-     (parent.lastEvent !== 'session:trying') && parent.emit('session:trying');
-    });
-    webrtc.on('alerting', function(event_obj) {
-      parent._playRingtone();
-      parent.emit('session:alerting', {protocols: 'webrtc'});
-    });
-    webrtc.on('connected', function(event_obj) {
-     l('DEBUG') && console.log("on connected - stop ringing ");
-      parent._stopRing();
-      parent.emit('webrtc:connected');
-    });
-    webrtc.on('disconnected', function(event_obj) {
-      l('DEBUG') && console.log("on disconnected - stop ringing ");
-      parent._stopRing();
-      parent.emit('webrtc:disconnected');
-    });
-    webrtc.on('remotemuted', function(event_obj) {
-      parent.emit('webrtc:remotemuted', event_obj);
-    });
-    return webrtc;
-  };
-
-/**
- *  @memberof module:rtcomm
- *  @description
- *  This object can only be created with the {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint} function.
- *  <p>
- *  The RtcommEndpoint object provides an interface for the UI Developer to attach 
- *  Video and Audio input/output.  Essentially mapping a broadcast stream(a MediaStream that
- *  is intended to be sent) to a RTCPeerConnection output stream.   When an inbound stream
- *  is added to a RTCPeerConnection, then this also informs the RTCPeerConnection
- *  where to send that stream in the User Interface.
- *  <p>
- *  See the example under {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint}
- *  @constructor
- *
- *  @extends  module:rtcomm.util.RtcommBaseObject
- */
-  var RtcommEndpoint = function RtcommEndpoint(config) {
-    /** 
-     * @typedef {object} module:rtcomm.RtcommEndpoint~config
-     *
-     * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
-     * @property {string}  [userid=null] UserID the endpoint will use (generally provided by the EndpointProvider
-     * @property {string}  [appContext=null] UI Component to attach outbound media stream
-     * @property {string} [ringtone=null] Path to a  ringtone to play when we are ringing on inbound call
-     * @property {string} [ringbacktone=null] path to a ringbacktone to play on outbound call
-     * @property {boolean} [webrtc=true]  Whether the endpoint supports webrtc
-     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
-     * @property {boolean} [chat=true]  Wehther the endpoint supports chat
-     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
-     * @property {module:rtcomm.EndpointProvider} [parent] - set the parent Should be done automatically.
-     *
-     */
-    this.config = {
-      // if a feature is supported, enable by default.
-      autoEnable: false,
-      ignoreAppContext: true,
-      appContext : null,
-      userid: null,
-      ringtone: null,
-      ringbacktone: null,
-      chat: true,
-      chatConfig: {},
-      webrtc:true,
-      webrtcConfig:{}
-    };
-
-    this.dependencies = {
-      endpointConnection: null,
-      parent: null
-    };
-    // Private info.
-    this._ = {
-      objName: 'RtcommEndpoint',
-      activeSession: null,
-      available: true,
-      /*global generateUUID:false */
-      uuid: generateUUID(),
-      initialized : false,
-      disconnecting: false,
-      protocols : [],
-      // webrtc Only 
-      inboundMedia: null,
-      attachMedia: false,
-      localStream : null,
-      ringTone : null,
-      ringbackTone : null,
-      media : { In : null,
-               Out: null},
-    };
-    // Used to store the last event emitted;
-    this.lastEvent = null;
-    // Used to store the last event emitted
-    //
-    this.state = 'session:stopped';
-    var self = this;
-
-    config && Object.keys(config).forEach(function(key) {
-      if (key === 'parent') { 
-        self.dependencies[key] = config[key];
-      } else {
-        self.config[key] = config[key];
-      }
-    });
-
-    this.config.webrtc && this._.protocols.push('webrtc');
-    this.config.chat && this._.protocols.push('chat');
-
-    //load the sounds 
-    this._.ringTone = (this.config.ringtone) ? util.Sound(this.config.ringtone).load(): null;
-    this._.ringbackTone= (this.config.ringbacktone) ? util.Sound(this.config.ringbacktone).load() : null;
-
-    // expose the ID
-    this.id = this._.uuid;
-    this.userid = this.config.userid || null;
-    this.appContext = this.config.appContext || null;
-
-    /**
-     * The attached {@link module:rtcomm.RtcommEndpoint.WebRTCConnection} object 
-     * if enabled null if not enabled
-     *
-     * @type {module:rtcomm.RtcommEndpoint.WebRTCConnection}
-     * @readonly
-     */
-    this.webrtc = (this.config.webrtc)?createWebRTCConnection(this): null;
-    // If autoenable, go ahead and enable webrtc.
-    this.config.autoEnable && this.webrtc && this.webrtc.enable();
-    /**
-     * The attached {@link module:rtcomm.RtcommEndpoint.Chat} object 
-     * if enabled null if not enabled
-     *
-     * @type {module:rtcomm.RtcommEndpoint.Chat}
-     * @readonly
-     */
-    this.chat = (this.config.chat) ? createChat(this): null;
-    // Enable chat by default if it is set up that way.
-    this.chat && this.chat.enable();
-
-    /** 
-     * RtcommEndpoint Event type 
-     *
-     *  @typedef {Object} module:rtcomm.RtcommEndpoint~Event
-     *  @property {name} eventName 
-     *  @property {object} endpointObject - an object passed with the event
-     *  @property {string} [reason] - Used for failure messages
-     *  @property {string} [protocols] - Used for alerting messages
-     *  @property {object} [message] - Used for chat:message and session:alerting
-     */
-
-    this.events = {
-        /**
-         * A signaling session to a peer has been established
-         * @event module:rtcomm.RtcommEndpoint#session:started
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:started": [],
-        /**
-         * An inbound request to establish a call via 
-         * 3PCC was initiated
-         *
-         * @event module:rtcomm.RtcommEndpoint#session:refer
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         *
-         */
-        "session:refer": [],
-        /**
-         * A peer has been reached, but not connected (inbound/outound)
-         * @event module:rtcomm.RtcommEndpoint#session:ringing
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:trying": [],
-        /**
-         * A Queue has been contacted and we are waiting for a response.
-         * @event module:rtcomm.RtcommEndpoint#session:queued
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:queued": [],
-        /**
-         * A peer has been reached, but not connected (inbound/outound)
-         * @event module:rtcomm.RtcommEndpoint#session:ringing
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:ringing": [],
-        /**
-         * An inbound connection is being requested.
-         * @event module:rtcomm.RtcommEndpoint#session:alerting
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:alerting": [],
-        /**
-         * A failure occurred establishing the session (check reason)
-         * @event module:rtcomm.RtcommEndpoint#session:failed
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "session:failed": [],
-        /**
-         * The session has stopped
-         * @event module:rtcomm.RtcommEndpoint#session:stopped
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         *
-         */
-        "session:stopped": [],
-        /**
-         * A PeerConnection to a peer has been established
-         * @event module:rtcomm.RtcommEndpoint#webrtc:connected
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        "webrtc:connected": [],
-        /**
-         * The connection to a peer has been closed
-         * @event module:rtcomm.RtcommEndpoint#webrtc:disconnected
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         *
-         */
-        "webrtc:disconnected": [],
-        /**
-         * The remote peer muted their stream
-         * @event module:rtcomm.RtcommEndpoint#webrtc:remotemuted
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         *
-         * Additional properties of the Event Object:
-         *  label: label of the stream
-         *  audio: boolean indicating muted(false) or not(true)
-         *  video: boolean indicating muted(false) or not(true)
-         */
-        "webrtc:remotemuted": [],
-        /**
-         * Creating the connection to a peer failed
-         * @event module:rtcomm.RtcommEndpoint#webrtc:failed
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        'webrtc:failed': [],
-        /**
-         * A message has arrived from a peer
-         * @event module:rtcomm.RtcommEndpoint#chat:message
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        'chat:message': [],
-        /**
-         * A chat session to a  peer has been established
-         * @event module:rtcomm.RtcommEndpoint#chat:connected
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        'chat:connected': [],
-        /**
-         * The connection to a peer has been closed
-         * @event module:rtcomm.RtcommEndpoint#chat:disconnected
-         * @property {module:rtcomm.RtcommEndpoint~Event}
-         */
-        'chat:disconnected':[],
-        /**
-         * The endpoint has destroyed itself, clean it up.
-         * @event module:rtcomm.RtcommEndpoint#destroyed
-         * @property {module:rtcomm.RtcommEndpoint}
-         */
-        'destroyed': [],
-        /**
-         * The endpoint received a 'onetimemessage'. The content of the message
-         * should be in the 'otm' header
-         * @event module:rtcomm.RtcommEndpoint#onetimemessage
-         * @property {module:rtcomm.RtcommEndpoint}
-         */
-        'onetimemessage': [],
-    };
-  };
-/*globals util:false*/
-/*globals l:false*/
-RtcommEndpoint.prototype = util.RtcommBaseObject.extend((function() {
-
-  function createSignalingSession(endpoint, context) {
-    var remoteEndpointID = null;
-    var toTopic = null;
-    l('DEBUG') && console.log(context+' createSignalingSession using endpoint: ', endpoint);
-    if (typeof endpoint === 'object') {
-      if (endpoint.remoteEndpointID && endpoint.toTopic) {
-        remoteEndpointID = endpoint.remoteEndpointID;
-        toTopic = endpoint.toTopic;
-      } else {
-        throw new Error('Invalid object passed on connect! should be {remoteEndpointID: something, toTopic: something}');
-      }
-    } else {
-      remoteEndpointID = endpoint;
-    } 
-    l('DEBUG') && console.log(context+" createSignalingSession context: ", context);
-    var sessid = null;
-    if (!remoteEndpointID) {
-      throw new Error('remoteEndpointID must be set');
-    }
-    console.log('toTopic is: '+toTopic);
-    var session = context.dependencies.endpointConnection.createSession({
-      id : sessid,
-      toTopic : toTopic,
-      protocols: context._.protocols,
-      remoteEndpointID: remoteEndpointID,
-      appContext: context.config.appContext
-    });
-    return session;
-  }
-  // Protocol Specific handling of the session content. 
-  //
-  function addSessionCallbacks(context, session) {
-     // Define our callbacks for the session.
-    // received a pranswer
-    session.on('have_pranswer', function(content){
-      // Got a pranswer:
-      context.setState('session:ringing');
-      context._processMessage(content);
-    });
-    /*
-     * this is a bit of a special message... content MAY contain:
-     * content.queuePosition
-     * content.message
-     *
-     * content.message is all we propogate.
-     *
-     */
-    session.on('queued', function(content){
-      l('DEBUG') && console.log('SigSession callback called to queue: ', content);
-      var position = 0;
-      if (typeof content.queuePosition !== 'undefined') {
-        position = content.queuePosition;
-        context.setState('session:queued',{'queuePosition':position});
-        content = (content.message)? content.message : content;
-      } else {
-        context.setState('session:queued');
-        context._processMessage(content);
-      }
-    });
-    session.on('message', function(content){
-      l('DEBUG') && console.log('SigSession callback called to process content: ', content);
-      context._processMessage(content);
-    });
-    session.on('started', function(content){
-      // Our Session is started!
-      content && context._processMessage(content);
-      context.setState('session:started');
-    });
-    session.on('stopped', function(message) {
-      // We could already be stopped, ignore it in that case.
-      l('DEBUG') && console.log(context+' SigSession callback called to process STOPPED: ' + context.getState());
-      if (context.getState() !== 'session:stopped') {
-        // In this case, we should disconnect();
-        context.setState('session:stopped');
-        context.disconnect();
-      }
-    });
-    session.on('starting', function() {
-      context.setState('session:trying');
-    });
-    session.on('failed', function(message) {
-      context.disconnect();
-      context.setState('session:failed',{reason: message});
-    });
-    l('DEBUG') && console.log(context+' createSignalingSession created!', session);
-   // session.listEvents();
-    return true;
-  }
-
-/** @lends module:rtcomm.RtcommEndpoint.prototype */
-var proto = {
-  getAppContext:function() {return this.config.appContext;},
-  newSession: function(session) {
-      var event = null;
-      var msg = null;
-      // If there is a session.appContext, it must match unless this.ignoreAppContext is set 
-      if (this.config.ignoreAppContext || 
-         (session.appContext && (session.appContext === this.getAppContext())) || 
-         (typeof session.appContext === 'undefined' )) {
-        // We match appContexts (or don't care)
-        if (this.available()){
-          // We are available (we can mark ourselves busy to not accept the call)
-          // Save the session 
-          this._.activeSession = session;
-          addSessionCallbacks(this,session);
-          var commonProtocols = util.commonArrayItems(this._.protocols, session.protocols);
-          l('DEBUG') && console.log(this+'.newSession() common protocols: '+ commonProtocols);
-          // If this session is created by a REFER, we do something different
-          if (session.referralTransaction ) {
-            // Don't start it, emit 'session:refer'
-            l('DEBUG') && console.log(this + '.newSession() REFER');
-            // Set the protocols to match the endpoints.
-            session.protocols = this._.protocols;
-            this.setState('session:refer');
-          } else if (commonProtocols.length > 0){
-            // have a common protocol 
-            // any other inbound session should be started.
-            session.start({protocols: commonProtocols});
-            // Depending on the session.message (i.e its peerContent or future content) then do something. 
-            if (session.message && session.message.payload) {
-              // If we need to pranswer, processMessage can handle it.
-              this._processMessage(session.message.payload);
-            } else {
-              // it doesn't have any payload, but could have protocols subprotocol
-              session.pranswer();
-              this.setState('session:alerting', {protocols:commonProtocols});
-            }
-          } else {
-            // can't do anything w/ this session, same as busy... different reason.
-            l('DEBUG') && console.log(this+'.newSession() No common protocols');
-            session.fail('No common protocols');
-          }
-          this.available(false);
-        } else {
-          msg = 'Busy';
-          l('DEBUG') && console.log(this+'.newSession() '+msg);
-          session.fail('Busy');
-        }
-      } else {
-        msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.getAppContext()+')';
-        l('DEBUG') && console.log(this+'.newSession() '+msg);
-        session.fail(msg);
-      }
-  },
-  _processMessage: function(payload) {
-
-    var self = this;
-    /*
-     * payload will be a key:object map where key is 'webrtc' or 'chat' for example
-     * and the object is the 'content' that should be routed to that object.
-     */
-    // but may be {protocols: [], payload: {}}
-    // basically a protocol router...
-    var protocols;
-    if (payload && payload.protocols) {
-      protocols = payload.protocols;
-      payload = payload.payload;
-    }
-    if (payload) {
-      for (var type in payload) {
-        if (payload.hasOwnProperty(type)){
-          switch(type) {
-            case 'chat': 
-              // It is a chat this will change to something different later on...
-              if (this.config.chat) { 
-                // If there is also a webrtc payload, we don't want to alert, so just set it to connected
-                if (payload.webrtc) { 
-                  this.chat._setState('connected');
-                }
-                this.chat._processMessage(payload[type]);
-              } else {
-                console.error('Received chat message, but chat not supported!',payload[type]);
-              }
-              break;
-            case 'webrtc':
-              if (this.config.webrtc && this.webrtc) { 
-                // calling enable will enable if not already enabled... 
-                if (this.webrtc.enabled()) {
-                  self.webrtc._processMessage(payload[type]);
-                } else {
-                  // This should only occur on inbound. don't connect, that is for outbound.
-                  this.webrtc.enable({connect: false}, function(success){
-                    if (success) {
-                      self.webrtc._processMessage(payload[type]);
-                    }
-                  });
-                }
-              } else {
-                console.error('Received chat message, but chat not supported!',payload[type]);
-              }
-              break;
-            case 'otm':
-              this.emit('onetimemessage', {'onetimemessage': payload[type]});
-              break;
-            default:
-              console.error(this+' Received message, but unknown protocol: ', type);
-          } // end of switch
-        }
-      } // end of for
-   } else {
-     l('DEBUG') && console.log(this+' Received message, but nothing to do with it', payload);
-   }
-  },
-  _playRingtone: function() {
-    this._.ringTone && this._.ringTone.play();
-  },
-  _playRingback: function() {
-    this._.ringbackTone && this._.ringbackTone.play();
-  },
-  _stopRing: function() {
-    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
-    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
-    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
-    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
-  },
-
-  /** Endpoint is available to accept an incoming call
-   *
-   * @returns {boolean}
-   */
-
-    available: function(a) {
-     // if a is a boolean then set it, otherwise return it.
-     if (typeof a === 'boolean') { 
-       this._.available = a;
-       l('DEBUG') && console.log(this+'.available() setting available to '+a);
-       return a;
-     } else  {
-       return this._.available;
-     }
-    },
-
-  /**
-   * Connect to another endpoint.  Depending on what is enabled, it may also start
-   * a chat connection or a webrtc connection.
-   * <p>
-   * If webrtc is enabled by calling webrtc.enable() then the initial connect will 
-   * also generate an Offer to the remote endpoint. <br>
-   * If chat is enabled, an initial message will be sent in the session as well.
-   * </p>
-   *
-   * @param {string|object} endpoint Remote ID of endpoint to connect.
-   */
-
-  connect: function(endpoint) {
-    if (this.ready()) {
-      this.available(false);
-      this._.disconnecting = false;
-      if (!this._.activeSession ) { 
-        l('DEBUG') && console.log(this+'.connect() connecting to endpoint : ', endpoint);
-        if (typeof endpoint === 'string') {
-          var pm = this.dependencies.parent.getPresenceMonitor();
-          // We do not require  aserver, and there is no service configured (serviceQuery failed)
-          if (!this.dependencies.parent.requireServer() && Object.keys(this.getRtcommConnectorService()).length === 0){
-            // If we don't require a server, try to figure out the endpoint Topic
-            l('DEBUG') && console.log(this+'.connect() Looking up endpoint : ', endpoint);
-            var node = pm.getPresenceData()[0].findNodeByName(endpoint); 
-            var newep = node ?  
-                        { remoteEndpointID: endpoint,
-                          toTopic: node.addressTopic }
-                        : endpoint;
-            l('DEBUG') && console.log(this+'.connect() found enpdoint : ', newep);
-            endpoint = newep;
-          }
-        }
-        l('DEBUG') && console.log(this+'.connect() Creating signaling session to: ', endpoint);
-        this._.activeSession = createSignalingSession(endpoint, this);
-        addSessionCallbacks(this, this._.activeSession);
-      } 
-      this.setState('session:trying');
-
-      var chatMessage = null;
-      if (this.config.chat && this.chat.enabled()) {
-        chatMessage = this.chat.onEnabledMessage;
-      } 
-      if (this.config.webrtc && this.webrtc.connect(chatMessage)) { 
-        // if its already enabled, we need to set chat to connected here so it can handle inbound messages.
-        this.chat.enabled() && this.chat._setState('connected');
-        l('DEBUG') && console.log(this+'.connect() initiating with webrtc.enable({connect:true})');
-      } else if (this.config.chat && this.chat.enable({connect:true})){
-        l('DEBUG') && console.log(this+'.connect() initiating with chat.enable({connect:true})');
-      } else {
-        l('DEBUG') && console.log(this+'.connect() sending startMessage w/ no content');
-        this._.activeSession.start();
-      }
-    } else {
-      throw new Error('Unable to connect endpoint until EndpointProvider is initialized');
-    }
-    return this;
-  },
-
-  /**
-   * Disconnect the endpoint from a remote endpoint.
-   */
-  disconnect: function() {
-    l('DEBUG') && console.log(this+'.disconnect() Entry');
-    if (!this._.disconnecting) {
-      // Not in progress, move along
-      l('DEBUG') && console.log(this+'.disconnect() Starting disconnect process');
-      this._.disconnecting = true;
-      this.webrtc && this.webrtc.disable();
-      this.chat && this.chat.disable();
-      if (!this.sessionStopped()) {
-        this._.activeSession.stop();
-        this._.activeSession = null;
-        this.setState('session:stopped');
-      } else {
-        this._.activeSession=null;
-      }
-      // Renable webrtc if autoEnable is set.
-      this.config.autoEnable && this.webrtc && this.webrtc.enable();
-      this._.disconnecting = false;
-      this.available(true);
-    } else {
-      l('DEBUG') && console.log(this+'.disconnect() in progress, cannot disconnect again');
-    }
-    l('DEBUG') && console.log(this+'.disconnect() Exit');
-    return this;
-  },
-  /**
-   * Accept an inbound request.  This is typically called after a 
-   * {@link module:rtcomm.RtcommEndpoint#session:alerting|session:alerting} event
-   *
-   *
-   * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when accept is complete.
-   *
-   * @returns {module:rtcomm.RtcommEndpoint}
-   */
-  accept: function(callback) {
-    if (this.getState() === 'session:refer') {  
-      this.connect(null);
-    } else if (this.webrtc && this.webrtc && this.webrtc.accept(callback)) {
-      l('DEBUG') && console.log(this+'.accept() Accepted in webrtc.');
-    } else if (this.chat && this.chat.accept(callback)) {
-      l('DEBUG') && console.log(this+'.accept() Accepted in chat.');
-    } else {
-      l('DEBUG') && console.log(this+'.accept() accepting generically.');
-      if (!this.sessionStarted()) {
-        this._.activeSession.respond();
-      }
-    }
-    return this;
-  },
-
-  /**
-   * Reject an inbound request.  This is typically called after a 
-   * {@link module:rtcomm.RtcommEndpoint#session:alerting|session:alerting} event
-   *
-   */
-  reject: function() {
-      l('DEBUG') && console.log(this + ".reject() invoked ");
-      this._stopRing();
-      this.webrtc.reject();
-      this.chat.reject();
-      this._.activeSession && this._.activeSession.fail("The user rejected the call");
-      this.available(true);
-      this._.activeSession = null;
-      return this;
-  },
-
-  sendOneTimeMessage: function(message){
-    // Sending message:
-    l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending '+message);
-    var msg = {};
-    if (this.sessionStarted()) {
-      msg.otm = (typeof message === 'object') ? message : {'message':message};
-      l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending ',msg);
-      this._.activeSession.send(msg);
-    } else {
-      throw new Error('Unable to send onetimemessage.  Session not started');
-    }
-  },
-
-  getRtcommConnectorService: function(){
-    return this.dependencies.endpointConnection.services.RTCOMM_CONNECTOR_SERVICE;
-  },
-  /* used by the parent to assign the endpoint connection */
-  setEndpointConnection: function(connection) {
-    var webrtc = this.webrtc;
-    webrtc && webrtc.setIceServers(connection.services.RTCOMM_CONNECTOR_SERVICE);
-    this.dependencies.endpointConnection = connection;
-    this.dependencies.endpointConnection.on('servicesupdate', function(services) {
-        l('DEBUG') && console.log('setEndpointConnection: resetting the ice servers to '+services.RTCOMM_CONNECTOR_SERVICE);
-        webrtc && webrtc.setIceServers(services.RTCOMM_CONNECTOR_SERVICE);
-    });
-  },
-
-  /** Return user id 
-   * @returns {string} Local UserID that endpoint is using
-   */
-  getUserID : function(userid) {
-      return this.config.userid; 
-  },
-
-  setUserID : function(userid) {
-      this.userid = this.config.userid = userid;
-  },
-
-  getState: function() {
-    return this.state;
-  },
-
-  /**
-   * Endpoint is ready to connect
-   * @returns {boolean}
-   */
-  ready : function() {
-    var ready = (this.dependencies.endpointConnection) ? true : false;
-    return ready;
-  },
-  /**
-   * The Signaling Session is started 
-   * @returns {boolean}
-   */
-  sessionStarted: function() {
-    return (this._.activeSession && this._.activeSession.getState() === 'started');
-  },
-  /**
-   * The Signaling Session does not exist or is stopped
-   * @returns {boolean}
-   */
-  sessionStopped: function() {
-    var state = (this._.activeSession) ? (this._.activeSession.getState() === 'stopped'): true;
-    return state;
-  },
-  /**
-   * Remote EndpointID this endpoint is connected to.
-   * @returns {string}
-   */
-  getRemoteEndpointID: function() {
-    return this._.activeSession ? this._.activeSession.remoteEndpointID : 'none';
-  },
-  /**
-   * Local EndpointID this endpoint is using.
-   * @returns {string}
-   */
-  getLocalEndpointID: function() {
-    return this.userid;
-  },
-
-  /**
-   *  Destroy this endpoint.  Cleans up everything and disconnects any and all connections
-   */
-  destroy : function() {
-    l('DEBUG') && console.log(this+'.destroy Destroying RtcommEndpoint');
-    this.emit('destroyed');
-    this.disconnect();
-    // this.getLocalStream() && this.getLocalStream().stop();
-    l('DEBUG') && console.log(this+'.destroy() - detaching media streams');
-    //detachMediaStream && detachMediaStream(this.getMediaIn());
-    //detachMediaStream && detachMediaStream(this.getMediaOut());
-    l('DEBUG') && console.log(this+'.destroy() - Finished');
-  },
-
-  /* This is an event formatter that is called by the prototype emit() to format an event if 
-   * it exists
-   * When passed an object, we ammend it w/ eventName and endpoint and pass it along.
-   */
-  _Event : function Event(event, object) {
-      var RtcommEvent =  {
-        eventName: '',
-        endpoint: null
-      };
-      l('DEBUG') && console.log(this+'_Event -> creating event['+event+'], augmenting with', object);
-      RtcommEvent.eventName= event;
-      RtcommEvent.endpoint= this;
-      if (typeof object === 'object') {
-        Object.keys(object).forEach(function(key) { 
-          RtcommEvent[key] = object[key];
-        });
-      }
-      l('DEBUG') && console.log(this+'_Event -> created event: ',RtcommEvent);
-      return RtcommEvent;
-  }
-
-  };
-
-  // This construct is to get the jsdoc correct
-  return proto;
-
-  })()); // End of Prototype
-
-return RtcommEndpoint;
-})();
-
-/*
- * Copyright 2014 IBM Corp.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-/*global: l:false*/
-/*global: generateUUID:false*/
-/*global: util:false*/
-
 /**
  *  @memberof module:rtcomm
  *  @description
@@ -5957,7 +4794,9 @@ var proto = {
             session.start({protocols: commonProtocols});
             // Depending on the session.message (i.e its peerContent or future content) then do something.
             if (session.message && session.message.payload) {
-              // If we need to pranswer, processMessage can handle it.
+              // We need to pranswer here at this level.
+              // TODO:  May need to ask protocols if they have naything to pranswer with.
+              session.pranswer();
               this._processMessage(session.message.payload);
             } else {
               // it doesn't have any payload, but could have protocols subprotocol
@@ -5991,21 +4830,32 @@ var proto = {
     // basically a protocol router...
     //
     var protocols;
+
+    if (payload && payload.protocols) {
+      protocols = payload.protocols;
+      payload = payload.payload;
+    }
+
     if (payload) {
+      console.log('_processMessage recieved: ', payload);
       for (var protocol in payload) {
+        console.log('looking at protocol: ', protocol);
         if (payload.hasOwnProperty(protocol)){
           // we  protocol is in payloads
           if (self.hasOwnProperty(protocol)) {
             // we have this protocol defined pass message to the protocol
             // if protocol is enabled, pass the message
             if ( self[protocol].enabled()) {
-              self[protocol].handleMessage(payload[protocol]);
+              console.log('calling handle message on protocol:', protocol);
+              self[protocol]._processMessage(payload[protocol]);
             } else {
               console.error('Received %s message, but not enabled!',protocol, payload[protocol]);
             }
           } else {
             console.error('Received %s message, but not supported!',protocol, payload[protocol]);
           }
+        } else { 
+          console.error('property not in protocol');
         }
       } // end of for
      } else {
@@ -6067,55 +4917,64 @@ var proto = {
         addSessionCallbacks(this, this._.activeSession);
       }
       this.setState('session:trying');
-      var startMessage = this._getStartMessage();
-      // Send our message
-      l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',startMessage);
-      this._.activeSession.start(startMessage);
+      this._getStartMessage(function start(success, startMessage){
+        // Send our message
+        //TODO Fix debug logging
+        console.log(this+'.connect() sending startMessage w/ message',startMessage);
+        l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',startMessage);
+        this._.activeSession.start({'payload': startMessage});
+      }.bind(this));
     } else {
       throw new Error('Unable to connect endpoint until EndpointProvider is initialized');
     }
     return this;
+  },
+  // Get the message by calling a method on all protocols
+  _getGenericMessage: function _getGenericMessage(method, callback) {
+    var self = this;
+    var returnMessage = {};
+    var protocols = this._.protocols;
+    var callbacks = 0;
+    // How many are enabled?
+    var enabled = 0;
+    for (var i=0;i<protocols.length; i++) {
+      var protocol = protocols[i];
+      if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
+        enabled++;
+      }
+    }
+    for (var i=0;i<protocols.length; i++) {
+      var protocol = this._.protocols[i];
+      if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
+        // get the startMessage
+        self[protocol][method](function smCallback(success, message){
+          callbacks++;
+          if (success) {
+            returnMessage[protocol] = message;
+          }
+            // all callbacks called.
+          l('DEBUG') && console.log(this+'._getGenericMessage() callbaks:'+callbacks+' enabled: '+enabled+' protocols :', protocols, 'returnMessage? ',returnMessage);
+          if (callbacks === enabled) {
+            callback(true, returnMessage);
+          }
+        });
+      }
+    };
   },
   /*
    * Get the start Message -- this will call 'connect' on all sub protocols.
    * (though it won't really connect yet)
    * TODO:  Think this through.
    */
-  _getStartMessage: function() {
-      var self = this;
-      // Get our start message
-      var startMessage = null;
-      this._.protocols.forEach(function(protocol) {
-        if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-          // get the startMessage
-          startMessage[protocol] = self[protocol].connect();
-        }
-      });
-      return startMessage;
+  _getStartMessage: function _getStartMessage(callback) {
+    this._getGenericMessage('connect', callback);
   },
-  _getStopMessage: function() {
-      var self = this;
-      // Get our start message
-      var stopMessage = null;
-      this._.protocols.forEach(function(protocol) {
-        if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-          // get the startMessage
-          stopMessage[protocol] = self[protocol].disconnect();
-        }
-      });
-      return stopMessage;
+
+  _getStopMessage: function(callback) {
+    this._getGenericMessage('disconnect',callback);
   },
-  _getAcceptMessage: function() {
-      var self = this;
-      // Get our start message
-      var acceptMessage = null;
-      this._.protocols.forEach(function(protocol) {
-        if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-          // get the startMessage
-          acceptMessage[protocol] = self[protocol].accept();
-        }
-      });
-      return acceptMessage;
+  _getAcceptMessage: function _getAcceptMessage(callback) {
+    this._getGenericMessage('accept', callback);
   },
 
   /**
@@ -6127,16 +4986,17 @@ var proto = {
       // Not in progress, move along
       l('DEBUG') && console.log(this+'.disconnect() Starting disconnect process');
       this._.disconnecting = true;
-      var stopMessage = this._getStopMessage();
-      if (!this.sessionStopped()) {
-        this._.activeSession.stop(stopMessage);
-        this._.activeSession = null;
-        this.setState('session:stopped');
-      } else {
-        this._.activeSession=null;
-      }
-      this._.disconnecting = false;
-      this.available(true);
+      this._getStopMessage(function cbDisconnect(success, stopMessage){
+        if (!this.sessionStopped()) {
+          this._.activeSession.stop(stopMessage);
+          this._.activeSession = null;
+          this.setState('session:stopped');
+        } else {
+          this._.activeSession=null;
+        }
+        this._.disconnecting = false;
+        this.available(true);
+      }.bind(this));
     } else {
       l('DEBUG') && console.log(this+'.disconnect() in progress, cannot disconnect again');
     }
@@ -6147,19 +5007,18 @@ var proto = {
    * Accept an inbound request.  This is typically called after a
    * {@link module:rtcomm.SessionEndpoint#session:alerting|session:alerting} event
    *
-   *
-   * @param {module:rtcomm.SessionEndpoint~callback} callback - The callback when accept is complete.
-   *
    * @returns {module:rtcomm.SessionEndpoint}
    */
-  accept: function(callback) {
-
-	// If refer, we have been told to connect to someone, call connect on ourself.
-    if (this.getState() === 'session:refer') {
-      this.connect(null);
-	} else {
-		this._.activeSession.respond(true, this._getAcceptMessage);
-	}
+  accept: function accept() {
+    // If refer, we have been told to connect to someone, call connect on ourself.
+      if (this.getState() === 'session:refer') {
+        this.connect(null);
+    } else {
+      this._getAcceptMessage(function cbAccept(success, acceptMessage){
+        l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',acceptMessage);
+        this._.activeSession.respond(true, acceptMessage);
+      }.bind(this));
+    }
     return this;
   },
 
@@ -6304,13 +5163,22 @@ var proto = {
     this._.protocols.push(protocol.name);
     this[protocol.name] = protocol;
     var self = this;
+    /* don't emit anything by default...
     Object.keys(protocol.events).forEach(function addEvent(eventname) {
       self.createEvent(protocol.name+':'+eventname);
     });
     // add a common event handler for here... to generically emit events.
-    this[protocol.name].bubble(function(event, object) {
-      self.emit(protocol.name+':'+event, object);
+    this[protocol.name].bubble(function(eventObject) {
+      console.log('>>>>> Bubble handling event for :', eventObject.eventName);
+      console.log('>>>>> Bubble handling event with object :', eventObject.object);
+      // alerting is at the session level.  emit it that way.
+      if (eventObject.eventName === 'alerting') {
+        self.emit('session:alerting', eventObject.object);
+      } else {
+        self.emit(protocol.name+':'+eventObject.eventName, eventObject.object);
+      }
     });
+    */
   }
   };
 
@@ -6318,6 +5186,268 @@ var proto = {
   return proto;
 
   })()); // End of Prototype
+
+
+var MessageEndpoint = (function(config) {
+
+	var MessageEndpoint = function MessageEndpoint(config) {
+		var ep =  new SessionEndpoint(config);
+		ep.addProtocol(GenericMessageEndpoint);
+	}
+	return MessageEndpoint;
+})();
+
+/*
+ * Copyright 2014,2015 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ *  @memberof module:rtcomm
+ *  @description
+ *  This object should only be created with the {@link module:rtcomm.EndpointProvider#getMqttEndpoint|getRtcommEndpoint} function.
+ *  <p>
+ *  The MqttEndpoint object provides an interface to directly subscribe and publish MQTT messages.
+ *
+ *  @constructor
+ *
+ *  @extends  module:rtcomm.util.RtcommBaseObject
+ */
+var MqttEndpoint = function MqttEndpoint(config) {
+
+  this.dependencies = { 
+    connection: null,
+  };
+  /* Object storing subscriptions */ 
+  this.subscriptions = {};
+  this.dependencies.connection = config && config.connection;
+  this.events = {'message': []};
+};
+/*global util:false*/
+/*global: l:false*/
+MqttEndpoint.prototype = util.RtcommBaseObject.extend(
+  /** @lends module:rtcomm.MqttEndpoint.prototype */
+  {
+  /** 
+   * subscribe to a topic
+   * @param {string} topic - A string that represents an MQTT topic
+   */
+  subscribe: function(topic) {
+               // Add it
+               this.subscriptions[topic] = null;
+               var mqttEP = this;
+               mqttEP.dependencies.connection.subscribe(topic, function(message) {
+                 l('DEBUG') && console.log('MqttEndpoint.subscribe() Received message['+message+'] on topic: '+topic);
+                 mqttEP.emit('message', message);
+               });
+             },
+
+  /** 
+   * unsubscribe from  a topic
+   * @param {string} topic - A string that represents an MQTT topic
+   */
+  unsubscribe: function(topic) {
+               var mqttEP = this;
+               if (this.subscriptions.hasOwnProperty(topic)) {
+                 delete this.subscriptions[topic];
+                 mqttEP.dependencies.connection.unsubscribe(topic);
+               } else {
+                 throw new Error("Topic not found:"+topic);
+               }
+             },
+  /** 
+   * publish a message to topic
+   * @param {string} topic - A string that represents an MQTT topic
+   * @param {string} message - a String that is a message to be published
+   */
+  publish: function(topic,message) {
+             this.dependencies.connection.publish(topic, message);
+  },
+  /** 
+   * Destroy the MqttEndpoint
+   */
+  destroy: function() {
+     l('DEBUG') &&  console.log('Destroying mqtt(unsubscribing everything... ');
+             var mqttEP = this;
+             Object.keys(this.subscriptions).forEach( function(key) {
+               mqttEP.unsubscribe(key);
+             });
+           }
+});
+
+var RtcommEndpoint = (function invocation() {
+/**
+ *  @memberof module:rtcomm
+ *  @description
+ *  This object can only be created with the {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint} function.
+ *  <p>
+ *  The RtcommEndpoint object provides an interface for the UI Developer to attach 
+ *  Video and Audio input/output.  Essentially mapping a broadcast stream(a MediaStream that
+ *  is intended to be sent) to a RTCPeerConnection output stream.   When an inbound stream
+ *  is added to a RTCPeerConnection, then this also informs the RTCPeerConnection
+ *  where to send that stream in the User Interface.
+ *  <p>
+ *  See the example under {@link module:rtcomm.EndpointProvider#getRtcommEndpoint|getRtcommEndpoint}
+ *  @constructor
+ *
+ *  @extends  module:rtcomm.SessionEndpoint
+ */
+  var RtcommEndpoint= function RtcommEndpoint(config) {
+    /** 
+     * @typedef {object} module:rtcomm.RtcommEndpoint~config
+     *
+     * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
+     * @property {string}  [userid=null] UserID the endpoint will use (generally provided by the EndpointProvider
+     * @property {string}  [appContext=null] UI Component to attach outbound media stream
+     * @property {string} [ringtone=null] Path to a  ringtone to play when we are ringing on inbound call
+     * @property {string} [ringbacktone=null] path to a ringbacktone to play on outbound call
+     * @property {boolean} [webrtc=true]  Whether the endpoint supports webrtc
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
+     * @property {boolean} [chat=true]  Wehther the endpoint supports chat
+     * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
+     * @property {module:rtcomm.EndpointProvider} [parent] - set the parent Should be done automatically.
+     *
+     */
+    var defaultConfig = {
+      // if a feature is supported, enable by default.
+      autoEnable: false,
+      ignoreAppContext: true,
+      appContext : null,
+      userid: null,
+      ringtone: null,
+      ringbacktone: null,
+      chat: true,
+      chatConfig: {},
+      webrtc:true,
+      webrtcConfig:{}
+    };
+
+
+    function addChatHandlers(ep) {
+      console.log('this',ep);
+      var chat = ep.chat;
+      // Configure chat event handling...
+      //
+      chat.on('ringing', function(event_obj) {
+        (ep.lastEvent !== 'session:ringing') && ep.emit('session:ringing');
+      });
+      ep.createEvent('chat:message');
+      chat.on('message', function(message) {
+        // Should be '{message: blah, from: blah}'
+        ep.emit('chat:message', message);
+      });
+      chat.on('alerting', function(message) {
+        l('DEBUG') && console.log('RtcommEndpoint emitting session:alerting event');
+        var obj =  {};
+        obj.message  = message;
+        obj.protocols = 'chat';
+        // Have to do setState here because the ep state needs to change.
+        ep.setState('session:alerting', obj );
+      });
+      ep.createEvent('chat:connected');
+      chat.on('connected', function() {
+        ep.emit('chat:connected');
+      });
+      ep.createEvent('chat:disconnected');
+      chat.on('disconnected', function() {
+        ep.emit('chat:disconnected');
+      });
+    };
+    function addWebrtcHandlers(ep) {
+      // Webrtc protocol...
+      var webrtc = ep.webrtc;
+
+      webrtc.on('ringing', function(event_obj) {
+       l('DEBUG') && console.log("on ringing - play a ringback tone ", ep._.ringbackTone); 
+       ep._playRingback();
+       (ep.lastEvent !== 'session:ringing') && ep.emit('session:ringing');
+      });
+
+      webrtc.on('trying', function(event_obj) {
+       l('DEBUG') && console.log("on trying - play a ringback tone ", ep._.ringbackTone); 
+       ep._playRingback();
+       (ep.lastEvent !== 'session:trying') && ep.emit('session:trying');
+      });
+      webrtc.on('alerting', function(event_obj) {
+        ep._playRingtone();
+        ep.emit('session:alerting', {protocols: 'ep.webrtc'});
+      });
+
+      ep.createEvent('webrtc:connected');
+      webrtc.on('connected', function(event_obj) {
+       l('DEBUG') && console.log("on connected - stop ringing ");
+        ep._stopRing();
+        ep.emit('webrtc:connected');
+      });
+      ep.createEvent('webrtc:disconnected');
+      webrtc.on('disconnected', function(event_obj) {
+        l('DEBUG') && console.log("on disconnected - stop ringing ");
+        ep._stopRing();
+        ep.emit('webrtc:disconnected');
+      });
+      ep.createEvent('webrtc:remotemuted');
+      webrtc.on('remotemuted', function(event_obj) {
+        ep.emit('webrtc:remotemuted', event_obj);
+      });
+    };
+
+    // Call the Super Constructor
+    SessionEndpoint.call(this,config);
+    // Add the protocols
+    this.addProtocol(new ChatProtocol());
+    this.addProtocol(new WebRTCConnection(this));
+    // Add the handlers to the protocols;
+    addChatHandlers(this);
+    addWebrtcHandlers(this);
+    if (this.config.autoEnable) {
+      this.config.chat && this.chat.enable();
+      this.config.webrtc && this.webrtc.enable();
+    };
+    
+
+
+    // WebRTC Specific configuration.
+    // TODO:  MOve to the webrtc protocol
+    this._.ringTone = (this.config.ringtone) ? util.Sound(this.config.ringtone).load(): null;
+    this._.ringbackTone= (this.config.ringbacktone) ? util.Sound(this.config.ringbacktone).load() : null;
+    this._.inboundMedia = null;
+    this._.attachMedia = false;
+    this._.localStream = null;
+    this._.media = { In : null,
+                Out : null};
+                
+  } // End of Constructor
+
+  RtcommEndpoint.prototype= Object.create(SessionEndpoint.prototype);
+  RtcommEndpoint.prototype.constructor = RtcommEndpoint;
+
+  // RtcommEndpoint Specific additions to the SessioNEndpoint
+  RtcommEndpoint.prototype._playRingtone =  function() {
+    this._.ringTone && this._.ringTone.play();
+  };
+  RtcommEndpoint.prototype._playRingback= function() {
+    this._.ringbackTone && this._.ringbackTone.play();
+  };
+
+  RtcommEndpoint.prototype._stopRing= function() {
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringbackTone);
+    l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
+    this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
+    this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
+  };
+
+  return RtcommEndpoint;
+})();
 
  /*
  * Copyright 2014 IBM Corp.
@@ -6357,8 +5487,16 @@ var SubProtocol= (function invocation() {
 
   var protocolConfig = {
     name: '',
-    getStartMessage: function getStartMessage() {
-      return "";
+    config: {},
+    onEnabled: function onEnabled(callback) {
+      // Finished.
+      callback(true, 'default');
+    },
+    getStartMessage: function getStartMessage(callback) {
+      callback(true, 'default');
+    },
+    getAcceptMessage: function getAcceptMessage(callback) {
+      callback(true, 'default');
     },
     getStopMessage: function getStopMessage() {
       return "";
@@ -6367,7 +5505,11 @@ var SubProtocol= (function invocation() {
 
     },
     handleMessage : function handleMessage(message) {
-
+    // Message should be in the format:
+    // {payload content... }
+    // {'message': message, 'from':from}
+    //
+        console.log('Should have been overridden...');
     }
   };
 
@@ -6377,6 +5519,7 @@ var SubProtocol= (function invocation() {
     this._ = {};
     this._.enabled = false;
     // Need?
+    this.config = {};
     this.onEnabledMessage = null;
     this.onDisabledMessage = null;
     // Do maintain state
@@ -6393,22 +5536,12 @@ var SubProtocol= (function invocation() {
       'disconnected': []
     };
 
-    // Assign everything passed to here
-    this.protocolConfig = object;
+    // Merge the passed config w/ the default.
+    this.protocolConfig = util.combineObjects(object, protocolConfig);
+    console.log(this.protocolConfig);
     // name gets assigned
     this.name = this.protocolConfig.name;
-    /*
-     * Default create Message -- should be overridden w/ the protocol
-     */
-    this.createMessage = function createMessage(message) {
-      // default
-      console.log('Create message is: '+message);
-      var protoMessage = {};
-      protoMessage[this.name]= (typeof this.protocolConfig.constructMessage === 'function')  ?
-        this.protocolConfig.constructMessage(message) :
-          message;
-      return protoMessage;
-    }
+    this.config = this.protocolConfig.config;
   }; // End of Constructor
     /**
      * Send a message if connected, otherwise,
@@ -6417,28 +5550,45 @@ var SubProtocol= (function invocation() {
      */
   SubProtocol.prototype = util.RtcommBaseObject.extend({
     // Return message to be sent in a Start Session
-    getStartMessage: function getStartMessage() {
-
+    getStartMessage: function getStartMessage(callback) {
+      return this.protocolConfig.getStartMessage.call(this,callback);
     },
     // Return message to be sent in a Stop Session
-    getStopMessage: function getStopMessage() {
+    getStopMessage: function getStopMessage(callback) {
+      return this.protocolConfig.getStopMessage.call(this,callback);
 
     },
+    /*
+     * Default create Message -- should be overridden w/ the protocol
+     */
+    createMessage : function createMessage(message) {
+      // default
+      console.log('Create message is: '+message);
+      var protoMessage = {};
+      protoMessage[this.name]= (typeof this.protocolConfig.constructMessage === 'function')  ?
+        this.protocolConfig.constructMessage.call(this,message) :
+          message;
+      console.log('Created message is: ',protoMessage);
+      return protoMessage;
+    },
+
     setParent: function setParent(parent) {
       this.dependencies.parent = parent;
     },
 
-    enable : function enable(message) {
+    enable : function enable(callback) {
       // cast a message
       var parent = this.dependencies.parent;
       var connect = false;
-      this.onStartMessage = this.getStartMessage();
-      this._.enabled = true;
-      // If our parent session is started, then call connect
-      if (parent.sessionStarted()) {
-        l('DEBUG') && console.log(this+'.enable() - Session Started, starting ');
-        this.connect();
-      }
+      this.protocolConfig.onEnabled.call(this, function enableCallback(success, message){
+        this._.enabled = true;
+        // If our parent session is started, then call connect
+        if (parent.sessionStarted()) {
+          l('DEBUG') && console.log(this+'.enable() - Session Started, starting ');
+          this.connect();
+        }
+        callback && callback(success, message);
+      }.bind(this));
       return this;
     },
     /**
@@ -6448,10 +5598,24 @@ var SubProtocol= (function invocation() {
       l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
       // Only accept if enabled
       // We should be 'alerting' I think
+      var acceptMessage = null;
       if (this.state === 'alerting') {
-        this.enabled && this.connect(callback);
+        acceptMessage = this.enabled() ? this.connect(callback) : null;
       };
-      return this;
+      l('DEBUG') && console.log(this+'.accept() -- finished, returning message: -- '+ acceptMessage);
+      return acceptMessage;
+    },
+
+    connect : function connect(callback) {
+      var self = this;
+      var parent = self.dependencies.parent;
+      this.getStartMessage(function connectCallback(success, startMessage) {
+        if (parent.sessionStarted()) {
+          this.send(startMessage);
+        }
+        this._setState('connected');
+        callback(success,startMessage);
+      }.bind(this));
     },
 
     /**
@@ -6462,13 +5626,12 @@ var SubProtocol= (function invocation() {
       return this;
     },
 
-    disconnect: function disconnect() {
-      var message = this.getStopMessage();
+    disconnect: function disconnect(callback) {
+      this._setState('disconnected');
+      callback(true, this.getStopMessage());
       // What if we are 'in session' but not STOPPING the whole thing... i.e. we are called directly and weould just send
       // our message?
       // TODO Figure that out.
-      this._setState('disconnected');
-      return message;
     },
     /**
      * disable chat
@@ -6495,28 +5658,9 @@ var SubProtocol= (function invocation() {
       }
       return this;
     },
-    connect : function connect() {
-      var self = this;
-      var parent = self.dependencies.parent;
-      // TODO?  Where do we get this?
-      var message = this.getStartMessage();
-      if (parent.sessionStarted()) {
-        this.send(message);
-      }
-      return message;
-    },
-    // Message should be in the format:
-    // {payload content... }
-    // {'message': message, 'from':from}
-    //
-    handleMessage: function handleMessage(message) {
-      //called from the parent...
-      // this one will get overridden w/ something else... or use some othe rimpelmentation.
-      this._processMessage(message);
-    },
     _processMessage: function _processMessage(message) {
       // If we are connected, emit the message
-      this.emit('message', message);
+      this.protocolConfig.handleMessage.call(this,message);
       return this;
     },
     _setState : function _setState(state, object) {
@@ -6537,6 +5681,306 @@ var SubProtocol= (function invocation() {
   });
   return SubProtocol;
 })();
+
+ /*
+ * Copyright 2014 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/
+/*global l:false*/
+/*global util:false*/
+var Chat = (function invocation() {
+/**
+   * @memberof module:rtcomm.RtcommEndpoint
+   *
+   * @description 
+   * A Chat is a connection from one peer to another to pass text back and forth
+   *
+   *  @constructor
+   *  @extends  module:rtcomm.util.RtcommBaseObject
+   */
+  var Chat = function Chat(parent) {
+    // Does this matter?
+    var createChatMessage = function(message) {
+      return {'chat':{'message': message, 'from': parent.userid}};
+    };
+    var chat = this;
+    this._ = {};
+    this._.objName = 'Chat';
+    this.id = parent.id;
+    this._.parentConnected = false;
+    this._.enabled = false;
+    this.onEnabledMessage = null;
+    this.onDisabledMessage = null;
+    this.state = 'disconnected';
+
+    // TODO:  Throw error if no parent.
+    this.dependencies = {
+      parent: parent || null
+    };
+
+    this.events = {
+      'message': [],
+      'ringing': [],
+      'connected': [],
+      'alerting': [],
+      'disconnected': []
+    };
+    /**
+     * Send a message if connected, otherwise, 
+     * enables chat for subsequent RtcommEndpoint.connect();
+     * @param {string} message  Message to send when enabled.
+     */  
+    this.enable =  function(message) {
+      var connect = false;
+      if (typeof message === 'object') {
+        if (typeof message.connect === 'boolean') {
+          connect = message.connect;
+        }
+        if (message.message) {
+          message = message.message;
+        } else {
+          message = null;
+        }
+      } 
+
+      /*
+       * TODO:  Get this working, write new tests too!  
+       *
+       * Remember, all sessions support CHAT be default so we should 'just work'
+       *
+       * Work on this over weekend!!!!
+       *
+       */
+      l('DEBUG') && console.log(this+'.enable() - message --> '+ message);
+      l('DEBUG') && console.log(this+'.enable() - connect --> '+ connect);
+      l('DEBUG') && console.log(this+'.enable() - current state --> '+ this.state);
+      this.onEnabledMessage = message || createChatMessage(parent.userid + ' has initiated a Chat with you');
+      // Don't need much, just set enabled to true.
+      // Default message
+      this._.enabled = true;
+
+      if (parent.sessionStarted()) {
+        l('DEBUG') && console.log(this+'.enable() - Session Started, connecting chat');
+        this._connect();
+      } else { 
+        if (connect) {
+          // we are expected to actually connect
+          this._connect();
+        } else {
+          l('DEBUG') && console.log(this+'.enable() - Session not starting, may respond, but also connecting chat');
+          // respond to a session if we are active
+          if (parent._.activeSession) { 
+            parent._.activeSession.respond();
+            this._setState('connected');
+          } 
+        }
+      }
+      return this;
+    };
+    /**
+     * Accept an inbound connection  
+     */
+    this.accept = function(callback) {
+      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
+      if (this.state === 'alerting') {
+        this.enable(callback|| 'Accepting chat connection');
+        return true;
+      } else {
+        return false;
+      }
+    };
+    /**
+     * Reject an inbound session
+     */
+    this.reject = function() {
+      // Does nothing.
+    };
+    /**
+     * disable chat
+     */
+    this.disable = function(message) {
+      if (this._.enabled) { 
+        this._.enabled = false;
+        this.onDisabledMessage = message|| createChatMessage(parent.userid + ' has left the chat');
+        this.send(this.onDisabledMessage);
+        this._setState('disconnected');
+      }
+      return null;
+    };
+    this.enabled = function enabled(){ 
+      return this._.enabled;
+    };
+    /**
+     * send a chat message
+     * @param {string} message  Message to send
+     */
+    this.send = function(message) {
+      message = (message && message.payload) ? message.payload: message;
+      message = (message && message.chat)  ? message : createChatMessage(message);
+      if (parent._.activeSession) {
+        parent._.activeSession.send(message);
+      }
+    };
+
+    this.connect = function() {
+      if (this.dependencies.parent.autoEnable) {
+        this.enable({connect:true});
+      } else {
+        this._connect();
+      }
+    };
+    this._connect = function() {
+      var self = this;
+      var sendMethod = null;
+      var parent = self.dependencies.parent;
+      if (parent.sessionStarted()) {
+        sendMethod = this.send.bind(this);
+      } else if (parent._.activeSession ) {
+        sendMethod = parent._.activeSession.start.bind(parent._.activeSession);
+      } else {
+        throw new Error(self+'._connect() unable to find a sendMethod');
+      }
+      if (this._.enabled) {
+        this.onEnabledMessage && sendMethod({'payload': this.onEnabledMessage});
+        this._setState('connected');
+        return true;
+      } else {
+        l('DEBUG') && console.log(this+ '_connect() !!!!! not enabled, skipping...'); 
+        return false;
+      }
+    };
+    // Message should be in the format:
+    // {payload content... }
+    // {'message': message, 'from':from}
+    //
+    this._processMessage = function(message) {
+      // If we are connected, emit the message
+      var parent = this.dependencies.parent;
+      if (this.state === 'connected') {
+        this.emit('message', message);
+      } else if (this.state === 'alerting') {
+        // dropping message, not in a state to receive it.
+        l('DEBUG') && console.log(this+ '_processMessage() Dropping message -- unable to receive in alerting state'); 
+      } else {
+        // If we aren't stopped, then we should pranswer it and alert.
+        if (!parent.sessionStopped()) {
+          parent._.activeSession && parent._.activeSession.pranswer();
+          this._setState('alerting', message);
+        }
+      }
+      return this;
+    };
+    this._setState = function(state, object) {
+     l('DEBUG') && console.log(this+'._setState() setting state to: '+ state); 
+      var currentState = this.state;
+      try {
+        this.state = state;
+        this.emit(state, object);
+      } catch(error) {
+        console.error(error);
+        console.error(this+'._setState() unsupported state: '+state );
+        this.state = currentState;
+      }
+    };
+
+    this.getState = function() {
+      return this.state;
+    };
+  };
+  Chat.prototype = util.RtcommBaseObject.extend({});
+
+  return Chat;
+
+})();
+
+var ChatProtocol = function ChatProtocol(){
+  // Call superconstructor
+  // Define the Protocol
+  //
+  function getStartMessage(callback) {
+    l('DEBUG') && console.log(this+'.getStartMessage() entry');
+    callback && callback(true, constructMessage.call(this, this.dependencies.parent.userid + ' has initiated a Chat with you'));
+  }
+
+  function getStopMessage(callback) {
+    callback && callback(true, constructMessage.call(this, this.dependencies.parent.userid + ' has left the chat'));
+  }
+  function constructMessage(message) {
+    l('DEBUG') && console.log(this+'.constructMessage() MESSAGE: ', message);
+      return {'message': message, 'from': this.dependencies.parent.userid};
+  }
+
+  function handleMessage(message) {
+      l('DEBUG') && console.log(this+'.handleMessage() MESSAGE: ', message);
+      var parent = this.dependencies.parent;
+      if (this.state === 'connected') {
+        this.emit('message', message);
+      } else if (this.state === 'alerting') {
+        // dropping message, not in a state to receive it.
+        l('DEBUG') && console.log(this+ '.handleMessage() Dropping message -- unable to receive in alerting state');
+      } else {
+        // If we aren't stopped, then we should pranswer it and alert.
+        if (!parent.sessionStopped()) {
+          // Parent should pranswer, not us...
+//          parent._.activeSession && parent._.activeSession.pranswer();
+          console.log('handleMessage, calling allering on this: ',this);
+          this._setState('alerting', message);
+        }
+      }
+  }
+  var protocolDefinition = {
+    'name' : 'chat',
+    'getStartMessage': getStartMessage,
+    'getStopMessage' : getStopMessage,
+    'constructMessage':constructMessage,
+    'handleMessage': handleMessage
+  }
+
+  SubProtocol.call(this, protocolDefinition);
+}
+ChatProtocol.prototype= Object.create(SubProtocol.prototype);
+ChatProtocol.prototype.constructor = ChatProtocol;
+
+var GenericMessageProtocol = function GenericMessageProtocol() {
+
+  function startMessage() {
+    console.log('No Start Message');
+    return null;
+  };
+
+  function stopMessage(){
+    console.log('No Stop Message');
+    return null;
+  };
+  function processMessage(message) {
+    console.log('Received a Message: '+ message);
+  };
+
+  function constructMessage(message) {
+    // Take a string message, cast it in our 'protocol'
+    return {'message': message};
+  };
+
+  var  protocolDefinition = new SubProtocol({
+    name: 'generic-message',
+    getStartMessage: startMessage,
+    getStopMessage: stopMessage,
+    handleMessage: processMessage,
+    constructMessage: constructMessage
+});
+ return protocolDefinition;
+}
 
  /*
  * Copyright 2014 IBM Corp.
@@ -6645,6 +6089,7 @@ var WebRTCConnection = (function invocation() {
       'remotemuted':[],
       '_notrickle':[]
     };
+    this.name='webrtc';
     this.pc = null;
     this.onEnabledMessage = null;
     this.onDisabledMessage = null;
@@ -6793,8 +6238,10 @@ var WebRTCConnection = (function invocation() {
     enabled: function() {
       return this._.enabled;
     },
-    connect: function connect(chatMessage){
-      return this._connect(chatMessage);
+    connect: function connect(callback){
+      this._connect(function connectCallback(success, message) {
+        callback(success, message)
+      });
     },
     /*
      * Called to 'connect' (Send message, change state)
@@ -6802,10 +6249,11 @@ var WebRTCConnection = (function invocation() {
      *
      * @param {module:rtcomm.RtcommEndpoint.WebRTCConnection~callback} callback - The callback when enable is complete.
      */
-    _connect: function(callback) {
+    _connect: function _connect(callback) {
       var self = this;
       var sendMethod = null;
       var parent = self.dependencies.parent;
+      /*
       if (parent.sessionStarted()) {
         sendMethod = this.send.bind(this);
       } else if (parent._.activeSession ) {
@@ -6816,42 +6264,56 @@ var WebRTCConnection = (function invocation() {
       var payload = {};
       // Used if chat is being sent w/ the offer
       var chatMessage = null;
-      if (typeof callback !== 'function') {
-        chatMessage = callback;
-        callback = function(success, message) {
-          l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
-        };
-      }
+      */
+      var cbConnect = function cbConnect(success, message) {
+        if (typeof callback !== 'function') {
+          callback = function cbDefault(success, message) {
+            l('DEBUG') && console.log(self+'._connect() default callback(success='+success+',message='+message);
+          };
+        }
+        if (success) {
+          if (parent.sessionStarted()) {
+            // Special case if we are 'enabled/connected' on a session We have send this message:
+            this.send(message);
+            callback(success, message);
+          } else {
+            callback(success, message);
+          }
+        }
+      };
+
       var doOffer =  function doOffer(success, msg) {
         if (success) { 
           self.pc.createOffer(
             function(offersdp) {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
               if (self.config.trickleICE) {
-                sendMethod({payload: self.createMessage(offersdp, chatMessage)});
+                // return offermessage
+                cbConnect(true, offersdp);
+                // Old way: sendMethod({payload: self.createMessage(offersdp, chatMessage)});
               } else {
                 self.on('_notrickle', function(obj) {
                   l('DEBUG') && console.log(self+'.doOffer _notrickle called: Sending offer here. ');
-                  sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
+                  // Old way      sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
                   // turn it off once it fires.
-                  callback(true);
+                  cbConnect(true, self.pc.localDescription);
                   self.off('_notrickle');
                 });
               }
               self._setState('trying');
               self.pc.setLocalDescription(offersdp, function(){
                 l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
-                self.config.trickleICE && callback(true);
-              }, function(error) { callback(false, error);});
+               // Old Way: Callback was called already... self.config.trickleICE && callback(true);
+              }, function(error) { cbConnect(false, error);});
             },
             function(error) {
               console.error('webrtc._connect failed: ', error);
               // TODO: Normalize this error
-              callback(false, error);
+              cbConnect(false, error);
             },
             self.config.RTCOfferConstraints);
         } else {
-          callback(false, msg);
+          cbConnect(false, msg);
           console.error('_connect failed, '+msg);
         }
       };
@@ -6861,7 +6323,12 @@ var WebRTCConnection = (function invocation() {
         return true;
       } else {
         return false;
-      } 
+      }
+    },
+    disconnect: function disconnect(callback) {
+      this._disconnect();
+      // No message to send.
+      callback && callback(true, {});
     },
 
     _disconnect: function() {
@@ -6896,8 +6363,11 @@ var WebRTCConnection = (function invocation() {
 
     send: function(message) {
       var parent = this.dependencies.parent;
-      // Validate message?
+      // Validate message 
       message = (message && message.payload) ? message.payload: message;
+      // Anything sent here needs to be in format:
+      // {protocol: message} i.e. {'webrtc': message};
+      message = (message && message.webrtc) ? message : {'webrtc': message};
       if (parent._.activeSession) {
         parent._.activeSession.send(this.createMessage(message));
       }
@@ -6925,8 +6395,7 @@ var WebRTCConnection = (function invocation() {
           //console.log('PC has a lcoalMediaStream:'+ self.pc.getLocalStreams(), self.pc.getLocalStreams());
           self.pc && self.pc.createAnswer(
             function(desc) {
-              self._gotAnswer(desc);
-              callback(success, msg);
+              self._gotAnswer(callback, desc);
             },
             function(error) {
               console.error('failed to create answer', error);
@@ -7158,8 +6627,15 @@ var WebRTCConnection = (function invocation() {
    *
    *
    */
-  _gotAnswer :  function(desc) {
+  _gotAnswer :  function(callback, desc) {
 
+    if (typeof callback !== 'function') {
+      // Assume its actually the desc,create a fake callback
+      desc = callback;
+      callback = function cbDefault(success, message) {
+        l('DEBUG') && console.log(self+'._gotAnswer() default callback(success='+success+',message='+message);
+      }
+    }
     l('DEBUG') && console.log(this+'.createAnswer answer created:  ', desc);
     var answer = null;
     var pcSigState = this.pc.signalingState;
@@ -7174,14 +6650,16 @@ var WebRTCConnection = (function invocation() {
       //console.log(this+'.createAnswer sending answer as a RESPONSE', message);
       if (this.config.trickleICE) {
         l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
-        session.respond(true, message);
+        // Old way: session.respond(true, message);
         this._setState('connected');
+        callback(true, message);
       } else {
         this.on('_notrickle', function(message) {
           l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE[notrickle]');
           if (this.pc.localDescription) {
-            session.respond(true, this.createMessage(this.pc.localDescription));
             this._setState('connected');
+            callback(true, message);
+            // Old way: session.respond(true, this.createMessage(this.pc.localDescription));
           } else {
             l('DEBUG') && console.log(this+'.createAnswer localDescription not set.');
           }
@@ -7195,11 +6673,13 @@ var WebRTCConnection = (function invocation() {
       answer.type = 'pranswer';
       answer.sdp = this.pranswer ? desc.sdp : '';
       desc = {"webrtc":answer};
-      session.pranswer(this.createMessage(desc));
+      // Commented out for 'New Way with subprotocols'
+      console.info('PRANSWER in _gotAnswer() in WebRTCConnection -- should not get here, need to be redone');
+      // session.pranswer(this.createMessage(desc));
     } else if (this.getState() === 'connected' || this.getState() === 'alerting') {
       l('DEBUG') && console.log(this+'.createAnswer sending ANSWER (renegotiation?)');
       // Should be a renegotiation, just send the answer...
-      session.send(message);
+      this.send(message);
     } else {
       SKIP = true;
       this._setState('alerting');
@@ -7216,14 +6696,17 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
+  // Deprecated...
   createMessage: function(content,chatcontent) {
-    var message = {'webrtc': {}};
+    var message = content;
+  /*  var message = {'webrtc': {}};
     if (content) {
       message.webrtc = (content.hasOwnProperty('webrtc')) ? content.webrtc : content;
     }
     if (chatcontent && chatcontent.hasOwnProperty('chat')) {
        message.chat = chatcontent.chat;
     }
+    */
     return message;
   },
 
@@ -7557,6 +7040,9 @@ var WebRTCConnection = (function invocation() {
    },
   getIceServers: function() {
     return this._.iceServers;
+  },
+  setParent: function setParent(parent) {
+    this.dependencies.parent = parent;
   }
  };
 
@@ -7793,166 +7279,6 @@ var validMediaElement = function(element) {
 return WebRTCConnection;
 
 })();
-
-
-
-var BaseSessionEndpoint = function BaseSessionEndpoint(protocols) {
-  // Presuming you creat an object based on this one, 
-  // you must override the session event handler and
-  // then augment newSession object.
-  this.config = {
-    protocols: protocols || null
-  };
-  this.dependencies = {
-    endpointConnection: null,
-  };
-  // Private info.
-  this._ = {
-    referralSession: null,
-    activeSession: null,
-    appContext: null,
-    available: true
-  };
-  protocols && Object.keys(protocols).forEach(function(key) {
-    this.config[key] = protocols[key];
-  });
-};
-/*globals util:false*/
-/*globals l:false*/
-BaseSessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
-  function createSignalingSession(remoteEndpointID, context) {
-    l('DEBUG') && console.log("createSignalingSession context: ", context);
-    var sessid = null;
-    var toTopic = null;
-    if (context._.referralSession) {
-      var details = context._.referralSession.referralDetails;
-      sessid =  (details && details.sessionID) ? details.sessionID : null;
-      remoteEndpointID =  (details && details.remoteEndpointID) ? details.remoteEndpointID : null;
-      toTopic =  (details && details.toTopic) ? details.toTopic : null;
-    }
-    if (!remoteEndpointID) {
-      throw new Error('toEndpointID must be set');
-    }
-    var session = context.dependencies.endpointConnection.createSession({
-      id : sessid,
-      toTopic : toTopic,
-      remoteEndpointID: remoteEndpointID,
-      appContext: context._.appContext
-    });
-    console.log('session: ', session);
-    return session;
-  }
-  // Protocol Specific handling of the session content. 
-  //
-  function addSessionCallbacks(context, session) {
-     // Define our callbacks for the session.
-    session.on('pranswer', function(content){
-      context._.processMessage(content);
-    });
-    session.on('message', function(content){
-      l('DEBUG') && console.log('SigSession callback called to process content: ', content);
-      context._.processMessage(content);
-    });
-    session.on('started', function(content){
-      // Our Session is started!
-      content && context._.processMessage(content);
-      if (context._.referralSession) {
-        context._.referralSession.respond(true);
-      }
-    });
-    session.on('stopped', function() {
-      console.log('Session Stopped');
-    });
-    session.on('starting', function() {
-      console.log('Session Started');
-    });
-    session.on('failed', function(message) {
-      console.log('Session FAILED');
-    });
-    l('DEBUG') && console.log('createSignalingSession created!', session);
-
-   // session.listEvents();
-    return true;
-  }
-
-return  {
-  getAppContext:function() {return this._.appContext;},
-  newSession: function(session) {
-      var event = null;
-      var msg = null;
-      // If there is a session.appContext, it must match unless this.ignoreAppContext is set 
-      if (this.ignoreAppContext || 
-         (session.appContext && (session.appContext === this.getAppContext())) || 
-         (typeof session.appContext === 'undefined' && session.type === 'refer')) {
-        // We match appContexts (or don't care)
-        if (this.available()){
-          // We are available (we can mark ourselves busy to not accept the call)
-          event = 'incoming';
-          if (session.type === 'refer') {
-            l('DEBUG') && console.log(this + '.newSession() REFER');
-            event = 'refer';
-          }
-         // Save the session and start it.
-         this._.activeSession = session;
-         session.start();
-         // Now, depending on the session.message (i.e its peerContent or future content) then do something. 
-         //  For an inbound session, we have several scenarios:
-         //
-         //  1. peerContent === webrtc 
-         //    -- we need to send a pranswer, create our webrtc endpoint, and 'answer'
-         //
-         //  2. peerContent === chat
-         //    -- it is chat content, emit it out, but respond and set up the session.
-         //
-         if (session.message && session.message.peerContent) {
-           // Emit this message, wait for something else?
-           session.pranswer();
-           console.log('Should send message now to someone else...');
-         } else {
-           session.respond();
-         }
-         //
-         //
-         // 
-         //    var conn = this.dependencies.webrtcConnection = this.createConnection();
-         //   conn.init({session:session});
-         this.available(false);
-         // this.emit(event, 'Something here...');
-        } else {
-          msg = 'Busy';
-          l('DEBUG') && console.log(this+'.newSession() '+msg);
-          session.fail('Busy');
-        }
-      } else {
-        msg = 'Client is unable to accept a mismatched appContext: ('+session.appContext+') <> ('+this.getAppContext()+')';
-        l('DEBUG') && console.log(this+'.newSession() '+msg);
-        session.fail(msg);
-      }
-  },
-    available: function(a) {
-      if (a) {
-        if (typeof a === 'boolean') { 
-          this._.available = a;
-          return a;
-        } 
-      } else  {
-        return this._.available;
-      }
-    },
-  connect: function(endpointid) {
-    this._.activeSession = createSignalingSession(endpointid, this);
-    this._.activeSession.start();
-  },
-  disconnect: function() {
-    this._.activeSession.stop();
-  },
-
-  reject: function() {
-
-  }
-};
-
-})());
 
 
 

@@ -176,6 +176,12 @@ var setConfig = function(config,configDefinition) {
  * left object takes precendence
  */
 var combineObjects = function combineObjects(obj1, obj2) {
+  if (typeof obj1 === 'undefined' ) {
+    obj1 = {};
+  }
+  if (typeof obj2 === 'undefined' ) {
+    obj2 = {};
+  }
   var allkeys = [];
   var combinedObj = {};
   // What keys do we have

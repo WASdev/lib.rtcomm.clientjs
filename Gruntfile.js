@@ -154,11 +154,11 @@ module.exports = function(grunt) {
     },
     watch: {
       files: ['src/**/*.js'],
-      tasks: ['jshint', 'build'],
+      tasks: ['build'],
     },
     jsdoc : {
         dist : {
-            src: ['src/rtcomm/*.js', 'src/rtcomm/**/*.js'], 
+            src: ['src/rtcomm/*.js', 'src/rtcomm/**/*.js', '!src/rtcomm/**/__*.js'], 
             options: {
               destination: 'dist/jsdoc',
               configure : "build_resources/jsdoc.conf.json",
@@ -234,7 +234,7 @@ module.exports = function(grunt) {
         grunt.file.expand({filter:'isFile'}, dir+"/**/*.js").forEach(function(file){
           if (/ModuleGlobal/.test(file)) {
             fileList.unshift(file);
-          } else {
+          } else if (!/__/.test(file)) {
             fileList.push(file);
           }
         });

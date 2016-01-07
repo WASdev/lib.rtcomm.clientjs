@@ -36,8 +36,16 @@ var SubProtocol= (function invocation() {
 
   var protocolConfig = {
     name: '',
-    getStartMessage: function getStartMessage() {
-      return "";
+    config: {},
+    onEnabled: function onEnabled(callback) {
+      // Finished.
+      callback(true, 'default');
+    },
+    getStartMessage: function getStartMessage(callback) {
+      callback(true, 'default');
+    },
+    getAcceptMessage: function getAcceptMessage(callback) {
+      callback(true, 'default');
     },
     getStopMessage: function getStopMessage() {
       return "";
@@ -46,7 +54,11 @@ var SubProtocol= (function invocation() {
 
     },
     handleMessage : function handleMessage(message) {
-
+    // Message should be in the format:
+    // {payload content... }
+    // {'message': message, 'from':from}
+    //
+        console.log('Should have been overridden...');
     }
   };
 
@@ -56,6 +68,7 @@ var SubProtocol= (function invocation() {
     this._ = {};
     this._.enabled = false;
     // Need?
+    this.config = {};
     this.onEnabledMessage = null;
     this.onDisabledMessage = null;
     // Do maintain state
@@ -72,22 +85,12 @@ var SubProtocol= (function invocation() {
       'disconnected': []
     };
 
-    // Assign everything passed to here
-    this.protocolConfig = object;
+    // Merge the passed config w/ the default.
+    this.protocolConfig = util.combineObjects(object, protocolConfig);
+    console.log(this.protocolConfig);
     // name gets assigned
     this.name = this.protocolConfig.name;
-    /*
-     * Default create Message -- should be overridden w/ the protocol
-     */
-    this.createMessage = function createMessage(message) {
-      // default
-      console.log('Create message is: '+message);
-      var protoMessage = {};
-      protoMessage[this.name]= (typeof this.protocolConfig.constructMessage === 'function')  ?
-        this.protocolConfig.constructMessage(message) :
-          message;
-      return protoMessage;
-    }
+    this.config = this.protocolConfig.config;
   }; // End of Constructor
     /**
      * Send a message if connected, otherwise,
@@ -96,28 +99,45 @@ var SubProtocol= (function invocation() {
      */
   SubProtocol.prototype = util.RtcommBaseObject.extend({
     // Return message to be sent in a Start Session
-    getStartMessage: function getStartMessage() {
-
+    getStartMessage: function getStartMessage(callback) {
+      return this.protocolConfig.getStartMessage.call(this,callback);
     },
     // Return message to be sent in a Stop Session
-    getStopMessage: function getStopMessage() {
+    getStopMessage: function getStopMessage(callback) {
+      return this.protocolConfig.getStopMessage.call(this,callback);
 
     },
+    /*
+     * Default create Message -- should be overridden w/ the protocol
+     */
+    createMessage : function createMessage(message) {
+      // default
+      console.log('Create message is: '+message);
+      var protoMessage = {};
+      protoMessage[this.name]= (typeof this.protocolConfig.constructMessage === 'function')  ?
+        this.protocolConfig.constructMessage.call(this,message) :
+          message;
+      console.log('Created message is: ',protoMessage);
+      return protoMessage;
+    },
+
     setParent: function setParent(parent) {
       this.dependencies.parent = parent;
     },
 
-    enable : function enable(message) {
+    enable : function enable(callback) {
       // cast a message
       var parent = this.dependencies.parent;
       var connect = false;
-      this.onStartMessage = this.getStartMessage();
-      this._.enabled = true;
-      // If our parent session is started, then call connect
-      if (parent.sessionStarted()) {
-        l('DEBUG') && console.log(this+'.enable() - Session Started, starting ');
-        this.connect();
-      }
+      this.protocolConfig.onEnabled.call(this, function enableCallback(success, message){
+        this._.enabled = true;
+        // If our parent session is started, then call connect
+        if (parent.sessionStarted()) {
+          l('DEBUG') && console.log(this+'.enable() - Session Started, starting ');
+          this.connect();
+        }
+        callback && callback(success, message);
+      }.bind(this));
       return this;
     },
     /**
@@ -127,10 +147,24 @@ var SubProtocol= (function invocation() {
       l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
       // Only accept if enabled
       // We should be 'alerting' I think
+      var acceptMessage = null;
       if (this.state === 'alerting') {
-        this.enabled && this.connect(callback);
+        acceptMessage = this.enabled() ? this.connect(callback) : null;
       };
-      return this;
+      l('DEBUG') && console.log(this+'.accept() -- finished, returning message: -- '+ acceptMessage);
+      return acceptMessage;
+    },
+
+    connect : function connect(callback) {
+      var self = this;
+      var parent = self.dependencies.parent;
+      this.getStartMessage(function connectCallback(success, startMessage) {
+        if (parent.sessionStarted()) {
+          this.send(startMessage);
+        }
+        this._setState('connected');
+        callback(success,startMessage);
+      }.bind(this));
     },
 
     /**
@@ -141,13 +175,12 @@ var SubProtocol= (function invocation() {
       return this;
     },
 
-    disconnect: function disconnect() {
-      var message = this.getStopMessage();
+    disconnect: function disconnect(callback) {
+      this._setState('disconnected');
+      callback(true, this.getStopMessage());
       // What if we are 'in session' but not STOPPING the whole thing... i.e. we are called directly and weould just send
       // our message?
       // TODO Figure that out.
-      this._setState('disconnected');
-      return message;
     },
     /**
      * disable chat
@@ -174,28 +207,9 @@ var SubProtocol= (function invocation() {
       }
       return this;
     },
-    connect : function connect() {
-      var self = this;
-      var parent = self.dependencies.parent;
-      // TODO?  Where do we get this?
-      var message = this.getStartMessage();
-      if (parent.sessionStarted()) {
-        this.send(message);
-      }
-      return message;
-    },
-    // Message should be in the format:
-    // {payload content... }
-    // {'message': message, 'from':from}
-    //
-    handleMessage: function handleMessage(message) {
-      //called from the parent...
-      // this one will get overridden w/ something else... or use some othe rimpelmentation.
-      this._processMessage(message);
-    },
     _processMessage: function _processMessage(message) {
       // If we are connected, emit the message
-      this.emit('message', message);
+      this.protocolConfig.handleMessage.call(this,message);
       return this;
     },
     _setState : function _setState(state, object) {

@@ -130,9 +130,10 @@ define([
           console.log('***************** '+this.name+' ******************');
           var dfd = this.async(10000);
           chat1.on('chat:message', function(message){
-            console.log('****************************MESSAGE ***', message)
+            console.log('****************************MESSAGE ***', message);
           });
           chat2.on('session:alerting', function(){
+            console.log('****************************Accepting allerting***');
             chat2.accept();
           });
           var finish = dfd.callback( function(obj) {
@@ -144,13 +145,15 @@ define([
             assert.equal(chat1.chat.getState(),'connected','Chat1--Chat Connected!');
             assert.equal(chat2.chat.getState(),'connected','Chat2--Chat Connected!');
 
-            console.log('chat1.webrtc.getState():'+chat1.webrtc.getState());
-            console.log('chat2.webrtc.getState():'+chat2.webrtc.getState());
+           // console.log('chat1.webrtc.getState():'+chat1.webrtc.getState());
+           // console.log('chat2.webrtc.getState():'+chat2.webrtc.getState());
             //assert.equal(chat1.chat.getState(),'connected','Chat1--Chat Connected!');
             //assert.equal(chat2.chat.getState(),'connected','Chat2--Chat Connected!');
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
+          chat1.chat.enable();
+          chat2.chat.enable();
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         //  chat1.connect(uid2);
         },
@@ -160,6 +163,8 @@ define([
           /* chat1 calls chat2 which accepts.  
            * chat3 calls chat2 -- should get 'BUSY'
            */
+          chat1.chat.enable();
+          chat2.chat.enable();
           var dfd = this.async(10000);
           // We have a 3rd endpoint here...
           chat1.on('chat:message', function(message){
@@ -179,12 +184,15 @@ define([
           });   
           
           chat1.on('session:started',function() {
+            console.log('****************************Initial Session Started ***');
             // Now create a 3rd endpoint
             Fat.createProvider(config.clientConfig('client3'),appContext).then(
               function(EP){
                 EP3 = EP;
                 chat3 = EP.createRtcommEndpoint();
+                chat3.chat.enable();
                 chat3.on('session:failed',finish);
+                console.log('****************************Trying to connect 3rd endpoint connection ***');
                 chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
                 //chat3.connect(uid2);
             });
@@ -212,6 +220,7 @@ define([
           var c2Toc1Msg = "Hello from c2";
 
           chat1.chat.enable();
+          chat2.chat.enable();
 
           var finish = dfd.callback(function(event){
             /*
