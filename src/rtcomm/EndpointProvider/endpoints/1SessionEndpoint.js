@@ -177,7 +177,6 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     if (!remoteEndpointID) {
       throw new Error('remoteEndpointID must be set');
     }
-    console.log('toTopic is: '+toTopic);
     var session = context.dependencies.endpointConnection.createSession({
       id : sessid,
       toTopic : toTopic,
@@ -278,16 +277,14 @@ var proto = {
             // any other inbound session should be started.
             session.start({protocols: commonProtocols});
             // Depending on the session.message (i.e its peerContent or future content) then do something.
+            session.pranswer();
+            // if there are messages, pass them along.
             if (session.message && session.message.payload) {
               // We need to pranswer here at this level.
               // TODO:  May need to ask protocols if they have naything to pranswer with.
-              session.pranswer();
               this._processMessage(session.message.payload);
-            } else {
-              // it doesn't have any payload, but could have protocols subprotocol
-              session.pranswer();
-              this.setState('session:alerting', {protocols:commonProtocols});
-            }
+            } 
+            this.setState('session:alerting', {protocols:commonProtocols});
           } else {
             // can't do anything w/ this session, same as busy... different reason.
             l('DEBUG') && console.log(this+'.newSession() No common protocols');
@@ -322,16 +319,15 @@ var proto = {
     }
 
     if (payload) {
-      console.log('_processMessage recieved: ', payload);
+      l('DEBUG') && console.log(this+'._processMessage received: ', payload);
       for (var protocol in payload) {
-        console.log('looking at protocol: ', protocol);
         if (payload.hasOwnProperty(protocol)){
           // we  protocol is in payloads
           if (self.hasOwnProperty(protocol)) {
             // we have this protocol defined pass message to the protocol
             // if protocol is enabled, pass the message
             if ( self[protocol].enabled()) {
-              console.log('calling handle message on protocol:', protocol);
+              l('DEBUG') && console.log(this+'_processMessage() passing to protocol:', protocol);
               self[protocol]._processMessage(payload[protocol]);
             } else {
               console.error('Received %s message, but not enabled!',protocol, payload[protocol]);
@@ -405,7 +401,6 @@ var proto = {
       this._getStartMessage(function start(success, startMessage){
         // Send our message
         //TODO Fix debug logging
-        console.log(this+'.connect() sending startMessage w/ message',startMessage);
         l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',startMessage);
         this._.activeSession.start({'payload': startMessage});
       }.bind(this));
@@ -421,30 +416,30 @@ var proto = {
     var protocols = this._.protocols;
     var callbacks = 0;
     // How many are enabled?
-    var enabled = 0;
+    var enabled = [];
     for (var i=0;i<protocols.length; i++) {
       var protocol = protocols[i];
       if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-        enabled++;
+        enabled.push(protocol);
       }
     }
-    for (var i=0;i<protocols.length; i++) {
-      var protocol = this._.protocols[i];
-      if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-        // get the startMessage
-        self[protocol][method](function smCallback(success, message){
-          callbacks++;
-          if (success) {
-            returnMessage[protocol] = message;
-          }
-            // all callbacks called.
-          l('DEBUG') && console.log(this+'._getGenericMessage() callbaks:'+callbacks+' enabled: '+enabled+' protocols :', protocols, 'returnMessage? ',returnMessage);
-          if (callbacks === enabled) {
-            callback(true, returnMessage);
-          }
-        });
+    var msgCallback = function msgCallback(success, message){
+      // message should/must be {'protcool': {some message }}
+      callbacks++;
+      l('DEBUG') && console.log('_getMessage success['+success+'] message: ', message);
+      returnMessage = (message) ? util.combineObjects(message, returnMessage) : returnMessage;
+      // We've been called the right number of times.
+      l('DEBUG') && console.log('_getMessage success['+success+']'+ callbacks+ ': '+enabled.length);
+      if (callbacks === enabled.length) {
+        l('DEBUG') && console.log('_getMessage ['+method+'] Return Message generated: ', returnMessage);
+        callback(true, returnMessage);
       }
     };
+
+    enabled.forEach(function msgGetter(protocol){
+      l('DEBUG') && console.log('_getMessage['+method+'] on protocol: '+protocol);
+      self[protocol][method](msgCallback);
+    });
   },
   /*
    * Get the start Message -- this will call 'connect' on all sub protocols.
@@ -500,7 +495,7 @@ var proto = {
         this.connect(null);
     } else {
       this._getAcceptMessage(function cbAccept(success, acceptMessage){
-        l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',acceptMessage);
+        l('DEBUG') && console.log(this+'.connect() sending ANSWER w/ message',acceptMessage);
         this._.activeSession.respond(true, acceptMessage);
       }.bind(this));
     }
@@ -525,20 +520,6 @@ var proto = {
     this.available(true);
     this._.activeSession = null;
     return this;
-  },
-
-  /* TODO deprecate */
-  sendOneTimeMessage: function(message){
-    // Sending message:
-    l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending '+message);
-    var msg = {};
-    if (this.sessionStarted()) {
-      msg.otm = (typeof message === 'object') ? message : {'message':message};
-      l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending ',msg);
-      this._.activeSession.send(msg);
-    } else {
-      throw new Error('Unable to send onetimemessage.  Session not started');
-    }
   },
 
   getRtcommConnectorService: function(){

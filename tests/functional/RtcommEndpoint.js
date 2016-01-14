@@ -100,7 +100,7 @@ define([
         },
         "Endpoint creation(anonymous)": function() {
           console.log('************* '+this.name+' **************');
-         // SKIP_ALL && this.skip();
+          SKIP_ALL && this.skip();
           var dfd = this.async(T2);
           var ep = endpointProvider.createRtcommEndpoint({webrtc: false, chat:true});
           console.log('TEST endpoint: ', ep);
@@ -151,7 +151,7 @@ define([
         },
      "in Browser A calls B": function() {
          console.log('************* '+this.name+' **************');
-        // SKIP_ALL && this.skip(false);
+         SKIP_ALL && this.skip(false);
 
          var dfd = this.async(T2);
          // Our endpoints
@@ -188,6 +188,10 @@ define([
             var EP2 = g.EP2 = obj.provider2;
             ep1 = EP1.getRtcommEndpoint({webrtc:false, chat:true});
             ep2 = EP2.getRtcommEndpoint({webrtc:false, chat:true});
+            console.log('>>>> ep2: '+ ep2.chat.enabled());
+            console.log('>>>> ep1: '+ ep1.chat.enabled());
+            console.log('>>>> ep2: '+ ep2.webrtc.enabled());
+            console.log('>>>> ep1: '+ ep1.webrtc.enabled());
             ep1.on('session:ringing', function() { ep1_ringing = true})
             ep1.on('session:trying', function() { ep1_trying = true})
             ep1.on('session:started', finish);
@@ -203,7 +207,7 @@ define([
          },
      "in Browser A calls B(disconnect while ringing)": function() {
          console.log('************* '+this.name+' **************');
-//         SKIP_ALL && this.skip(false);
+         SKIP_ALL && this.skip(false);
          var dfd = this.async(T2);
          // Our endpoints
          var ep1;
@@ -270,7 +274,7 @@ define([
 
      "in Browser A calls B (sendOneTimeMessage)": function() {
          console.log('************* '+this.name+' **************');
-         //SKIP_ALL && this.skip(false);
+         SKIP_ALL && this.skip(false);
          var dfd = this.async(T2);
          // Our endpoints
          var ep1;
@@ -281,12 +285,14 @@ define([
             assert.ok(ep1_trying, 'Caller generated trying event');
             assert.ok(ep1_ringing, 'Caller generated ringing event');
             assert.ok(ep2_alerting, 'Callee generated alerting event');
-            assert.ok(ep1.sessionStarted(),'Ep1 Session Started');
+            assert.ok(ep1.sessionStarted(),'Ep1 Session Started');:q
             assert.ok(ep2.sessionStarted(),'Ep2 Session Started');
-            assert.ok(object.onetimemessage,'Received a onetimemessage');
             var message = object.onetimemessage;
             console.log("OneTimeMessage content: "+JSON.stringify(message));
-            assert.equal('http://someurl.com', message.url, 'onetimemessage property matches');
+            console.log("OneTimeMessage content: ", message);
+            console.log("OneTimeMessage content url: ", message.url);
+            assert.ok(object.onetimemessage,'Received a onetimemessage');
+            assert.equal(message.url, 'http://someurl.com','onetimemessage property matches');
          });
 
          // States we should hit:
@@ -329,7 +335,7 @@ define([
          },
      "in Browser A calls B(nested presence)": function() {
          console.log('************* '+this.name+' **************');
-         //SKIP_ALL && this.skip(false);
+         SKIP_ALL && this.skip(false);
          var dfd = this.async(T2);
          // Our endpoints
          var ep1;
@@ -386,7 +392,7 @@ define([
          },
      "in Browser A calls B, neither accept call from C": function() {
          console.log('************* '+this.name+' **************');
-         //SKIP_ALL && this.skip(false);
+         SKIP_ALL && this.skip(false);
          var dfd = this.async(T2);
          // Our endpoints
          var ep1;

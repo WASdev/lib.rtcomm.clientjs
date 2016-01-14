@@ -305,20 +305,20 @@ var WebRTCConnection = (function invocation() {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
               if (self.config.trickleICE) {
                 // return offermessage
-                cbConnect(true, offersdp);
+                cbConnect(true, self.createMessage(offersdp));
                 // Old way: sendMethod({payload: self.createMessage(offersdp, chatMessage)});
               } else {
                 self.on('_notrickle', function(obj) {
                   l('DEBUG') && console.log(self+'.doOffer _notrickle called: Sending offer here. ');
                   // Old way      sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
                   // turn it off once it fires.
-                  cbConnect(true, self.pc.localDescription);
+                  cbConnect(true, self.createMessage(self.pc.localDescription));
                   self.off('_notrickle');
                 });
               }
               self._setState('trying');
               self.pc.setLocalDescription(offersdp, function(){
-                l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
+                l('DEBUG') && console.log('************setLocalDescription Success!!! ');
                // Old Way: Callback was called already... self.config.trickleICE && callback(true);
               }, function(error) { cbConnect(false, error);});
             },
@@ -383,7 +383,6 @@ var WebRTCConnection = (function invocation() {
       message = (message && message.payload) ? message.payload: message;
       // Anything sent here needs to be in format:
       // {protocol: message} i.e. {'webrtc': message};
-      message = (message && message.webrtc) ? message : {'webrtc': message};
       if (parent._.activeSession) {
         parent._.activeSession.send(this.createMessage(message));
       }
@@ -668,13 +667,13 @@ var WebRTCConnection = (function invocation() {
         l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
         // Old way: session.respond(true, message);
         this._setState('connected');
-        callback(true, message);
+        callback(true, this.createMessage(message));
       } else {
         this.on('_notrickle', function(message) {
           l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE[notrickle]');
           if (this.pc.localDescription) {
             this._setState('connected');
-            callback(true, message);
+            callback(true, this.createMessage(message));
             // Old way: session.respond(true, this.createMessage(this.pc.localDescription));
           } else {
             l('DEBUG') && console.log(this+'.createAnswer localDescription not set.');
@@ -712,17 +711,12 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
-  // Deprecated...
   createMessage: function(content,chatcontent) {
-    var message = content;
-  /*  var message = {'webrtc': {}};
+    var message = {'webrtc': {}};
     if (content) {
       message.webrtc = (content.hasOwnProperty('webrtc')) ? content.webrtc : content;
     }
-    if (chatcontent && chatcontent.hasOwnProperty('chat')) {
-       message.chat = chatcontent.chat;
-    }
-    */
+    l('DEBUG') && console.log(this+'.createMessage() Created message: ', message);
     return message;
   },
 

@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.8 07-01-2016 21:38:19 UTC */
-console.log('lib.rtcomm.clientjs 1.0.8 07-01-2016 21:38:19 UTC');
+/*! lib.rtcomm.clientjs 1.0.8 14-01-2016 21:17:41 UTC */
+console.log('lib.rtcomm.clientjs 1.0.8 14-01-2016 21:17:41 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -3272,7 +3272,6 @@ var EndpointProvider =  function EndpointProvider() {
     // If we already h some enpdoints, their connection will be null, fix it
     if (this._.endpointRegistry.length() > 0 ) {
       this._.endpointRegistry.list().forEach(function(endpoint) {
-        console.log('REMOVE ME: endpoint? ', endpoint);
         endpoint.setEndpointConnection(endpointConnection);
       });
     }
@@ -3404,7 +3403,7 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         chat: true,
         webrtc: true,
-        autoEnable: false,
+        autoEnable: true,
         parent:this
     };
 
@@ -4692,7 +4691,6 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
     if (!remoteEndpointID) {
       throw new Error('remoteEndpointID must be set');
     }
-    console.log('toTopic is: '+toTopic);
     var session = context.dependencies.endpointConnection.createSession({
       id : sessid,
       toTopic : toTopic,
@@ -4793,16 +4791,14 @@ var proto = {
             // any other inbound session should be started.
             session.start({protocols: commonProtocols});
             // Depending on the session.message (i.e its peerContent or future content) then do something.
+            session.pranswer();
+            // if there are messages, pass them along.
             if (session.message && session.message.payload) {
               // We need to pranswer here at this level.
               // TODO:  May need to ask protocols if they have naything to pranswer with.
-              session.pranswer();
               this._processMessage(session.message.payload);
-            } else {
-              // it doesn't have any payload, but could have protocols subprotocol
-              session.pranswer();
-              this.setState('session:alerting', {protocols:commonProtocols});
-            }
+            } 
+            this.setState('session:alerting', {protocols:commonProtocols});
           } else {
             // can't do anything w/ this session, same as busy... different reason.
             l('DEBUG') && console.log(this+'.newSession() No common protocols');
@@ -4837,16 +4833,15 @@ var proto = {
     }
 
     if (payload) {
-      console.log('_processMessage recieved: ', payload);
+      l('DEBUG') && console.log(this+'._processMessage received: ', payload);
       for (var protocol in payload) {
-        console.log('looking at protocol: ', protocol);
         if (payload.hasOwnProperty(protocol)){
           // we  protocol is in payloads
           if (self.hasOwnProperty(protocol)) {
             // we have this protocol defined pass message to the protocol
             // if protocol is enabled, pass the message
             if ( self[protocol].enabled()) {
-              console.log('calling handle message on protocol:', protocol);
+              l('DEBUG') && console.log(this+'_processMessage() passing to protocol:', protocol);
               self[protocol]._processMessage(payload[protocol]);
             } else {
               console.error('Received %s message, but not enabled!',protocol, payload[protocol]);
@@ -4920,7 +4915,6 @@ var proto = {
       this._getStartMessage(function start(success, startMessage){
         // Send our message
         //TODO Fix debug logging
-        console.log(this+'.connect() sending startMessage w/ message',startMessage);
         l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',startMessage);
         this._.activeSession.start({'payload': startMessage});
       }.bind(this));
@@ -4936,30 +4930,30 @@ var proto = {
     var protocols = this._.protocols;
     var callbacks = 0;
     // How many are enabled?
-    var enabled = 0;
+    var enabled = [];
     for (var i=0;i<protocols.length; i++) {
       var protocol = protocols[i];
       if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-        enabled++;
+        enabled.push(protocol);
       }
     }
-    for (var i=0;i<protocols.length; i++) {
-      var protocol = this._.protocols[i];
-      if (self.hasOwnProperty(protocol) && self[protocol].enabled()) {
-        // get the startMessage
-        self[protocol][method](function smCallback(success, message){
-          callbacks++;
-          if (success) {
-            returnMessage[protocol] = message;
-          }
-            // all callbacks called.
-          l('DEBUG') && console.log(this+'._getGenericMessage() callbaks:'+callbacks+' enabled: '+enabled+' protocols :', protocols, 'returnMessage? ',returnMessage);
-          if (callbacks === enabled) {
-            callback(true, returnMessage);
-          }
-        });
+    var msgCallback = function msgCallback(success, message){
+      // message should/must be {'protcool': {some message }}
+      callbacks++;
+      l('DEBUG') && console.log('_getMessage success['+success+'] message: ', message);
+      returnMessage = (message) ? util.combineObjects(message, returnMessage) : returnMessage;
+      // We've been called the right number of times.
+      l('DEBUG') && console.log('_getMessage success['+success+']'+ callbacks+ ': '+enabled.length);
+      if (callbacks === enabled.length) {
+        l('DEBUG') && console.log('_getMessage ['+method+'] Return Message generated: ', returnMessage);
+        callback(true, returnMessage);
       }
     };
+
+    enabled.forEach(function msgGetter(protocol){
+      l('DEBUG') && console.log('_getMessage['+method+'] on protocol: '+protocol);
+      self[protocol][method](msgCallback);
+    });
   },
   /*
    * Get the start Message -- this will call 'connect' on all sub protocols.
@@ -5015,7 +5009,7 @@ var proto = {
         this.connect(null);
     } else {
       this._getAcceptMessage(function cbAccept(success, acceptMessage){
-        l('DEBUG') && console.log(this+'.connect() sending startMessage w/ message',acceptMessage);
+        l('DEBUG') && console.log(this+'.connect() sending ANSWER w/ message',acceptMessage);
         this._.activeSession.respond(true, acceptMessage);
       }.bind(this));
     }
@@ -5040,20 +5034,6 @@ var proto = {
     this.available(true);
     this._.activeSession = null;
     return this;
-  },
-
-  /* TODO deprecate */
-  sendOneTimeMessage: function(message){
-    // Sending message:
-    l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending '+message);
-    var msg = {};
-    if (this.sessionStarted()) {
-      msg.otm = (typeof message === 'object') ? message : {'message':message};
-      l('DEBUG') && console.log(this+'.sendOneTimeMessage() sending ',msg);
-      this._.activeSession.send(msg);
-    } else {
-      throw new Error('Unable to send onetimemessage.  Session not started');
-    }
   },
 
   getRtcommConnectorService: function(){
@@ -5309,7 +5289,7 @@ var RtcommEndpoint = (function invocation() {
      * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
      * @property {string}  [userid=null] UserID the endpoint will use (generally provided by the EndpointProvider
      * @property {string}  [appContext=null] UI Component to attach outbound media stream
-     * @property {string} [ringtone=null] Path to a  ringtone to play when we are ringing on inbound call
+     * @property {string} [ringtone=null] Path to a  ringtone to play when we are ringing on inbound callh
      * @property {string} [ringbacktone=null] path to a ringbacktone to play on outbound call
      * @property {boolean} [webrtc=true]  Whether the endpoint supports webrtc
      * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
@@ -5320,7 +5300,7 @@ var RtcommEndpoint = (function invocation() {
      */
     var defaultConfig = {
       // if a feature is supported, enable by default.
-      autoEnable: false,
+      autoEnable: true,
       ignoreAppContext: true,
       appContext : null,
       userid: null,
@@ -5334,7 +5314,6 @@ var RtcommEndpoint = (function invocation() {
 
 
     function addChatHandlers(ep) {
-      console.log('this',ep);
       var chat = ep.chat;
       // Configure chat event handling...
       //
@@ -5370,7 +5349,7 @@ var RtcommEndpoint = (function invocation() {
       webrtc.on('ringing', function(event_obj) {
        l('DEBUG') && console.log("on ringing - play a ringback tone ", ep._.ringbackTone); 
        ep._playRingback();
-       (ep.lastEvent !== 'session:ringing') && ep.emit('session:ringing');
+       (ep.lastEvent !== 'session:ringing') && ep.emit('s<LeftMouse>ession:ringing');
       });
 
       webrtc.on('trying', function(event_obj) {
@@ -5401,20 +5380,35 @@ var RtcommEndpoint = (function invocation() {
       });
     };
 
+    function addGenericMessageHandlers(ep){
+      ep.createEvent('onetimemessage');
+      ep.createEvent('generic_message:message');
+      ep.generic_message.on('message', function (event_obj){
+        console.log('eventObject?', event_obj);
+        // This shoudl be deprecated (onetimemessage) that is.
+        var deprecatedEvent = {'onetimemessage': event_obj.message};
+        ep.emit('onetimemessage', deprecatedEvent);
+        ep.emit('generic_message:message', event_obj);
+      });
+    };
+
     // Call the Super Constructor
     SessionEndpoint.call(this,config);
     // Add the protocols
     this.addProtocol(new ChatProtocol());
     this.addProtocol(new WebRTCConnection(this));
+    this.addProtocol(new GenericMessageProtocol());
     // Add the handlers to the protocols;
     addChatHandlers(this);
     addWebrtcHandlers(this);
+    addGenericMessageHandlers(this);
     if (this.config.autoEnable) {
       this.config.chat && this.chat.enable();
       this.config.webrtc && this.webrtc.enable();
     };
-    
 
+  // generic-message is enabled by default and always availble for now
+    this.generic_message.enable();
 
     // WebRTC Specific configuration.
     // TODO:  MOve to the webrtc protocol
@@ -5444,6 +5438,11 @@ var RtcommEndpoint = (function invocation() {
     l('DEBUG') && console.log(this+'._stopRing() should stop ring if ringing... ',this._.ringTone);
     this._.ringbackTone && this._.ringbackTone.playing && this._.ringbackTone.stop();
     this._.ringTone && this._.ringTone.playing && this._.ringTone.stop();
+  };
+
+  /* deprecated , use RtcommEndpoint.generic-message.send(message) instead */
+  RtcommEndpoint.prototype.sendOneTimeMessage = function sendOneTimeMessage(message){
+    this.generic_message.send(message);
   };
 
   return RtcommEndpoint;
@@ -5538,7 +5537,7 @@ var SubProtocol= (function invocation() {
 
     // Merge the passed config w/ the default.
     this.protocolConfig = util.combineObjects(object, protocolConfig);
-    console.log(this.protocolConfig);
+    l('DEBUG') && console.log(this+' SubProtocol constructor ', this.protocolConfig);
     // name gets assigned
     this.name = this.protocolConfig.name;
     this.config = this.protocolConfig.config;
@@ -5563,12 +5562,11 @@ var SubProtocol= (function invocation() {
      */
     createMessage : function createMessage(message) {
       // default
-      console.log('Create message is: '+message);
       var protoMessage = {};
       protoMessage[this.name]= (typeof this.protocolConfig.constructMessage === 'function')  ?
         this.protocolConfig.constructMessage.call(this,message) :
           message;
-      console.log('Created message is: ',protoMessage);
+      l('DEBUG') && console.log(this+'.createMessage() Created message is: ',protoMessage);
       return protoMessage;
     },
 
@@ -5595,11 +5593,12 @@ var SubProtocol= (function invocation() {
      * Accept an inbound connection
      */
     accept : function accept(callback) {
-      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
+      var parent = this.dependencies.parent;
+      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ parent.getState());
       // Only accept if enabled
       // We should be 'alerting' I think
       var acceptMessage = null;
-      if (this.state === 'alerting') {
+      if (parent.getState() === 'session:alerting') {
         acceptMessage = this.enabled() ? this.connect(callback) : null;
       };
       l('DEBUG') && console.log(this+'.accept() -- finished, returning message: -- '+ acceptMessage);
@@ -5648,7 +5647,7 @@ var SubProtocol= (function invocation() {
       return this._.enabled;
     },
     /**
-     * send a chat message
+     * send a message
      * @param {string} message  Message to send
      */
     send : function send(message) {
@@ -5659,8 +5658,9 @@ var SubProtocol= (function invocation() {
       return this;
     },
     _processMessage: function _processMessage(message) {
-      // If we are connected, emit the message
-      this.protocolConfig.handleMessage.call(this,message);
+      // Pass to the handleMessage (which should be defined by the implementer of this protocol)
+      //
+        this.protocolConfig.handleMessage.call(this,message);
       return this;
     },
     _setState : function _setState(state, object) {
@@ -5910,12 +5910,13 @@ var ChatProtocol = function ChatProtocol(){
   //
   function getStartMessage(callback) {
     l('DEBUG') && console.log(this+'.getStartMessage() entry');
-    callback && callback(true, constructMessage.call(this, this.dependencies.parent.userid + ' has initiated a Chat with you'));
+    callback && callback(true, this.createMessage.call(this, this.dependencies.parent.userid + ' has initiated a Chat with you'));
   }
 
   function getStopMessage(callback) {
-    callback && callback(true, constructMessage.call(this, this.dependencies.parent.userid + ' has left the chat'));
+    callback && callback(true, this.createMessage.call(this, this.dependencies.parent.userid + ' has left the chat'));
   }
+
   function constructMessage(message) {
     l('DEBUG') && console.log(this+'.constructMessage() MESSAGE: ', message);
       return {'message': message, 'from': this.dependencies.parent.userid};
@@ -5930,13 +5931,7 @@ var ChatProtocol = function ChatProtocol(){
         // dropping message, not in a state to receive it.
         l('DEBUG') && console.log(this+ '.handleMessage() Dropping message -- unable to receive in alerting state');
       } else {
-        // If we aren't stopped, then we should pranswer it and alert.
-        if (!parent.sessionStopped()) {
-          // Parent should pranswer, not us...
-//          parent._.activeSession && parent._.activeSession.pranswer();
-          console.log('handleMessage, calling allering on this: ',this);
-          this._setState('alerting', message);
-        }
+        l('DEBUG') && console.log(this+ '.handleMessage() Dropping message -- Should have been handled elsewhere');
       }
   }
   var protocolDefinition = {
@@ -5952,35 +5947,52 @@ var ChatProtocol = function ChatProtocol(){
 ChatProtocol.prototype= Object.create(SubProtocol.prototype);
 ChatProtocol.prototype.constructor = ChatProtocol;
 
-var GenericMessageProtocol = function GenericMessageProtocol() {
+var GenericMessageProtocol= function GenericMessageProtocol(){
+  // Call superconstructor
+  // Define the Protocol
+  //
+  function getStartMessage(callback) {
+    l('DEBUG') && console.log(this+'.getStartMessage() entry');
+    callback && callback(true,null);
+  }
 
-  function startMessage() {
-    console.log('No Start Message');
-    return null;
-  };
-
-  function stopMessage(){
-    console.log('No Stop Message');
-    return null;
-  };
-  function processMessage(message) {
-    console.log('Received a Message: '+ message);
-  };
+  function getStopMessage(callback) {
+    callback && callback(true, null);
+  }
 
   function constructMessage(message) {
-    // Take a string message, cast it in our 'protocol'
-    return {'message': message};
-  };
+    l('DEBUG') && console.log(this+'.constructMessage() MESSAGE: ', message);
+      return {'message': message} 
+  }
 
-  var  protocolDefinition = new SubProtocol({
-    name: 'generic-message',
-    getStartMessage: startMessage,
-    getStopMessage: stopMessage,
-    handleMessage: processMessage,
-    constructMessage: constructMessage
-});
- return protocolDefinition;
-}
+  function handleMessage(message) {
+      l('DEBUG') && console.log(this+'.handleMessage() MESSAGE: ', message);
+      var parent = this.dependencies.parent;
+      if (this.state === 'connected') {
+        this.emit('message', message);
+      } else if (this.state === 'alerting') {
+        // dropping message, not in a state to receive it.
+        l('DEBUG') && console.log(this+ '.handleMessage() Dropping message -- unable to receive in alerting state');
+      } else {
+        // If we aren't stopped, then we should pranswer it and alert.
+        if (!parent.sessionStopped()) {
+          // Parent should pranswer, not us...
+//          parent._.activeSession && parent._.activeSession.pranswer();
+          this._setState('alerting', message);
+        }
+      }
+  }
+  var protocolDefinition = {
+    'name' : 'generic_message',
+    'getStartMessage': getStartMessage,
+    'getStopMessage' : getStopMessage,
+    'constructMessage':constructMessage,
+    'handleMessage': handleMessage
+  };
+  SubProtocol.call(this, protocolDefinition);
+};
+GenericMessageProtocol.prototype= Object.create(SubProtocol.prototype);
+GenericMessageProtocol.prototype.constructor = GenericMessageProtocol;
 
  /*
  * Copyright 2014 IBM Corp.
@@ -6289,20 +6301,20 @@ var WebRTCConnection = (function invocation() {
               l('DEBUG') && console.log(self+'.enable() createOffer created: ', offersdp);
               if (self.config.trickleICE) {
                 // return offermessage
-                cbConnect(true, offersdp);
+                cbConnect(true, self.createMessage(offersdp));
                 // Old way: sendMethod({payload: self.createMessage(offersdp, chatMessage)});
               } else {
                 self.on('_notrickle', function(obj) {
                   l('DEBUG') && console.log(self+'.doOffer _notrickle called: Sending offer here. ');
                   // Old way      sendMethod({payload: self.createMessage(self.pc.localDescription, chatMessage)});
                   // turn it off once it fires.
-                  cbConnect(true, self.pc.localDescription);
+                  cbConnect(true, self.createMessage(self.pc.localDescription));
                   self.off('_notrickle');
                 });
               }
               self._setState('trying');
               self.pc.setLocalDescription(offersdp, function(){
-                l('DEBUG') &&  console.log('************setLocalDescription Success!!! ');
+                l('DEBUG') && console.log('************setLocalDescription Success!!! ');
                // Old Way: Callback was called already... self.config.trickleICE && callback(true);
               }, function(error) { cbConnect(false, error);});
             },
@@ -6367,7 +6379,6 @@ var WebRTCConnection = (function invocation() {
       message = (message && message.payload) ? message.payload: message;
       // Anything sent here needs to be in format:
       // {protocol: message} i.e. {'webrtc': message};
-      message = (message && message.webrtc) ? message : {'webrtc': message};
       if (parent._.activeSession) {
         parent._.activeSession.send(this.createMessage(message));
       }
@@ -6652,13 +6663,13 @@ var WebRTCConnection = (function invocation() {
         l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE');
         // Old way: session.respond(true, message);
         this._setState('connected');
-        callback(true, message);
+        callback(true, this.createMessage(message));
       } else {
         this.on('_notrickle', function(message) {
           l('DEBUG') && console.log(this+'.createAnswer sending answer as a RESPONSE[notrickle]');
           if (this.pc.localDescription) {
             this._setState('connected');
-            callback(true, message);
+            callback(true, this.createMessage(message));
             // Old way: session.respond(true, this.createMessage(this.pc.localDescription));
           } else {
             l('DEBUG') && console.log(this+'.createAnswer localDescription not set.');
@@ -6696,17 +6707,12 @@ var WebRTCConnection = (function invocation() {
     }
   },
 
-  // Deprecated...
   createMessage: function(content,chatcontent) {
-    var message = content;
-  /*  var message = {'webrtc': {}};
+    var message = {'webrtc': {}};
     if (content) {
       message.webrtc = (content.hasOwnProperty('webrtc')) ? content.webrtc : content;
     }
-    if (chatcontent && chatcontent.hasOwnProperty('chat')) {
-       message.chat = chatcontent.chat;
-    }
-    */
+    l('DEBUG') && console.log(this+'.createMessage() Created message: ', message);
     return message;
   },
 

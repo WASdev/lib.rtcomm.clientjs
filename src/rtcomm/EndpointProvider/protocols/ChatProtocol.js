@@ -4,12 +4,13 @@ var ChatProtocol = function ChatProtocol(){
   //
   function getStartMessage(callback) {
     l('DEBUG') && console.log(this+'.getStartMessage() entry');
-    callback && callback(true, constructMessage.call(this, this.dependencies.parent.userid + ' has initiated a Chat with you'));
+    callback && callback(true, this.createMessage.call(this, this.dependencies.parent.userid + ' has initiated a Chat with you'));
   }
 
   function getStopMessage(callback) {
-    callback && callback(true, constructMessage.call(this, this.dependencies.parent.userid + ' has left the chat'));
+    callback && callback(true, this.createMessage.call(this, this.dependencies.parent.userid + ' has left the chat'));
   }
+
   function constructMessage(message) {
     l('DEBUG') && console.log(this+'.constructMessage() MESSAGE: ', message);
       return {'message': message, 'from': this.dependencies.parent.userid};
@@ -24,13 +25,7 @@ var ChatProtocol = function ChatProtocol(){
         // dropping message, not in a state to receive it.
         l('DEBUG') && console.log(this+ '.handleMessage() Dropping message -- unable to receive in alerting state');
       } else {
-        // If we aren't stopped, then we should pranswer it and alert.
-        if (!parent.sessionStopped()) {
-          // Parent should pranswer, not us...
-//          parent._.activeSession && parent._.activeSession.pranswer();
-          console.log('handleMessage, calling allering on this: ',this);
-          this._setState('alerting', message);
-        }
+        l('DEBUG') && console.log(this+ '.handleMessage() Dropping message -- Should have been handled elsewhere');
       }
   }
   var protocolDefinition = {

@@ -87,7 +87,7 @@ var SubProtocol= (function invocation() {
 
     // Merge the passed config w/ the default.
     this.protocolConfig = util.combineObjects(object, protocolConfig);
-    console.log(this.protocolConfig);
+    l('DEBUG') && console.log(this+' SubProtocol constructor ', this.protocolConfig);
     // name gets assigned
     this.name = this.protocolConfig.name;
     this.config = this.protocolConfig.config;
@@ -112,12 +112,11 @@ var SubProtocol= (function invocation() {
      */
     createMessage : function createMessage(message) {
       // default
-      console.log('Create message is: '+message);
       var protoMessage = {};
       protoMessage[this.name]= (typeof this.protocolConfig.constructMessage === 'function')  ?
         this.protocolConfig.constructMessage.call(this,message) :
           message;
-      console.log('Created message is: ',protoMessage);
+      l('DEBUG') && console.log(this+'.createMessage() Created message is: ',protoMessage);
       return protoMessage;
     },
 
@@ -144,11 +143,12 @@ var SubProtocol= (function invocation() {
      * Accept an inbound connection
      */
     accept : function accept(callback) {
-      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ this.state);
+      var parent = this.dependencies.parent;
+      l('DEBUG') && console.log(this+'.accept() -- accepting -- '+ parent.getState());
       // Only accept if enabled
       // We should be 'alerting' I think
       var acceptMessage = null;
-      if (this.state === 'alerting') {
+      if (parent.getState() === 'session:alerting') {
         acceptMessage = this.enabled() ? this.connect(callback) : null;
       };
       l('DEBUG') && console.log(this+'.accept() -- finished, returning message: -- '+ acceptMessage);
@@ -197,7 +197,7 @@ var SubProtocol= (function invocation() {
       return this._.enabled;
     },
     /**
-     * send a chat message
+     * send a message
      * @param {string} message  Message to send
      */
     send : function send(message) {
@@ -208,8 +208,9 @@ var SubProtocol= (function invocation() {
       return this;
     },
     _processMessage: function _processMessage(message) {
-      // If we are connected, emit the message
-      this.protocolConfig.handleMessage.call(this,message);
+      // Pass to the handleMessage (which should be defined by the implementer of this protocol)
+      //
+        this.protocolConfig.handleMessage.call(this,message);
       return this;
     },
     _setState : function _setState(state, object) {

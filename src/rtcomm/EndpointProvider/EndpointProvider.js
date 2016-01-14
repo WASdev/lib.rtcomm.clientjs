@@ -366,7 +366,6 @@ var EndpointProvider =  function EndpointProvider() {
     // If we already h some enpdoints, their connection will be null, fix it
     if (this._.endpointRegistry.length() > 0 ) {
       this._.endpointRegistry.list().forEach(function(endpoint) {
-        console.log('REMOVE ME: endpoint? ', endpoint);
         endpoint.setEndpointConnection(endpointConnection);
       });
     }
@@ -498,7 +497,7 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         chat: true,
         webrtc: true,
-        autoEnable: false,
+        autoEnable: true,
         parent:this
     };
 

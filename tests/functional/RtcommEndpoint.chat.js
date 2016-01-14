@@ -110,8 +110,8 @@ define([
             function(resolve, reject) {
               chat1 && chat1.destroy();
               chat2 && chat2.destroy();
-              chat1 = EP1.createRtcommEndpoint();
-              chat2 = EP2.createRtcommEndpoint();
+              chat1 = EP1.createRtcommEndpoint({chat: true, webrtc: false});
+              chat2 = EP2.createRtcommEndpoint({chat: true, webrtc: false});
               setTimeout(function(){
                 console.log('BeforeEach -- waiting 1 second for cleanup/restart to complete');
                 resolve();
@@ -152,8 +152,6 @@ define([
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
-          chat1.chat.enable();
-          chat2.chat.enable();
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         //  chat1.connect(uid2);
         },
@@ -163,8 +161,6 @@ define([
           /* chat1 calls chat2 which accepts.  
            * chat3 calls chat2 -- should get 'BUSY'
            */
-          chat1.chat.enable();
-          chat2.chat.enable();
           var dfd = this.async(10000);
           // We have a 3rd endpoint here...
           chat1.on('chat:message', function(message){
@@ -189,8 +185,7 @@ define([
             Fat.createProvider(config.clientConfig('client3'),appContext).then(
               function(EP){
                 EP3 = EP;
-                chat3 = EP.createRtcommEndpoint();
-                chat3.chat.enable();
+                chat3 = EP.createRtcommEndpoint({chat:true, webrtc: false});
                 chat3.on('session:failed',finish);
                 console.log('****************************Trying to connect 3rd endpoint connection ***');
                 chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
