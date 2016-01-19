@@ -22,7 +22,6 @@ var settings = {
   logger:  {level: 'info'},
   http: {
     port: port,
-    bundle: true,
     static: './'
   },
 };

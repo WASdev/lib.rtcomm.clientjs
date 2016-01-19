@@ -28,7 +28,7 @@ define([
 ], function (intern, registerSuite, assert, Deferred, globals, config, adapter, EndpointProvider,Fat) {
    var suiteName = Fat.createSuiteName("FVT: RtcommEndpoint");
    var DEBUG = (intern.args.DEBUG === 'true')? true: false;
-   var SKIP_ALL=false;
+   var SKIP_ALL=true;
     // anything in here will get destroyed (but not recreated) in beforeEach;
     var g ={};
     var destroy = function() {
@@ -285,7 +285,7 @@ define([
             assert.ok(ep1_trying, 'Caller generated trying event');
             assert.ok(ep1_ringing, 'Caller generated ringing event');
             assert.ok(ep2_alerting, 'Callee generated alerting event');
-            assert.ok(ep1.sessionStarted(),'Ep1 Session Started');:q
+            assert.ok(ep1.sessionStarted(),'Ep1 Session Started');
             assert.ok(ep2.sessionStarted(),'Ep2 Session Started');
             var message = object.onetimemessage;
             console.log("OneTimeMessage content: "+JSON.stringify(message));
@@ -576,8 +576,8 @@ define([
             ep1 = EP1.getRtcommEndpoint({autoEnable: true, webrtc:true, chat:true});
             ep2 = EP2.getRtcommEndpoint({autoEnable: true, webrtc:true, chat:true});
 
-            ep1.on('session:ringing', function() { ep1_ringing = true})
-            ep1.on('session:trying', function() { ep1_trying = true})
+            ep1.on('session:ringing', function() { ep1_ringing = true});
+            ep1.on('session:trying', function() { ep1_trying = true});
             // We finish on session:started 
             ep1.on('session:started', finish);
 
@@ -593,5 +593,56 @@ define([
            ep1.connect(cfg2.userid);
          });
      },
+    },
+      "Nothing enabled, enable/disable chat, enable/disable webrtc": function() {
+        console.log('************* '+this.name+' **************');
+        SKIP_ALL && this.skip();
+        if (typeof global !== 'undefined' || typeof window === 'undefined') {
+          console.log('********* SKIPPING TEST ***************');
+          this.skip("This test only runs in the Browser");
+        }
+        var dfd = this.async(10000);
+        // Our endpoints
+        var ep1;
+        var ep2;
+        // Our test config
+        var cfg1 = getConfig('testuser1');
+        var cfg2 = getConfig('testuser2');
+
+
+        // Called on endpoint1 session:started
+        // Check the state.  webrtc/chat shoudl be disabled.
+        function firstAssert(event_object) {
+            assert.isFalse(ep1.webrtc.enabled(), 'ep1 webrtc is not enabled');
+            assert.isFalse(ep1.chat.enabled(), 'ep1 chat is not enabled');
+            assert.isFalse(ep2.webrtc.enabled(), 'ep2 webrtc is not enabled');
+            assert.isFalse(ep2.chat.enabled(), 'ep2 chat is not enabled');
+        }
+
+        // Create our providers
+        createAndInitTwoProviders(cfg1,cfg2)
+          .then(function(obj){
+            var EP1 = g.EP1 = obj.provider1;
+            var EP2 = g.EP2 = obj.provider2;
+            // We support chat/webrtc but they should not be enabled
+            ep1 = EP1.getRtcommEndpoint({webrtc:true, chat:true});
+            ep2 = EP2.getRtcommEndpoint({webrtc:true, chat:true});
+
+            // We check the state on session:started 
+            ep1.on('session:started', dfd.callback(firstAssert));
+
+            ep2.on('session:alerting', function(obj) {
+              ep2_alerting = true;
+              console.log('>>>>TEST  accepting call');
+              setTimeout(function() {
+                ep2.accept();
+              },1000);
+            });
+
+           // Initiate the connection
+           ep1.connect(cfg2.userid);
+         });
+     }
     });
+  });
 });
