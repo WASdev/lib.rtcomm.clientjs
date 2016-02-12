@@ -76,7 +76,7 @@ var WebRTCConnection = (function invocation() {
       iceServers: [],
       lazyAV: true,
       trickleICE: true,
-      trickleICETimout: 2000,
+      trickleICETimeout: 2000,
       connect: null,
       broadcast: {
         audio: true,
@@ -1029,7 +1029,7 @@ var WebRTCConnection = (function invocation() {
 })()); // End of Prototype
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
-  var ok, th = null;
+  var peerConnection = null;
   if (MyRTCPeerConnection) {
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: ", RTCConfiguration );
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConstraints: ", RTCConstraints );
@@ -1044,7 +1044,7 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
           var msg = {'type': evt.type,'candidate': evt.candidate};
           this.send(msg);
         }
-        else if(this.config.trickleICETimout != 0){
+        else if(this.config.trickleICETimeout != 0){
         	// First cleanup any old ICE timers
         	if (typeof this.iceTimer !== undefined && this.iceTimer != null){
         		clearTimeout(this.iceTimer);
@@ -1056,7 +1056,7 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
                 l('DEBUG') && console.log(this+'.ice timer timout. Emitting _notrickle event');
                 this.emit('_notrickle');
               }.bind(this),
-              this.config.trickleICETimout);
+              this.config.trickleICETimeout);
         	
         }
       } else {
