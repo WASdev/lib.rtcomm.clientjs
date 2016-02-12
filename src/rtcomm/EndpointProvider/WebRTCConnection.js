@@ -60,6 +60,8 @@ var WebRTCConnection = (function invocation() {
      * @property {object} [RTCConfiguration] RTCPeerConnection specific {@link http://w3c.github.io/webrtc-pc/} 
      * @property {object} [RTCConfiguration.peerIdentity] 
      * @property {boolean} [trickleICE=true] Enable/disable ice trickling 
+     * @property {boolean} [trickleICETimeout=2000] When trickleICE is disabled this timeout dictates how long the 
+     * collection will take before the offer or answer is sent
      * @property {Array} [iceServers] Array of strings that represent ICE Servers.
      * @property {boolean} [lazyAV=true]  Enable AV lazily [upon connect/accept] rather than during
      * right away
@@ -74,6 +76,7 @@ var WebRTCConnection = (function invocation() {
       iceServers: [],
       lazyAV: true,
       trickleICE: true,
+      trickleICETimout: 2000,
       connect: null,
       broadcast: {
         audio: true,
@@ -1026,7 +1029,7 @@ var WebRTCConnection = (function invocation() {
 })()); // End of Prototype
 
 function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ context) {
-  var peerConnection = null;
+  var ok, th = null;
   if (MyRTCPeerConnection) {
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConfiguration: ", RTCConfiguration );
     l('DEBUG')&& console.log(this+" Creating PeerConnection with RTCConstraints: ", RTCConstraints );
@@ -1041,11 +1044,32 @@ function createPeerConnection(RTCConfiguration, RTCConstraints, /* object */ con
           var msg = {'type': evt.type,'candidate': evt.candidate};
           this.send(msg);
         }
+        else if(this.config.trickleICETimout != 0){
+        	// First cleanup any old ICE timers
+        	if (typeof this.iceTimer !== undefined && this.iceTimer != null){
+        		clearTimeout(this.iceTimer);
+        		this.iceTimer = null;
+        	}
+        	
+        	//	Now create a new timer
+        	this.iceTimer  = setTimeout(function() {
+                l('DEBUG') && console.log(this+'.ice timer timout. Emitting _notrickle event');
+                this.emit('_notrickle');
+              }.bind(this),
+              this.config.trickleICETimout);
+        	
+        }
       } else {
         // it is null, if trickleICE is false, then emit an event to send it...
-        l('DEBUG') && console.log(this+'.onicecandidate NULL Candidate.  trickleICE IS: '+this.config.trickleICE);
+        l('DEBUG') && console.log(this+'.onicecandidate NULL Candidate.  trickleICE IS: '+ this.config.trickleICE);
         if (!this.config.trickleICE) {
           l('DEBUG') && console.log(this+'.onicecandidate Calling _notrickle callback');
+      	  
+          // First cleanup any old ICE timers
+	      if (typeof this.iceTimer !== undefined && this.iceTimer != null){
+	      	clearTimeout(this.iceTimer);
+	      	this.iceTimer = null;
+	      }
           this.emit('_notrickle');
         }
       }
