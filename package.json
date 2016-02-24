@@ -26,7 +26,9 @@
     "grunt-contrib-uglify": "^0.11.1",
     "grunt-contrib-watch": "^0.6.1",
     "grunt-jsdoc": "^1.0.0",
+    "grunt-serve": "^0.1.6",
     "grunt-sg-release": "^1.0.0",
+    "grunt-shell-spawn": "^0.3.10",
     "grunt-umd": "^2.3.5",
     "http": "0.0.0",
     "intern": "^3.0.6",
@@ -34,9 +36,7 @@
     "load-grunt-tasks": "^3.4.0",
     "node-localstorage": "^1.1.2",
     "serve-static": "^1.10.2",
-    "websocket": "^1.0.14",
-    "grunt-serve": "^0.1.6"
+    "websocket": "^1.0.14"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }
