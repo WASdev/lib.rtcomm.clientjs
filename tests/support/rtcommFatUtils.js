@@ -13,10 +13,18 @@ define([
         function(resolve,reject) {
           var EP = new EndpointProvider();
           if(typeof appContext !== 'undefined') {
-            EP.setAppContext(appContext);
+            if (typeof appContext === 'boolean') {
+              // It is DEBUG level
+              if (appContext) { 
+                EP.setLogLevel('DEBUG');
+              }
+            } else {
+              EP.setAppContext(appContext);
+            }
           };
           EP.init(cfg,
             function(message) { 
+              console.log('Fat Utils Created and init Provider: ', EP);
               resolve(EP);
             },
             function(message) { console.error('init failed', message); reject(message);}

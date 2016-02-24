@@ -160,7 +160,7 @@ var EndpointProvider =  function EndpointProvider() {
     var rtcommTopicPath = '/rtcomm/';
     // If we are served over SSL, use SSL is needed and we are going to use the 'sslport' unless port is set (and ssl was not).
     //
-    var useSSL = true;
+    var useSSL = false;
     var defaultPort = 1883;
     var defaultSSLPort = 8883;
 
@@ -195,7 +195,7 @@ var EndpointProvider =  function EndpointProvider() {
           createEndpoint: 'boolean',
           appContext: 'string'},
         defaults: {
-          server: (location !== 'undefined' ? location.hostname : 'localhost'),
+          server: (typeof location !== 'undefined' ? location.hostname : 'localhost'),
           rtcommTopicPath: rtcommTopicPath,
           managementTopicName: 'management',
           presence: {
@@ -272,6 +272,8 @@ var EndpointProvider =  function EndpointProvider() {
     var endpointConnection =
       this.dependencies.endpointConnection =
       createEndpointConnection.call(this, connectionConfig);
+
+    l('DEBUG') && console.log(this+'.init() Created endpointConnection: '+endpointConnection);
     /*
      * onSuccess callback for endpointConnection.connect();
      */
@@ -497,8 +499,9 @@ var EndpointProvider =  function EndpointProvider() {
     var defaultConfig = {
         chat: true,
         webrtc: true,
-        autoEnable: true,
-        parent:this
+        // True makes it fail...
+        autoEnable: false,
+        parent:endpointProvider
     };
 
     /*
@@ -590,6 +593,7 @@ var EndpointProvider =  function EndpointProvider() {
   this.getMessageEndpoint = function() {
 
       var endpoint = new MessageEndpoint({parent: this});
+      console.log('REMOVE ME ', endpoint);
       // attach the endpointConnection if it exists.
       var endpointProvider = this;
       this.dependencies.endpointConnection && endpoint.setEndpointConnection(this.dependencies.endpointConnection);

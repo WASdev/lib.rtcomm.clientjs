@@ -152,6 +152,11 @@ define([
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
+          // Enable chat
+          chat1.chat.enable();
+          chat2.chat.enable();
+
+          // Connect chat
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         //  chat1.connect(uid2);
         },

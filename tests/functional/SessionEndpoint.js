@@ -52,13 +52,19 @@ define([
     var createAndInitTwoProviders = function createAndInitTwoProviders(cfg1, cfg2) {
       var p = new Promise(
         function(resolve, reject){ 
-          Fat.createProvider(cfg1).then( function(EP) {
-            Fat.createProvider(cfg2).then( function(EP2) {
+          Fat.createProvider(cfg1, DEBUG).then( function(EP) {
+            Fat.createProvider(cfg2, DEBUG)
+            .then( function(EP2) {
               // Wait 1 second to resolve 
               setTimeout(function() {
                 resolve({provider1: EP, provider2: EP2});
               },T1);
+            })
+            .catch(function(message){
+              reject(message);
             });
+           }).catch(function(message){
+             reject(message);
            });
       });
       return p;
@@ -108,10 +114,14 @@ define([
           .then(function(obj){
             var EP1 = g.EP1 = obj.provider1;
             var EP2 = g.EP2 = obj.provider2;
+            DEBUG && EP1.setLogLevel('DEBUG');
+            DEBUG && EP2.setLogLevel('DEBUG');
+            console.log('>>>> EP1:', EP1.currentState());
+            console.log('>>>> EP2:', EP2.currentState());
             ep1 = EP1.getSessionEndpoint();
             ep2 = EP2.getSessionEndpoint();
-            ep1.on('session:ringing', function() { ep1_ringing = true})
-            ep1.on('session:trying', function() { ep1_trying = true})
+            ep1.on('session:ringing', function() { ep1_ringing = true});
+            ep1.on('session:trying', function() { ep1_trying = true});
             ep1.on('session:started', finish);
             ep2.on('session:alerting', function(obj) {
               ep2_alerting = true;

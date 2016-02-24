@@ -1,3 +1,14 @@
+/**
+   * @memberof module:rtcomm.SubProtocol
+   *
+   * @description 
+ * This is the implementation of a Generic Message protocol.  You can send anything you want to
+ * another endpoint at the other end of a session using this protocol.
+   *
+   *  @constructor
+   *  @extends  module:rtcomm.SubProtocol
+   */
+
 var GenericMessageProtocol= function GenericMessageProtocol(){
   // Call superconstructor
   // Define the Protocol

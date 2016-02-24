@@ -1,5 +1,6 @@
 {
-   "mqttServers" : ["localhost:6004"],
+   "mqttServers" : ["192.168.99.100:80"],
+   "useSSL": false,
    "managementTopicName" : "management",
    "rtcommTopicPath" : "/rtcomm/"
 }
