@@ -1,6 +1,6 @@
 {
   "name": "lib.rtcomm.clientjs",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "license": "Apache-2.0",
   "homepage": "https://github.com/WASdev/lib.rtcomm.clientjs",
   "authors": [
@@ -14,7 +14,7 @@
     "url": "http://github.com/WASdev/lib.rtcomm.clientjs.git"
   },
   "scripts": {
-    "test": "bin/runtests.sh"
+    "test": "grunt test"
   },
   "devDependencies": {
     "connect": "^3.3.3",
@@ -25,7 +25,7 @@
     "grunt-contrib-jshint": "^0.10.0",
     "grunt-contrib-uglify": "^0.6.0",
     "grunt-contrib-watch": "^0.6.1",
-    "grunt-jsdoc": "^0.6.1",
+    "grunt-jsdoc": "^1.0.0",
     "grunt-sg-release": "^0.2.4",
     "grunt-umd": "^2.2.1",
     "http": "0.0.0",
@@ -34,9 +34,9 @@
     "load-grunt-tasks": "^1.0.0",
     "node-localstorage": "^0.3.4",
     "serve-static": "^1.7.1",
-    "websocket": "^1.0.14"
+    "websocket": "^1.0.14",
+    "grunt-serve": "^0.1.6"
   },
   "dependencies": {
-    "grunt-serve": "^0.1.6"
   }
 }
