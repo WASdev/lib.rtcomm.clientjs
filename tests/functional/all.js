@@ -6,5 +6,7 @@ define([
   './RtcommEndpoint.js',
   './RtcommEndpoint.chat.js',
   './MqttEndpoint.js',
+  './SessionEndpoint.js',
+  './GenericMessageEndpoint.js',
   './SessionQueue.js'
 ], function() {});

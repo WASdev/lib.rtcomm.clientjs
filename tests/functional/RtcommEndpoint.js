@@ -26,7 +26,7 @@ define([
 ], function(intern, registerSuite, assert, Deferred, globals, config, adapter, EndpointProvider, Fat) {
 var suiteName = Fat.createSuiteName("FVT: RtcommEndpoint");
 var DEBUG = (intern.args.DEBUG === 'true') ? true : false;
-var SKIP_ALL = true;
+var SKIP_ALL = false;
 // anything in here will get destroyed (but not recreated) in beforeEach;
 var g = {};
 var destroy = function() {
