@@ -3,6 +3,7 @@
 #
 #****************************************************************
 # Licensed Materials - Property of IBM
+# 5725-F96 IBM MessageSight
 # (C) Copyright IBM Corp. 2014 All Rights Reserved.
 #
 # US Government Users Restricted Rights - Use, duplication or
@@ -16,85 +17,45 @@
 <meta charset="utf-8">
 <title>IBM WebRTC Demo</title>
 <!-- Load the CSS -->
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-<link href="resources/css/video.css" rel="stylesheet"/>
-<link href="resources/css/videoAdvanced.css" rel="stylesheet"/>
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+<link href="resources/css/video.css" rel="stylesheet">
 </head>
 
 <body>
 <!-- The Main Page conainer -->
-<div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-      <div class="container">
-        <div class="navbar-header">
-          <a class="navbar-brand" href="#"><span class="blue"> IBM</span> WebRTC Advanced Sample</a>
+<div id="MainContainer" class="mainContentContainer">
+ <div id="topContainer">
+        <div class="pull-left logo">
+          <span class="blue">IBM</span> WebRTC Sample
         </div>
-        <div class="navbar-right">
-          <p class="navbar-text" id="displayNameStr"></p>
-          <button id="sign_in" type="button" class="btn btn-default navbar-btn">Sign in</button>
+        <div class="pull-right logo" style="font-size: 24px; padding-right: 30px">
+          <span id="displayNameStr"></span>
         </div>
       </div>
-</div>
-  <!-- alert message for use later -->
-  <div id='mainAlert' class="alert alert-danger alert-dismissible" style="display:none" role="alert">
-     <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-     <div id='alertMessage'></div>
+  <div id="videoContainer">
+    <div id='selfViewContainer'>
+      <video title="selfView" poster='resources/video_camera.png' id="selfView" class="selfView" autoplay="true" muted="true" ></video>
+      <button id="btnToggleBroadcast" type="button" class="btn btn-default" aria-label="Left Align">
+        <span id="toggleIcon" class="glyphicon glyphicon-pause" aria-hidden="true"></span>
+      </button>
+    </div>
+    
+    <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
+    </video>
+     </div>
+     <div class="video-controls">
+    <div class="btn-group pull-left" style='padding-top:10px'>
+     <button id='btnRegister' class='btn btn-primary'>
+       Register
+      </button>
+      <button id='btnConnect' class='btn btn-default' disabled='disabled'>
+         Connect  
+      </button>
+    </div>
+     <div id='statusMessage' class="pull-right logo" style="font-size: 24px; padding-right: 30px">
+          Please Register
+    </div>
   </div>
-
-<div id="MainContainer" class="mainContentContainer container-fluid" style=" padding-top: 60px">
-  <div class="row">
-    <div class="col-sm-3">
-      <div class="panel panel-primary vertical-stretch">
-        <div class="panel-heading">
-          <span class="glyphicon glyphicon-user"></span> Presence
-        </div>
-        <div id="presence" class="panel-body">
-          Where Presence Members go
-        </div>
-      </div> <!-- panel --> 
-    </div> <!-- presence-->
-    <div class="col-sm-6">
-        <video title="remoteView" poster='resources/video_camera_big.png' id="remoteView" class="remoteView" autoplay="true" >
-        </video>  
-    </div> <!-- end of video-container -->
-    <div class="col-sm-3">
-      <div class="panel panel-primary vertical-stretch">
-        <div class="panel-heading">
-          <span class="glyphicon glyphicon-facetime-video"></span> Local Video
-          <button id="btnToggleBroadcast" type="button" disabled="disabled" class="btn btn-xs btn-info pull-right" aria-label="Left Align">
-             <span id="toggleIcon" class="glyphicon glyphicon-pause" aria-hidden="true"></span>
-          </button>
-        </div>
-        <div class="panel-body">
-          <video title="selfView" poster='resources/video_camera.png' id="selfView" autoplay="true" muted="true" ></video>
-        </div>
-      </div> <!-- local video panel --> 
-      <div class="panel panel-primary vertical-stretch">
-        <div class="panel-heading">
-          <span class="glyphicon glyphicon-comment"></span> Chat
-        </div>
-        <div id="chat-messages" class="panel-body">
-          Where chat messages go.
-        </div>
-        <div class="panel-footer">
-          <div class="input-group">
-            <input id="chat-input" type="text" class="form-control input-sm" placeholder="Type your message here..." > 
-              <span class="input-group-btn">
-                <button class="btn btn-primary btn-sm" type="submit" id="btnChat" >Send</button>
-              </span>
-          </div>
-        </div>
-      </div> <!-- panel --> 
-    </div> <!-- chat -->
-  </div> <!-- container -->
-</div>
-<div class="navbar navbar-inverse navbar-fixed-bottom" >
-  <div class="container">
-  <a class="navbar-brand" href="#"  >>></a>
-  <p id="statusMessage" class="navbar-text"> Please Sign in... </p>
-  <div class="navbar-right">
-     <button id='btnConnect' type="button" class="btn btn-info navbar-btn" style="display:none" >Disconnect</button>
-  </div>
-</div>
 </div>
 
 <!-- The Answer Dialog -->
@@ -130,12 +91,13 @@
         </div>
           It is necessary to register before doing anything. The ID used here
           is the ID that another registered user can use to <b>Connect</b>
-          <br/>
-          <br/>
+          <br>
+          <br>
           <div>
+ 
         <div class="input-group">
           <span class="input-group-addon">ID:</span>
-          <input id="userid" class="form-control" type="text"  placeholder="userid to register"/>
+          <input id="userid" class="form-control" type="text"  placeholder="userid to register">
         </div>
        </div>
       </div>
@@ -147,21 +109,46 @@
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
+<!-- The Connect Modal Dialog -->
+<div id="connectModal" class="modal fade">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+        <h4 class="modal-title">Connect</h4>
+      </div>
+      <div class="modal-body">
+      <div id='connAlert' class="alert alert-danger hidden" role="alert" >
+        A UserID is required to Connect to
+        </div>
+         Enter the User ID to connect to.  They must be registered with the same server.
+          <br>
+          <br>
+          <div>
+        
+        <div class="input-group">
+          <span class="input-group-addon">ID:</span>
+          <input id="remoteid" class="form-control" type="text"  placeholder="userid to connect to">
+        </div>
+       </div>
+      </div>
+      <div class="modal-footer">
+        <button id='connectCancel' type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button id='connectGo' type="button" class="btn btn-primary" data-dismiss="modal" >Go</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
 <!-- 
 This is SAMPLE is dependent on jQuery and bootstrap. Both load from a CDN. Alternatively, download jquery 
-from jquery.com/downloads.  This app was tested with jQuery 2.1.4.
+from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 -->
-<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+<script src="http://code.jquery.com/jquery-2.1.1.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 
 <!-- The following paths may need to be modified depending on the location of this script. -->
-<!-- If you load via bower, use it this way
-<script src="../bower_components/bower-mqttws/mqttws31.js"></script>
-<script src="../bower_components/webrtc-adapter/adapter.js"></script>
--->
-<script src="//git.eclipse.org/c/paho/org.eclipse.paho.mqtt.javascript.git/plain/src/mqttws31.js"></script>
-<script src="//cdn.rawgit.com/webrtc/adapter/master/adapter.js"></script>
-
+<script src="../lib/mqttws31.js"></script>
 <script src="../dist/rtcomm.js"></script>
 
 <!-- 
@@ -176,12 +163,7 @@ The primary logic for this HTML Page
   var ibmep = new rtcomm.EndpointProvider();
 
   ibmep.on('reset', function(event_object) {
-    alertMessage("Connection was reset - reason: "+event_object.reason);
-    uiUnregister();
-  });
-  ibmep.on('presence_updated', function(event_object) {
-      console.log('onPresenceUPdated',event_object);
-    updatePresence(event_object.presenceData[0].flatten());
+    updateMessage("Connection was reset - reason: "+event_object.reason);
   });
 
   // Change the loglevel - default is 'INFO', possibilities are:
@@ -203,18 +185,15 @@ The primary logic for this HTML Page
    *
    * Example:  videoClient.html?server=servername&port=1883&rtcommTopicPath=/rtcommcompany/
    */
-  var providerConfig = {
+  var epConfig = {
     server : window.document.location.hostname,
-//    port : window.document.location.port,
-//    sslport: 443,
-//    port: 80,
-//    useSSL: true,
+    port : window.document.location.port,
     managementTopicName : "management",
     appContext: "default",
     rtcommTopicPath: "/rtcomm/",
     createEndpoint : true,
-    monitorPresence: true,
-    presence: {topic: 'defaultRoom'}
+    useSSL: false,
+    presence: {topic: 'defaultRoom'} 
   };
 
   var urlConfig = getUrlParams();
@@ -230,18 +209,16 @@ The primary logic for this HTML Page
   var regwithAV = (urlConfig.regwithAV === 'true')? true : false;
   /*  videoClient.html?regOnload=true&userid=someuser -- Immediately register onLoad with userid passed */
   var regOnload = (urlConfig.regOnload === 'true')? true : false;
-  var myUserId = urlConfig.userid || null;
+  var userid = urlConfig.userid || null;
   /*  videoClient.html?autoAnswer=true -- inbound call will be automatically answered.  Good for testing. */
   var autoAnswer = (urlConfig.autoAnswer === 'true')? true : false;
   /* Trickle ICE */
   var trickleICE = (urlConfig.trickleICE === 'false')? false: true;
-  var requireRtcommServer = (urlConfig.requireRtcommServer === 'true')? true: false;
   var BROADCAST = (urlConfig.broadcast === 'false')? false: true;
   // Update to boolean
-  // we will figure it out based on being served over https (or should)
-  // urlConfig.useSSL = (urlConfig.useSSL === 'true')? true: false;
+  urlConfig.useSSL = (urlConfig.useSSL === 'true')? true: false;
   // This uses any params passed on URL to override config.
-  updateConfig(providerConfig, urlConfig);
+  updateConfig(epConfig, urlConfig);
 
   /********************************************************************
    *  Rtcomm Functions
@@ -250,7 +227,7 @@ The primary logic for this HTML Page
    /* doRegister()
    *
    * This function is the meat of the sample and shows how to
-   * init the EndpointProvider using providerConfig provided above.  This
+   * init the EndpointProvider using epConfig provided above.  This
    * config is using getRtcommEndpoint = true so that 
    * the init returns a rtcommEndpoint object.  
 
@@ -260,17 +237,15 @@ The primary logic for this HTML Page
    */
   function doRegister(userid) {
     updateMessage('Registering... '+ userid);
-    
-    providerConfig.userid = userid;
-    myUserId = userid;
+    epConfig.userid = userid;
     // make sure this is an integer.
-    providerConfig.requireRtcommServer = requireRtcommServer;
+    epConfig.port = parseInt(epConfig.port);
     /*
      * Call init() on the Endpoint Provider.
      */
     ibmep
           .init(
-              providerConfig,
+              epConfig,
               /* onSuccess for init() will pass an object:
                *  { endpoint: RtcommEndpoint ,   <-- RtcommEndpoint Object if created
                *     ready: boolean,             <-- We are ready to proceed.
@@ -287,6 +262,20 @@ The primary logic for this HTML Page
                 // Configure the rtcommEndpoint now
                 rtcommEndpoint = object.endpoint;
                 // Set the media div's webrtc will use, but do not ENABLE AV yet.
+                rtcommEndpoint.webrtc.setLocalMedia(
+                  { enable: false, 
+                    mediaOut: document.querySelector('#selfView'),
+                    mediaIn: document.querySelector('#remoteView'),
+                  });
+                if (regwithAV) {
+                  // Enable Audio Video here.
+                  console.log('** videoClient.html ** Enabling Webrtc...');
+                  //NOTE:  lazyAV means we will enable when we have too, in this case, the UI wants
+                  // To enable it right away.  
+                  rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE, lazyAV: false}, function() {
+                    console.log('>>>>>>>>>>>>>>SUCCESS ENABLED WEBRTC CALLBACK');
+                  });
+                }
               }, function(error) { //onFailure
                 console.error('init failed: ', error);
                 alertMessage('Initialization and registration failed!');
@@ -305,15 +294,8 @@ The primary logic for this HTML Page
   ibmep.setRtcommEndpointConfig({
       // Our endpoints will be setup to broadcast Audio and Video 
       // BROADCAST is set at the top
-      autoEnable: true,
-      webrtcConfig: {
-        broadcast:  { 
-          audio: BROADCAST, 
-          video: BROADCAST},
-        trickleICE: trickleICE,
-        mediaOut: document.querySelector('#selfView'),
-        mediaIn: document.querySelector('#remoteView')
-      },
+      broadcast:  { audio: BROADCAST, video: BROADCAST},
+
       // Played when call is going out
       ringbacktone: 'resources/ringbacktone.wav',
       // played when inbound call occurrs
@@ -325,8 +307,10 @@ The primary logic for this HTML Page
       // Fired when webrtc is disconnected 
       'webrtc:disconnected': function(event_object) {
          // Reset the UI
+         document.querySelector('#remoteView').src = undefined;
+         uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
          try {
-           uiDisconnect("Disconnected from "+ event_object.endpoint.getRemoteEndpointID());
+           event_object.endpoint.disconnect();
          } catch (e) {
            console.error(e);
          }
@@ -363,35 +347,9 @@ The primary logic for this HTML Page
       },
       // An inbound Refer was received.  
       'session:refer': function(conn) {
-        console.log(conn);
         $('#answerDialog .modal-body').html(
-            "[3PCC] Initiate call to " + conn.endpoint.getRemoteEndpointID());
+            "[3PCC] Initiate call to " + conn.toEndpointID);
         $('#answerDialog').modal('show');
-      }, 
-      'webrtc:remotemuted': function(event_object) {
-        // Should have audio/video set to true/false on whether its enabled/disabled.
-        // If you want to change what is shown... 
-        var msg = 'The remote user ';
-        if (event_object.audio) {
-          if (event_object.video) {
-            msg = msg + ' resumed their broadcast'; 
-          } else {
-            msg = msg + ' muted their audio broadcast'; 
-          }
-        } else {
-          if (event_object.video) {
-            // audio false, video true
-            msg = msg + ' muted their audio broadcast'; 
-          } else {
-            // both false
-            msg = msg + ' muted their broadcast'; 
-          }
-        }
-       updateMessage(msg);
-     },
-      'chat:message': function(event_object) {
-        $("#chat-messages").append('<p><b>'+event_object.message.message+'</b></p>');
-        console.log('Chat Message!: ', event_object);
       }
   });
 
@@ -403,28 +361,15 @@ The primary logic for this HTML Page
    ****************************************************************/ 
 
   function uiConnect(message) {
-      $('#btnToggleBroadcast').prop('disabled', false);
-      $('#btnConnect').show();
+      $('#btnConnect').text('Disconnect');
       updateMessage(message || 'Unknown');
       connected = true;
   };
 
   function uiDisconnect(message) {
-      if (connected) {
-        connected = false;
-        rtcommEndpoint.disconnect();
-        /* Since this is using the same endpoint, a disconnect
-         * needs to re-enable the endpoint so it can receive/make new
-         * calls. 
-         * The timeout is necessary for the time being because 
-         * the disconnect() may take a bit and does not provide a callback.
-         * 
-         * This will be resolved in the future.
-         */
-          $('#btnToggleBroadcast').prop('disabled', true);
-          $('#btnConnect').hide();
-          updateMessage(message || 'Unknown');
-      }
+      $('#btnConnect').text('Connect');
+      updateMessage(message || 'Unknown');
+      connected = false;
   };
 
   function uiRegister(id) {
@@ -432,7 +377,7 @@ The primary logic for this HTML Page
     $('#displayNameStr').html('Welcome, <span class="blue">' + userid + '</span>');
     updateMessage('Registered');
     $('#btnConnect').prop('disabled', false);
-    $('#sign_in').text('Sign Out');
+    $('#btnRegister').text('Unregister');
     registered = true;
   };
 
@@ -440,7 +385,7 @@ The primary logic for this HTML Page
     $('#displayNameStr').html('Please Register');
 //    updateMessage('Unregistered');
     $('#btnConnect').prop('disabled', true);
-    $('#sign_in').text('Sign In');
+    $('#btnRegister').text('Register');
     registered = false;
   }
 
@@ -460,8 +405,17 @@ The primary logic for this HTML Page
     rtcommEndpoint.reject();
   });
 
-  // Sign in 
-  $('#sign_in').on('click', function() {
+  $('#btnReset').on('click', function() {
+    rtcommEndpoint && rtcommEndpoint.reset();
+    rtcommEndpoint = null;
+    ibmep && ibmep.destroy();
+    ibmep = null;
+    updateMessage('Please Register');
+    $('#btnRegister').hasClass('active') && $('#btnRegister').button('toggle');
+
+  });
+
+  $('#btnRegister').on('click', function() {
     if (registered) {
       ibmep.destroy();
       uiUnregister();
@@ -471,19 +425,7 @@ The primary logic for this HTML Page
     }
   });
 
- function sendChat() {
-    var msg = $("#chat-input").val();
-    if (rtcommEndpoint.chat) {
-      rtcommEndpoint.chat.send(msg);
-      $("#chat-messages").append('<p>'+msg+'</p>');
-      // Clear out the text now
-      $("#chat-input").val('');
-    }
- }
-
- $('#btnChat').on('click', sendChat); 
-
- $('#regGo').on('click', function() {
+  $('#regGo').on('click', function() {
     var userid = $("#userid").val();
     // Make sure userid is set.
     if (userid === "") {
@@ -498,6 +440,7 @@ The primary logic for this HTML Page
   $('#btnConnect').on('click', function() {
     console.log('CONNECT BUTTON: connected: '+connected, rtcommEndpoint);
     if (connected) {
+      rtcommEndpoint.disconnect();
       uiDisconnect("Disconnected");
     } else {
       $('#connectModal').modal('show');
@@ -507,41 +450,42 @@ The primary logic for this HTML Page
   $('#btnToggleBroadcast').on('click', function() {
     console.log('TOGGLE pressed :'+connected, rtcommEndpoint);
     if (connected) {
-      if (rtcommEndpoint.webrtc.isMuted()) {
-        rtcommEndpoint.webrtc.unmute();
+      if (rtcommEndpoint.webrtc.isPaused()) {
+        rtcommEndpoint.webrtc.resumeBroadcast();
         $('#toggleIcon').removeClass('glyphicon-play').addClass('glyphicon-pause');
       } else {
-        rtcommEndpoint.webrtc.mute();
+        rtcommEndpoint.webrtc.pauseBroadcast();
         $('#toggleIcon').removeClass('glyphicon-pause').addClass('glyphicon-play');
       }
     } 
   });
 
-function doConnect(remoteid) {
-  updateMessage('Connecting to '+remoteid);
-  // This is only necessary if you want to enable/connect in same motion. 
-  rtcommEndpoint.connect(remoteid);
-}
-
-function updatePresence(presenceData) {
-  console.log('updatePresence', presenceData);
-  var presenceHTML = '<ul class="nav nav-pills nav-stacked">';
-  for (var i=0; i<presenceData.length; i++) {
-    var node = presenceData[i];
-    if (myUserId === node.name) {
-      presenceHTML = presenceHTML+ '<li class="disabled" role="presentation" ><a id='+node.name+' href="#">'+node.name+'</a></li>';
+  $("#connectGo").on('click', function(event) {
+    var remoteid = $("#remoteid").val();
+    if (remoteid === "") {
+      $('#connAlert').show();
+      return false;
     } else {
-      presenceHTML = presenceHTML+ '<li role="presentation" ><a id='+node.name+' href="#">'+node.name+'</a></li>';
+      updateMessage('Connecting to '+remoteid);
+      // This is only necessary if you want to enable/connect in same motion. 
+      rtcommEndpoint.webrtc.enable({'trickleICE': trickleICE}, function(success, message) {
+        console.log('Enable Completed: '+ success);
+        if (success) {
+          rtcommEndpoint.connect(remoteid);
+        } else {
+          console.error('enable failed: '+ message)
+          }
+        });
+      $("#connectModal").modal("hide");
+      $('#connAlert').hide();
     }
-  };
-  presenceHTML = presenceHTML + '</ul>';
-  $('#presence').html(presenceHTML);
-};
+    return false;
+  });
 
   function alertMessage(message) {
-    $('#alertMessage').html(message);
-    $('#mainAlert').show();
-    $('#statusMessage').html("Please try again");
+    console.log('Updating statusMessge with ', message);
+    $('#statusMessage').css('color:red');
+    $('#statusMessage').html(message);
   }
 
   function updateConfig(obj1, obj2) {
@@ -556,9 +500,9 @@ function updatePresence(presenceData) {
   }
   function displayConfig() {
     var configHTML = "";
-    for (key in providerConfig) {
-      if (providerConfig.hasOwnProperty(key)) {
-        configHTML = configHTML + keyPairToHtml(key, providerConfig[key]);
+    for (key in epConfig) {
+      if (epConfig.hasOwnProperty(key)) {
+        configHTML = configHTML + keyPairToHtml(key, epConfig[key]);
       }
     }
     // console.log('trying to display '+configHTML);
@@ -588,32 +532,11 @@ function updatePresence(presenceData) {
     return paramhash;
   }
 
-// bootstrap/jquery make alerts closable
-$().alert();
-
-$(document).ready(function(){
-    $(document).on('click', '.nav-pills', function(e){
-       console.log('success e is: ', e);
-       console.log('success '+ e.target.id);
-       console.log('myUserID is: '+ myUserId);
-          if (e.target.id !== myUserId) {
-            doConnect(e.target.id);
-          }
-       });
-    });
-
-$('#chat-input').keypress(function(event){
-   var keycode = (event.keyCode ? event.keyCode : event.which);
-      if(keycode == '13'){
-        sendChat();
-      }
-});
-
 window.onload = function() {
-  console.log('ONLOAD! '+regOnload+' userid: '+myUserId);
-  if (regOnload && myUserId) {
+  console.log('ONLOAD! '+regOnload+' userid: '+userid);
+  if (regOnload && userid) {
     console.log('Calling doRegister!');
-    doRegister(myUserId);
+    doRegister(userid);
   }
 }
 </script>

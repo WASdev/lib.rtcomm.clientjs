@@ -1,7 +1,7 @@
 {
   "name": "rtcomm",
   "homepage": "https://github.com/WASdev/lib.rtcomm.clientjs",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "authors": [
     "Scott W Graham <swgraham@us.ibm.com>"
   ],

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="US-ASCII">
+<title>WebRTC rtcomm.* test</title>
+
+<script type="text/javascript" src="../../dist/rtcomm.js"> </script>
+<script type="text/javascript" src="../../src/mock/MockRtcommServer.js"></script> -->
+
+</head>
+
+<body>
+
+  <h1>MOCK MQTT Testing</h1> 
+  <hr>
+  <p></p>
+
+
+<script type="text/javascript">
+var ibmep = new rtcomm.EndpointProvider();
+var ibmep2 = new rtcomm.EndpointProvider();
+
+// Init a Mock Server
+
+MockRtcommServer.init();
+
+
+ibmep.init({'server':'localhost', 'port': 1883, 'userid':'scott'});
+//console.log(mockMqtt._getClients());
+//console.log(mockMqtt._getSubscriptions());
+ibmep2.init({'server':'localhost', 'port': 1883, 'userid': 'lula'});
+//console.log(mockMqtt._getClients());
+//console.log(mockMqtt._getSubscriptions());
+
+var ep = ibmep.getRtcommEndpoint();
+var ep2 = ibmep2.getRtcommEndpoint();
+
+ep2.connect('scott');
+//var util = ibm.rtcomm.util;
+
+// Create a service
+// This should create a Session Only node.
+// var endpoint =  EP.createRtcommNode({audio:false, video:false, data:false});
+</script>
+</body>
+
+</html>
