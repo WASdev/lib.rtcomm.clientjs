@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 24-02-2016 16:56:05 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 24-02-2016 16:56:05 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 26-02-2016 14:30:35 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 26-02-2016 14:30:35 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5355,7 +5355,7 @@ var RtcommEndpoint = (function invocation() {
        * @property {string} [ringbacktone=null] path to a ringbacktone to play on outbound call
        * @property {boolean} [webrtc=true]  Whether the endpoint supports webrtc
        * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~webrtcConfig} webrtcConfig - Object to configure webrtc with (rather than on enable)
-       * @property {boolean} [chat=true]  Wehther the endpoint supports chat
+       * @property {boolean} [chat=true]  Whether the endpoint supports chat
        * @property {module:rtcomm.RtcommEndpoint.WebRTCConnection~chatConfig} chatConfig - object to pre-configure chat with (rather than on enable)
        * @property {module:rtcomm.EndpointProvider} [parent] - set the parent Should be done automatically.
        *
@@ -5474,8 +5474,9 @@ var RtcommEndpoint = (function invocation() {
         this.config.webrtc && this.webrtc.enable();
       };
 
-      // generic-message is enabled by default and always availble for now
+      // generic-message and chat are enabled by default and always availble for now
       this.generic_message.enable();
+      this.chat.enable();
 
       // WebRTC Specific configuration.
       // TODO:  MOve to the webrtc protocol
