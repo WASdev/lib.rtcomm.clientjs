@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 26-02-2016 14:30:35 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 26-02-2016 14:30:35 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 26-02-2016 20:57:29 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 26-02-2016 20:57:29 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5385,7 +5385,8 @@ var RtcommEndpoint = (function invocation() {
         ep.createEvent('chat:message');
         chat.on('message', function(message) {
           // Should be '{message: blah, from: blah}'
-          ep.emit('chat:message', message);
+          // This is for backward compatibility
+          ep.emit('chat:message', {'message':message});
         });
         chat.on('alerting', function(message) {
           l('DEBUG') && console.log('RtcommEndpoint emitting session:alerting event');

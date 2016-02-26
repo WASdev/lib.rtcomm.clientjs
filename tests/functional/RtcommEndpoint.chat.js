@@ -212,8 +212,9 @@ define([
           var bad_alert = false;
           var c1_started = false;
           var c2_started = false;
-          var c1_rcv_message = null;
-          var c2_rcv_message = null;
+          // Store received messages in order
+          var c1_rcv_message = [];
+          var c2_rcv_message = [];
           var alert_message = false;
 
           var c1Toc2Msg = "Hello from c1";
@@ -226,13 +227,13 @@ define([
             /*
              * This is where we assert the test passed
              */
-            console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
+            console.log(' TEST >>>>>> FINISH, Asserting now --> ');
             assert.notOk(bad_alert, 'Chat1 alert should not be called');
             assert.ok(c1_started, 'Chat1 should be started');
             assert.ok(c2_started, 'Chat2 should be started');
-            assert.equal(c2_rcv_message,c1Toc2Msg,  'Chat2 received message from chat1');
-            assert.equal(c1_rcv_message,c2Toc1Msg,  'Chat1 received message from chat2');
-            assert.equal(alert_message,'client1 has initiated a Chat with you', "Received chat from startup");
+            assert.equal(c2_rcv_message[0].message,c1Toc2Msg,  'Chat2 received message from chat1');
+            assert.equal(c1_rcv_message[1].message,c2Toc1Msg,  'Chat1 received message from chat2');
+            assert.equal(c1_rcv_message[0].message,'client2@us.ibm.com has initiated a Chat with you', "Received chat from startup");
             console.log('TEST >>>>> Finished asserting');
           });
 
@@ -240,16 +241,22 @@ define([
             // Should not get here.
             bad_alert = true;
           });
-          chat1.on('session:started', dfd.callback(function(event){
+          chat1.on('session:started', function(event){
             c1_started = true;
             console.log(' TEST >>>>>> Chat 1Session Started Event --> Sending messages');
             chat1.chat.send(c1Toc2Msg);
             chat2.chat.send(c2Toc1Msg);
-          }));
+          });
           chat1.on('chat:message', function(event){
             console.log('Received a Chat message...', event);
-            c1_rcv_message = event.message;;
+            // store the message we received.
+            c1_rcv_message.push(event.message);
             // message is event_object.message.message
+            // When we get two messages stop.
+            if (c1_rcv_message.length === 2) {
+              // will call finish.
+              finish();
+            }
           });
           chat2.on('session:started', function(event){
             c2_started = true;
@@ -258,13 +265,13 @@ define([
           });
           chat2.on('session:alerting', function(event) {
            // assert.equal(event.protocols, 'chat', 'Correct protocol');
-            console.log('Received a Chat message...', event);
+            console.log('SessionAlerting Event: ', event);
             chat2.accept();
             alert_message = event.message;
           });
           chat2.on('chat:message', function(event){
             console.log('Received a Chat message...', event);
-            c2_rcv_message = event.message;
+            c2_rcv_message.push(event.message);
             // message is event_object.message.message
           });
           chat2.on('session:stopped', finish)

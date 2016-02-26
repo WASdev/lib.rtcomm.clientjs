@@ -56,7 +56,8 @@ var RtcommEndpoint = (function invocation() {
         ep.createEvent('chat:message');
         chat.on('message', function(message) {
           // Should be '{message: blah, from: blah}'
-          ep.emit('chat:message', message);
+          // This is for backward compatibility
+          ep.emit('chat:message', {'message':message});
         });
         chat.on('alerting', function(message) {
           l('DEBUG') && console.log('RtcommEndpoint emitting session:alerting event');
