@@ -99,6 +99,13 @@ var RtcommEndpoint = (function invocation() {
           });
         });
 
+        ep.createEvent('webrtc:connecting');
+        webrtc.on('connecting', function(event_obj) {
+          l('DEBUG') && console.log(ep+" webrtc.connecting - stop ringing ");
+          ep._stopRing();
+          ep.emit('webrtc:connecting');
+        });
+
         ep.createEvent('webrtc:connected');
         webrtc.on('connected', function(event_obj) {
           l('DEBUG') && console.log("on connected - stop ringing ");

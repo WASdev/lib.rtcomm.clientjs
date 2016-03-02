@@ -38,15 +38,10 @@ var ChatProtocol = function ChatProtocol() {
   function handleMessage(message) {
     l('DEBUG') && console.log(this + '.handleMessage() MESSAGE: ', message);
     var parent = this.dependencies.parent;
-    if (this.state === 'connected') {
-      this.emit('message', message);
-    } else if (this.state === 'alerting') {
-      // dropping message, not in a state to receive it.
-      l('DEBUG') && console.log(this + '.handleMessage() Dropping message -- unable to receive in alerting state');
-    } else {
-      l('DEBUG') && console.log(this + '.handleMessage() Dropping message -- Should have been handled elsewhere');
-    }
+    // In chat, we emit messages no matter what. 
+    this.emit('message', message);
   }
+
   var protocolDefinition = {
     'name': 'chat',
     'getStartMessage': getStartMessage,

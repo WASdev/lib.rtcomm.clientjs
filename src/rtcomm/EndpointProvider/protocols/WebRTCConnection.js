@@ -112,6 +112,7 @@
        'ringing': [],
        'trying': [],
        'connected': [],
+       'connecting': [],
        'disconnected': [],
        'remotemuted': [],
        '_notrickle': []
@@ -1160,7 +1161,9 @@
            // When this is connected, set our state to connected in webrtc.
            if (this.pc.iceConnectionState === 'closed' || this.pc.iceConnectionState === 'disconnected') {
              // wait for it to be 'Closed'  
-             this._disconnect();
+            this._disconnect();
+           } else if (this.pc.iceConnectionState === 'checking') {
+            this._setState('connecting');
            } else if (this.pc.iceConnectionState === 'connected') {
              this._setState('connected');
            }

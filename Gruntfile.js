@@ -191,7 +191,7 @@ module.exports = function(grunt) {
           // https://github.com/theintern/intern/wiki/Using-Intern-with-Grunt#task-options
           config: 'tests/intern',
           runner: 'client',
-          reporters: ['Console', 'Lcov', 'Junit']
+          reporters: ['Pretty']
         }
       },
       unit: {

@@ -126,12 +126,14 @@ In the above scenario, 'chat' and 'webrtc' are actually sub-protocols implemente
 
 All sub protocols support:
 
-`enable` -- Enable the protocol (will connect if a session is established)
-`disable` -- disable the protocol 
-`accept` -- accept an inbound request to use the protocol
-`connect` -- connect the protocol (if enabled)
-`disconnect` -- disconnect the protocol
-`send` -- send a protocol specific message
+| method| description|
+|-------|------------|
+|`enable` |Enable the protocol (will connect if a session is established)|
+|`disable` | disable the protocol| 
+|`accept` | accept an inbound request to use the protocol|
+|`connect` |connect the protocol (if enabled)|
+|`disconnect` | disconnect the protocol|
+|`send` | send a protocol specific message|
 
 ###### generic_message protocol
 
@@ -147,11 +149,6 @@ The generic_message protocol is enabled by default and can be used as follows:
       console.log('event.message contains the messag sent:', event.message);
     })
 ```
-
-
-
-
-
 
 ####Advanced Features of the EndpointProvider & RtcommEndpoint Objects
 

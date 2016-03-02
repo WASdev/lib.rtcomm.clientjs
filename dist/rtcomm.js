@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 26-02-2016 20:57:29 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 26-02-2016 20:57:29 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 02-03-2016 15:38:40 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 02-03-2016 15:38:41 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5428,6 +5428,13 @@ var RtcommEndpoint = (function invocation() {
           });
         });
 
+        ep.createEvent('webrtc:connecting');
+        webrtc.on('connecting', function(event_obj) {
+          l('DEBUG') && console.log(ep+" webrtc.connecting - stop ringing ");
+          ep._stopRing();
+          ep.emit('webrtc:connecting');
+        });
+
         ep.createEvent('webrtc:connected');
         webrtc.on('connected', function(event_obj) {
           l('DEBUG') && console.log("on connected - stop ringing ");
@@ -5805,15 +5812,10 @@ var ChatProtocol = function ChatProtocol() {
   function handleMessage(message) {
     l('DEBUG') && console.log(this + '.handleMessage() MESSAGE: ', message);
     var parent = this.dependencies.parent;
-    if (this.state === 'connected') {
-      this.emit('message', message);
-    } else if (this.state === 'alerting') {
-      // dropping message, not in a state to receive it.
-      l('DEBUG') && console.log(this + '.handleMessage() Dropping message -- unable to receive in alerting state');
-    } else {
-      l('DEBUG') && console.log(this + '.handleMessage() Dropping message -- Should have been handled elsewhere');
-    }
+    // In chat, we emit messages no matter what. 
+    this.emit('message', message);
   }
+
   var protocolDefinition = {
     'name': 'chat',
     'getStartMessage': getStartMessage,
@@ -5999,6 +6001,7 @@ GenericMessageProtocol.prototype.constructor = GenericMessageProtocol;
        'ringing': [],
        'trying': [],
        'connected': [],
+       'connecting': [],
        'disconnected': [],
        'remotemuted': [],
        '_notrickle': []
@@ -7047,7 +7050,9 @@ GenericMessageProtocol.prototype.constructor = GenericMessageProtocol;
            // When this is connected, set our state to connected in webrtc.
            if (this.pc.iceConnectionState === 'closed' || this.pc.iceConnectionState === 'disconnected') {
              // wait for it to be 'Closed'  
-             this._disconnect();
+            this._disconnect();
+           } else if (this.pc.iceConnectionState === 'checking') {
+            this._setState('connecting');
            } else if (this.pc.iceConnectionState === 'connected') {
              this._setState('connected');
            }

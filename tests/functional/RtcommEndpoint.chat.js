@@ -77,10 +77,10 @@ define([
 
           var p = new Promise(
             function(resolve, reject) {
-              Fat.createProvider(cfg1, appContext).then(
+              Fat.createProvider(cfg1, appContext, DEBUG).then(
                 function(EP){
                   EP1 = EP;
-                  Fat.createProvider(cfg2, appContext).then(
+                  Fat.createProvider(cfg2, appContext, DEBUG).then(
                     function(EP){
                       EP2 = EP;
                       resolve();
@@ -200,7 +200,14 @@ define([
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
           //chat1.connect(uid2);
         },
-        'Initial Chat message on connect (if enabled) [No Liberty]': function() {
+        'Initial Chat message on connect then pass message [No Liberty]': function() {
+          /*
+           * Enable chat on chat1 & chat2.
+           *
+           * Connect FROM Chat1.
+           * Chat2 should receive a 'chat1 has initiated a chat with you'
+           *
+           */
           console.log('***************** '+this.name+' ******************');
           console.log('chat1: ', chat1);
           console.log('chat2: ', chat2);
@@ -231,9 +238,11 @@ define([
             assert.notOk(bad_alert, 'Chat1 alert should not be called');
             assert.ok(c1_started, 'Chat1 should be started');
             assert.ok(c2_started, 'Chat2 should be started');
-            assert.equal(c2_rcv_message[0].message,c1Toc2Msg,  'Chat2 received message from chat1');
-            assert.equal(c1_rcv_message[1].message,c2Toc1Msg,  'Chat1 received message from chat2');
+
+            assert.equal(c2_rcv_message[0].message,'client1@us.ibm.com has initiated a Chat with you', "Received chat from startup");
+            assert.equal(c2_rcv_message[1].message,c1Toc2Msg,  'Chat2 received message from chat1');
             assert.equal(c1_rcv_message[0].message,'client2@us.ibm.com has initiated a Chat with you', "Received chat from startup");
+            assert.equal(c1_rcv_message[1].message,c2Toc1Msg,  'Chat1 received message from chat2');
             console.log('TEST >>>>> Finished asserting');
           });
 
@@ -255,7 +264,8 @@ define([
             // When we get two messages stop.
             if (c1_rcv_message.length === 2) {
               // will call finish.
-              finish();
+              // Wait 1 second and finish
+              setTimeout(finish, 1000);
             }
           });
           chat2.on('session:started', function(event){

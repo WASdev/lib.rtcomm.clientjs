@@ -8,7 +8,7 @@ define([
      * create an Endpoint Provider and init it in a promise-like fashion
      * Passes endpoint provider into promise;
      */
-    var createProvider = function createProvider(cfg,appContext) {
+    var createProvider = function createProvider(cfg,appContext, DEBUG) {
       var p = new Promise(
         function(resolve,reject) {
           var EP = new EndpointProvider();
@@ -20,6 +20,7 @@ define([
               }
             } else {
               EP.setAppContext(appContext);
+              DEBUG && EP.setLogLevel('DEBUG');
             }
           };
           EP.init(cfg,
