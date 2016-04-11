@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 02-03-2016 15:38:40 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 02-03-2016 15:38:41 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 02-03-2016 19:01:40 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 02-03-2016 19:01:40 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -4796,6 +4796,14 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
           } else if (commonProtocols.length > 0 || (this._.protocols.length === 0 && session.protocols.length === 0)) {
             // have a common protocol (or have NO protocols)
             // any other inbound session should be started.
+            // Disable any unsupported protocols (if enabled)
+            this._.protocols.forEach(function(protocol) {
+              if (commonProtocols.indexOf(protocol) === -1) {
+                // Not found, disable it if enabled
+                l('DEBUG') && console.log(this + '.newSession() Disabling Unsupported protocol: '+protocol);
+                this[protocol].enabled() && this[protocol].disable();
+              }
+            });
             session.start({
               protocols: commonProtocols
             });
@@ -5394,7 +5402,7 @@ var RtcommEndpoint = (function invocation() {
           obj.message = message;
           obj.protocols = 'chat';
           // Have to do setState here because the ep state needs to change.
-          ep.setState('session:alerting', obj);
+          (ep.lastEvent !== 'session:alerting') && ep.setState('session:alerting', obj);
         });
         ep.createEvent('chat:connected');
         chat.on('connected', function() {
@@ -5421,11 +5429,10 @@ var RtcommEndpoint = (function invocation() {
           ep._playRingback();
           (ep.lastEvent !== 'session:trying') && ep.emit('session:trying');
         });
+
         webrtc.on('alerting', function(event_obj) {
           ep._playRingtone();
-          ep.emit('session:alerting', {
-            protocols: 'ep.webrtc'
-          });
+          (ep.lastEvent !== 'session:alerting') && ep.emit('session:alerting', { protocols: 'webrtc'});
         });
 
         ep.createEvent('webrtc:connecting');

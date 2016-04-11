@@ -65,7 +65,7 @@ var RtcommEndpoint = (function invocation() {
           obj.message = message;
           obj.protocols = 'chat';
           // Have to do setState here because the ep state needs to change.
-          ep.setState('session:alerting', obj);
+          (ep.lastEvent !== 'session:alerting') && ep.setState('session:alerting', obj);
         });
         ep.createEvent('chat:connected');
         chat.on('connected', function() {
@@ -92,11 +92,10 @@ var RtcommEndpoint = (function invocation() {
           ep._playRingback();
           (ep.lastEvent !== 'session:trying') && ep.emit('session:trying');
         });
+
         webrtc.on('alerting', function(event_obj) {
           ep._playRingtone();
-          ep.emit('session:alerting', {
-            protocols: 'ep.webrtc'
-          });
+          (ep.lastEvent !== 'session:alerting') && ep.emit('session:alerting', { protocols: 'webrtc'});
         });
 
         ep.createEvent('webrtc:connecting');
