@@ -197,7 +197,7 @@
      disable: function disable(message) {
        if (this._.enabled) {
          this._.enabled = false;
-         this.onDisabledMessage = message;
+         this.onDisabledMessage = message || '';
          this.send(this.onDisabledMessage);
        }
        return null;

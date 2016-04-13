@@ -689,7 +689,7 @@
                l('DEBUG') && console.log(this + '.createAnswer sending answer as a RESPONSE[notrickle]');
                if (this.pc.localDescription) {
                  this._setState('connected');
-                 callback(true, this.createMessage(message));
+                 callback(true, this.createMessage(this.pc.localDescription));
                  // Old way: session.respond(true, this.createMessage(this.pc.localDescription));
                } else {
                  l('DEBUG') && console.log(this + '.createAnswer localDescription not set.');

@@ -278,16 +278,19 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
           } else if (commonProtocols.length > 0 || (this._.protocols.length === 0 && session.protocols.length === 0)) {
             // have a common protocol (or have NO protocols)
             // any other inbound session should be started.
-            // Disable any unsupported protocols (if enabled)
-            this._.protocols.forEach(function(protocol) {
-              if (commonProtocols.indexOf(protocol) === -1) {
-                // Not found, disable it if enabled
-                l('DEBUG') && console.log(this + '.newSession() Disabling Unsupported protocol: '+protocol);
-                this[protocol].enabled() && this[protocol].disable();
-              }
-            });
+	    // Disable any unsupported protocols (if enabled)
             session.start({
               protocols: commonProtocols
+            });
+	    
+	    var sessionContext = this;
+            this._.protocols.forEach(function(protocol) {
+
+		if (commonProtocols.indexOf(protocol) === -1) {
+                // Not found, disable it if enabled
+                l('DEBUG') && console.log(this + '.newSession() Disabling Unsupported protocol: '+protocol);
+                sessionContext[protocol].enabled() && sessionContext[protocol].disable();
+              }
             });
             // Depending on the session.message (i.e its peerContent or future content) then do something.
             session.pranswer();

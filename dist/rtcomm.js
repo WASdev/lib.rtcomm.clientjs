@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 02-03-2016 19:01:40 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 02-03-2016 19:01:40 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 13-04-2016 18:03:21 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 13-04-2016 18:03:21 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -4796,16 +4796,19 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
           } else if (commonProtocols.length > 0 || (this._.protocols.length === 0 && session.protocols.length === 0)) {
             // have a common protocol (or have NO protocols)
             // any other inbound session should be started.
-            // Disable any unsupported protocols (if enabled)
-            this._.protocols.forEach(function(protocol) {
-              if (commonProtocols.indexOf(protocol) === -1) {
-                // Not found, disable it if enabled
-                l('DEBUG') && console.log(this + '.newSession() Disabling Unsupported protocol: '+protocol);
-                this[protocol].enabled() && this[protocol].disable();
-              }
-            });
+	    // Disable any unsupported protocols (if enabled)
             session.start({
               protocols: commonProtocols
+            });
+	    
+	    var sessionContext = this;
+            this._.protocols.forEach(function(protocol) {
+
+		if (commonProtocols.indexOf(protocol) === -1) {
+                // Not found, disable it if enabled
+                l('DEBUG') && console.log(this + '.newSession() Disabling Unsupported protocol: '+protocol);
+                sessionContext[protocol].enabled() && sessionContext[protocol].disable();
+              }
             });
             // Depending on the session.message (i.e its peerContent or future content) then do something.
             session.pranswer();
@@ -5732,7 +5735,7 @@ var RtcommEndpoint = (function invocation() {
      disable: function disable(message) {
        if (this._.enabled) {
          this._.enabled = false;
-         this.onDisabledMessage = message;
+         this.onDisabledMessage = message || '';
          this.send(this.onDisabledMessage);
        }
        return null;
@@ -6585,7 +6588,7 @@ GenericMessageProtocol.prototype.constructor = GenericMessageProtocol;
                l('DEBUG') && console.log(this + '.createAnswer sending answer as a RESPONSE[notrickle]');
                if (this.pc.localDescription) {
                  this._setState('connected');
-                 callback(true, this.createMessage(message));
+                 callback(true, this.createMessage(this.pc.localDescription));
                  // Old way: session.respond(true, this.createMessage(this.pc.localDescription));
                } else {
                  l('DEBUG') && console.log(this + '.createAnswer localDescription not set.');
