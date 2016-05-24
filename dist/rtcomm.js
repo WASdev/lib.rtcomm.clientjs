@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 24-05-2016 17:58:32 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 24-05-2016 17:58:32 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 24-05-2016 19:38:26 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 24-05-2016 19:38:26 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5366,7 +5366,7 @@ var RtcommEndpoint = (function invocation() {
    *  @extends  module:rtcomm.SessionEndpoint
    */
   var RtcommEndpoint = function RtcommEndpoint(config) {
-      /** 
+      /**
        * @typedef {object} module:rtcomm.RtcommEndpoint~config
        *
        * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
@@ -5503,11 +5503,9 @@ var RtcommEndpoint = (function invocation() {
         this.config.chat && this.chat.enable();
         this.config.webrtc && this.webrtc.enable();
       };
-
-      // generic-message and chat are enabled by default and always availble for now
-      this.config.generic_message = true;
-      this.generic_message.enable();
-      this.chat.enable();
+      
+      this.config.generic_message && this.generic_message.enable();
+      this.config.chat && this.chat.enable();
 
       // WebRTC Specific configuration.
       // TODO:  MOve to the webrtc protocol
