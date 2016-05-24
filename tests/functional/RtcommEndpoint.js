@@ -718,8 +718,16 @@ registerSuite({
       assert.isTrue(ep1.chat.enabled(), 'ep1 chat is enabled');
       assert.isTrue(ep1.generic_message.enabled(), 'ep1 message is enabled')
       assert.isFalse(ep2.webrtc.enabled(), 'ep2 webrtc is not enabled');
-      assert.isTrue(ep2.chat.enabled(), 'ep2 chat is not enabled');
-      assert.isTrue(ep2.generic_message.enabled(), 'ep2 message is enabled')
+      assert.isTrue(ep2.chat.enabled(), 'ep2 chat is enabled');
+      assert.isTrue(ep2.generic_message.enabled(), 'ep2 message is enabled');
+
+      // Enable webrtc
+      ep1.webrtc.enable(null, dfd.callback(secondAssert));
+    }
+
+    function secondAssert(event_object) {
+      assert.isTrue(ep1.webrtc.enabled(), 'ep1 webrtc is enabled');
+      assert.isTrue(ep2.webrtc.enabled(), 'ep2 webrtc is enabled');
     }
 
     // Create our providers

@@ -39,6 +39,8 @@ var RtcommEndpoint = (function invocation() {
         userid: null,
         ringtone: null,
         ringbacktone: null,
+        // Always shold be true
+        generic_message: true,
         chat: true,
         chatConfig: {},
         webrtc: true,
@@ -153,6 +155,7 @@ var RtcommEndpoint = (function invocation() {
       };
 
       // generic-message and chat are enabled by default and always availble for now
+      this.config.generic_message = true;
       this.generic_message.enable();
       this.chat.enable();
 

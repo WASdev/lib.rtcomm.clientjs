@@ -278,17 +278,16 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
           } else if (commonProtocols.length > 0 || (this._.protocols.length === 0 && session.protocols.length === 0)) {
             // have a common protocol (or have NO protocols)
             // any other inbound session should be started.
-	    // Disable any unsupported protocols (if enabled)
+            // Disable any unsupported protocols (if enabled)
             session.start({
               protocols: commonProtocols
             });
-	    
-	    var sessionContext = this;
-            this._.protocols.forEach(function(protocol) {
 
-		if (commonProtocols.indexOf(protocol) === -1) {
+            var sessionContext = this;
+            this._.protocols.forEach(function(protocol) {
+              if (commonProtocols.indexOf(protocol) === -1) {
                 // Not found, disable it if enabled
-                l('DEBUG') && console.log(this + '.newSession() Disabling Unsupported protocol: '+protocol);
+                l('DEBUG') && console.log(this + '.newSession() Disabling Unsupported protocol: ' + protocol);
                 sessionContext[protocol].enabled() && sessionContext[protocol].disable();
               }
             });
@@ -349,11 +348,21 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
             if (self.hasOwnProperty(protocol)) {
               // we have this protocol defined pass message to the protocol
               // if protocol is enabled, pass the message
-              if (self[protocol].enabled()) {
-                l('DEBUG') && console.log(this + '_processMessage() passing to protocol:', protocol);
-                self[protocol]._processMessage(payload[protocol]);
+              if (self.config[protocol]) {
+                // If protocol is configured but not enabled
+                if(!self[protocol].enabled()) {
+                  l('DEBUG') && console.log(self + '._processMessage() enabling protocol:', protocol);
+                  // Enable, but don't connect. That should happen on Answer...
+                  self[protocol].enable({connect: false}, function() {
+                    l('DEBUG') && console.log(self + '._processMessage() passing to protocol:', protocol);
+                    self[protocol]._processMessage(payload[protocol]);
+                  });
+                } else {
+                  l('DEBUG') && console.log(self + '._processMessage() enabling protocol:', protocol);
+                  self[protocol]._processMessage(payload[protocol]);
+                }
               } else {
-                console.error('Received %s message, but not enabled!', protocol, payload[protocol]);
+                console.error('Received %s message, but not configured, current config:', protocol, self.config);
               }
             } else {
               console.error('Received %s message, but not supported!', protocol, payload[protocol]);
@@ -453,6 +462,7 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
           enabled.push(protocol);
         }
       }
+
       var msgCallback = function msgCallback(success, message) {
         // message should/must be {'protcool': {some message }}
         callbacks++;
@@ -669,7 +679,7 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
      * this.addProtocol(new ChatProtocol());
      * // this.chat will now be defined
      *
-     * @param {module:rtcomm.EndpointProvider.SubProtocol} a `new SubProtocol()` instance of a protocol 
+     * @param {module:rtcomm.EndpointProvider.SubProtocol} a `new SubProtocol()` instance of a protocol
      *
      */
     addProtocol: function addProtocol( /*SubProtocol or String*/ protocol) {

@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 13-04-2016 18:03:21 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 13-04-2016 18:03:21 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 24-05-2016 17:58:32 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 24-05-2016 17:58:32 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -4796,17 +4796,16 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
           } else if (commonProtocols.length > 0 || (this._.protocols.length === 0 && session.protocols.length === 0)) {
             // have a common protocol (or have NO protocols)
             // any other inbound session should be started.
-	    // Disable any unsupported protocols (if enabled)
+            // Disable any unsupported protocols (if enabled)
             session.start({
               protocols: commonProtocols
             });
-	    
-	    var sessionContext = this;
-            this._.protocols.forEach(function(protocol) {
 
-		if (commonProtocols.indexOf(protocol) === -1) {
+            var sessionContext = this;
+            this._.protocols.forEach(function(protocol) {
+              if (commonProtocols.indexOf(protocol) === -1) {
                 // Not found, disable it if enabled
-                l('DEBUG') && console.log(this + '.newSession() Disabling Unsupported protocol: '+protocol);
+                l('DEBUG') && console.log(this + '.newSession() Disabling Unsupported protocol: ' + protocol);
                 sessionContext[protocol].enabled() && sessionContext[protocol].disable();
               }
             });
@@ -4867,11 +4866,21 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
             if (self.hasOwnProperty(protocol)) {
               // we have this protocol defined pass message to the protocol
               // if protocol is enabled, pass the message
-              if (self[protocol].enabled()) {
-                l('DEBUG') && console.log(this + '_processMessage() passing to protocol:', protocol);
-                self[protocol]._processMessage(payload[protocol]);
+              if (self.config[protocol]) {
+                // If protocol is configured but not enabled
+                if(!self[protocol].enabled()) {
+                  l('DEBUG') && console.log(self + '._processMessage() enabling protocol:', protocol);
+                  // Enable, but don't connect. That should happen on Answer...
+                  self[protocol].enable({connect: false}, function() {
+                    l('DEBUG') && console.log(self + '._processMessage() passing to protocol:', protocol);
+                    self[protocol]._processMessage(payload[protocol]);
+                  });
+                } else {
+                  l('DEBUG') && console.log(self + '._processMessage() enabling protocol:', protocol);
+                  self[protocol]._processMessage(payload[protocol]);
+                }
               } else {
-                console.error('Received %s message, but not enabled!', protocol, payload[protocol]);
+                console.error('Received %s message, but not configured, current config:', protocol, self.config);
               }
             } else {
               console.error('Received %s message, but not supported!', protocol, payload[protocol]);
@@ -4971,6 +4980,7 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
           enabled.push(protocol);
         }
       }
+
       var msgCallback = function msgCallback(success, message) {
         // message should/must be {'protcool': {some message }}
         callbacks++;
@@ -5187,7 +5197,7 @@ SessionEndpoint.prototype = util.RtcommBaseObject.extend((function() {
      * this.addProtocol(new ChatProtocol());
      * // this.chat will now be defined
      *
-     * @param {module:rtcomm.EndpointProvider.SubProtocol} a `new SubProtocol()` instance of a protocol 
+     * @param {module:rtcomm.EndpointProvider.SubProtocol} a `new SubProtocol()` instance of a protocol
      *
      */
     addProtocol: function addProtocol( /*SubProtocol or String*/ protocol) {
@@ -5379,6 +5389,8 @@ var RtcommEndpoint = (function invocation() {
         userid: null,
         ringtone: null,
         ringbacktone: null,
+        // Always shold be true
+        generic_message: true,
         chat: true,
         chatConfig: {},
         webrtc: true,
@@ -5493,6 +5505,7 @@ var RtcommEndpoint = (function invocation() {
       };
 
       // generic-message and chat are enabled by default and always availble for now
+      this.config.generic_message = true;
       this.generic_message.enable();
       this.chat.enable();
 
@@ -6020,6 +6033,9 @@ GenericMessageProtocol.prototype.constructor = GenericMessageProtocol;
      this.pc = null;
      this.onEnabledMessage = null;
      this.onDisabledMessage = null;
+     // Queue for icecandidates if not enabled
+     this.messageQueue = [];
+     this.queueTimer = null;
 
      /* if we are running in cordova, we are mobile -- we need to alias this plugin
       * if it is installed.  but Only on iOS
@@ -6201,7 +6217,7 @@ GenericMessageProtocol.prototype.constructor = GenericMessageProtocol;
            if (success) {
              if (parent.sessionStarted()) {
                // Special case if we are 'enabled/connected' on a session We have send this message:
-               this.send(message);
+               self.send(message);
                callback(success, message);
              } else {
                callback(success, message);
@@ -6652,6 +6668,31 @@ GenericMessageProtocol.prototype.constructor = GenericMessageProtocol;
            return;
          }
          l('DEBUG') && console.log(this + "._processMessage Processing Message...", message);
+
+         // If we are not enabled, we won't process them, but will queue icecandidate messages 
+         // for a bit in case we are enabled shortly.
+         //
+         l('DEBUG') && console.log(this + "._processMessage Enabled? ...", this.enabled());
+         if (!this.enabled()) {
+           if(message.type && message.type === 'icecandidate') {
+             l('DEBUG') && console.log(self+ '._processMessage queuing icecandidate message');
+             self.messageQueue.push(message);
+             self.queueTimer = setTimeout(function messageQueueTimer() {
+               if (this.enabled()) {
+                 // Send the queued messages
+                 self.messageQueue.forEach(function sendQueuedMessage(msg) {
+                   self._processMessage(msg);
+                 });
+               } else {
+                 // drop all the messages
+                 self.messageQueue = [];
+                 self.timer = null;
+               }
+             });
+           }
+         }
+
+
          if (message.type) {
            switch (message.type) {
              case 'pranswer':

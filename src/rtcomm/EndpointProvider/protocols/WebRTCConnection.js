@@ -121,6 +121,9 @@
      this.pc = null;
      this.onEnabledMessage = null;
      this.onDisabledMessage = null;
+     // Queue for icecandidates if not enabled
+     this.messageQueue = [];
+     this.queueTimer = null;
 
      /* if we are running in cordova, we are mobile -- we need to alias this plugin
       * if it is installed.  but Only on iOS
@@ -302,7 +305,7 @@
            if (success) {
              if (parent.sessionStarted()) {
                // Special case if we are 'enabled/connected' on a session We have send this message:
-               this.send(message);
+               self.send(message);
                callback(success, message);
              } else {
                callback(success, message);
@@ -753,6 +756,31 @@
            return;
          }
          l('DEBUG') && console.log(this + "._processMessage Processing Message...", message);
+
+         // If we are not enabled, we won't process them, but will queue icecandidate messages 
+         // for a bit in case we are enabled shortly.
+         //
+         l('DEBUG') && console.log(this + "._processMessage Enabled? ...", this.enabled());
+         if (!this.enabled()) {
+           if(message.type && message.type === 'icecandidate') {
+             l('DEBUG') && console.log(self+ '._processMessage queuing icecandidate message');
+             self.messageQueue.push(message);
+             self.queueTimer = setTimeout(function messageQueueTimer() {
+               if (this.enabled()) {
+                 // Send the queued messages
+                 self.messageQueue.forEach(function sendQueuedMessage(msg) {
+                   self._processMessage(msg);
+                 });
+               } else {
+                 // drop all the messages
+                 self.messageQueue = [];
+                 self.timer = null;
+               }
+             });
+           }
+         }
+
+
          if (message.type) {
            switch (message.type) {
              case 'pranswer':
