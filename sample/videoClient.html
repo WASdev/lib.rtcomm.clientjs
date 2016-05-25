@@ -13,7 +13,7 @@
 #
 -->
 <html>
-<head>  
+<head>
 <meta charset="utf-8">
 <title>IBM WebRTC Demo </title>
 <!-- Load the CSS -->
@@ -49,7 +49,7 @@
        Register
       </button>
       <button id='btnConnect' class='btn btn-default' disabled='disabled'>
-         Connect  
+         Connect
       </button>
     </div>
      <div id='statusMessage' class="pull-right logo" style="font-size: 24px; padding-right: 30px">
@@ -138,33 +138,34 @@
   </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 
-<!-- 
-This is SAMPLE is dependent on jQuery and bootstrap. Both load from a CDN. Alternatively, download jquery 
+<!--
+This is SAMPLE is dependent on jQuery and bootstrap. Both load from a CDN. Alternatively, download jquery
 from jquery.com/downloads.  This app was tested with jQuery 2.1.1.
 -->
 <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
 
 <!-- The following paths may need to be modified depending on the location of this script. -->
-<!-- If you load via bower, use it this way
+<!-- If you load via bower, use it this way -->
 <script src="../bower_components/bower-mqttws/mqttws31.js"></script>
 <script src="../bower_components/webrtc-adapter/adapter.js"></script>
--->
-<script src="//git.eclipse.org/c/paho/org.eclipse.paho.mqtt.javascript.git/plain/src/mqttws31.js"></script>
-<script src="//cdn.rawgit.com/webrtc/adapter/master/adapter.js"></script>
+
+<!-- CDNs -->
+<!-- <script src="//git.eclipse.org/c/paho/org.eclipse.paho.mqtt.javascript.git/plain/src/mqttws31.js"></script>
+<script src="//cdn.rawgit.com/webrtc/adapter/master/adapter.js"></script> -->
 
 <script src="../dist/rtcomm.js"></script>
 
-<!-- 
+<!--
 The primary logic for this HTML Page
 -->
 <script>
 
   /*************************************************
-   * Define Globals 
+   * Define Globals
    *************************************************/
 
-  /* 
+  /*
    * Define the configuration for the EndpointProvider.  THis is REQUIRED and generally must be changed.
    * It MUST match the rtcomm configuration used on the liberty server.
    */
@@ -198,13 +199,13 @@ The primary logic for this HTML Page
    *
    * This function is the meat of the sample and shows how to
    * init the EndpointProvider using providerConfig provided above.  This
-   * config is using createEndpoint = true so that 
-   * the init returns a rtcommEndpoint object.  
+   * config is using createEndpoint = true so that
+   * the init returns a rtcommEndpoint object.
    *
    * This can be decoupled. getRtcommEndpoint() can be
-   * called on the fly after init() depending on the flow of your 
+   * called on the fly after init() depending on the flow of your
    * application
-   * 
+   *
    */
   function doRegister(userid) {
     updateMessage('Registering... '+ userid);
@@ -219,9 +220,9 @@ The primary logic for this HTML Page
               /* onSuccess for init() will pass an object:
                *  { endpoint: RtcommEndpoint ,   <-- RtcommEndpoint Object if created
                *     ready: boolean,             <-- We are ready to proceed.
-               *     } 
+               *     }
                */
-              function(object) { 
+              function(object) {
                 // Because createEndpoint is enabled, we expect an object
                 // returned in the onSuccess callback.
                 console.log('** videoClient.html ** init was successful, rtcommEndpoint: ', object);
@@ -244,19 +245,19 @@ The primary logic for this HTML Page
   });
 
   /*
-   *  Provide a default configuration for endpoints when they are created. 
-   * 
-   *  This happens prior to the doRegister above and defines the default callbacks to use for 
+   *  Provide a default configuration for endpoints when they are created.
+   *
+   *  This happens prior to the doRegister above and defines the default callbacks to use for
    *  all RtcommEndpoints created by the EndpointProvider.
    *
    */
   ibmep.setRtcommEndpointConfig({
-      // This means we will handle the enable on 'connect' 
-      autoEnable: true,     
-      // this handles the configuration of webrtc 
-      webrtcConfig: {       
-        broadcast:  { 
-          audio: true, 
+      // This means we will handle the enable on 'connect'
+      autoEnable: true,
+      // this handles the configuration of webrtc
+      webrtcConfig: {
+        broadcast:  {
+          audio: true,
           video: true},
         mediaOut: document.querySelector('#selfView'),
         mediaIn: document.querySelector('#remoteView')
@@ -265,11 +266,11 @@ The primary logic for this HTML Page
       ringbacktone: 'resources/ringbacktone.wav',
       // played when inbound call occurrs
       ringtone: 'resources/ringtone.wav',
-      // Fired when webrtc is connected 
+      // Fired when webrtc is connected
       'webrtc:connected': function(event_object) {
         uiConnect("Connected to "+event_object.endpoint.getRemoteEndpointID());
       },
-      // Fired when webrtc is disconnected 
+      // Fired when webrtc is disconnected
       'webrtc:disconnected': function(event_object) {
          // Reset the UI
          try {
@@ -293,13 +294,13 @@ The primary logic for this HTML Page
       'session:failed': function(event_object) {
         alertMessage("Connection failed - reason: "+event_object.reason);
       },
-      // An inbound Refer was received.  
+      // An inbound Refer was received.
       'session:refer': function(conn) {
         $('#answerDialog .modal-body').html(
             "[3PCC] Initiate call to " + conn.endpoint.getRemoteEndpointID());
         $('#answerDialog').modal('show');
-      }, 
-      /* The remote user muted audio or video 
+      },
+      /* The remote user muted audio or video
        * Check event_object.audio and event_object.video to see what was muted/unmuted
        *
        * This is necessary to indicate in the UI it has been muted.
@@ -308,17 +309,17 @@ The primary logic for this HTML Page
         var msg = 'The remote user ';
         if (event_object.audio) {
           if (event_object.video) {
-            msg = msg + ' resumed their broadcast'; 
+            msg = msg + ' resumed their broadcast';
           } else {
-            msg = msg + ' muted their audio broadcast'; 
+            msg = msg + ' muted their audio broadcast';
           }
         } else {
           if (event_object.video) {
             // audio false, video true
-            msg = msg + ' muted their audio broadcast'; 
+            msg = msg + ' muted their audio broadcast';
           } else {
             // both false
-            msg = msg + ' muted their broadcast'; 
+            msg = msg + ' muted their broadcast';
           }
         }
        updateMessage(msg);
@@ -330,7 +331,7 @@ The primary logic for this HTML Page
    *
    * This section handles manipulating the UI via jQuery/bootstrap
    * in reaction to doRegister and the endpointCallbacks.
-   ****************************************************************/ 
+   ****************************************************************/
 
   function uiConnect(message) {
       $('#btnConnect').text('Disconnect');
@@ -428,7 +429,7 @@ The primary logic for this HTML Page
         rtcommEndpoint.webrtc.mute();
         $('#toggleIcon').removeClass('glyphicon-pause').addClass('glyphicon-play');
       }
-    } 
+    }
   });
 
   $("#connectGo").on('click', function(event) {
@@ -438,7 +439,7 @@ The primary logic for this HTML Page
       return false;
     } else {
       updateMessage('Connecting to '+remoteid);
-      // This is only necessary if you want to enable/connect in same motion. 
+      // This is only necessary if you want to enable/connect in same motion.
       rtcommEndpoint.connect(remoteid);
       $("#connectModal").modal("hide");
       $('#connAlert').hide();
