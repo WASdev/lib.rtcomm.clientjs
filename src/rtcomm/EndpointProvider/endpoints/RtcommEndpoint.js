@@ -33,7 +33,7 @@ var RtcommEndpoint = (function invocation() {
        */
       var defaultConfig = {
         // if a feature is supported, enable by default.
-        autoEnable: true,
+        autoEnable: false,
         ignoreAppContext: true,
         appContext: null,
         userid: null,

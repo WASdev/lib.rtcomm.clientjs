@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 25-05-2016 17:06:14 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 25-05-2016 17:06:14 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 25-05-2016 17:55:38 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 25-05-2016 17:55:38 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5384,7 +5384,7 @@ var RtcommEndpoint = (function invocation() {
        */
       var defaultConfig = {
         // if a feature is supported, enable by default.
-        autoEnable: true,
+        autoEnable: false,
         ignoreAppContext: true,
         appContext: null,
         userid: null,
