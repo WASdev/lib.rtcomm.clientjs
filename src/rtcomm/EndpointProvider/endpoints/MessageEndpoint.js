@@ -19,6 +19,7 @@ var MessageEndpoint = (function(config) {
     this.addProtocol(new GenericMessageProtocol());
     addGenericMessageHandlers(this);
     // Enabled by default
+    this.config.generic_message = true;
     this.generic_message.enable();
   }
 

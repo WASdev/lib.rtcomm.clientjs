@@ -139,6 +139,7 @@ var RtcommEndpoint = (function invocation() {
         });
       };
 
+      config = util.combineObjects(defaultConfig, config);
       // Call the Super Constructor
       SessionEndpoint.call(this, config);
       // Add the protocols

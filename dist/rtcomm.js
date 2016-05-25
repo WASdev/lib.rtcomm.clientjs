@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 24-05-2016 17:58:32 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 24-05-2016 17:58:32 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 25-05-2016 14:48:51 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 25-05-2016 14:48:51 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5251,6 +5251,7 @@ var MessageEndpoint = (function(config) {
     this.addProtocol(new GenericMessageProtocol());
     addGenericMessageHandlers(this);
     // Enabled by default
+    this.config.generic_message = true;
     this.generic_message.enable();
   }
 
@@ -5489,6 +5490,7 @@ var RtcommEndpoint = (function invocation() {
         });
       };
 
+      config = util.combineObjects(defaultConfig, config);
       // Call the Super Constructor
       SessionEndpoint.call(this, config);
       // Add the protocols
