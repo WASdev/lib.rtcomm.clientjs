@@ -714,6 +714,7 @@ registerSuite({
     // Called on endpoint1 session:started
     // Check the state.  webrtc/chat shoudl be disabled.
     function firstAssert(event_object) {
+      console.log('************* firstAssert  **************');
       assert.isFalse(ep1.webrtc.enabled(), 'ep1 webrtc is not enabled');
       assert.isTrue(ep1.chat.enabled(), 'ep1 chat is enabled');
       assert.isTrue(ep1.generic_message.enabled(), 'ep1 message is enabled')
@@ -722,10 +723,12 @@ registerSuite({
       assert.isTrue(ep2.generic_message.enabled(), 'ep2 message is enabled');
 
       // Enable webrtc
+      console.log('************* Enabling WEBRTC **************');
       ep1.webrtc.enable(null, dfd.callback(secondAssert));
     }
 
     function secondAssert(event_object) {
+      console.log('************* SecondAssert  **************');
       assert.isTrue(ep1.webrtc.enabled(), 'ep1 webrtc is enabled');
       assert.isTrue(ep2.webrtc.enabled(), 'ep2 webrtc is enabled');
     }

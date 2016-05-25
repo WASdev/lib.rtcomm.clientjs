@@ -16,7 +16,7 @@ var RtcommEndpoint = (function invocation() {
    *  @extends  module:rtcomm.SessionEndpoint
    */
   var RtcommEndpoint = function RtcommEndpoint(config) {
-      /** 
+      /**
        * @typedef {object} module:rtcomm.RtcommEndpoint~config
        *
        * @property {boolean} [autoEnable=false]  Automatically enable webrtc/chat upon connect if feature is supported (webrtc/chat = true);
@@ -139,7 +139,7 @@ var RtcommEndpoint = (function invocation() {
         });
       };
 
-      config = util.combineObjects(defaultConfig, config);
+      config = util.combineObjects(config, defaultConfig);
       // Call the Super Constructor
       SessionEndpoint.call(this, config);
       // Add the protocols
@@ -155,10 +155,8 @@ var RtcommEndpoint = (function invocation() {
         this.config.webrtc && this.webrtc.enable();
       };
 
-      // generic-message and chat are enabled by default and always availble for now
-      this.config.generic_message = true;
-      this.generic_message.enable();
-      this.chat.enable();
+      this.config.generic_message && this.generic_message.enable();
+      this.config.chat && this.chat.enable();
 
       // WebRTC Specific configuration.
       // TODO:  MOve to the webrtc protocol
