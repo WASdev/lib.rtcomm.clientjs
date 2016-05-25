@@ -1,5 +1,5 @@
-/*! lib.rtcomm.clientjs 1.0.9 25-05-2016 15:19:51 UTC */
-console.log('lib.rtcomm.clientjs 1.0.9 25-05-2016 15:19:51 UTC');
+/*! lib.rtcomm.clientjs 1.0.9 25-05-2016 17:06:14 UTC */
+console.log('lib.rtcomm.clientjs 1.0.9 25-05-2016 17:06:14 UTC');
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module.
@@ -5491,11 +5491,8 @@ var RtcommEndpoint = (function invocation() {
       };
 
       config = util.combineObjects(config, defaultConfig);
-      console.log('CONFIG!!!! ', config);
       // Call the Super Constructor
       SessionEndpoint.call(this, config);
-
-      console.log('this.CONFIG!!!! ', this.config);
       // Add the protocols
       this.addProtocol(new ChatProtocol());
       this.addProtocol(new WebRTCConnection(this));
