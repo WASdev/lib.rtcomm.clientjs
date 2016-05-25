@@ -8,15 +8,24 @@ define([
      * create an Endpoint Provider and init it in a promise-like fashion
      * Passes endpoint provider into promise;
      */
-    var createProvider = function createProvider(cfg,appContext) {
+    var createProvider = function createProvider(cfg,appContext, DEBUG) {
       var p = new Promise(
         function(resolve,reject) {
           var EP = new EndpointProvider();
           if(typeof appContext !== 'undefined') {
-            EP.setAppContext(appContext);
+            if (typeof appContext === 'boolean') {
+              // It is DEBUG level
+              if (appContext) { 
+                EP.setLogLevel('DEBUG');
+              }
+            } else {
+              EP.setAppContext(appContext);
+              DEBUG && EP.setLogLevel('DEBUG');
+            }
           };
           EP.init(cfg,
             function(message) { 
+              console.log('Fat Utils Created and init Provider: ', EP);
               resolve(EP);
             },
             function(message) { console.error('init failed', message); reject(message);}

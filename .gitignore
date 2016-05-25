@@ -3,4 +3,9 @@ build
 /bower_components
 /tmp
 **/__*
-
+.project
+.settings
+/dist/jsdoc
+/dist/mock
+/dist/umd/
+lcov.info

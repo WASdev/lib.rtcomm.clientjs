@@ -115,9 +115,40 @@ The available events are:
 <tr><td>chat:message</td><td> A message has arrived from a peer </td></tr>
 <tr><td>chat:connected </td><td>A chat connection has been established</td></tr>
 <tr><td>chat:disconnected</td><td>A chat connection has been closed</td></tr>
+<tr><td>generic_message:message</td><td>A chat connection has been closed</td></tr>
 </table>
 
 Further information on the RtcommEndpoint API is located in the *jsdoc* which is available in the sample zip file or when you clone and build the project using `grunt`
+
+
+##### Sub Protocols
+In the above scenario, 'chat' and 'webrtc' are actually sub-protocols implemented on top of the SessionEndpoint.  This combination is the RtcommEndpoint.  Another supported, general messaging protocol is 'generic_message'.  This protocol is enabled by default on the RtcommEndpoint.  
+
+All sub protocols support:
+
+| method| description|
+|-------|------------|
+|`enable` |Enable the protocol (will connect if a session is established)|
+|`disable` | disable the protocol| 
+|`accept` | accept an inbound request to use the protocol|
+|`connect` |connect the protocol (if enabled)|
+|`disconnect` | disconnect the protocol|
+|`send` | send a protocol specific message|
+
+###### generic_message protocol
+
+The generic_message protocol is enabled by default and can be used as follows:
+
+``` javascript
+    // Send a generic message over the session to the other endpoint
+    // What is sent can be anything
+    rtcommEndpoint.generic_message.send('Some text or object');
+
+    // Receive the message
+    rtcommEndpoint.on('generic_message:message', function(event) {
+      console.log('event.message contains the messag sent:', event.message);
+    })
+```
 
 ####Advanced Features of the EndpointProvider & RtcommEndpoint Objects
 

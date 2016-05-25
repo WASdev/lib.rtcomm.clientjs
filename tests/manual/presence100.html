@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="US-ASCII">
+<title>WebRTC rtcomm.* test</title>
+<script type="text/javascript" src="../../lib/mqttws31.js" ></script>
+<script type="text/javascript" src="../../dist/rtcomm.js" ></script>
+</head>
+
+<body>
+
+  <h1>Create 100 Presence EndPoints Provider Testing </h1> 
+  <hr>
+  <p></p>
+
+
+<script type="text/javascript">
+
+	// Create a service
+console.log("Starting Test");
+var myConfig = { 
+            createEndpoint: false,
+            server: 'svt-msd4.rtp.raleigh.ibm.com', 
+          //  server: '192.84.45.43', 
+            port: 1883, 
+            userid: 'scott', 
+            managementTopicName: 'management', 
+            rtcommTopicPath: '/rtcomm-helpdesk-demo/',
+//            rtcommTopicPath: '/rtcommscott/',
+            presence: { 
+              topic: 'agents'
+            },
+            appContext:'rtcommtest'
+};
+
+var createProvider = function createProvider(userid, presenceTopic) {
+  var EP = new rtcomm.EndpointProvider();
+  EP.setLogLevel('DEBUG');
+  var rtcEP = null;
+  myConfig.userid = userid || myConfig.userid;
+  myConfig.presence.topic = presenceTopic || myConfig.presence.topic;
+  EP.init(myConfig,
+    function(message) { 
+    console.log('<****** '+EP.getUserID()+' ******> init was successful');
+ //   EP.publishPresence();
+    },
+    function(message) { console.error('init failed', message)}
+  );
+  return EP;
+}
+
+var EPs = [];
+var rootTopics = ['agents', 'customers', 'managers'];
+for(var i=0;i<2;i++) {
+  console.log('Pushing... '+i);
+  var topic = rootTopics[i%rootTopics.length];
+  console.log('Pushing... '+topic);
+  EPs.push(createProvider('TestAgent_'+i, topic));
+}
+
+// This should create a Session Only node.
+// var endpoint =  EP.createRtcommNode({audio:false, video:false, data:false});
+
+</script>
+</body>
+
+</html>

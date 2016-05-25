@@ -77,10 +77,10 @@ define([
 
           var p = new Promise(
             function(resolve, reject) {
-              Fat.createProvider(cfg1, appContext).then(
+              Fat.createProvider(cfg1, appContext, DEBUG).then(
                 function(EP){
                   EP1 = EP;
-                  Fat.createProvider(cfg2, appContext).then(
+                  Fat.createProvider(cfg2, appContext, DEBUG).then(
                     function(EP){
                       EP2 = EP;
                       resolve();
@@ -110,8 +110,8 @@ define([
             function(resolve, reject) {
               chat1 && chat1.destroy();
               chat2 && chat2.destroy();
-              chat1 = EP1.createRtcommEndpoint();
-              chat2 = EP2.createRtcommEndpoint();
+              chat1 = EP1.createRtcommEndpoint({chat: true, webrtc: false});
+              chat2 = EP2.createRtcommEndpoint({chat: true, webrtc: false});
               setTimeout(function(){
                 console.log('BeforeEach -- waiting 1 second for cleanup/restart to complete');
                 resolve();
@@ -130,9 +130,10 @@ define([
           console.log('***************** '+this.name+' ******************');
           var dfd = this.async(10000);
           chat1.on('chat:message', function(message){
-            console.log('****************************MESSAGE ***', message)
+            console.log('****************************MESSAGE ***', message);
           });
           chat2.on('session:alerting', function(){
+            console.log('****************************Accepting allerting***');
             chat2.accept();
           });
           var finish = dfd.callback( function(obj) {
@@ -144,13 +145,18 @@ define([
             assert.equal(chat1.chat.getState(),'connected','Chat1--Chat Connected!');
             assert.equal(chat2.chat.getState(),'connected','Chat2--Chat Connected!');
 
-            console.log('chat1.webrtc.getState():'+chat1.webrtc.getState());
-            console.log('chat2.webrtc.getState():'+chat2.webrtc.getState());
+           // console.log('chat1.webrtc.getState():'+chat1.webrtc.getState());
+           // console.log('chat2.webrtc.getState():'+chat2.webrtc.getState());
             //assert.equal(chat1.chat.getState(),'connected','Chat1--Chat Connected!');
             //assert.equal(chat2.chat.getState(),'connected','Chat2--Chat Connected!');
           });   
           chat1.on('session:started',finish);
           console.log('USING UID: ', uid2);
+          // Enable chat
+          chat1.chat.enable();
+          chat2.chat.enable();
+
+          // Connect chat
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
         //  chat1.connect(uid2);
         },
@@ -179,12 +185,14 @@ define([
           });   
           
           chat1.on('session:started',function() {
+            console.log('****************************Initial Session Started ***');
             // Now create a 3rd endpoint
             Fat.createProvider(config.clientConfig('client3'),appContext).then(
               function(EP){
                 EP3 = EP;
-                chat3 = EP.createRtcommEndpoint();
+                chat3 = EP.createRtcommEndpoint({chat:true, webrtc: false});
                 chat3.on('session:failed',finish);
+                console.log('****************************Trying to connect 3rd endpoint connection ***');
                 chat3.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
                 //chat3.connect(uid2);
             });
@@ -192,7 +200,14 @@ define([
           chat1.connect({remoteEndpointID: uid2, toTopic: EP2.dependencies.endpointConnection.config.myTopic});
           //chat1.connect(uid2);
         },
-        'Initial Chat message on connect (if enabled) [No Liberty]': function() {
+        'Initial Chat message on connect then pass message [No Liberty]': function() {
+          /*
+           * Enable chat on chat1 & chat2.
+           *
+           * Connect FROM Chat1.
+           * Chat2 should receive a 'chat1 has initiated a chat with you'
+           *
+           */
           console.log('***************** '+this.name+' ******************');
           console.log('chat1: ', chat1);
           console.log('chat2: ', chat2);
@@ -204,26 +219,30 @@ define([
           var bad_alert = false;
           var c1_started = false;
           var c2_started = false;
-          var c1_rcv_message = null;
-          var c2_rcv_message = null;
+          // Store received messages in order
+          var c1_rcv_message = [];
+          var c2_rcv_message = [];
           var alert_message = false;
 
           var c1Toc2Msg = "Hello from c1";
           var c2Toc1Msg = "Hello from c2";
 
           chat1.chat.enable();
+          chat2.chat.enable();
 
           var finish = dfd.callback(function(event){
             /*
              * This is where we assert the test passed
              */
-            console.log(' TEST >>>>>> Session Started Event --> '+event.endpoint.getLocalEndpointID());
+            console.log(' TEST >>>>>> FINISH, Asserting now --> ');
             assert.notOk(bad_alert, 'Chat1 alert should not be called');
             assert.ok(c1_started, 'Chat1 should be started');
             assert.ok(c2_started, 'Chat2 should be started');
-            assert.equal(c2_rcv_message,c1Toc2Msg,  'Chat2 received message from chat1');
-            assert.equal(c1_rcv_message,c2Toc1Msg,  'Chat1 received message from chat2');
-            assert.equal(alert_message,'client1 has initiated a Chat with you', "Received chat from startup");
+
+            assert.equal(c2_rcv_message[0].message,'client1@us.ibm.com has initiated a Chat with you', "Received chat from startup");
+            assert.equal(c2_rcv_message[1].message,c1Toc2Msg,  'Chat2 received message from chat1');
+            assert.equal(c1_rcv_message[0].message,'client2@us.ibm.com has initiated a Chat with you', "Received chat from startup");
+            assert.equal(c1_rcv_message[1].message,c2Toc1Msg,  'Chat1 received message from chat2');
             console.log('TEST >>>>> Finished asserting');
           });
 
@@ -231,16 +250,23 @@ define([
             // Should not get here.
             bad_alert = true;
           });
-          chat1.on('session:started', dfd.callback(function(event){
+          chat1.on('session:started', function(event){
             c1_started = true;
             console.log(' TEST >>>>>> Chat 1Session Started Event --> Sending messages');
             chat1.chat.send(c1Toc2Msg);
             chat2.chat.send(c2Toc1Msg);
-          }));
+          });
           chat1.on('chat:message', function(event){
             console.log('Received a Chat message...', event);
-            c1_rcv_message = event.message;;
+            // store the message we received.
+            c1_rcv_message.push(event.message);
             // message is event_object.message.message
+            // When we get two messages stop.
+            if (c1_rcv_message.length === 2) {
+              // will call finish.
+              // Wait 1 second and finish
+              setTimeout(finish, 1000);
+            }
           });
           chat2.on('session:started', function(event){
             c2_started = true;
@@ -249,13 +275,13 @@ define([
           });
           chat2.on('session:alerting', function(event) {
            // assert.equal(event.protocols, 'chat', 'Correct protocol');
-            console.log('Received a Chat message...', event);
+            console.log('SessionAlerting Event: ', event);
             chat2.accept();
             alert_message = event.message;
           });
           chat2.on('chat:message', function(event){
             console.log('Received a Chat message...', event);
-            c2_rcv_message = event.message;
+            c2_rcv_message.push(event.message);
             // message is event_object.message.message
           });
           chat2.on('session:stopped', finish)

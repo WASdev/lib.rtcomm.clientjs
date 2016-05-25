@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="US-ASCII">
+<title>WebRTC session endpoint test</title>
+<script type="text/javascript" src="../../bower_components/bower-mqttws/mqttws31.js" ></script>
+<script type="text/javascript" src="../../bower_components/webrtc-adapter/adapter.js" ></script>
+<script type="text/javascript" src="../../dist/rtcomm.js" ></script>
+</head>
+
+<body>
+
+  <h1>EndPoint Provider Testing( Session Endpoint) </h1>
+  <hr>
+  <p></p>
+
+
+<script type="text/javascript">
+
+	// Create a service
+console.log("Starting Test");
+var myConfig = {
+            createEndpoint: false,
+            server: 'localhost',
+            userid: 'scott',
+            rtcommTopicPath: '/rtcommscott/'
+};
+
+var createProvider = function createProvider(userid) {
+  var EP = new rtcomm.EndpointProvider();
+  EP.setLogLevel('DEBUG');
+  var rtcEP = null;
+  myConfig.userid = userid || myConfig.userid;
+  EP.init(myConfig,
+    function(message) {
+      console.log('init was successful', message);
+    },
+    function(message) { console.error('init failed', message)}
+  );
+  return EP;
+}
+
+var EP1 = createProvider('scott');
+var EP2 = createProvider('lula');
+
+var protocolDefinition = {
+  'name': 'message',
+  'getStartMessage': function() {
+    return this.constructMessage("Message Protocol initiated");
+  },
+  'getStopMessage': function() {
+    return this.constructMessage("Message Protocol stopped");
+  },
+  'constructMessage': function(message) {
+    // craft message correctly, returns object
+    return {'message': message};
+  },
+	'handleMessage' : function(message) {
+		console.log('Received a message: ', message);
+	}
+}
+
+var msgProtocol = new EP1.createSubProtocol(protocolDefinition)
+
+
+
+var scott = EP1.getRtcommEndpoint();
+//scott.addProtocol(ChatProtocol());
+scott.on('session:alerting', function() {
+  console.log('accepting...');
+    scott.accept();
+    });
+
+var lula = EP2.getRtcommEndpoint();
+//lula.addProtocol(ChatProtocol());
+
+lula.on('session:alerting', function() {
+  console.log('accepting...');
+    lula.accept();
+    });
+
+
+// This should create a Session Only node.
+// var endpoint =  EP.createRtcommNode({audio:false, video:false, data:false});
+
+</script>
+</body>
+
+</html>

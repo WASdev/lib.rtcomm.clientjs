@@ -15,7 +15,8 @@
  */
 /**
  * @module rtcomm
- * @requires {@link mqttws31.js}
+ * @requires {@link http://git.eclipse.org/c/paho/org.eclipse.paho.mqtt.javascript.git/tree/src|mqttws31.js}
+ * @requires {@link https://github.com/webrtc/adapter | webrtc-adapter.js}
  *
  */
 /*global l:false*/
